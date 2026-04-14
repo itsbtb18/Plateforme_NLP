@@ -22,6 +22,7 @@ import logging
 import re
 import time
 from typing import Any
+from urllib.parse import quote_plus
 
 import requests
 from django.conf import settings
@@ -30,6 +31,10 @@ logger = logging.getLogger(__name__)
 
 # ─── Constants ──────────────────────────────────────────────────────
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+GEMINI_CHAT_URL_TEMPLATE = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    "{model}:generateContent?key={api_key}"
+)
 
 # Expected keys in the LLM response — used for basic schema validation.
 EXPECTED_KEYS = {
@@ -171,7 +176,7 @@ Webpage text:
 
 
 class GroqLLMClient:
-    """Thin wrapper around the Groq Chat Completions API."""
+    """Scraping LLM client with provider routing (Gemini/Groq)."""
 
     def __init__(
         self,
@@ -189,22 +194,84 @@ class GroqLLMClient:
         self.max_retries = max_retries or getattr(
             settings, "GROQ_SCRAPING_MAX_RETRIES", 2
         )
+
+        self.primary_provider = str(
+            getattr(settings, "SCRAPING_LLM_PRIMARY_PROVIDER", "gemini")
+        ).strip().lower()
+        self.fallback_provider = str(
+            getattr(settings, "SCRAPING_LLM_FALLBACK_PROVIDER", "groq")
+        ).strip().lower()
+        self.mode = str(
+            getattr(settings, "SCRAPING_LLM_MODE", "primary_with_fallback")
+        ).strip().lower()
+
+        self.gemini_api_key = str(
+            getattr(settings, "GEMINI_SCRAPING_API_KEY", "") or ""
+        ).strip()
+        self.gemini_model = str(
+            getattr(settings, "GEMINI_SCRAPING_MODEL", "gemini-2.5-flash")
+            or "gemini-2.5-flash"
+        ).strip()
+        self.gemini_timeout = max(
+            1,
+            min(int(getattr(settings, "GEMINI_SCRAPING_TIMEOUT", 30) or 30), 60),
+        )
+        self.gemini_max_retries = max(
+            0,
+            int(getattr(settings, "GEMINI_SCRAPING_MAX_RETRIES", 2) or 2),
+        )
+        self.gemini_max_rpm = max(
+            1,
+            int(getattr(settings, "GEMINI_SCRAPING_MAX_RPM", 10) or 10),
+        )
+
         self._session = requests.Session()
+        self._gemini_request_timestamps: list[float] = []
         self.last_status_code: int | None = None
         self.last_error_message: str = ""
+        self.last_provider_used: str = ""
 
     @property
     def is_configured(self) -> bool:
-        return bool(self.api_key)
+        return self._is_provider_configured(self.primary_provider) or self._is_provider_configured(
+            self.fallback_provider
+        )
 
-    # ── Core chat call ──────────────────────────────────────────────
-    def _chat(self, system: str, user: str) -> str | None:
-        """Send a chat completion request and return the assistant text."""
-        if not self.is_configured:
+    def _is_provider_configured(self, provider: str) -> bool:
+        normalized = (provider or "").strip().lower()
+        if normalized == "gemini":
+            return bool(self.gemini_api_key)
+        if normalized == "groq":
+            return bool(self.api_key)
+        return False
+
+    @staticmethod
+    def _is_retryable_status(status_code: int | None) -> bool:
+        if not isinstance(status_code, int):
+            return True
+        return status_code in {408, 409, 413, 429, 500, 502, 503, 504}
+
+    def _respect_gemini_rate_limit(self) -> None:
+        now = time.time()
+        window_start = now - 60.0
+        self._gemini_request_timestamps = [
+            ts for ts in self._gemini_request_timestamps if ts >= window_start
+        ]
+
+        if len(self._gemini_request_timestamps) >= self.gemini_max_rpm:
+            oldest = self._gemini_request_timestamps[0]
+            sleep_for = max(0.0, 60.0 - (now - oldest))
+            if sleep_for > 0:
+                logger.info("Gemini free-tier rate limiting sleep=%.2fs", sleep_for)
+                time.sleep(sleep_for)
+
+        self._gemini_request_timestamps.append(time.time())
+
+    def _chat_with_groq(self, system: str, user: str) -> str | None:
+        if not self.api_key:
+            self.last_error_message = "groq_not_configured"
+            self.last_status_code = None
             return None
-
-        self.last_status_code = None
-        self.last_error_message = ""
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -229,9 +296,11 @@ class GroqLLMClient:
             self.last_status_code = int(resp.status_code)
             resp.raise_for_status()
             data = resp.json()
+            self.last_provider_used = "groq"
             return data["choices"][0]["message"]["content"]
         except requests.Timeout:
             self.last_error_message = "timeout"
+            self.last_status_code = 408
             logger.info("Groq API timeout after %ds", self.timeout)
         except requests.RequestException as exc:
             response = getattr(exc, "response", None)
@@ -251,6 +320,141 @@ class GroqLLMClient:
             self.last_error_message = "Unexpected Groq response structure"
             logger.warning("Unexpected Groq response structure")
         return None
+
+    def _chat_with_gemini(self, system: str, user: str) -> str | None:
+        if not self.gemini_api_key:
+            self.last_error_message = "gemini_not_configured"
+            self.last_status_code = None
+            return None
+
+        self._respect_gemini_rate_limit()
+
+        combined_prompt = (
+            "System instructions:\n"
+            f"{system}\n\n"
+            "User request:\n"
+            f"{user}"
+        )
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": combined_prompt}],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.15,
+                "maxOutputTokens": 1200,
+            },
+        }
+        url = GEMINI_CHAT_URL_TEMPLATE.format(
+            model=quote_plus(self.gemini_model),
+            api_key=quote_plus(self.gemini_api_key),
+        )
+
+        for attempt in range(0, self.gemini_max_retries + 1):
+            try:
+                resp = self._session.post(
+                    url,
+                    headers={"Content-Type": "application/json"},
+                    json=payload,
+                    timeout=self.gemini_timeout,
+                )
+                self.last_status_code = int(resp.status_code)
+                resp.raise_for_status()
+                data = resp.json()
+
+                candidates = data.get("candidates") or []
+                if not candidates:
+                    self.last_error_message = "gemini_no_candidates"
+                    return None
+
+                content = candidates[0].get("content") or {}
+                parts = content.get("parts") or []
+                if not parts:
+                    self.last_error_message = "gemini_empty_parts"
+                    return None
+
+                text = parts[0].get("text")
+                if not isinstance(text, str) or not text.strip():
+                    self.last_error_message = "gemini_empty_text"
+                    return None
+
+                self.last_provider_used = "gemini"
+                return text
+            except requests.Timeout:
+                self.last_status_code = 408
+                self.last_error_message = "timeout"
+                logger.info("Gemini API timeout after %ds", self.gemini_timeout)
+            except requests.RequestException as exc:
+                response = getattr(exc, "response", None)
+                status_code = getattr(response, "status_code", None)
+                if isinstance(status_code, int):
+                    self.last_status_code = status_code
+                self.last_error_message = str(exc)
+                logger.warning("Gemini API request failed: %s", exc)
+            except (KeyError, IndexError, TypeError, ValueError):
+                self.last_error_message = "Unexpected Gemini response structure"
+                logger.warning("Unexpected Gemini response structure")
+
+            if attempt < self.gemini_max_retries and self._is_retryable_status(
+                self.last_status_code
+            ):
+                time.sleep(0.5 * (attempt + 1))
+                continue
+
+            break
+
+        return None
+
+    def _call_provider(self, provider: str, system: str, user: str) -> str | None:
+        normalized = (provider or "").strip().lower()
+        if normalized == "gemini":
+            return self._chat_with_gemini(system, user)
+        if normalized == "groq":
+            return self._chat_with_groq(system, user)
+        self.last_error_message = f"unknown_provider:{normalized}"
+        self.last_status_code = None
+        return None
+
+    # ── Core chat call ──────────────────────────────────────────────
+    def _chat(self, system: str, user: str) -> str | None:
+        """Send a chat completion request using configured routing policy."""
+        if not self.is_configured:
+            return None
+
+        self.last_status_code = None
+        self.last_error_message = ""
+
+        if self.mode == "fallback_only":
+            return self._call_provider(self.fallback_provider, system, user)
+
+        primary_response = self._call_provider(self.primary_provider, system, user)
+        if primary_response:
+            return primary_response
+
+        if self.mode == "primary_only":
+            return None
+
+        if self.mode != "primary_with_fallback":
+            return None
+
+        if not self._is_retryable_status(self.last_status_code):
+            return None
+
+        if self.fallback_provider == self.primary_provider:
+            return None
+
+        if not self._is_provider_configured(self.fallback_provider):
+            return None
+
+        logger.info(
+            "scraping_llm_fallback from=%s to=%s status=%s",
+            self.primary_provider,
+            self.fallback_provider,
+            self.last_status_code,
+        )
+        return self._call_provider(self.fallback_provider, system, user)
 
 
 # ─── JSON parsing helpers ──────────────────────────────────────────
@@ -360,6 +564,32 @@ class LLMValidator:
         )
         return None
 
+    def validate_with_fallback(
+        self,
+        item: dict[str, Any],
+        category: str = "general",
+    ) -> dict[str, Any]:
+        """
+        Backward-compatible validation mode.
+
+        Returns the original payload with ``llm_validation`` status when
+        enrichment cannot be produced.
+        """
+        payload = dict(item or {})
+
+        if not self.is_available:
+            payload.setdefault("llm_validation", "skipped")
+            return payload
+
+        enriched = self.validate(payload, category)
+        if enriched is None:
+            payload.setdefault("llm_validation", "no_response")
+            return payload
+
+        payload.update(enriched)
+        payload["llm_validation"] = "ok"
+        return payload
+
 
 # ─── Convenience helpers for scrapers ──────────────────────────────
 
@@ -382,6 +612,14 @@ def validate_item(item: dict, category: str = "general") -> dict | None:
     Returns the enriched dict or ``None`` on failure.
     """
     return get_validator().validate(item, category)
+
+
+def validate_item_with_fallback(
+    item: dict[str, Any],
+    category: str = "general",
+) -> dict[str, Any]:
+    """Backward-compatible convenience wrapper around validate_with_fallback()."""
+    return get_validator().validate_with_fallback(item, category)
 
 
 def apply_llm_enrichment(

@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
+from types import SimpleNamespace
 from pages.models import Opportunity
+from pages.views import serialize_opportunity_for_frontend
 
 class HomePageTests(SimpleTestCase):
    def test_home_page_status_code(self):
@@ -83,6 +85,17 @@ class OpportunityWorkflowTests(TestCase):
       self.assertFalse(opportunity.is_published)
       self.assertEqual(opportunity.user_role, "user")
 
+   def test_normal_user_submission_can_omit_skills(self):
+      self.client.force_login(self.normal_user)
+      payload = self._payload()
+      payload.pop("skills_payload")
+      response = self.client.post(reverse("pages:create_opportunity"), data=payload)
+      self.assertEqual(response.status_code, 200)
+
+      opportunity = Opportunity.objects.get(created_by=self.normal_user)
+      self.assertEqual(opportunity.skills, [])
+      self.assertEqual(opportunity.status, Opportunity.STATUS_PENDING)
+
    def test_admin_submission_is_auto_approved_and_published(self):
       self.client.force_login(self.admin_user)
       response = self.client.post(reverse("pages:create_opportunity"), data=self._payload())
@@ -124,3 +137,29 @@ class OpportunityWorkflowTests(TestCase):
       opportunity.refresh_from_db()
       self.assertEqual(opportunity.status, Opportunity.STATUS_APPROVED)
       self.assertTrue(opportunity.is_published)
+
+   def test_serialize_opportunity_handles_invalid_dates(self):
+      item = SimpleNamespace(
+         pk="legacy-id",
+         title="Legacy Opportunity",
+         title_en="Legacy Opportunity",
+         title_ar="فرصة قديمة",
+         organization_en="Legacy Org",
+         organization_ar="",
+         location="Algiers",
+         description="A valid description long enough for serialization.",
+         opportunity_type="job",
+         mode="remote",
+         level="junior",
+         skills=["Python"],
+         contact="jobs@example.com",
+         created_by=None,
+         deadline="",
+         created_at=None,
+         institution=None,
+      )
+
+      data = serialize_opportunity_for_frontend(item)
+      self.assertEqual(data["id"], "legacy-id")
+      self.assertTrue(data["deadline"])
+      self.assertTrue(data["createdAt"])

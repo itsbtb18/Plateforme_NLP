@@ -1,192 +1,420 @@
-{% extends 'base_admin.html' %}
+{% extends 'scraping/category_base.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Scraping Results" %} - {% trans "Admin Panel" %}{% endblock %}
+{% block title %}{% trans "Pending Queue" %} — {{ category_name|default:category_key|title }}{% endblock %}
 
-{% block extra_css %}
+{% block category_extra_css %}
 <style>
-.sr-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
-.sr-head h1{margin:0;font-size:1.35rem;display:flex;align-items:center;gap:.5rem}
-.sr-sub{margin:.3rem 0 0;color:var(--n-text-3);font-size:.86rem}
-.sr-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
-.sr-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .9rem;border:1px solid var(--n-border);border-radius:8px;background:#fff;color:var(--n-text-2);font-weight:600;font-size:.78rem;text-decoration:none;cursor:pointer}
-.sr-btn:hover{border-color:var(--n-blue);color:var(--n-blue)}
-.sr-btn.validate{background:var(--n-green);border-color:var(--n-green);color:#fff}
-.sr-btn.delete{background:var(--n-red);border-color:var(--n-red);color:#fff}
-.sr-toolbar{display:flex;gap:.7rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:.75rem 0}
-.sr-search{display:flex;align-items:center;gap:.5rem}
-.sr-search input{min-width:260px;padding:.52rem .72rem;border:1px solid var(--n-border);border-radius:8px;background:#fff}
-.sr-search input:focus{outline:none;border-color:var(--n-blue)}
-.sr-tabs{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.75rem}
-.sr-tab{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .75rem;border-radius:999px;border:1px solid var(--n-border);text-decoration:none;color:var(--n-text-2);font-size:.75rem;font-weight:600;background:#fff}
-.sr-tab:hover{border-color:var(--n-blue);color:var(--n-blue)}
-.sr-tab.active{background:var(--n-blue);color:#fff;border-color:var(--n-blue)}
-.sr-badge{display:inline-flex;padding:3px 9px;border-radius:12px;font-size:.68rem;font-weight:700;letter-spacing:.02em}
-.sr-badge.warning{background:#fff3cd;color:#7a5a00}
-.sr-badge.success{background:#d1fae5;color:#065f46}
-.sr-badge.danger{background:#fee2e2;color:#991b1b}
-.sr-table-wrap{overflow:auto}
-.sr-check{width:18px;height:18px;accent-color:var(--n-blue)}
-.sr-muted{color:var(--n-text-3);font-size:.75rem}
-.sr-meta{display:flex;gap:1rem;flex-wrap:wrap;color:var(--n-text-3);font-size:.76rem;margin-top:.45rem}
-@media(max-width:768px){
-  .sr-search input{min-width:180px;width:100%}
-}
+  .pq-layout {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .pq-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.95rem;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    padding: 1.5rem;
+  }
+
+  .pq-card-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .pq-meta-row {
+    margin-top: 0.7rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .pq-kpi {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+    padding: 0.75rem;
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .pq-kpi-label {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 800;
+  }
+
+  .pq-kpi-value {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.1rem;
+    font-weight: 900;
+  }
+
+  .pq-filter-grid {
+    margin-top: 0.95rem;
+    display: grid;
+    grid-template-columns: 1.8fr 1fr auto;
+    gap: 0.75rem;
+    align-items: end;
+  }
+
+  .pq-field {
+    display: grid;
+    gap: 0.32rem;
+  }
+
+  .pq-field label {
+    margin: 0;
+    color: #475569;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .pq-field input,
+  .pq-field select {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 0.65rem;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 0.8rem;
+    padding: 0.52rem 0.65rem;
+  }
+
+  .pq-field input:focus,
+  .pq-field select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+  }
+
+  .pq-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border-radius: 0.7rem;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.56rem 0.92rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.18s ease;
+  }
+
+  .pq-btn:hover {
+    border-color: #93c5fd;
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  .pq-table-wrap {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    overflow: auto;
+    max-height: 68vh;
+    background: #ffffff;
+  }
+
+  .pq-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 980px;
+  }
+
+  .pq-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.66rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: left;
+    padding: 0.72rem 0.78rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .pq-table tbody tr:nth-child(even) {
+    background: #fbfdff;
+  }
+
+  .pq-table tbody tr:hover {
+    background: #f1f5f9;
+  }
+
+  .pq-table td {
+    border-bottom: 1px solid #eef2f7;
+    padding: 0.7rem 0.78rem;
+    color: #334155;
+    font-size: 0.79rem;
+    vertical-align: middle;
+  }
+
+  .pq-item-link {
+    color: #0f172a;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .pq-item-link:hover {
+    color: #1d4ed8;
+  }
+
+  .pq-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 260px;
+  }
+
+  .pq-source-avatar {
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 999px;
+    border: 1px solid #dbeafe;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.68rem;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .pq-source-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .pq-confidence {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.34rem;
+    border-radius: 999px;
+    border: 1px solid;
+    padding: 0.18rem 0.52rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  .pq-confidence.high {
+    border-color: #bbf7d0;
+    background: #ecfdf5;
+    color: #047857;
+  }
+
+  .pq-confidence.mid {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .pq-confidence.low {
+    border-color: #fed7aa;
+    background: #fff7ed;
+    color: #c2410c;
+  }
+
+  .pq-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .pq-icon-btn {
+    width: 1.95rem;
+    height: 1.95rem;
+    border-radius: 0.6rem;
+    border: 1px solid;
+    background: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.16s ease;
+  }
+
+  .pq-icon-btn.approve {
+    border-color: #bbf7d0;
+    color: #047857;
+    background: #ecfdf5;
+  }
+
+  .pq-icon-btn.reject {
+    border-color: #fecaca;
+    color: #b91c1c;
+    background: #fef2f2;
+  }
+
+  .pq-icon-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .pq-empty {
+    padding: 1rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  @media (max-width: 980px) {
+    .pq-meta-row {
+      grid-template-columns: 1fr;
+    }
+
+    .pq-filter-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="sr-head">
-  <div>
-    <h1><i class="fas fa-clipboard-check"></i> {% trans "Scraped Items Review" %}</h1>
-    <p class="sr-sub">
-      {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}راجع السجلات المعلقة عبر الفعاليات والمنشورات والأدوات والدورات والمؤسسات.{% else %}Review pending scraped records across Events, Feed, Tools, Courses and Institutions.{% endif %}
-    </p>
-    <div class="sr-meta">
-      <span><strong>{{ pending_total }}</strong> {% trans "pending items" %}</span>
-      <span><strong>{{ rows|length }}</strong> {% trans "visible rows" %}</span>
-      {% if selected_run_id %}<span><strong>{% trans "Run" %}:</strong> {{ selected_run_id }}</span>{% endif %}
-    </div>
-  </div>
-  <div class="sr-actions">
-    <a class="sr-btn" href="{% url 'scraping:dashboard' %}"><i class="fas fa-arrow-left"></i> {% trans "Back to Dashboard" %}</a>
-  </div>
-</div>
+{% block category_content %}
+<div class="pq-layout">
+  <!-- Block: Pending Queue Header -->
+  <section class="pq-card">
+    <h2 class="pq-card-title">{% trans "Pending Queue" %}</h2>
 
-<div class="n-card">
-  <div class="n-card-body" style="padding:1rem">
-    <div class="sr-tabs">
-      <a class="sr-tab {% if selected_category == 'all' %}active{% endif %}" href="{% url 'scraping:scraping_results' %}{% if search_query or selected_run_id %}?{% endif %}{% if search_query %}q={{ search_query|urlencode }}{% endif %}{% if search_query and selected_run_id %}&{% endif %}{% if selected_run_id %}run_id={{ selected_run_id }}{% endif %}">
-        {% trans "All" %}
-        <span class="n-tab-badge">{{ pending_total }}</span>
-      </a>
-      {% for tab in category_tabs %}
-      <a class="sr-tab {% if selected_category == tab.key %}active{% endif %}" href="{% url 'scraping:scraping_results' %}?category={{ tab.key }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_run_id %}&run_id={{ selected_run_id }}{% endif %}">
-        {{ tab.label }}
-        <span class="n-tab-badge">{{ tab.count }}</span>
-      </a>
-      {% endfor %}
+    <div class="pq-meta-row">
+      <article class="pq-kpi">
+        <p class="pq-kpi-label">{% trans "Items filtrés" %}</p>
+        <p class="pq-kpi-value">{{ filtered_total|default:0 }}</p>
+      </article>
+      <article class="pq-kpi">
+        <p class="pq-kpi-label">{% trans "Total en attente" %}</p>
+        <p class="pq-kpi-value">{{ pending_total|default:0 }}</p>
+      </article>
+      <article class="pq-kpi">
+        <p class="pq-kpi-label">{% trans "Faible confiance" %}</p>
+        <p class="pq-kpi-value">{{ filtered_low_confidence_count|default:0 }}</p>
+      </article>
     </div>
 
-    <div class="sr-toolbar">
-      <form class="sr-search" method="get" action="{% url 'scraping:scraping_results' %}">
-        {% if selected_category != 'all' %}
-        <input type="hidden" name="category" value="{{ selected_category }}">
-        {% endif %}
-        {% if selected_run_id %}
-        <input type="hidden" name="run_id" value="{{ selected_run_id }}">
-        {% endif %}
-        <input type="text" name="q" value="{{ search_query }}" placeholder="{% trans 'Search by title...' %}">
-        <button class="sr-btn" type="submit"><i class="fas fa-search"></i> {% trans "Search" %}</button>
-      </form>
-    </div>
-
-    <form method="post" id="bulk-review-form" action="{% url 'scraping:scraping_results_bulk_action' %}">
-      {% csrf_token %}
-      <input type="hidden" name="action" id="bulk-action-input" value="">
-      <input type="hidden" name="category" value="{{ selected_category }}">
-      <input type="hidden" name="q" value="{{ search_query }}">
-      <input type="hidden" name="run_id" value="{{ selected_run_id }}">
-
-      <div class="sr-actions" style="margin-bottom:.75rem">
-        <button class="sr-btn validate" type="button" onclick="submitBulkAction('validate')">
-          <i class="fas fa-check"></i> {% trans "Validate Selected" %}
-        </button>
-        <button class="sr-btn delete" type="button" onclick="submitBulkAction('delete')">
-          <i class="fas fa-trash"></i> {% trans "Delete Selected" %}
-        </button>
+    <!-- Block: Pending Queue Filters -->
+    <form method="get" class="pq-filter-grid">
+      <input type="hidden" name="category" value="{{ category_key|default:scraping_current_category }}">
+      <div class="pq-field">
+        <label for="pqQuery">{% trans "Recherche" %}</label>
+        <input id="pqQuery" type="text" name="q" value="{{ search_query|default:'' }}" placeholder="{% trans 'Titre, source, contenu...' %}">
       </div>
 
-      <div class="sr-table-wrap">
-        <table class="n-tbl">
-          <thead>
-            <tr>
-              <th style="width:42px"><input type="checkbox" id="select-all-items" class="sr-check"></th>
-              <th>{% trans "Title" %}</th>
-              <th>{% trans "Category" %}</th>
-              <th>{% trans "Source URL" %}</th>
-              <th>{% trans "Scraped Date" %}</th>
-              <th>{% trans "LLM Confidence" %}</th>
-              <th>{% trans "Status" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in rows %}
-            <tr>
-              <td><input type="checkbox" class="sr-check row-check" name="selected_items" value="{{ row.selection_key }}"></td>
-              <td>
-                <a href="{{ row.detail_url }}"><strong>{{ row.title|default:"-" }}</strong></a>
-              </td>
-              <td>{{ row.category_label }}</td>
-              <td>
-                {% if row.source_url %}
-                <a href="{{ row.source_url }}" target="_blank" rel="noopener">{{ row.source_url|truncatechars:60 }}</a>
-                {% else %}
-                <span class="sr-muted">-</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if row.scraped_date %}
-                  {{ row.scraped_date|date:"Y-m-d H:i" }}
-                {% else %}
-                  <span class="sr-muted">-</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if row.confidence_score != None %}
-                  {{ row.confidence_score }}
-                {% else %}
-                  <span class="sr-muted">-</span>
-                {% endif %}
-              </td>
-              <td><span class="sr-badge {{ row.status_badge }}">{{ row.status }}</span></td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="7" style="text-align:center;color:var(--n-text-3)">{% trans "No scraped items match this filter." %}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="pq-field">
+        <label for="pqSource">{% trans "Source" %}</label>
+        <select id="pqSource" name="source">
+          <option value="any">{% trans "Toutes les sources" %}</option>
+          {% for source in source_options %}
+          <option value="{{ source }}" {% if current_filters.source == source %}selected{% endif %}>{{ source }}</option>
+          {% endfor %}
+        </select>
       </div>
+
+      <button type="submit" class="pq-btn">
+        <i class="fas fa-filter"></i>
+        <span>{% trans "Appliquer" %}</span>
+      </button>
     </form>
-  </div>
+  </section>
+
+  <!-- Block: Pending Queue Data Table -->
+  <section class="pq-card" style="padding: 1rem;">
+    <div class="pq-table-wrap">
+      <table class="pq-table">
+        <thead>
+          <tr>
+            <th>{% trans "Item" %}</th>
+            <th>{% trans "Source" %}</th>
+            <th>{% trans "Confiance" %}</th>
+            <th>{% trans "Statut" %}</th>
+            <th>{% trans "Date" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>
+              <a class="pq-item-link" href="{{ row.detail_url }}">{{ row.title_en|default:row.title|default:'-' }}</a>
+            </td>
+            <td>
+              <span class="pq-source">
+                <span class="pq-source-avatar">{{ row.source_domain|default:'?'|first|upper }}</span>
+                <span class="pq-source-label">{{ row.source_domain|default:row.source_url|default:'Unknown' }}</span>
+              </span>
+            </td>
+            <td>
+              {% if row.confidence_score != None %}
+                <span class="pq-confidence {% if row.confidence_score >= 80 %}high{% elif row.confidence_score < 50 %}low{% else %}mid{% endif %}">
+                  <i class="fas fa-signal"></i>
+                  {{ row.confidence_score|floatformat:0 }}%
+                </span>
+              {% else %}
+                <span class="pq-confidence mid">—</span>
+              {% endif %}
+            </td>
+            <td>{{ row.status|default:'PENDING' }}</td>
+            <td>{{ row.scraped_date|date:'Y-m-d H:i'|default:'—' }}</td>
+            <td>
+              <div class="pq-actions">
+                <form method="post" action="{% url 'scraping:scraping_results_bulk_action' %}" style="display:inline;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="validate">
+                  <input type="hidden" name="category" value="{{ category_key|default:scraping_current_category }}">
+                  <input type="hidden" name="q" value="{{ search_query|default:'' }}">
+                  <input type="hidden" name="run_id" value="{{ selected_run_id|default:'' }}">
+                  <input type="hidden" name="item_ids" value="{{ row.selection_key }}">
+                  <button type="submit" class="pq-icon-btn approve" title="{% trans 'Approve' %}" aria-label="{% trans 'Approve' %}">
+                    <i class="fas fa-check"></i>
+                  </button>
+                </form>
+
+                <form method="post" action="{% url 'scraping:scraping_results_bulk_action' %}" style="display:inline;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="reject">
+                  <input type="hidden" name="category" value="{{ category_key|default:scraping_current_category }}">
+                  <input type="hidden" name="q" value="{{ search_query|default:'' }}">
+                  <input type="hidden" name="run_id" value="{{ selected_run_id|default:'' }}">
+                  <input type="hidden" name="item_ids" value="{{ row.selection_key }}">
+                  <input type="hidden" name="reject_reason" value="other">
+                  <input type="hidden" name="reject_notes" value="">
+                  <button type="submit" class="pq-icon-btn reject" title="{% trans 'Reject' %}" aria-label="{% trans 'Reject' %}">
+                    <i class="fas fa-xmark"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6">
+              <p class="pq-empty">{% trans "Aucun élément en attente pour cette catégorie." %}</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-(function() {
-  'use strict';
-
-  var selectAll = document.getElementById('select-all-items');
-  var rowChecks = document.querySelectorAll('.row-check');
-
-  if (selectAll) {
-    selectAll.addEventListener('change', function() {
-      rowChecks.forEach(function(cb) { cb.checked = selectAll.checked; });
-    });
-  }
-
-  window.submitBulkAction = function(action) {
-    var selected = document.querySelectorAll('.row-check:checked');
-    if (!selected.length) {
-      alert('{% trans "Select at least one item first." %}');
-      return;
-    }
-
-    if (action === 'delete') {
-      var ok = confirm('{% trans "Delete selected items permanently?" %}');
-      if (!ok) return;
-    }
-
-    var input = document.getElementById('bulk-action-input');
-    var form = document.getElementById('bulk-review-form');
-    if (!input || !form) return;
-
-    input.value = action;
-    form.submit();
-  };
-})();
-</script>
 {% endblock %}

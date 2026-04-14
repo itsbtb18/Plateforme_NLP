@@ -1,29 +1,4 @@
-"""Scraper control view exports."""
+"""Compatibility shim for deprecated scraping.views.scraper_control_views."""
 
-from scraping.views_root import (
-    _run_source_test_job,
-    add_custom_source,
-    delete_custom_source,
-    list_custom_sources,
-    rerun_scraping_run,
-    run_custom_source,
-    run_scraper,
-    run_scraper_status,
-    task_status,
-    test_source,
-    test_source_status,
-)
-
-__all__ = [
-    "run_scraper",
-    "run_scraper_status",
-    "run_custom_source",
-    "rerun_scraping_run",
-    "test_source",
-    "test_source_status",
-    "_run_source_test_job",
-    "add_custom_source",
-    "delete_custom_source",
-    "list_custom_sources",
-    "task_status",
-]
+# DEPRECATED: import from scraping.views_root instead.
+from scraping.views_root import *  # noqa: F401,F403

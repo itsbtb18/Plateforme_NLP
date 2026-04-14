@@ -3,7 +3,7 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{% translate "New Discussion" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+{% block title %}{% if topic %}{% translate "Edit Discussion" %}{% else %}{% translate "New Discussion" %}{% endif %} | {% translate "Arabic NLP Platform" %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -398,7 +398,7 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         <nav class="breadcrumb">
             <a href="{% url 'forum:topic-list' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}مركز النقاش{% else %}{% trans "Discussion Hub" %}{% endif %}</a>
             <span class="sep"><i class="bi bi-chevron-right"></i></span>
-            <span class="current">{% trans "New Discussion" %}</span>
+            <span class="current">{% if topic %}{% trans "Edit Discussion" %}{% else %}{% trans "New Discussion" %}{% endif %}</span>
         </nav>
 
         <!-- Icon -->
@@ -407,8 +407,8 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
         </div>
 
         <!-- Title -->
-        <h1>{% trans "Start a New Discussion" %}</h1>
-        <p>{% trans "Share your question or topic with the community" %}</p>
+        <h1>{% if topic %}{% trans "Edit Discussion" %}{% else %}{% trans "Start a New Discussion" %}{% endif %}</h1>
+        <p>{% if topic %}{% trans "Refine your topic before sharing the latest version with the community" %}{% else %}{% trans "Share your question or topic with the community" %}{% endif %}</p>
     </div>
 
     <div class="form-container">
@@ -510,9 +510,9 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
                 <div class="form-footer">
                     <button type="submit" class="btn btn-submit" id="submitBtn">
                         <i class="bi bi-send-fill"></i>
-                        {% trans "Submit for Review" %}
+                        {% if topic %}{% trans "Save Changes" %}{% else %}{% trans "Submit for Review" %}{% endif %}
                     </button>
-                    <a href="{% url 'forum:topic-list' %}" class="btn btn-cancel">
+                    <a href="{% if topic %}{% url 'forum:topic-detail' topic.pk %}{% else %}{% url 'forum:topic-list' %}{% endif %}" class="btn btn-cancel">
                         <i class="bi bi-x"></i>
                         {% trans "Cancel" %}
                     </a>

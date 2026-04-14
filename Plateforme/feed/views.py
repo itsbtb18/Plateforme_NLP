@@ -222,15 +222,20 @@ def create_post(request):
     if request.method == "POST":
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
+            post = form.save(commit=False)
+            post.author = request.user
+            is_admin_author = request.user.is_staff or request.user.is_superuser
+            post.approval_status = "approved" if is_admin_author else "pending"
             try:
-                post = form.save(commit=False)
-                post.author = request.user
-                is_admin_author = request.user.is_staff or request.user.is_superuser
-                post.approval_status = "approved" if is_admin_author else "pending"
+                title_for_log = (
+                    post.get_localized_title()
+                    or (post.content or "").strip()[:50]
+                    or f"post-{getattr(post, 'pk', 'new')}"
+                )
 
                 logger.info(
                     f"[POST_CREATE] Creating post by user: {request.user.email}, "
-                    f"title: {post.get_localized_title()[:50]}"
+                    f"title: {title_for_log[:50]}"
                 )
 
                 post.save()
@@ -256,6 +261,23 @@ def create_post(request):
                 return redirect("feed:feed")
 
             except Exception as e:
+                if getattr(post, "pk", None) and Post.objects.filter(pk=post.pk).exists():
+                    logger.warning(
+                        "[POST_CREATE] Post saved but a post-save hook failed: %s",
+                        e,
+                        exc_info=True,
+                    )
+                    if is_admin_author:
+                        messages.success(
+                            request,
+                            _("Your post has been published immediately."),
+                        )
+                    else:
+                        messages.info(
+                            request,
+                            _("Your post has been submitted and is pending admin approval."),
+                        )
+                    return redirect("feed:feed")
                 logger.error(
                     f"[POST_CREATE] ✗ Error creating post: {str(e)}", exc_info=True
                 )
@@ -587,7 +609,7 @@ def edit_post(request, post_id):
 
     return render(
         request,
-        "feed/edit_post.html",
+        "feed/edit_post.html" if (review_mode or is_admin) else "feed/create_post.html",
         {
             "form": form,
             "post": post,

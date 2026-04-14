@@ -1,0 +1,238 @@
+{% extends 'scraping/category_base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Analytics" %} — {{ category_name|default:category_key|title }}{% endblock %}
+
+{% block category_extra_css %}
+<style>
+  .analytics-layout {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .analytics-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.95rem;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    padding: 1.5rem;
+  }
+
+  .analytics-card-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .analytics-card-subtitle {
+    margin: 0.3rem 0 0;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .stats-grid {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .stat-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.85rem;
+    background: #f8fafc;
+    padding: 1rem;
+    display: grid;
+    gap: 0.28rem;
+  }
+
+  .stat-label {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 800;
+  }
+
+  .stat-value {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.55rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+  }
+
+  .stat-note {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .aspect-video {
+    aspect-ratio: 16 / 9;
+  }
+
+  .bg-white {
+    background: #ffffff;
+  }
+
+  .shadow {
+    box-shadow: 0 12px 22px rgba(15, 23, 42, 0.08);
+  }
+
+  .rounded-lg {
+    border-radius: 0.85rem;
+  }
+
+  .border {
+    border-width: 1px;
+    border-style: solid;
+  }
+
+  .border-gray-200 {
+    border-color: #e5e7eb;
+  }
+
+  .p-6 {
+    padding: 1.5rem;
+  }
+
+  .gap-6 {
+    gap: 1.5rem;
+  }
+
+  .chart-placeholder {
+    display: grid;
+    gap: 0.5rem;
+    align-content: center;
+    justify-items: center;
+    color: #64748b;
+    text-align: center;
+  }
+
+  .chart-placeholder i {
+    font-size: 1.5rem;
+    color: #3b82f6;
+  }
+
+  .chart-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 0.85rem;
+    font-weight: 800;
+  }
+
+  .chart-help {
+    margin: 0;
+    font-size: 0.74rem;
+    font-weight: 600;
+  }
+
+  @media (max-width: 1080px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .charts-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block category_content %}
+<div class="analytics-layout gap-6">
+  <!-- Block: Quick Stats -->
+  <section class="analytics-card">
+    <h2 class="analytics-card-title">{% trans "Quick Stats" %}</h2>
+    <p class="analytics-card-subtitle">
+      {% trans "Vue synthétique des performances de la catégorie." %}
+    </p>
+
+    <div class="stats-grid">
+      <article class="stat-card" data-stat="avg-confidence">
+        <p class="stat-label">{% trans "Avg confidence" %}</p>
+        <p class="stat-value">--%</p>
+        <p class="stat-note">{% trans "À brancher via contexte analytics" %}</p>
+      </article>
+
+      <article class="stat-card" data-stat="translation-ok">
+        <p class="stat-label">{% trans "Translation OK" %}</p>
+        <p class="stat-value">--%</p>
+        <p class="stat-note">{% trans "Qualité de traduction validée" %}</p>
+      </article>
+
+      <article class="stat-card" data-stat="runs-completed">
+        <p class="stat-label">{% trans "Runs complétés" %}</p>
+        <p class="stat-value">{{ completed_runs_count|default:0 }}</p>
+        <p class="stat-note">{% trans "Historique des exécutions" %}</p>
+      </article>
+
+      <article class="stat-card" data-stat="window-range">
+        <p class="stat-label">{% trans "Fenêtre" %}</p>
+        <p class="stat-value">{{ default_range|default:'30' }}j</p>
+        <p class="stat-note">{{ default_date_from|default:'' }} → {{ default_date_to|default:'' }}</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Block: Charts Placeholders -->
+  <section class="analytics-card">
+    <h2 class="analytics-card-title">{% trans "Charts" %}</h2>
+    <p class="analytics-card-subtitle">
+      {% trans "Conteneurs prêts pour brancher les graphiques Django/JS." %}
+    </p>
+
+    <div class="charts-grid gap-6" data-analytics-charts>
+      <div class="aspect-video bg-white shadow rounded-lg border border-gray-200 p-6" data-chart="approval-trend">
+        <div class="chart-placeholder">
+          <i class="fas fa-chart-line"></i>
+          <p class="chart-title">{% trans "Approval Trend" %}</p>
+          <p class="chart-help">{% trans "Placeholder pour courbe temporelle" %}</p>
+        </div>
+      </div>
+
+      <div class="aspect-video bg-white shadow rounded-lg border border-gray-200 p-6" data-chart="confidence-distribution">
+        <div class="chart-placeholder">
+          <i class="fas fa-chart-pie"></i>
+          <p class="chart-title">{% trans "Confidence Distribution" %}</p>
+          <p class="chart-help">{% trans "Placeholder pour distribution des scores" %}</p>
+        </div>
+      </div>
+
+      <div class="aspect-video bg-white shadow rounded-lg border border-gray-200 p-6" data-chart="source-performance">
+        <div class="chart-placeholder">
+          <i class="fas fa-chart-bar"></i>
+          <p class="chart-title">{% trans "Source Performance" %}</p>
+          <p class="chart-help">{% trans "Placeholder pour comparaison des sources" %}</p>
+        </div>
+      </div>
+
+      <div class="aspect-video bg-white shadow rounded-lg border border-gray-200 p-6" data-chart="translation-quality">
+        <div class="chart-placeholder">
+          <i class="fas fa-language"></i>
+          <p class="chart-title">{% trans "Translation Quality" %}</p>
+          <p class="chart-help">{% trans "Placeholder pour métriques de traduction" %}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

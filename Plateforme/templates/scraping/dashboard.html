@@ -1,1183 +1,216 @@
-{% extends 'base_admin.html' %}
+{% extends 'scraping/base_scraping.html' %}
 {% load i18n %}
 
-{% block title %}AI Data Aggregator — {% trans "Admin Panel" %}{% endblock %}
+{% block title %}{% trans "Scraping Hub" %} — {% trans "Admin Panel" %}{% endblock %}
 
 {% block extra_css %}
 <style>
-/* ───────────────────────────────────────────────────────────
-   Scraping Dashboard — Notion-Blue design tokens override
-   Uses the same n-* design system as every other admin page
-   ─────────────────────────────────────────────────────────── */
+  .hub-shell {
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 1.15rem;
+  }
 
-/* Scraping-specific layout helpers */
-.ws-panel{display:none}
-.ws-panel.active{display:block;animation:wsFade .25s ease}
-@keyframes wsFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.ws-modal-open{overflow:hidden}
+  .hub-header {
+    border: 1px solid #dbe7f5;
+    border-radius: 0.95rem;
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(8px);
+    padding: 1rem 1.1rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }
 
-/* Modern KPI cards */
-.ws-kpi-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1rem;margin-bottom:1rem}
-.ws-kpi-card{background:#fff;border:1px solid var(--n-border-s);border-radius:16px;padding:1rem;box-shadow:0 10px 26px rgba(15,23,42,.06);transition:transform .18s ease,box-shadow .18s ease}
-.ws-kpi-card:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(15,23,42,.1)}
-.ws-kpi-top{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.7rem}
-.ws-kpi-icon{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;color:#fff;font-size:.95rem;box-shadow:0 6px 14px rgba(2,6,23,.18)}
-.ws-kpi-icon.events{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
-.ws-kpi-icon.tools{background:linear-gradient(135deg,#10b981,#059669)}
-.ws-kpi-icon.courses{background:linear-gradient(135deg,#3b82f6,#2563eb)}
-.ws-kpi-icon.news{background:linear-gradient(135deg,#f59e0b,#d97706)}
-.ws-kpi-icon.opportunities{background:linear-gradient(135deg,#06b6d4,#0284c7)}
-.ws-kpi-icon.corpus{background:linear-gradient(135deg,#14b8a6,#0f766e)}
-.ws-kpi-ai{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:999px;background:#eef6ff;border:1px solid #cfe3ff;color:#1d4ed8;font-size:.68rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
-.ws-kpi-label{margin:0;font-size:.78rem;font-weight:700;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.06em}
-.ws-kpi-num{margin:.3rem 0 .2rem;font-size:1.7rem;line-height:1;font-weight:800;color:var(--n-text)}
-.ws-kpi-meta{margin:0;font-size:.72rem;color:var(--n-text-3)}
-.ws-kpi-meta.pending{color:var(--n-amber);font-weight:700}
+  .hub-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.35rem;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+  }
 
-/* Active search query pills */
-.ws-query-wrap{display:flex;flex-wrap:wrap;gap:.45rem}
-.ws-query-tag{display:inline-flex;align-items:center;gap:.4rem;padding:.36rem .72rem;border-radius:999px;border:1px solid #dbeafe;background:linear-gradient(135deg,#f8fbff,#edf5ff);color:#1e3a8a;font-size:.74rem;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,.12)}
-.ws-query-tag i{font-size:.68rem;color:#2563eb}
-.ws-query-note{margin:.45rem 0 0;font-size:.74rem;color:var(--n-text-3)}
+  .hub-subtitle {
+    margin: 0.3rem 0 0;
+    color: #475569;
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
 
-/* AI Search Prompts manager */
-.ws-prompts-wrap{display:flex;flex-direction:column;gap:1rem}
-.ws-prompt-form{display:grid;grid-template-columns:180px minmax(260px,1fr) auto auto;gap:.65rem;align-items:end}
-.ws-prompt-form .ws-form-group{margin:0}
-.ws-prompt-inline{display:flex;align-items:center;gap:.45rem;white-space:nowrap}
-.ws-prompt-submit{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.62rem .95rem;border:1px solid var(--n-blue);border-radius:8px;background:var(--n-blue);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer}
-.ws-prompt-submit:hover{opacity:.92}
-.ws-prompt-status{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:.7rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
-.ws-prompt-status.active{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
-.ws-prompt-status.inactive{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
-.ws-prompt-toggle-form{margin:0}
-.ws-prompt-toggle-btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:4px 10px;border:1px solid var(--n-green);border-radius:6px;background:var(--n-green);color:#fff;font-size:.72rem;font-weight:600;cursor:pointer}
-.ws-prompt-toggle-btn.off{border-color:var(--n-blue);background:var(--n-blue)}
-.ws-prompt-toggle-btn:hover{opacity:.9}
-.ws-add-src-btn{display:inline-flex;align-items:center;gap:.35rem;border:1px solid var(--n-border);background:#fff;color:var(--n-text-2);padding:.42rem .7rem;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer}
-.ws-add-src-btn:hover{border-color:var(--n-blue);color:var(--n-blue)}
+  .hub-grid {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.95rem;
+  }
 
-/* Run AI Agent button */
-.ws-run-btn{display:inline-flex;align-items:center;gap:.48rem;padding:.54rem 1.25rem;border:none;border-radius:10px;background:linear-gradient(135deg,#2563eb,#7c3aed 58%,#0ea5e9);color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;transition:transform .16s ease,box-shadow .16s ease;white-space:nowrap;box-shadow:0 10px 22px rgba(37,99,235,.34)}
-.ws-run-btn:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(79,70,229,.42)}
-.ws-run-btn:disabled{opacity:.5;cursor:not-allowed}
-.ws-run-btn .ws-btn-ico{display:inline-flex;transition:transform .28s ease,filter .28s ease}
-.ws-run-btn:hover .ws-btn-ico{transform:translateY(-1px) rotate(-8deg) scale(1.1);filter:drop-shadow(0 2px 6px rgba(255,255,255,.4))}
-.ws-run-btn .ws-spin{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:wsSpin .7s linear infinite}
-.ws-run-btn.loading .ws-spin{display:inline-block}
-.ws-run-btn.loading .ws-btn-label{display:none}
-@keyframes wsSpin{to{transform:rotate(360deg)}}
+  .hub-card {
+    border: 1px solid #dbe7f5;
+    border-radius: 0.95rem;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+    padding: 0.9rem;
+    display: grid;
+    gap: 0.65rem;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+  }
 
-/* Loading overlay */
-.ws-loading{display:none;text-align:center;padding:2.5rem 1rem}
-.ws-loading.active{display:block}
-.ws-loading .ws-big-spin{width:36px;height:36px;border:3px solid var(--n-border);border-top-color:var(--n-blue);border-radius:50%;animation:wsSpin .8s linear infinite;margin:0 auto .7rem}
-.ws-loading-line{color:var(--n-text-2);font-size:.84rem;font-weight:600;margin:.2rem 0 .35rem}
-.ws-loading-progress{color:var(--n-text-3);font-size:.77rem;margin:0 0 .65rem}
-.ws-live-log{margin:0 auto;max-width:760px;text-align:left;border:1px solid var(--n-border-s);border-radius:10px;background:#fff;padding:.45rem .6rem;max-height:190px;overflow:auto}
-.ws-log-item{display:flex;align-items:flex-start;gap:.45rem;font-size:.78rem;color:var(--n-text-2);padding:.32rem .2rem;border-bottom:1px dashed var(--n-border-s)}
-.ws-log-item:last-child{border-bottom:none}
-.ws-log-item .dot{width:7px;height:7px;border-radius:50%;margin-top:.36rem;flex-shrink:0;background:var(--n-blue)}
-.ws-log-item.info .dot{background:var(--n-blue)}
-.ws-log-item.warn .dot{background:var(--n-amber)}
-.ws-log-item.error .dot{background:var(--n-red)}
-.ws-log-item.success .dot{background:var(--n-green)}
+  .hub-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 36px rgba(15, 23, 42, 0.12);
+  }
 
-/* Result summary grid */
-.ws-summary{display:grid;grid-template-columns:repeat(7,1fr);gap:.75rem;padding:1rem 1.25rem;background:var(--n-bg);border-bottom:1px solid var(--n-border-s)}
-.ws-summary-item{text-align:center}
-.ws-summary-item .ws-num{font-size:1.35rem;font-weight:700;line-height:1}
-.ws-summary-item .ws-lbl{font-size:.68rem;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
-.ws-run-summary{padding:1rem 1.1rem;background:var(--n-bg);border-bottom:1px solid var(--n-border-s)}
-.ws-run-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:.8rem}
-.ws-run-summary-box{background:#fff;border:1px solid var(--n-border-s);border-radius:10px;padding:.65rem .7rem;text-align:center}
-.ws-run-summary-box .num{font-size:1.2rem;font-weight:700;line-height:1}
-.ws-run-summary-box .lbl{font-size:.7rem;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.04em;margin-top:4px}
-.ws-review-link{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:8px;border:1px solid var(--n-blue);background:var(--n-blue);color:#fff;font-size:.78rem;font-weight:600;text-decoration:none}
-.ws-review-link:hover{opacity:.9}
-.ws-accept-all-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:8px;border:1px solid var(--n-green);background:var(--n-green);color:#fff;font-size:.78rem;font-weight:600;cursor:pointer}
-.ws-accept-all-btn:hover{opacity:.9}
-.ws-review-actions{display:flex;gap:.55rem;align-items:center;flex-wrap:wrap}
-.ws-review-queue{padding:.85rem 1.1rem 1rem;background:#fff}
-.ws-review-queue-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.55rem}
-.ws-review-queue-title{font-size:.85rem;font-weight:700;color:var(--n-text);display:flex;align-items:center;gap:.45rem}
-.ws-review-queue-note{font-size:.74rem;color:var(--n-text-3)}
-.ws-row-accept{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:4px 10px;border:none;border-radius:6px;background:var(--n-green);color:#fff;font-size:.72rem;font-weight:600;cursor:pointer}
-.ws-row-accept:hover{opacity:.88}
-.ws-validation-summary{padding:.55rem 1.25rem .85rem;background:var(--n-bg);font-size:.78rem;color:var(--n-text-2);border-bottom:1px solid var(--n-border-s)}
-.ws-val-ok{color:var(--n-green);font-weight:600}
-.ws-val-date{color:var(--n-amber);font-weight:600}
-.ws-val-fields{color:var(--n-red);font-weight:600}
-.ws-val-autofill{color:var(--n-blue);font-weight:600}
+  .hub-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.55rem;
+  }
 
-/* Errors callout */
-.ws-errors{background:var(--n-red-bg);border-inline-start:3px solid var(--n-red);border-radius:0 var(--n-radius-sm) var(--n-radius-sm) 0;padding:.75rem 1.15rem;margin:1rem 1.25rem}
-.ws-errors summary{cursor:pointer;font-size:.8rem;font-weight:600;color:var(--n-red)}
-.ws-errors ul{margin:.35rem 0 0;padding-inline-start:1.2rem;font-size:.76rem;color:#991b1b}
+  .hub-icon {
+    width: 2.3rem;
+    height: 2.3rem;
+    border-radius: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1d4ed8;
+    background: color-mix(in srgb, var(--hub-color, #2563eb) 16%, white);
+    border: 1px solid color-mix(in srgb, var(--hub-color, #2563eb) 28%, white);
+    font-size: 0.92rem;
+  }
 
-/* AI activity logs */
-.ws-runs-wrap{padding:.9rem 1.05rem 1.05rem;background:linear-gradient(180deg,#f8fbff 0%,#f3f8ff 100%);border-top:1px solid var(--n-border-s)}
-.ws-runs-head{display:grid;grid-template-columns:120px 1.2fr 1.2fr 120px 190px;gap:.65rem;padding:.45rem .75rem .55rem;margin-bottom:.35rem;border-bottom:1px solid var(--n-border-s);font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--n-text-3)}
-.ws-run-row{display:grid;grid-template-columns:120px 1.2fr 1.2fr 120px 190px;gap:.65rem;align-items:center;padding:.62rem .75rem;margin-bottom:.5rem;background:#fff;border:1px solid var(--n-border-s);border-radius:12px;box-shadow:0 6px 16px rgba(15,23,42,.04);font-size:.8rem}
-.ws-run-row:last-child{margin-bottom:0}
-.ws-run-badge{display:inline-flex;align-items:center;justify-content:center;padding:.26rem .62rem;border-radius:999px;font-size:.66rem;font-weight:800;letter-spacing:.05em;border:1px solid transparent}
-.ws-run-badge.success{color:#166534;background:#dcfce7;border-color:#bbf7d0}
-.ws-run-badge.failed{color:#9f1239;background:#ffe4e6;border-color:#fecdd3}
-.ws-run-badge.running{color:#92400e;background:#fef3c7;border-color:#fde68a}
-.ws-run-badge.info{color:#1e3a8a;background:#dbeafe;border-color:#bfdbfe}
-.ws-run-engine{display:inline-flex;align-items:center;gap:.35rem;color:var(--n-text-2);font-weight:600}
-.ws-run-engine i{color:#2563eb;font-size:.72rem}
-.ws-run-count{display:inline-flex;align-items:center;justify-content:center;padding:.22rem .55rem;border-radius:8px;background:#eff6ff;color:#1e40af;font-weight:700;border:1px solid #dbeafe;min-width:52px}
-.ws-run-meta{color:var(--n-text-3);font-size:.74rem;font-weight:600}
+  .hub-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.26rem 0.5rem;
+    white-space: nowrap;
+  }
 
-/* Responsive tweaks */
-@media(max-width:1200px){.ws-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:992px){.ws-summary{grid-template-columns:repeat(2,1fr)}.ws-run-summary-grid{grid-template-columns:1fr 1fr}.ws-runs-head{display:none}.ws-run-row{grid-template-columns:1fr;gap:.4rem;padding:.7rem}}
-@media(max-width:768px){.ws-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ws-prompt-form{grid-template-columns:1fr}}
-@media(max-width:576px){.ws-summary{grid-template-columns:1fr}.ws-run-summary-grid{grid-template-columns:1fr}.ws-kpi-grid{grid-template-columns:1fr}}
+  .hub-status-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    display: inline-block;
+  }
 
-/* ── Custom Sources: Modal ──────────────────────────────────── */
-.ws-modal-overlay{position:fixed;inset:0;padding:1rem;background:rgba(2,8,23,.66);backdrop-filter:blur(2px);z-index:5000;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility .18s ease}
-.ws-modal-overlay.active{opacity:1;visibility:visible;pointer-events:auto}
-.ws-modal{background:#fff;color:var(--n-text,#0f172a);border:1px solid var(--n-border,#dbe3ef);border-radius:var(--n-radius,12px);box-shadow:0 24px 70px rgba(2,8,23,.34);width:min(100%,560px);max-height:min(90vh,680px);overflow-y:auto;transform:translateY(8px);transition:transform .18s ease}
-.ws-modal-overlay.active .ws-modal{transform:translateY(0)}
-.ws-modal-head{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.25rem;border-bottom:1px solid var(--n-border-s,#e6edf5);background:#f8fbff}
-.ws-modal-head h3{margin:0;font-size:1rem;font-weight:700;color:var(--n-text,#0f172a);display:flex;align-items:center;gap:.5rem}
-.ws-modal-close{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--n-border,#dbe3ef);border-radius:999px;background:#fff;font-size:1.2rem;cursor:pointer;color:var(--n-text-2,#334155);line-height:1;padding:0}
-.ws-modal-close:hover{background:#f1f5f9;color:var(--n-text,#0f172a)}
-.ws-modal-body{padding:1.25rem 1.5rem}
+  .hub-status.ok {
+    color: #065f46;
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+  }
 
-/* ── Custom Sources: Form ───────────────────────────────────── */
-.ws-form-group{margin-bottom:1rem}
-.ws-form-group label{display:block;font-size:.82rem;font-weight:700;color:var(--n-text,#0f172a);margin-bottom:.4rem}
-.ws-form-group input,.ws-form-group select,.ws-form-group textarea{width:100%;padding:.62rem .78rem;border:1px solid var(--n-border,#dbe3ef);border-radius:var(--n-radius-sm,8px);font-size:.84rem;background:#fff;color:var(--n-text,#0f172a);transition:border-color .15s,box-shadow .15s;box-sizing:border-box}
-.ws-form-group input::placeholder,.ws-form-group textarea::placeholder{color:#64748b}
-.ws-form-group input[readonly]{background:#f8fafc;color:#334155}
-.ws-form-group input:focus,.ws-form-group select:focus,.ws-form-group textarea:focus{outline:none;border-color:var(--n-blue,#2563eb);box-shadow:0 0 0 3px rgba(37,99,235,.16)}
-.ws-form-check{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
-.ws-form-check input[type="checkbox"]{width:auto;accent-color:var(--n-blue)}
-.ws-form-check label{margin:0;font-size:.82rem;font-weight:500;color:var(--n-text-2)}
-.ws-adv-toggle{background:none;border:none;color:var(--n-blue);font-size:.78rem;cursor:pointer;padding:0;display:flex;align-items:center;gap:.35rem;margin-bottom:.5rem}
-.ws-adv-toggle:hover{text-decoration:underline}
-.ws-form-submit{width:100%;padding:.65rem;border:none;border-radius:8px;background:var(--n-blue,#2563eb);color:#fff;font-weight:700;font-size:.88rem;cursor:pointer;transition:opacity .15s,transform .08s;display:flex;align-items:center;justify-content:center;gap:.5rem}
-.ws-form-submit:hover{opacity:.92}
-.ws-form-submit:active{transform:translateY(1px)}
-.ws-form-submit:disabled{opacity:.5;cursor:not-allowed}
+  .hub-status.ok .hub-status-dot {
+    background: #10b981;
+  }
 
-/* ── Custom Sources: Status badges & action buttons ─────────── */
-.ws-status{display:inline-flex;align-items:center;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:600;color:#fff}
-.ws-status.success{background:#10b981}.ws-status.failed{background:#ef4444}.ws-status.pending{background:#f59e0b}
-.ws-act-btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:4px 10px;border:none;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;transition:opacity .15s;color:#fff}
-.ws-act-btn:hover{opacity:.8}
-.ws-act-btn.run{background:var(--n-blue)}.ws-act-btn.del{background:#ef4444}
-.ws-act-btn:disabled{opacity:.5;cursor:not-allowed}
+  .hub-status.ko {
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+  }
 
-/* ── Toast notification ─────────────────────────────────────── */
-.ws-toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.75rem 1.25rem;border-radius:8px;color:#fff;font-size:.84rem;font-weight:500;z-index:2000;animation:wsToastIn .3s ease;display:flex;align-items:center;gap:.5rem;box-shadow:0 4px 16px rgba(0,0,0,.15)}
-.ws-toast.success{background:#10b981}.ws-toast.error{background:#ef4444}.ws-toast.info{background:var(--n-blue)}
-@keyframes wsToastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .hub-status.ko .hub-status-dot {
+    background: #ef4444;
+  }
+
+  .hub-category {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  .hub-meta {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 600;
+    min-height: 1rem;
+  }
+
+  .hub-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    text-decoration: none;
+    border-radius: 0.75rem;
+    border: 1px solid #bfdbfe;
+    background: #ffffff;
+    color: #1d4ed8;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.48rem 0.62rem;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .hub-btn:hover {
+    border-color: #93c5fd;
+    background: #eff6ff;
+    color: #1e40af;
+  }
 </style>
 {% endblock %}
 
-{% block content %}
+{% block scraping_page_content %}
+<section class="hub-shell" aria-label="{% trans 'Scraping Hub' %}">
+  <header class="hub-header">
+    <h1 class="hub-title">{% trans "Scraping Hub" %}</h1>
+    <p class="hub-subtitle">
+      {% trans "Choisissez une catégorie pour accéder à son dashboard dédié." %}
+    </p>
+  </header>
 
-<!-- ─── Page Header ───────────────────────────────────────────── -->
-<div class="pg-head">
-  <div>
-    <h1><i class="fas fa-robot"></i> AI Data Aggregator</h1>
-    <p class="pg-sub">Automated AI agent using search and LLM extraction to discover NLP resources.</p>
-  </div>
-  <div>
-    <a class="ws-add-src-btn" href="{% url 'scraping:scraping_results' %}" style="text-decoration:none">
-      <i class="fas fa-clipboard-check"></i> {% trans "Review Pending Results" %}
-    </a>
-  </div>
-</div>
+  <div class="hub-grid" aria-label="{% trans 'Category cards' %}">
+    {% for cat in categories %}
+    <article class="hub-card" style="--hub-color: {{ cat.meta.color|default:'#2563eb' }};">
+      <div class="hub-card-head">
+        <span class="hub-icon" aria-hidden="true">
+          <i class="fas {{ cat.meta.icon|default:'fa-layer-group' }}"></i>
+        </span>
 
-<!-- ─── Stats Grid ────────────────────────────────────────────── -->
-<div class="ws-kpi-grid">
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon events"><i class="fas fa-calendar-check"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "Events" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.events|default:"0" }}</p>
-    {% if pending_counts.events %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.events }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon tools"><i class="fas fa-screwdriver-wrench"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "Tools" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.tools|default:"0" }}</p>
-    {% if pending_counts.tools %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.tools }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon courses"><i class="fas fa-graduation-cap"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "Courses" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.courses|default:"0" }}</p>
-    {% if pending_counts.courses %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.courses }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon news"><i class="fas fa-newspaper"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "News" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.news|default:"0" }}</p>
-    {% if pending_counts.news %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.news }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon opportunities"><i class="fas fa-briefcase"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "Opportunities" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.opportunities|default:"0" }}</p>
-    {% if pending_counts.opportunities %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.opportunities }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-
-  <div class="ws-kpi-card">
-    <div class="ws-kpi-top">
-      <span class="ws-kpi-icon corpus"><i class="fas fa-database"></i></span>
-      <span class="ws-kpi-ai"><i class="fas fa-bolt"></i> {% trans "AI Powered" %}</span>
-    </div>
-    <p class="ws-kpi-label">{% trans "Corpus" %}</p>
-    <p class="ws-kpi-num">{{ model_counts.corpus|default:"0" }}</p>
-    {% if pending_counts.corpus %}
-      <p class="ws-kpi-meta pending"><i class="fas fa-clock"></i> {{ pending_counts.corpus }} {% trans "pending" %}</p>
-    {% else %}
-      <p class="ws-kpi-meta">{% trans "No pending items" %}</p>
-    {% endif %}
-  </div>
-</div>
-
-<div class="n-card" style="margin-top:1rem">
-  <div class="n-card-head">
-    <h3 class="n-card-title"><i class="fas fa-hdd"></i> {% trans "Media Storage Overview" %}</h3>
-  </div>
-  <div class="n-card-body" style="padding:0">
-    <div class="table-responsive">
-      <table class="n-tbl">
-        <thead>
-          <tr>
-            <th>{% trans "Category" %}</th>
-            <th>{% trans "Storage (bytes)" %}</th>
-            <th>{% trans "With Images" %}</th>
-            <th>{% trans "Without Images" %}</th>
-            <th>{% trans "With PDFs" %}</th>
-            <th>{% trans "Without PDFs" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>{% trans "Events" %}</td>
-            <td>{{ media_stats.events.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.events.with_images|default:"0" }}</td>
-            <td>{{ media_stats.events.without_images|default:"0" }}</td>
-            <td>{{ media_stats.events.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.events.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "Tools" %}</td>
-            <td>{{ media_stats.tools.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.tools.with_images|default:"0" }}</td>
-            <td>{{ media_stats.tools.without_images|default:"0" }}</td>
-            <td>{{ media_stats.tools.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.tools.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "News" %}</td>
-            <td>{{ media_stats.news.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.news.with_images|default:"0" }}</td>
-            <td>{{ media_stats.news.without_images|default:"0" }}</td>
-            <td>{{ media_stats.news.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.news.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "Courses" %}</td>
-            <td>{{ media_stats.courses.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.courses.with_images|default:"0" }}</td>
-            <td>{{ media_stats.courses.without_images|default:"0" }}</td>
-            <td>{{ media_stats.courses.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.courses.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "Opportunities" %}</td>
-            <td>{{ media_stats.opportunities.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.opportunities.with_images|default:"0" }}</td>
-            <td>{{ media_stats.opportunities.without_images|default:"0" }}</td>
-            <td>{{ media_stats.opportunities.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.opportunities.without_pdfs|default:"0" }}</td>
-          </tr>
-          <tr>
-            <td>{% trans "Corpus" %}</td>
-            <td>{{ media_stats.corpus.storage_bytes|default:"0" }}</td>
-            <td>{{ media_stats.corpus.with_images|default:"0" }}</td>
-            <td>{{ media_stats.corpus.without_images|default:"0" }}</td>
-            <td>{{ media_stats.corpus.with_pdfs|default:"0" }}</td>
-            <td>{{ media_stats.corpus.without_pdfs|default:"0" }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-  <div class="n-card" id="ai-search-prompts" style="margin-top:1rem">
-    <div class="n-card-head">
-      <h3 class="n-card-title"><i class="fas fa-magnifying-glass"></i> {% trans "AI Search Prompts" %}</h3>
-    </div>
-    <div class="n-card-body">
-      <div class="ws-prompts-wrap">
-        <form method="post" class="ws-prompt-form">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="add_search_query">
-
-          <div class="ws-form-group">
-            <label for="ws-prompt-category">{% trans "Category" %}</label>
-            <select id="ws-prompt-category" name="category" required>
-              {% for category_value, category_label in search_query_category_choices %}
-                <option value="{{ category_value }}">{{ category_label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="ws-form-group">
-            <label for="ws-prompt-text">{% trans "Prompt" %}</label>
-            <input
-              id="ws-prompt-text"
-              name="query_text"
-              type="text"
-              maxlength="500"
-              required
-              placeholder="{% trans 'e.g. upcoming NLP conferences in MENA' %}"
-            >
-          </div>
-
-          <label class="ws-prompt-inline" for="ws-prompt-active">
-            <input id="ws-prompt-active" name="is_active" type="checkbox" value="1" checked>
-            <span>{% trans "Active" %}</span>
-          </label>
-
-          <button class="ws-prompt-submit" type="submit">
-            <i class="fas fa-plus"></i> {% trans "Add Prompt" %}
-          </button>
-        </form>
-
-        <div class="table-responsive">
-          <table class="n-tbl">
-            <thead>
-              <tr>
-                <th>{% trans "Category" %}</th>
-                <th>{% trans "Prompt" %}</th>
-                <th>{% trans "Status" %}</th>
-                <th>{% trans "Action" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for prompt in search_query_rows %}
-                <tr>
-                  <td>{{ prompt.category_label }}</td>
-                  <td>{{ prompt.query_text }}</td>
-                  <td>
-                    {% if prompt.is_active %}
-                      <span class="ws-prompt-status active">{% trans "Active" %}</span>
-                    {% else %}
-                      <span class="ws-prompt-status inactive">{% trans "Inactive" %}</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    <form method="post" class="ws-prompt-toggle-form">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="toggle_search_query">
-                      <input type="hidden" name="query_id" value="{{ prompt.id }}">
-                      {% if prompt.is_active %}
-                        <input type="hidden" name="is_active" value="0">
-                        <button class="ws-prompt-toggle-btn" type="submit">
-                          <i class="fas fa-pause"></i> {% trans "Deactivate" %}
-                        </button>
-                      {% else %}
-                        <input type="hidden" name="is_active" value="1">
-                        <button class="ws-prompt-toggle-btn off" type="submit">
-                          <i class="fas fa-play"></i> {% trans "Activate" %}
-                        </button>
-                      {% endif %}
-                    </form>
-                  </td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="4">{% trans "No AI search prompts configured yet." %}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+        {% if cat.last_run and cat.last_run.status == 'completed' %}
+        <span class="hub-status ok">
+          <span class="hub-status-dot"></span>
+          {% trans "Run OK" %}
+        </span>
+        {% else %}
+        <span class="hub-status ko">
+          <span class="hub-status-dot"></span>
+          {% trans "Run KO" %}
+        </span>
+        {% endif %}
       </div>
-    </div>
-  </div>
 
-<!-- ─── Category Tabs ─────────────────────────────────────────── -->
-<div class="n-tabs">
-  {% for cat in categories %}
-  {% if cat.key == "events" or cat.key == "tools" or cat.key == "courses" or cat.key == "news" or cat.key == "opportunities" or cat.key == "corpus" %}
-  <button class="n-tab{% if cat.key == 'events' %} on{% endif %}" data-cat="{{ cat.key }}" onclick="switchTab('{{ cat.key }}')">
-    <i class="fas {{ cat.meta.icon }}"></i>
-    {{ cat.meta.label }}
-    {% if cat.last_run %}<span class="n-tab-badge">{{ cat.last_run.items_created }}</span>{% endif %}
-  </button>
-  {% endif %}
-  {% endfor %}
-</div>
+      <h2 class="hub-category">{{ cat.meta.label|default:cat.key|title }}</h2>
 
-<!-- ─── Category Panels ───────────────────────────────────────── -->
-{% for cat in categories %}
-{% if cat.key == "events" or cat.key == "tools" or cat.key == "courses" or cat.key == "news" or cat.key == "opportunities" or cat.key == "corpus" %}
-<div class="ws-panel{% if cat.key == 'events' %} active{% endif %}" id="panel-{{ cat.key }}">
-
-  <!-- AI control card + run button -->
-  <div class="n-card">
-    <div class="n-card-head">
-      <h3 class="n-card-title">
-        <i class="fas {{ cat.meta.icon }}" style="color:{{ cat.meta.color }}"></i>
-        {{ cat.meta.label }}
-      </h3>
-      <button class="ws-run-btn" id="btn-{{ cat.key }}" onclick="runScraper('{{ cat.key }}')">
-        <span class="ws-spin"></span>
-        <span class="ws-btn-label"><span class="ws-btn-ico"><i class="fas fa-robot"></i></span> {% trans "Run AI Agent" %}</span>
-      </button>
-    </div>
-    <div class="n-card-body">
-      <p style="margin:0 0 .5rem;font-size:.84rem;color:var(--n-text-2)">
-        {{ cat.meta.description }}
+      <p class="hub-meta">
+        {% if cat.last_run and cat.last_run.started_at %}
+          {% trans "Dernier lancement" %}: {{ cat.last_run.started_at|timesince }} {% trans "ago" %}
+        {% else %}
+          {% trans "Aucun run enregistré pour cette catégorie." %}
+        {% endif %}
       </p>
-      <p style="margin:.25rem 0 .45rem;font-size:.76rem;font-weight:700;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.05em">{% trans "Active Search Queries" %}</p>
-      <div id="ws-queries-{{ cat.key }}" class="ws-query-wrap"></div>
-      <p class="ws-query-note">{% trans "Manage prompts in AI Search Prompts section above." %}</p>
-    </div>
-  </div>
 
-  <!-- Loading overlay -->
-  <div class="ws-loading" id="loading-{{ cat.key }}">
-    <div class="ws-big-spin"></div>
-    <p class="ws-loading-line" id="loading-line-{{ cat.key }}">{% trans "Please wait... preparing scraping job." %}</p>
-    <p class="ws-loading-progress" id="loading-progress-{{ cat.key }}"></p>
-    <div class="ws-live-log" id="log-{{ cat.key }}"></div>
-  </div>
-
-  <!-- Results container (populated by JS) -->
-  <div id="results-{{ cat.key }}"></div>
-
-  <!-- AI agent activity logs -->
-  {% if cat.recent_runs %}
-  <div class="n-card" style="margin-top:1rem">
-    <div class="n-card-head">
-      <h3 class="n-card-title"><i class="fas fa-terminal"></i> {% trans "AI Agent Activity Logs" %}</h3>
-    </div>
-    <div class="ws-runs-wrap">
-      <div class="ws-runs-head">
-        <span>{% trans "Status" %}</span>
-        <span>{% trans "Search Engine" %}</span>
-        <span>{% trans "LLM Engine" %}</span>
-        <span>{% trans "Extracted Items" %}</span>
-        <span>{% trans "Started At" %}</span>
-      </div>
-    {% for run in cat.recent_runs %}
-    {% with created=run.items_created|default:0 skipped=run.items_skipped|default:0 %}
-    {% with extracted=created|add:skipped %}
-    <div class="ws-run-row">
-      {% if run.status == "completed" %}
-      <span class="ws-run-badge success">SUCCESS</span>
-      {% elif run.status == "failed" %}
-      <span class="ws-run-badge failed">FAILED</span>
-      {% elif run.status == "running" %}
-      <span class="ws-run-badge running">RUNNING</span>
-      {% else %}
-      <span class="ws-run-badge info">{{ run.get_status_display|default:run.status|upper }}</span>
-      {% endif %}
-      <span class="ws-run-engine"><i class="fas fa-magnifying-glass"></i> {{ run.search_engine|default:"Tavily" }}</span>
-      <span class="ws-run-engine"><i class="fas fa-brain"></i> {{ run.llm_engine|default:"Groq Llama-3" }}</span>
-      <span class="ws-run-count">{% firstof run.items_scraped run.extracted_items extracted %}</span>
-      <span class="ws-run-meta">{{ run.started_at|date:"d M Y, H:i" }}</span>
-    </div>
-    {% endwith %}
-    {% endwith %}
+      <a class="hub-btn" href="{% url 'scraping:category_dashboard' cat.key %}">
+        <i class="fas fa-arrow-right"></i>
+        <span>{% trans "Gérer cette catégorie" %}</span>
+      </a>
+    </article>
+    {% empty %}
+    <article class="hub-card">
+      <h2 class="hub-category">{% trans "Aucune catégorie disponible" %}</h2>
+      <p class="hub-meta">{% trans "Vérifiez la configuration des catégories de scraping." %}</p>
+    </article>
     {% endfor %}
-    </div>
   </div>
-  {% endif %}
-
-</div>
-{% endif %}
-{% endfor %}
-
-{% csrf_token %}
-{% endblock %}
-
-{% block extra_js %}
-<script>
-(function() {
-    'use strict';
-
-    /* ── i18n labels for JS-rendered content ───────────────────── */
-    var I18N = {
-        found:      '{% trans "Found" %}',
-        created:    '{% trans "Created" %}',
-        skipped:    '{% trans "Skipped" %}',
-        passedLLM:  '{% trans "Passed LLM Validation" %}',
-        deadLettered:'{% trans "Dead-Lettered" %}',
-        reviewScrapedItems: '{% trans "Review Scraped Items" %}',
-        duration:   '{% trans "Duration" %}',
-        passedValidation: '{% trans "Passed Validation" %}',
-        rejectedDate: '{% trans "Rejected (Date)" %}',
-        rejectedFields: '{% trans "Rejected (Fields)" %}',
-        warnings:   '{% trans "warning(s)" %}',
-        noItems:    '{% trans "No new items found." %}',
-        scraped:    '{% trans "Scraped Items" %}',
-        networkErr: '{% trans "Network Error" %}',
-        error:      '{% trans "Error" %}',
-        acceptOne:  '{% trans "Approve & Sync to AI/Qdrant" %}',
-        acceptAll:  '{% trans "Approve All & Sync to AI/Qdrant" %}',
-        noActivePrompt: '{% trans "No active prompt configured" %}',
-        pendingReview: '{% trans "Pending Validation Queue" %}',
-        queuedFromRun: '{% trans "Items queued from this run" %}',
-        liveNarrationStart: '{% trans "Please wait... preparing the scraping job." %}',
-        liveNarrationWork: '{% trans "Please wait... scraping websites now." %}',
-        liveNarrationCollect: '{% trans "Collecting and validating scraped candidates..." %}',
-        liveNarrationDone: '{% trans "Scraping completed. Preparing validation actions..." %}',
-        title:      '{% trans "Title" %}',
-        location:   '{% trans "Location" %}',
-        dates:      '{% trans "Dates" %}',
-        link:       '{% trans "Link" %}',
-        type:       '{% trans "Type" %}',
-        author:     '{% trans "Author" %}',
-        downloads:  '{% trans "Downloads" %}',
-        published:  '{% trans "Published" %}',
-        institution:'{% trans "Institution" %}',
-        level:      '{% trans "Level" %}',
-        description:'{% trans "Description" %}',
-        source:     '{% trans "Source" %}',
-        name:       '{% trans "Name" %}',
-        country:    '{% trans "Country" %}',
-        city:       '{% trans "City" %}',
-    };
-
-    /* ── CSRF helper ───────────────────────────────────────────── */
-    function getCookie(name) {
-        var v = null;
-        if (document.cookie) {
-            document.cookie.split(';').forEach(function(c) {
-                c = c.trim();
-                if (c.indexOf(name + '=') === 0)
-                    v = decodeURIComponent(c.substring(name.length + 1));
-            });
-        }
-        return v;
-    }
-    var csrfToken = getCookie('csrftoken')
-        || (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
-        || '';
-
-    /* ── Active search queries state ───────────────────────────── */
-    var CATEGORY_KEYS = ['events', 'tools', 'courses', 'news', 'opportunities', 'corpus'];
-    var SEARCH_QUERY_ROWS = JSON.parse('{{ search_query_rows_json|escapejs }}' || '[]');
-    var activeSearchQueriesByCategory = CATEGORY_KEYS.reduce(function(acc, key) {
-      acc[key] = [];
-      return acc;
-    }, {});
-    var narrationTimers = {};
-    var pendingReviewByRun = {};
-    var MAX_DASHBOARD_REVIEW_ROWS = 20;
-
-    function resetActiveSearchQueriesFromRows() {
-      CATEGORY_KEYS.forEach(function(catKey) {
-        activeSearchQueriesByCategory[catKey] = [];
-      });
-
-      (SEARCH_QUERY_ROWS || []).forEach(function(row) {
-        if (!row || !row.is_active) return;
-        var cat = String(row.category || '').toLowerCase();
-        var text = String(row.query_text || '').trim();
-        if (!cat || !text) return;
-        if (!activeSearchQueriesByCategory[cat]) {
-          activeSearchQueriesByCategory[cat] = [];
-        }
-        activeSearchQueriesByCategory[cat].push(text);
-      });
-    }
-
-    function renderSearchQueryChips(catKey) {
-      var container = document.getElementById('ws-queries-' + catKey);
-      if (!container) return;
-      var list = activeSearchQueriesByCategory[catKey] || [];
-      var h = '';
-      list.forEach(function(query) {
-        h += '<span class="ws-query-tag">';
-        h += '<i class="fas fa-search"></i> ' + escapeHtml(query);
-        h += '</span>';
-      });
-      if (!list.length) {
-        h = '<span class="ws-query-tag"><i class="fas fa-robot"></i> ' + I18N.noActivePrompt + '</span>';
-      }
-      container.innerHTML = h;
-    }
-
-    function renderAllSearchQueryChips() {
-      CATEGORY_KEYS.forEach(function(catKey) {
-        renderSearchQueryChips(catKey);
-      });
-    }
-    /* ── Tab switching ─────────────────────────────────────────── */
-    window.switchTab = function(cat) {
-        document.querySelectorAll('.n-tab').forEach(function(t){ t.classList.remove('on'); });
-        document.querySelectorAll('.ws-panel').forEach(function(p){ p.classList.remove('active'); });
-        var tab = document.querySelector('.n-tab[data-cat="'+cat+'"]');
-        var panel = document.getElementById('panel-' + cat);
-        if (tab) tab.classList.add('on');
-        if (panel) panel.classList.add('active');
-    };
-
-    function getLoadingRefs(cat) {
-      return {
-        loading: document.getElementById('loading-' + cat),
-        line: document.getElementById('loading-line-' + cat),
-        progress: document.getElementById('loading-progress-' + cat),
-        log: document.getElementById('log-' + cat)
-      };
-    }
-
-    function resetLiveNarration(cat) {
-      var refs = getLoadingRefs(cat);
-      if (!refs.loading) return;
-      if (refs.line) refs.line.textContent = I18N.liveNarrationStart;
-      if (refs.progress) refs.progress.textContent = '';
-      if (refs.log) refs.log.innerHTML = '';
-    }
-
-    function setLoadingLine(cat, text) {
-      var refs = getLoadingRefs(cat);
-      if (refs.line) refs.line.textContent = text || '';
-    }
-
-    function setLoadingProgress(cat, text) {
-      var refs = getLoadingRefs(cat);
-      if (refs.progress) refs.progress.textContent = text || '';
-    }
-
-    function appendLog(cat, message, kind) {
-      var refs = getLoadingRefs(cat);
-      var log = refs.log;
-      if (!log) return;
-      var clean = String(message || '').trim();
-      if (!clean) return;
-
-      var last = log.lastElementChild;
-      if (last && last.getAttribute('data-raw-message') === clean) {
-        return;
-      }
-
-      var row = document.createElement('div');
-      row.className = 'ws-log-item ' + (kind || 'info');
-      row.setAttribute('data-raw-message', clean);
-      row.innerHTML = '<span class="dot"></span><span>' + escapeHtml(clean) + '</span>';
-      log.appendChild(row);
-      log.scrollTop = log.scrollHeight;
-    }
-
-    function startNarrationHeartbeat(cat) {
-      stopNarrationHeartbeat(cat);
-      var lines = [
-        I18N.liveNarrationStart,
-        I18N.liveNarrationWork,
-        I18N.liveNarrationCollect
-      ];
-      var idx = 0;
-      setLoadingLine(cat, lines[0]);
-      appendLog(cat, lines[0], 'info');
-      narrationTimers[cat] = window.setInterval(function() {
-        idx = (idx + 1) % lines.length;
-        setLoadingLine(cat, lines[idx]);
-      }, 5000);
-    }
-
-    function stopNarrationHeartbeat(cat) {
-      if (!narrationTimers[cat]) return;
-      window.clearInterval(narrationTimers[cat]);
-      delete narrationTimers[cat];
-    }
-
-    function humanizeStatusUpdate(wsData) {
-      var message = String(wsData.message || '').trim();
-      var source = String(wsData.current_source || '').trim();
-      var lower = message.toLowerCase();
-
-      if (lower.indexOf('refused connection') !== -1 || lower.indexOf('connection') !== -1 || lower.indexOf('timeout') !== -1 || lower.indexOf('http ') !== -1) {
-        return { text: message || ('Website ' + source + ' refused connection, skipping...'), kind: 'error' };
-      }
-      if (lower.indexOf('completed') !== -1) {
-        return { text: I18N.liveNarrationDone, kind: 'success' };
-      }
-      if (source) {
-        return { text: 'Scraping website: ' + source, kind: 'info' };
-      }
-      if (message) {
-        return { text: message, kind: 'info' };
-      }
-      return { text: I18N.liveNarrationWork, kind: 'info' };
-    }
-
-    /* ── Run AI agent ──────────────────────────────────────────── */
-    window.runScraper = function(cat) {
-        var btn     = document.getElementById('btn-' + cat);
-        var loading = document.getElementById('loading-' + cat);
-        var results = document.getElementById('results-' + cat);
-      var payload = {
-        category: cat,
-        queries_by_category: CATEGORY_KEYS.reduce(function(acc, key) {
-          acc[key] = (activeSearchQueriesByCategory[key] || []).slice();
-          return acc;
-        }, {}),
-        queries_for_category: (activeSearchQueriesByCategory[cat] || []).slice(),
-        sources_by_category: CATEGORY_KEYS.reduce(function(acc, key) {
-          acc[key] = (activeSearchQueriesByCategory[key] || []).slice();
-          return acc;
-        }, {}),
-        sources_for_category: (activeSearchQueriesByCategory[cat] || []).slice()
-      };
-
-        btn.classList.add('loading');
-        btn.disabled = true;
-        loading.classList.add('active');
-        results.innerHTML = '';
-  resetLiveNarration(cat);
-  startNarrationHeartbeat(cat);
-
-        var dashboardUrl = '{% url "scraping:dashboard" %}';
-        var runUrl = dashboardUrl.replace(/\/?$/, '/run/') + cat + '/';
-
-        fetch(runUrl, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        .then(function(r){ return r.json(); })
-        .then(function(data) {
-            if (data.status === 'started') {
-            if (!window._scrapingSockets) window._scrapingSockets = {};
-            if (window._scrapingSockets[cat]) {
-              window._scrapingSockets[cat].disconnect();
-            }
-            window._scrapingSockets[cat] = new ScrapingStatusSocket(data.run_id, function(wsData) {
-              var progress = Number(wsData.progress || 0);
-              var total = Number(wsData.total || 0);
-              updateProgressBar(cat, progress, total);
-              updateStatusBadge(cat, wsData.status || 'running');
-              updateItemsCounter(cat, Number(wsData.items_scraped || 0), Number(wsData.items_failed || 0));
-              if (wsData.current_source) updateCurrentSource(cat, wsData.current_source);
-
-              var narrative = humanizeStatusUpdate(wsData);
-              setLoadingLine(cat, narrative.text);
-              appendLog(cat, narrative.text, narrative.kind);
-
-              if (wsData.status === 'completed' || wsData.status === 'failed') {
-                var dashboardUrl = '{% url "scraping:dashboard" %}';
-                var statusUrl = dashboardUrl.replace(/\/?$/, '/status/') + data.run_id + '/';
-                fetch(statusUrl)
-                  .then(function(resp){ return resp.json(); })
-                  .then(function(finalData){ finishScraper(cat, finalData); })
-                  .catch(function(){
-                    finishScraper(cat, {
-                      status: wsData.status,
-                      message: wsData.message || 'Unable to fetch final task status'
-                    });
-                  });
-              }
-            });
-            } else {
-                finishScraper(cat, data);
-            }
-        })
-        .catch(function(err) {
-            stopNarrationHeartbeat(cat);
-            loading.classList.remove('active');
-            btn.classList.remove('loading');
-            btn.disabled = false;
-            results.innerHTML = '<div class="ws-errors"><summary>'+I18N.networkErr+'</summary><ul><li>'+escapeHtml(String(err))+'</li></ul></div>';
-        });
-    };
-
-    /* ── WebSocket task status ─────────────────────────────────── */
-    class ScrapingStatusSocket {
-      constructor(taskUuid, onUpdate) {
-        this.taskUuid = taskUuid;
-        this.onUpdate = onUpdate;
-        this.reconnectDelay = 1000;
-        this.maxReconnectDelay = 30000;
-        this.shouldReconnect = true;
-        this.connect();
-      }
-
-      connect() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        this.ws = new WebSocket(
-          `${protocol}//${window.location.host}/ws/scraping/${this.taskUuid}/`
-        );
-
-        this.ws.onopen = () => {
-          console.log(`[ScrapingWS] Connected for task ${this.taskUuid}`);
-          this.reconnectDelay = 1000;
-        };
-
-        this.ws.onmessage = (event) => {
-          let data = {};
-          try { data = JSON.parse(event.data); } catch (_err) { data = {}; }
-          this.onUpdate(data);
-          // Auto-close when done
-          if (data.status === 'completed' || data.status === 'failed') {
-            setTimeout(() => this.ws.close(), 2000);
-          }
-        };
-
-        this.ws.onerror = (error) => {
-          console.error('[ScrapingWS] Error:', error);
-        };
-
-        this.ws.onclose = () => {
-          // Reconnect only if task still running
-          if (this.shouldReconnect) {
-            setTimeout(() => this.connect(), this.reconnectDelay);
-            this.reconnectDelay = Math.min(
-              this.reconnectDelay * 2,
-              this.maxReconnectDelay
-            );
-          }
-        };
-      }
-
-      disconnect() {
-        this.shouldReconnect = false;
-        if (this.ws) this.ws.close();
-      }
-    }
-
-    function updateProgressBar(cat, progress, total) {
-      var safeTotal = total > 0 ? total : 0;
-      if (safeTotal > 0) {
-        setLoadingProgress(cat, 'Queries processed: ' + progress + ' / ' + safeTotal);
-      } else {
-        setLoadingProgress(cat, 'Queries processed: running...');
-      }
-    }
-
-    function updateStatusBadge(cat, status) {
-      var btn = document.getElementById('btn-' + cat);
-      if (!btn) return;
-      btn.dataset.wsStatus = status || 'running';
-    }
-
-    function updateItemsCounter(cat, scraped, failed) {
-      var results = document.getElementById('results-' + cat);
-      if (!results) return;
-      results.dataset.itemsScraped = String(scraped || 0);
-      results.dataset.itemsFailed = String(failed || 0);
-    }
-
-    function updateCurrentSource(cat, sourceName) {
-      if (!sourceName) return;
-      setLoadingLine(cat, 'Scraping website: ' + sourceName);
-    }
-
-    /* ── Finish ────────────────────────────────────────────────── */
-    function finishScraper(cat, data) {
-        var btn     = document.getElementById('btn-' + cat);
-        var loading = document.getElementById('loading-' + cat);
-      stopNarrationHeartbeat(cat);
-        loading.classList.remove('active');
-        btn.classList.remove('loading');
-        btn.disabled = false;
-
-        if (data.status === 'error' || data.status === 'failed') {
-            var msg = data.message || (data.errors && data.errors.join(', ')) || 'Unknown error';
-        setLoadingLine(cat, msg);
-        appendLog(cat, msg, 'error');
-            document.getElementById('results-' + cat).innerHTML =
-                '<div class="ws-errors"><summary>'+I18N.error+'</summary><ul><li>'+escapeHtml(msg)+'</li></ul></div>';
-            return;
-        }
-      setLoadingLine(cat, I18N.liveNarrationDone);
-      appendLog(cat, I18N.liveNarrationDone, 'success');
-        renderResults(cat, data);
-    }
-
-    /* ── Render results ────────────────────────────────────────── */
-    function renderResults(cat, data) {
-        var container = document.getElementById('results-' + cat);
-        var h = '';
-      var validationStats = data.validation_stats || {};
-      var passedValidation = Number(validationStats.passed || data.items_created || 0);
-      var deadLettered = Number(data.dead_lettered || data.items_skipped || 0);
-      var runId = data.run_id || '';
-      var pendingReview = Array.isArray(data.pending_review) ? data.pending_review : [];
-      var pendingCount = Number(data.pending_review_count || pendingReview.length || 0);
-      var reviewUrl = '{% url "scraping:scraping_results" %}' + (runId ? ('?run_id=' + encodeURIComponent(runId)) : '');
-      var rejectedDate = Number(validationStats.failed_date || 0);
-      var rejectedFreshness = Number(validationStats.failed_freshness || 0);
-      var rejectedFields = Number(validationStats.failed_fields || 0);
-      var autoFilledArabic = Number(validationStats.auto_filled || 0);
-      container.dataset.failedFreshness = String(rejectedFreshness);
-      if (runId) {
-        pendingReviewByRun[runId] = pendingReview;
-      }
-
-        /* Summary */
-        h += '<div class="n-card" style="margin-top:1rem"><div class="ws-run-summary">';
-        h += '<div class="ws-run-summary-grid">';
-        h += '<div class="ws-run-summary-box"><div class="num" style="color:var(--n-blue)">'+(data.items_found||0)+'</div><div class="lbl">'+I18N.found+'</div></div>';
-        h += '<div class="ws-run-summary-box"><div class="num" style="color:var(--n-green)">'+passedValidation+'</div><div class="lbl">'+I18N.passedLLM+'</div></div>';
-        h += '<div class="ws-run-summary-box"><div class="num" style="color:var(--n-red)">'+deadLettered+'</div><div class="lbl">'+I18N.deadLettered+'</div></div>';
-        h += '</div>';
-        h += '<div class="ws-review-actions">';
-        h += '<a class="ws-review-link" href="'+reviewUrl+'">'+I18N.reviewScrapedItems+' <i class="fas fa-arrow-right"></i></a>';
-        if (runId && pendingCount > 0) {
-          h += '<button class="ws-accept-all-btn" type="button" onclick="acceptAllPendingItems(\''+escapeJs(runId)+'\')"><i class="fas fa-check-double"></i> '+I18N.acceptAll+' ('+pendingCount+')</button>';
-        }
-        h += '</div>';
-        h += '</div>';
-      h += '<div class="ws-validation-summary">';
-      h += '<span class="ws-val-ok">'+passedValidation+' items passed validation</span> • ';
-      h += '<span class="ws-val-date">'+rejectedDate+' rejected (past date)</span> • ';
-      h += '<span class="ws-val-fields">'+rejectedFields+' rejected (missing fields)</span> • ';
-      h += '<span class="ws-val-autofill">'+autoFilledArabic+' auto-filled Arabic fields</span>';
-      h += '</div>';
-
-      if (runId && pendingCount > 0) {
-        h += buildPendingReviewQueue(runId, pendingReview);
-      }
-
-        /* Errors */
-        if (data.errors && data.errors.length) {
-            h += '<details class="ws-errors" style="margin:0;border-radius:0"><summary><i class="fas fa-exclamation-triangle"></i> '+data.errors.length+' '+I18N.warnings+'</summary><ul>';
-            data.errors.forEach(function(e){ h += '<li>'+escapeHtml(e)+'</li>'; });
-            h += '</ul></details>';
-        }
-
-        /* Table */
-        var items = data.results || [];
-        if (!items.length) {
-            h += '<div class="n-empty"><i class="fas fa-inbox"></i><h3>'+I18N.noItems+'</h3></div>';
-        } else {
-            h += buildTable(cat, items);
-        }
-
-        h += '</div>';
-        container.innerHTML = h;
-    }
-
-    function buildPendingReviewQueue(runId, pendingReview) {
-      var rows = pendingReview.slice(0, MAX_DASHBOARD_REVIEW_ROWS);
-      var h = '<div class="ws-review-queue">';
-      h += '<div class="ws-review-queue-head">';
-      h += '<div>';
-      h += '<div class="ws-review-queue-title"><i class="fas fa-user-check"></i> ' + I18N.pendingReview + ' <span class="n-tab-badge">' + pendingReview.length + '</span></div>';
-      h += '<div class="ws-review-queue-note">' + I18N.queuedFromRun + '</div>';
-      h += '</div>';
-      h += '<button class="ws-accept-all-btn" type="button" onclick="acceptAllPendingItems(\'' + escapeJs(runId) + '\')"><i class="fas fa-check-double"></i> ' + I18N.acceptAll + '</button>';
-      h += '</div>';
-      h += '<div class="table-responsive"><table class="n-tbl"><thead><tr>';
-      h += '<th>#</th><th>' + I18N.title + '</th><th>{% trans "Category" %}</th><th>{% trans "Source" %}</th><th>{% trans "Action" %}</th>';
-      h += '</tr></thead><tbody>';
-
-      rows.forEach(function(item, idx) {
-        var sourceLink = item.source_url
-          ? '<a href="' + escapeHtml(item.source_url) + '" target="_blank" rel="noopener" class="n-act" style="display:inline-flex;width:28px;height:28px"><i class="fas fa-external-link-alt"></i></a>'
-          : '—';
-        h += '<tr>';
-        h += '<td>' + (idx + 1) + '</td>';
-        h += '<td>' + escapeHtml(item.title || '') + '</td>';
-        h += '<td>' + escapeHtml(item.category_label || item.category || '') + '</td>';
-        h += '<td>' + sourceLink + '</td>';
-        h += '<td><button type="button" class="ws-row-accept" onclick="acceptPendingItem(\'' + escapeJs(item.id) + '\',\'' + escapeJs(item.category || '') + '\',\'' + escapeJs(runId) + '\')"><i class="fas fa-check"></i> ' + I18N.acceptOne + '</button></td>';
-        h += '</tr>';
-      });
-
-      h += '</tbody></table></div>';
-      if (pendingReview.length > rows.length) {
-        h += '<div class="ws-review-queue-note" style="margin-top:.5rem">'
-          + '{% trans "Showing first" %} ' + rows.length + ' {% trans "items. Use Review Scraped Items to manage the full queue." %}'
-          + '</div>';
-      }
-      h += '</div>';
-      return h;
-    }
-
-    /* ── Build results table ───────────────────────────────────── */
-    function buildTable(cat, items) {
-        var cols = {
-        events:        [I18N.title, I18N.location, I18N.type, I18N.link],
-        tools:         [I18N.title, I18N.type, I18N.description, I18N.link],
-        courses:       [I18N.title, I18N.type, I18N.description, I18N.link],
-        news:          [I18N.title, I18N.type, I18N.description, I18N.link],
-        opportunities: [I18N.title, I18N.type, I18N.description, I18N.link],
-        corpus:        [I18N.title, I18N.type, I18N.description, I18N.link],
-        };
-        var fields = {
-        events:        ['title','location','type','url'],
-        tools:         ['title','type','description','url'],
-        courses:       ['title','type','description','url'],
-        news:          ['title','type','description','url'],
-        opportunities: ['title','type','description','url'],
-        corpus:        ['title','type','description','url'],
-        };
-        var cArr = cols[cat] || [I18N.title];
-        var fArr = fields[cat] || ['title'];
-
-        var h = '<div class="n-card-head"><h3 class="n-card-title"><i class="fas fa-list"></i> '+I18N.scraped+' <span class="n-tab-badge" style="background:var(--n-green);color:#fff">'+items.length+'</span></h3></div>';
-        h += '<div class="table-responsive"><table class="n-tbl"><thead><tr><th>#</th>';
-        cArr.forEach(function(c){ h += '<th>'+c+'</th>'; });
-        h += '</tr></thead><tbody>';
-
-        items.forEach(function(item, idx) {
-            h += '<tr><td>'+(idx+1)+'</td>';
-            fArr.forEach(function(f) {
-                var val = item[f] || '—';
-                if (f === 'url' && val !== '—') {
-                    h += '<td><a href="'+escapeHtml(val)+'" target="_blank" rel="noopener" class="n-act" style="display:inline-flex;width:28px;height:28px"><i class="fas fa-external-link-alt"></i></a></td>';
-                } else {
-                    h += '<td>'+escapeHtml(val)+'</td>';
-                }
-            });
-            h += '</tr>';
-        });
-
-        h += '</tbody></table></div>';
-        return h;
-    }
-
-    function escapeHtml(text) {
-        if (!text) return '';
-        var d = document.createElement('div');
-        d.textContent = String(text);
-        return d.innerHTML;
-    }
-
-    function escapeJs(text) {
-        return String(text || '')
-          .replace(/\\/g, '\\\\')
-          .replace(/'/g, "\\'");
-    }
-
-    function submitPostForm(url, fields) {
-      var form = document.createElement('form');
-      form.method = 'POST';
-      form.action = url;
-      form.style.display = 'none';
-
-      function appendInput(name, value) {
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = String(value == null ? '' : value);
-        form.appendChild(input);
-      }
-
-      appendInput('csrfmiddlewaretoken', csrfToken);
-      Object.keys(fields || {}).forEach(function(key) {
-        var value = fields[key];
-        if (Array.isArray(value)) {
-          value.forEach(function(item) {
-            appendInput(key, item);
-          });
-          return;
-        }
-        appendInput(key, value);
-      });
-
-      document.body.appendChild(form);
-      form.submit();
-    }
-
-    window.acceptPendingItem = function(itemId, category, runId) {
-      if (!itemId) return;
-      submitPostForm(dashboardBase + '/results/validate/' + encodeURIComponent(itemId) + '/', {
-        category: category || '',
-        run_id: runId || ''
-      });
-    };
-
-    window.acceptAllPendingItems = function(runId) {
-      var pendingItems = pendingReviewByRun[runId] || [];
-      if (!pendingItems.length) {
-        showToast('No pending items for this run.', 'info');
-        return;
-      }
-
-      var categoryHint = (pendingItems[0] && pendingItems[0].category) || '';
-      var itemTokens = pendingItems.map(function(item) {
-        var cat = String(item.category || '').toLowerCase();
-        var id = String(item.id || '');
-        return cat ? (cat + ':' + id) : id;
-      });
-
-      submitPostForm(dashboardBase + '/results/bulk-action/', {
-        action: 'validate',
-        category: categoryHint,
-        run_id: runId || '',
-        item_ids: itemTokens
-      });
-    };
-
-     /* ================================================================
-       Utilities
-       ================================================================ */
-
-    var dashboardBase = '{% url "scraping:dashboard" %}'.replace(/\/?$/, '');
-
-    /* ── Toast notification ────────────────────────────────────── */
-    window.showToast = function(message, type) {
-        type = type || 'info';
-        var t = document.createElement('div');
-        t.className = 'ws-toast ' + type;
-        var icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
-        t.innerHTML = '<i class="fas ' + icon + '"></i> ' + escapeHtml(message);
-        document.body.appendChild(t);
-        setTimeout(function(){ t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, 3000);
-        setTimeout(function(){ t.remove(); }, 3500);
-    };
-
-    /* ── Initial load ──────────────────────────────────────────── */
-    resetActiveSearchQueriesFromRows();
-    renderAllSearchQueryChips();
-
-})();
-</script>
+</section>
 {% endblock %}

@@ -18,6 +18,8 @@ from datetime import timedelta
 
 from django.utils import timezone
 
+from scraping.utils import apply_translation_confidence_cap
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,24 +33,45 @@ DOMAIN_ONTOLOGY = {
         "label_en": "Arabic NLP",
         "label_ar": "معالجة اللغة العربية الطبيعية",
         "keywords_en": [
-            "arabic nlp", "arabic natural language processing",
-            "arabic text processing", "arabic language technology",
-            "arabic text mining", "arabic information extraction",
-            "arabic morphological analysis", "arabic tokenization",
-            "arabic stemming", "arabic lemmatization",
-            "arabic pos tagging", "arabic named entity recognition",
-            "arabic ner", "arabic word segmentation",
-            "arabic diacritization", "arabic tashkeel",
-            "arabic spell checking", "arabic ocr",
-            "arabic text classification", "arabic sentiment analysis",
-            "arabic question answering", "arabic summarization",
-            "arabic machine translation", "arabic mt",
-            "arabic word embeddings", "arabic bert", "arabert",
-            "camelbert", "arabic language model",
-            "dialectal arabic", "arabic dialect processing",
-            "maghrebi arabic", "algerian arabic", "darija",
-            "levantine arabic", "gulf arabic", "egyptian arabic",
-            "modern standard arabic", "msa",
+            "arabic nlp",
+            "arabic natural language processing",
+            "arabic text processing",
+            "arabic language technology",
+            "arabic text mining",
+            "arabic information extraction",
+            "arabic morphological analysis",
+            "arabic tokenization",
+            "arabic stemming",
+            "arabic lemmatization",
+            "arabic pos tagging",
+            "arabic named entity recognition",
+            "arabic ner",
+            "arabic word segmentation",
+            "arabic diacritization",
+            "arabic tashkeel",
+            "arabic spell checking",
+            "arabic ocr",
+            "arabic text classification",
+            "arabic sentiment analysis",
+            "arabic question answering",
+            "arabic summarization",
+            "arabic machine translation",
+            "arabic mt",
+            "arabic word embeddings",
+            "arabic bert",
+            "arabert",
+            "camelbert",
+            "arabic language model",
+            "dialectal arabic",
+            "arabic dialect processing",
+            "maghrebi arabic",
+            "algerian arabic",
+            "darija",
+            "levantine arabic",
+            "gulf arabic",
+            "egyptian arabic",
+            "modern standard arabic",
+            "msa",
         ],
         "keywords_ar": [
             "المعالجة اللغوية الطبيعية العربية",
@@ -72,21 +95,37 @@ DOMAIN_ONTOLOGY = {
         "label_en": "Arabic Languages & Linguistics",
         "label_ar": "اللغويات العربية",
         "keywords_en": [
-            "arabic linguistics", "arabic language",
-            "arabic corpus", "arabic corpora",
-            "arabic grammar", "arabic syntax",
-            "arabic phonology", "arabic morphology",
-            "arabic semantics", "arabic pragmatics",
-            "arabic lexicon", "arabic dictionary",
-            "arabic script", "arabic writing system",
-            "classical arabic", "quranic arabic",
-            "arabic dialectology", "arabic sociolinguistics",
-            "amazigh language", "tamazight", "berber language",
-            "kabyle", "tuareg language",
-            "arabic calligraphy", "arabic typography",
-            "arabic unicode", "arabic text rendering",
-            "arabic language resources", "arabic treebank",
-            "arabic wordnet", "arabic ontology",
+            "arabic linguistics",
+            "arabic language",
+            "arabic corpus",
+            "arabic corpora",
+            "arabic grammar",
+            "arabic syntax",
+            "arabic phonology",
+            "arabic morphology",
+            "arabic semantics",
+            "arabic pragmatics",
+            "arabic lexicon",
+            "arabic dictionary",
+            "arabic script",
+            "arabic writing system",
+            "classical arabic",
+            "quranic arabic",
+            "arabic dialectology",
+            "arabic sociolinguistics",
+            "amazigh language",
+            "tamazight",
+            "berber language",
+            "kabyle",
+            "tuareg language",
+            "arabic calligraphy",
+            "arabic typography",
+            "arabic unicode",
+            "arabic text rendering",
+            "arabic language resources",
+            "arabic treebank",
+            "arabic wordnet",
+            "arabic ontology",
         ],
         "keywords_ar": [
             "اللغويات العربية",
@@ -107,17 +146,29 @@ DOMAIN_ONTOLOGY = {
         "label_en": "Speech Processing",
         "label_ar": "معالجة الكلام",
         "keywords_en": [
-            "speech processing", "speech recognition",
-            "automatic speech recognition", "asr",
-            "text to speech", "tts", "speech synthesis",
-            "arabic speech", "arabic asr", "arabic tts",
-            "arabic voice", "arabic speaker recognition",
-            "arabic speech dataset", "arabic audio",
-            "whisper arabic", "wav2vec arabic",
-            "massively multilingual speech", "mms",
+            "speech processing",
+            "speech recognition",
+            "automatic speech recognition",
+            "asr",
+            "text to speech",
+            "tts",
+            "speech synthesis",
+            "arabic speech",
+            "arabic asr",
+            "arabic tts",
+            "arabic voice",
+            "arabic speaker recognition",
+            "arabic speech dataset",
+            "arabic audio",
+            "whisper arabic",
+            "wav2vec arabic",
+            "massively multilingual speech",
+            "mms",
             "spoken language understanding",
-            "voice assistant arabic", "speech translation",
-            "arabic dialogue systems", "conversational ai arabic",
+            "voice assistant arabic",
+            "speech translation",
+            "arabic dialogue systems",
+            "conversational ai arabic",
             "arabic speech corpus",
         ],
         "keywords_ar": [
@@ -135,20 +186,36 @@ DOMAIN_ONTOLOGY = {
         "label_en": "LLM Research",
         "label_ar": "أبحاث النماذج اللغوية الكبيرة",
         "keywords_en": [
-            "large language model", "llm",
-            "arabic llm", "arabic language model",
-            "jais", "acegpt", "allam",
-            "instruction tuning arabic", "rlhf arabic",
-            "arabic chatbot", "arabic conversational ai",
-            "arabic text generation", "arabic gpt",
-            "fine-tuning arabic", "arabic prompt engineering",
-            "multilingual llm", "cross-lingual transfer",
-            "transformer", "attention mechanism",
-            "pre-training", "foundation model",
-            "retrieval augmented generation", "rag",
-            "arabic knowledge base", "arabic qa",
-            "arabic reasoning", "arabic benchmarks",
-            "arabic evaluation", "alghafa", "arabic glue",
+            "large language model",
+            "llm",
+            "arabic llm",
+            "arabic language model",
+            "jais",
+            "acegpt",
+            "allam",
+            "instruction tuning arabic",
+            "rlhf arabic",
+            "arabic chatbot",
+            "arabic conversational ai",
+            "arabic text generation",
+            "arabic gpt",
+            "fine-tuning arabic",
+            "arabic prompt engineering",
+            "multilingual llm",
+            "cross-lingual transfer",
+            "transformer",
+            "attention mechanism",
+            "pre-training",
+            "foundation model",
+            "retrieval augmented generation",
+            "rag",
+            "arabic knowledge base",
+            "arabic qa",
+            "arabic reasoning",
+            "arabic benchmarks",
+            "arabic evaluation",
+            "alghafa",
+            "arabic glue",
         ],
         "keywords_ar": [
             "النماذج اللغوية الكبيرة",
@@ -184,6 +251,7 @@ _build_keyword_index()
 # =====================================================================
 # 2. KEYWORD EXPANSION ENGINE
 # =====================================================================
+
 
 def expand_keywords(seed_terms: list[str], max_results: int = 30) -> list[str]:
     """Expand a list of seed terms using the domain ontology.
@@ -240,8 +308,15 @@ _current_year = str(datetime.datetime.now().year)
 _next_year = str(datetime.datetime.now().year + 1)
 
 _MODIFIERS = [
-    "", _current_year, _next_year, "deep learning", "transformer",
-    "bert", "dataset", "benchmark", "low-resource",
+    "",
+    _current_year,
+    _next_year,
+    "deep learning",
+    "transformer",
+    "bert",
+    "dataset",
+    "benchmark",
+    "low-resource",
 ]
 
 _ARABIC_TERMS = [
@@ -403,14 +478,14 @@ def classify_with_llm_fallback(text: str) -> dict[str, float]:
     try:
         import json
 
-        from scraping.llm_validation import GroqLLMClient
+        from scraping.extractors.core.llm_validation import GroqLLMClient
 
         client = GroqLLMClient()
         system = (
             "You are a research-domain classifier. "
             "Return ONLY a JSON object with domain keys and confidence scores (0.0-1.0). "
             "Valid domains: arabic_nlp, arabic_languages, speech_processing, llm_research. "
-            "Example: {\"arabic_nlp\": 0.8, \"llm_research\": 0.6}"
+            'Example: {"arabic_nlp": 0.8, "llm_research": 0.6}'
         )
         user_msg = f"Classify this text:\n\n{text[:500]}"
         response = client._chat(system, user_msg)
@@ -436,12 +511,213 @@ def classify_with_llm_fallback(text: str) -> dict[str, float]:
 
 # Weight configuration for the scoring algorithm
 SCORING_WEIGHTS = {
-    "recency": 0.25,        # How recent the item is
-    "relevance": 0.30,      # Domain match strength
+    "recency": 0.25,  # How recent the item is
+    "relevance": 0.30,  # Domain match strength
     "source_health": 0.15,  # Source reliability
-    "popularity": 0.15,     # Downloads, citations, etc.
-    "completeness": 0.15,   # How much metadata is filled in
+    "popularity": 0.15,  # Downloads, citations, etc.
+    "completeness": 0.15,  # How much metadata is filled in
 }
+
+
+class ConfidenceCalculator:
+    FIELD_WEIGHTS = {
+        "events": {
+            "title_en": 0.20,
+            "title_ar": 0.15,
+            "description_en": 0.15,
+            "description_ar": 0.10,
+            "start_date": 0.15,
+            "url": 0.10,
+            "location": 0.08,
+            "end_date": 0.04,
+            "organizer": 0.03,
+        },
+        "tools": {
+            "title_en": 0.20,
+            "title_ar": 0.15,
+            "description_en": 0.20,
+            "description_ar": 0.10,
+            "url": 0.15,
+            "capabilities": 0.10,
+            "language_support": 0.10,
+        },
+        "courses": {
+            "title_en": 0.20,
+            "title_ar": 0.15,
+            "description_en": 0.20,
+            "description_ar": 0.10,
+            "platform": 0.15,
+            "url": 0.10,
+            "level": 0.05,
+            "price": 0.05,
+        },
+        "news": {
+            "title_en": 0.25,
+            "title_ar": 0.20,
+            "description_en": 0.20,
+            "description_ar": 0.15,
+            "url": 0.10,
+            "published_date": 0.10,
+        },
+        "opportunities": {
+            "title_en": 0.20,
+            "title_ar": 0.15,
+            "description_en": 0.20,
+            "description_ar": 0.10,
+            "url": 0.15,
+            "deadline": 0.10,
+            "institution": 0.10,
+        },
+        "corpus": {
+            "title_en": 0.20,
+            "title_ar": 0.15,
+            "description_en": 0.20,
+            "description_ar": 0.10,
+            "download_url": 0.15,
+            "language_variants": 0.10,
+            "size": 0.05,
+            "license": 0.05,
+        },
+    }
+
+    def score_field(
+        self,
+        field_name: str,
+        value,
+        en_equivalent=None,
+    ) -> float:
+        if value is None or value == "":
+            return 0.0
+
+        if isinstance(value, list):
+            return 1.0 if value else 0.0
+        if isinstance(value, dict):
+            return 1.0 if value else 0.0
+
+        value_str = str(value).strip()
+        if not value_str:
+            return 0.0
+
+        if field_name.endswith("_ar"):
+            return self._score_arabic_field(value_str, en_equivalent)
+
+        if "date" in field_name or "deadline" in field_name:
+            return self._score_date_field(value_str)
+
+        if "url" in field_name:
+            return self._score_url_field(value_str)
+
+        if len(value_str) >= 3:
+            return 1.0
+        return 0.5
+
+    def _score_arabic_field(self, ar_value: str, en_value: str = None) -> float:
+        if not ar_value:
+            return 0.0
+
+        if en_value and ar_value.strip() == str(en_value).strip():
+            return 0.1
+
+        arabic_chars = sum(1 for c in ar_value if "\u0600" <= c <= "\u06ff")
+        total_chars = len(ar_value.replace(" ", ""))
+
+        if total_chars == 0:
+            return 0.0
+
+        arabic_ratio = arabic_chars / total_chars
+
+        if arabic_ratio >= 0.5:
+            return 1.0
+        if arabic_ratio >= 0.3:
+            return 0.7
+        if arabic_ratio >= 0.1:
+            return 0.3
+        return 0.1
+
+    def _score_date_field(self, value: str) -> float:
+        import re
+
+        date_pattern = r"\d{4}-\d{2}-\d{2}"
+        if re.search(date_pattern, value):
+            return 1.0
+        if any(
+            month in value.lower()
+            for month in [
+                "jan",
+                "feb",
+                "mar",
+                "apr",
+                "may",
+                "jun",
+                "jul",
+                "aug",
+                "sep",
+                "oct",
+                "nov",
+                "dec",
+                "january",
+                "february",
+                "march",
+            ]
+        ):
+            return 0.8
+        return 0.4
+
+    def _score_url_field(self, value: str) -> float:
+        if value.startswith(("http://", "https://")):
+            return 1.0
+        if "." in value:
+            return 0.6
+        return 0.2
+
+    def calculate(self, category: str, item_data: dict) -> dict:
+        weights = self.FIELD_WEIGHTS.get(category, {})
+        if not weights:
+            return {"score": 0.5, "percent": 50.0, "breakdown": {}, "grade": "C"}
+
+        total_weight = sum(weights.values())
+        weighted_score = 0.0
+        breakdown = {}
+
+        for field, weight in weights.items():
+            value = item_data.get(field)
+            en_field = field.replace("_ar", "_en")
+            en_value = item_data.get(en_field) if "_ar" in field else None
+
+            field_score = self.score_field(field, value, en_value)
+            weighted_score += field_score * weight
+            breakdown[field] = {
+                "score": round(field_score, 2),
+                "weight": weight,
+                "value_present": value is not None and value != "",
+            }
+
+        final_score = weighted_score / total_weight if total_weight > 0 else 0
+
+        return {
+            "score": round(final_score, 3),
+            "percent": round(final_score * 100, 1),
+            "breakdown": breakdown,
+            "grade": (
+                "A"
+                if final_score >= 0.9
+                else "B"
+                if final_score >= 0.8
+                else "C"
+                if final_score >= 0.7
+                else "D"
+                if final_score >= 0.6
+                else "F"
+            ),
+        }
+
+
+_CONFIDENCE_CALCULATOR = ConfidenceCalculator()
+
+
+def calculate_item_confidence(category: str, item_data: dict) -> dict:
+    """Return weighted extraction confidence report for one category item."""
+    return _CONFIDENCE_CALCULATOR.calculate(category, item_data or {})
 
 
 def _safe_days_ago(date_value):
@@ -457,15 +733,19 @@ def _safe_days_ago(date_value):
 
         from django.utils import timezone
 
+        if isinstance(date_value, str):
+            from dateutil import parser as date_parser
+
+            date_value = date_parser.parse(date_value)
+
         now = timezone.now()
 
         # Handle datetime.date (not datetime)
-        if isinstance(date_value, datetime.date) and \
-           not isinstance(date_value, datetime.datetime):
+        if isinstance(date_value, datetime.date) and not isinstance(
+            date_value, datetime.datetime
+        ):
             date_value = datetime.datetime.combine(
-                date_value,
-                datetime.time.min,
-                tzinfo=datetime.UTC
+                date_value, datetime.time.min, tzinfo=datetime.UTC
             )
 
         # Handle naive datetime
@@ -480,8 +760,11 @@ def _safe_days_ago(date_value):
     except Exception:
         return None
 
+
 def compute_relevance_score(
     *,
+    category: str | None = None,
+    item_data: dict | None = None,
     text: str = "",
     created_date=None,
     source_health_score: float = 100.0,
@@ -492,6 +775,7 @@ def compute_relevance_score(
     has_website: bool = True,
     has_arabic: bool = False,
     domain_scores: dict[str, float] | None = None,
+    translation_status: str = "pending",
 ) -> float:
     """Compute a 0-100 relevance score for a scraped item.
 
@@ -515,8 +799,14 @@ def compute_relevance_score(
     float
         Score in range [0, 100].
     """
+    if category and isinstance(item_data, dict):
+        report = calculate_item_confidence(category, item_data)
+        score = float(report.get("percent", 0.0))
+        capped_score = apply_translation_confidence_cap(score, translation_status)
+        return float(capped_score if capped_score is not None else score)
+
     # ── Recency score (0-1) ──
-    recency = 0.5  # default for unknown date
+    recency = 0.7  # default for unknown date
     if created_date:
         days_old = _safe_days_ago(created_date)
         if days_old is None:
@@ -535,15 +825,16 @@ def compute_relevance_score(
     # ── Relevance score (0-1) ──
     if domain_scores is None:
         domain_scores = classify_domain(text) if text else {}
-    relevance = max(domain_scores.values()) if domain_scores else 0.2
+    relevance = max(domain_scores.values()) if domain_scores else 0.35
 
     # ── Source health (0-1) ──
     health = source_health_score / 100.0
 
     # ── Popularity (0-1) — log-scaled ──
     import math
+
     pop_raw = downloads + citations * 10 + likes * 5
-    popularity = min(1.0, math.log1p(pop_raw) / 15.0) if pop_raw > 0 else 0.1
+    popularity = min(1.0, math.log1p(pop_raw) / 15.0) if pop_raw > 0 else 0.2
 
     # ── Completeness (0-1) ──
     completeness_flags = [has_description, has_website, has_arabic, bool(text)]
@@ -557,12 +848,15 @@ def compute_relevance_score(
         + SCORING_WEIGHTS["popularity"] * popularity
         + SCORING_WEIGHTS["completeness"] * completeness
     )
-    return round(raw * 100, 1)
+    score = round(raw * 100, 1)
+    capped_score = apply_translation_confidence_cap(score, translation_status)
+    return float(capped_score if capped_score is not None else score)
 
 
 # =====================================================================
 # 6. TREND DETECTION
 # =====================================================================
+
 
 def detect_trends(months: int = 6) -> dict:
     """Analyse scraping data from the last N months to identify trends.
@@ -580,7 +874,8 @@ def detect_trends(months: int = 6) -> dict:
 
     # ── Category counts from recent runs ──
     ScrapingRun.objects.filter(
-        started_at__gte=cutoff, status="completed",
+        started_at__gte=cutoff,
+        status="completed",
     ).values("category")
 
     category_counts: dict[str, int] = {}
@@ -640,7 +935,9 @@ def detect_trends(months: int = 6) -> dict:
         count_1 = first_half.get(topic, 0)
         if count_2 > count_1:
             growth = (count_2 - count_1) / max(count_1, 1) * 100
-            growing.append({"topic": topic, "growth_pct": round(growth, 1), "count": count_2})
+            growing.append(
+                {"topic": topic, "growth_pct": round(growth, 1), "count": count_2}
+            )
     growing.sort(key=lambda x: x["growth_pct"], reverse=True)
 
     return {
@@ -662,6 +959,7 @@ def _analyse_recent_items(cutoff, counter: Counter, end_date=None):
     # Check events
     try:
         from events.models import Event
+
         qs = Event.objects.filter(**date_filter_start, **date_filter_end)
         for ev in qs.values_list("title_en", "description_en"):
             text = f"{ev[0]} {ev[1]}"
@@ -680,6 +978,7 @@ def _analyse_recent_items(cutoff, counter: Counter, end_date=None):
     # Check news posts
     try:
         from feed.models import Post
+
         qs = Post.objects.filter(**date_filter_start, **date_filter_end)
         for post in qs.values_list("title_en", "content_en"):
             text = f"{post[0]} {(post[1] or '')[:300]}"
@@ -698,6 +997,7 @@ def _analyse_recent_items(cutoff, counter: Counter, end_date=None):
     # Check tools
     try:
         from resources.models import NLPTool
+
         qs = NLPTool.objects.filter(**date_filter_start, **date_filter_end)
         for tool in qs.values_list("title_en", "description_en"):
             text = f"{tool[0]} {tool[1]}"

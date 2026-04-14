@@ -8,8 +8,9 @@ Usage:
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
+from scraping.constants import ALL_CATEGORIES
 from scraping.models import ScrapingRun
-from scraping.scrapers import SCRAPERS, get_scraper
+from scraping.scrapers import get_scraper
 
 
 class Command(BaseCommand):
@@ -20,8 +21,8 @@ class Command(BaseCommand):
             "--category",
             "-c",
             type=str,
-            choices=list(SCRAPERS.keys()),
-            help="Scraper category to run (events, tools, news, courses, institutions)",
+            choices=list(ALL_CATEGORIES),
+            help=f"Scraper category to run ({', '.join(ALL_CATEGORIES)})",
         )
         parser.add_argument(
             "--all",
@@ -33,13 +34,13 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         categories = []
         if options.get("all"):
-            categories = list(SCRAPERS.keys())
+            categories = list(ALL_CATEGORIES)
         elif options.get("category"):
             categories = [options["category"]]
         else:
             raise CommandError(
                 "Specify --category <name> or --all. "
-                f"Available categories: {', '.join(SCRAPERS.keys())}"
+                f"Available categories: {', '.join(ALL_CATEGORIES)}"
             )
 
         for cat in categories:

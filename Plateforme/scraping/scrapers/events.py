@@ -1,6 +1,4 @@
-import json
 import logging
-import os
 import re
 from datetime import date, timedelta
 from urllib.parse import urlparse
@@ -9,12 +7,14 @@ from asgiref.sync import async_to_sync
 from django.utils import timezone
 
 from scraping.constants import EVENT_PRIORITY_SCORES, SCRAPER_BOT_EMAIL
-from scraping.extractors.core.llm_validation import GroqLLMClient
 from scraping.extractors.events.llm_event_extractor import LLMEventExtractor
+from scraping.field_mapping import get_auto_translate_fields
 from scraping.models import ScrapedItemMeta
 from scraping.network.search_client import TavilySearchClient
 from scraping.scrapers.base import BaseScraper
 from scraping.scraping_settings import scraping_settings as SS  # noqa: N812
+from scraping.translation.arabic_translator import ArabicTranslator
+from scraping.utils import infer_translation_status
 
 logger = logging.getLogger(__name__)
 
@@ -241,12 +241,6 @@ class EventScraper(BaseScraper):
     def __init__(self):
         super().__init__()
         self._extractor = LLMEventExtractor()
-        translation_api_key = os.environ.get("GROQ_INTERNAL_API_KEY", "").strip() or None
-        translation_model = os.environ.get("GROQ_INTERNAL_MODEL", "").strip() or None
-        self._translation_client = GroqLLMClient(
-            api_key=translation_api_key,
-            model=translation_model,
-        )
         try:
             self._search_client = TavilySearchClient()
         except Exception as exc:
@@ -274,6 +268,14 @@ class EventScraper(BaseScraper):
             return
 
         search_client = self._search_client
+        if not search_client.is_enabled:
+            self._log_error(
+                "events_search_unavailable",
+                search_client.disabled_reason or "Tavily search client unavailable",
+                source=self.name,
+            )
+            return
+
         extractor = self._extractor
 
         target_items = max(
@@ -320,7 +322,23 @@ class EventScraper(BaseScraper):
         )
         target_result_pool = max(60, target_items * 12)
 
-        for query in search_queries:
+        total_queries = len(search_queries)
+        self.emit_progress(
+            "discovery",
+            0,
+            total_queries,
+            "🔍 Starting discovery...",
+            current_source=self.name,
+        )
+        for query_index, query in enumerate(search_queries, start=1):
+            self.emit_progress(
+                "discovery",
+                query_index,
+                total_queries,
+                f"🔍 Searching: {query}",
+                current_source=query,
+                current_item=query,
+            )
             try:
                 results = async_to_sync(search_client.search_events)(
                     query,
@@ -370,6 +388,17 @@ class EventScraper(BaseScraper):
 
         candidates: list[dict] = []
         seen_candidate_keys: set[tuple[str, str, str]] = set()
+        total_extraction_batches = min(
+            max_batches,
+            max(1, (len(combined_results) + batch_size - 1) // batch_size),
+        )
+        self.emit_progress(
+            "extraction",
+            0,
+            total_extraction_batches,
+            "🤖 Starting extraction...",
+            current_item=f"Batch 0/{total_extraction_batches}",
+        )
 
         for batch_index, offset in enumerate(
             range(0, len(combined_results), batch_size),
@@ -381,6 +410,14 @@ class EventScraper(BaseScraper):
             batch_results = combined_results[offset : offset + batch_size]
             if not batch_results:
                 continue
+
+            self.emit_progress(
+                "extraction",
+                batch_index,
+                total_extraction_batches,
+                f"🤖 Extracting batch {batch_index}/{total_extraction_batches}",
+                current_item=f"Batch {batch_index}/{total_extraction_batches}",
+            )
 
             try:
                 batch_candidates = async_to_sync(extractor.extract_events_from_search)(
@@ -435,12 +472,35 @@ class EventScraper(BaseScraper):
         if candidates:
             candidates = self._deduplicate_combined_candidates(candidates)
 
-        self._fill_missing_arabic_fields(candidates)
+        translator = ArabicTranslator()
+        fields_to_translate = [
+            "title_ar",
+            "description_ar",
+            "short_description_ar",
+            *get_auto_translate_fields(self.category),
+        ]
+        candidates = translator.batch_translate(candidates, fields=fields_to_translate)
 
         created_before = self.items_created
         updated_before = self.items_updated
 
-        for candidate in candidates:
+        total_candidates = len(candidates)
+        self.emit_progress(
+            "validation",
+            0,
+            total_candidates,
+            "✅ Starting validation...",
+        )
+        for candidate_index, candidate in enumerate(candidates, start=1):
+            self.emit_progress(
+                "saving",
+                candidate_index,
+                total_candidates,
+                f"💾 Saving item {candidate_index}/{total_candidates}",
+                current_item=str(
+                    candidate.get("title_en") or candidate.get("title") or ""
+                ).strip(),
+            )
             if not isinstance(candidate, dict):
                 continue
             self._save_event_candidate(candidate)
@@ -503,7 +563,9 @@ class EventScraper(BaseScraper):
         ).lower()
         date_key = self._safe_text(candidate.get("start_date"))
         url_key = self._safe_text(
-            candidate.get("source_url") or candidate.get("event_url") or candidate.get("website")
+            candidate.get("source_url")
+            or candidate.get("event_url")
+            or candidate.get("website")
         ).lower()
         return (title_key, date_key, url_key)
 
@@ -625,170 +687,6 @@ class EventScraper(BaseScraper):
 
         return date(year_value, 6, 15)
 
-    def _fill_missing_arabic_fields(self, candidates: list[dict]) -> None:
-        pending: list[dict[str, str | int]] = []
-        for index, candidate in enumerate(candidates):
-            if not isinstance(candidate, dict):
-                continue
-
-            title_en = self._safe_text(candidate.get("title_en") or candidate.get("title"))
-            description_en = self._safe_text(
-                candidate.get("description_en") or candidate.get("description")
-            )
-            title_ar = self._safe_text(candidate.get("title_ar"))
-            description_ar = self._safe_text(candidate.get("description_ar"))
-
-            needs_title_ar = bool(title_en) and not self._contains_arabic(title_ar)
-            needs_description_ar = bool(description_en) and not self._contains_arabic(
-                description_ar
-            )
-            if not (needs_title_ar or needs_description_ar):
-                continue
-
-            pending.append(
-                {
-                    "index": index,
-                    "title_en": title_en[:140],
-                    "description_en": description_en[:280],
-                }
-            )
-
-        if not pending:
-            return
-
-        translated_by_index: dict[int, dict[str, str]] = {}
-        client = self._translation_client
-        if client and client.is_configured:
-            system_prompt = (
-                "Translate event fields into Arabic. Return only a JSON array. "
-                "Each item must include: index, title_ar, description_ar. "
-                "Keep technical names/acronyms unchanged."
-            )
-            batch_size = 6
-            for offset in range(0, len(pending), batch_size):
-                batch = pending[offset : offset + batch_size]
-                user_prompt = json.dumps({"events": batch}, ensure_ascii=False)
-                try:
-                    response_text = client._chat(system_prompt, user_prompt)
-                except Exception as exc:
-                    logger.info("Arabic translation batch failed: %s", exc)
-                    continue
-
-                if not response_text:
-                    status_code = getattr(client, "last_status_code", None)
-                    if status_code in {413, 429}:
-                        logger.info(
-                            "Arabic translation skipped due Groq constraint status=%s",
-                            status_code,
-                        )
-                    continue
-
-                parsed_text = self._strip_code_fences(response_text)
-                if not parsed_text:
-                    continue
-
-                try:
-                    parsed = json.loads(parsed_text)
-                except json.JSONDecodeError:
-                    logger.debug("Arabic translation returned non-JSON payload")
-                    continue
-
-                if not isinstance(parsed, list):
-                    continue
-
-                for row in parsed:
-                    if not isinstance(row, dict):
-                        continue
-                    row_index = row.get("index")
-                    try:
-                        row_index = int(row_index)
-                    except (TypeError, ValueError):
-                        continue
-                    translated_by_index[row_index] = {
-                        "title_ar": self._safe_text(row.get("title_ar")),
-                        "description_ar": self._safe_text(row.get("description_ar")),
-                    }
-
-        for row in pending:
-            index = int(row["index"])
-            candidate = candidates[index]
-            translated = translated_by_index.get(index, {})
-
-            title_ar = self._safe_text(candidate.get("title_ar"))
-            description_ar = self._safe_text(candidate.get("description_ar"))
-
-            if not self._contains_arabic(title_ar):
-                translated_title = self._safe_text(translated.get("title_ar"))
-                candidate["title_ar"] = translated_title or self._rule_based_arabic_fallback(
-                    self._safe_text(candidate.get("title_en") or candidate.get("title")),
-                    prefix="عنوان",
-                )
-
-            if not self._contains_arabic(description_ar):
-                translated_description = self._safe_text(
-                    translated.get("description_ar")
-                )
-                candidate["description_ar"] = translated_description or self._rule_based_arabic_fallback(
-                    self._safe_text(
-                        candidate.get("description_en") or candidate.get("description")
-                    ),
-                    prefix="وصف",
-                )
-
-    @staticmethod
-    def _strip_code_fences(raw: str) -> str:
-        text = (raw or "").strip()
-        if text.startswith("```"):
-            lines = text.splitlines()
-            if lines and lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].strip().startswith("```"):
-                lines = lines[:-1]
-            text = "\n".join(lines).strip()
-        return text
-
-    @staticmethod
-    def _rule_based_arabic_fallback(text: str, *, prefix: str = "") -> str:
-        source = (text or "").strip()
-        if not source:
-            return ""
-
-        translated = source
-        replacements = {
-            "call for papers": "دعوة لتقديم أوراق",
-            "natural language processing": "معالجة اللغة الطبيعية",
-            "machine learning": "تعلم الآلة",
-            "artificial intelligence": "الذكاء الاصطناعي",
-            "speech processing": "معالجة الكلام",
-            "shared task": "مهمة مشتركة",
-            "conference": "مؤتمر",
-            "workshop": "ورشة عمل",
-            "seminar": "ندوة",
-            "hackathon": "هاكاثون",
-            "arabic": "العربية",
-            "international": "دولي",
-            "university": "جامعة",
-            "nlp": "معالجة اللغة الطبيعية",
-            "ai": "الذكاء الاصطناعي",
-        }
-
-        for key, value in sorted(replacements.items(), key=lambda item: -len(item[0])):
-            translated = re.sub(
-                rf"\b{re.escape(key)}\b",
-                value,
-                translated,
-                flags=re.IGNORECASE,
-            )
-
-        if not any("\u0600" <= ch <= "\u06ff" for ch in translated):
-            if prefix:
-                return f"{prefix} آلي: {source}"
-            return f"ترجمة آلية: {source}"
-
-        if prefix:
-            return f"{prefix}: {translated}"
-        return translated
-
     def _resolve_sources(self):
         return []
 
@@ -838,7 +736,7 @@ class EventScraper(BaseScraper):
 
         confidence = payload.get("confidence")
         if isinstance(confidence, (float, int)):
-            min_confidence = float(getattr(SS, "EVENTS_LLM_MIN_CONFIDENCE", 0.55))
+            min_confidence = float(getattr(SS, "EVENTS_LLM_MIN_CONFIDENCE", 0.35))
             if float(confidence) < min_confidence:
                 return False, "llm_confidence_too_low"
 
@@ -920,7 +818,9 @@ class EventScraper(BaseScraper):
             return False
         return any(token in lowered for token in self.NON_EVENT_TITLE_TOKENS)
 
-    def _is_viable_search_result(self, title: str, content: str, source_url: str) -> bool:
+    def _is_viable_search_result(
+        self, title: str, content: str, source_url: str
+    ) -> bool:
         if not self._safe_url(source_url):
             return False
         if self._is_blocked_source_url(source_url):
@@ -1011,12 +911,10 @@ class EventScraper(BaseScraper):
         payload = dict(payload or {})
 
         title_en = self._safe_text(payload.get("title_en"))
-        title_ar = self._safe_text(payload.get("title_ar")) or title_en
+        title_ar = self._safe_text(payload.get("title_ar")) or None
 
         description_en = self._safe_text(payload.get("description_en"))
-        description_ar = (
-            self._safe_text(payload.get("description_ar")) or description_en
-        )
+        description_ar = self._safe_text(payload.get("description_ar")) or None
 
         location_value = self._safe_text(payload.get("location"))
         if not location_value:
@@ -1052,6 +950,11 @@ class EventScraper(BaseScraper):
             title_en, title_ar, description_en, description_ar
         )
         is_online = location_value.lower() == "online"
+        translation_status = infer_translation_status(
+            raw_status=self._safe_text(payload.get("translation_status")) or "pending",
+            english_values=[title_en, description_en],
+            arabic_values=[title_ar, description_ar],
+        )
 
         return {
             "title": title_en,
@@ -1083,6 +986,7 @@ class EventScraper(BaseScraper):
             "tags": tags,
             "entities": {"keywords": tags},
             "contact_email": SCRAPER_BOT_EMAIL,
+            "translation_status": translation_status,
             "priority_score": self._source_priority(source),
             "tier": self._source_tier(source),
             "extraction_confidence": payload.get("confidence"),
@@ -1162,6 +1066,10 @@ class EventScraper(BaseScraper):
         defaults.setdefault("source_name", self.name)
 
         defaults = self._ensure_event_fields(defaults)
+        if not self.passes_min_confidence_to_save(defaults):
+            self.items_skipped += 1
+            return
+
         is_valid, reject_reason = self._passes_hard_event_rules(defaults)
         if not is_valid:
             logger.info("Skipping low quality event candidate: %s", reject_reason)
@@ -1179,7 +1087,9 @@ class EventScraper(BaseScraper):
             defaults["organizer"] = organizer
 
         allowed_fields = {field.name for field in Event._meta.concrete_fields}
-        defaults = {key: value for key, value in defaults.items() if key in allowed_fields}
+        defaults = {
+            key: value for key, value in defaults.items() if key in allowed_fields
+        }
 
         try:
             event, created = Event.objects.update_or_create(
@@ -1218,6 +1128,20 @@ class EventScraper(BaseScraper):
                 "type": defaults.get("event_type", "conference"),
                 "url": defaults.get("website", ""),
                 "location": defaults.get("location_en") or defaults.get("location", ""),
+                "title_en": defaults.get("title_en", ""),
+                "title_ar": defaults.get("title_ar") or None,
+                "description_en": defaults.get("description_en")
+                or defaults.get("description")
+                or "",
+                "description_ar": defaults.get("description_ar") or None,
+                "start_date": defaults.get("start_date"),
+                "end_date": defaults.get("end_date"),
+                "website": defaults.get("website", ""),
+                "location_en": defaults.get("location_en")
+                or defaults.get("location", ""),
+                "translation_status": candidate_data.get(
+                    "translation_status", "pending"
+                ),
             }
         )
 
@@ -1481,14 +1405,12 @@ class EventScraper(BaseScraper):
         title_en = self._safe_text(
             normalized.get("title_en") or normalized.get("title")
         )
-        title_ar = self._safe_text(normalized.get("title_ar")) or title_en
+        title_ar = self._safe_text(normalized.get("title_ar")) or None
 
         description_en = self._safe_text(
             normalized.get("description_en") or normalized.get("description")
         )
-        description_ar = (
-            self._safe_text(normalized.get("description_ar")) or description_en
-        )
+        description_ar = self._safe_text(normalized.get("description_ar")) or None
 
         start_date = self._parse_iso_date(normalized.get("start_date"))
         end_date = self._parse_iso_date(normalized.get("end_date"))
@@ -1516,11 +1438,11 @@ class EventScraper(BaseScraper):
 
         normalized["title"] = title_en[:255]
         normalized["title_en"] = title_en[:255]
-        normalized["title_ar"] = title_ar[:255]
+        normalized["title_ar"] = title_ar[:255] if title_ar else ""
 
         normalized["description"] = description_en
         normalized["description_en"] = description_en
-        normalized["description_ar"] = description_ar
+        normalized["description_ar"] = description_ar or ""
 
         normalized["event_type"] = event_type
         normalized["domains"] = domains
@@ -1575,6 +1497,19 @@ class EventScraper(BaseScraper):
 
         normalized["contact_email"] = (
             self._safe_text(normalized.get("contact_email")) or SCRAPER_BOT_EMAIL
+        )
+
+        normalized["translation_status"] = infer_translation_status(
+            raw_status=self._safe_text(normalized.get("translation_status"))
+            or "pending",
+            english_values=[
+                normalized.get("title_en"),
+                normalized.get("description_en"),
+            ],
+            arabic_values=[
+                normalized.get("title_ar"),
+                normalized.get("description_ar"),
+            ],
         )
 
         if "priority_score" not in normalized:

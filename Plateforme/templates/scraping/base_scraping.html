@@ -1,0 +1,737 @@
+﻿{% extends 'base_admin.html' %}
+{% load i18n %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+
+{% block content %}
+<style>
+  :root {
+    /* Category colors */
+    --cat-events: #3B82F6;
+    --cat-tools: #8B5CF6;
+    --cat-courses: #10B981;
+    --cat-news: #F59E0B;
+    --cat-opportunities: #F97316;
+    --cat-corpus: #EF4444;
+
+    /* Status colors */
+    --status-pending: #F59E0B;
+    --status-approved: #10B981;
+    --status-rejected: #6B7280;
+    --status-failed: #EF4444;
+    --status-running: #3B82F6;
+
+    /* Confidence thresholds */
+    --conf-high: #10B981;
+    --conf-medium: #F59E0B;
+    --conf-low: #EF4444;
+
+    /* Translation status */
+    --trans-translated: #10B981;
+    --trans-copied: #F59E0B;
+    --trans-missing: #EF4444;
+  }
+
+  .sp-shell {
+    --sp-border: #dbe3ef;
+    --sp-surface: #ffffff;
+    --sp-muted: #64748b;
+    --sp-title: #0f172a;
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr);
+    gap: 0.9rem;
+    min-height: calc(100vh - 140px);
+  }
+
+  .sp-shell.sidebar-collapsed {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .sp-sidebar {
+    border: 1px solid var(--sp-border);
+    border-radius: 16px;
+    background: linear-gradient(165deg, #ffffff, #f8fbff);
+    box-shadow: 0 18px 32px -28px rgba(15, 23, 42, 0.75);
+    overflow: hidden;
+    position: sticky;
+    top: 10px;
+    height: fit-content;
+  }
+
+  .sp-brand {
+    padding: 0.95rem 0.92rem;
+    border-bottom: 1px solid var(--sp-border);
+    display: flex;
+    align-items: center;
+    gap: 0.56rem;
+  }
+
+  .sp-brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(125deg, #1d4ed8, #0ea5e9);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 0.88rem;
+  }
+
+  .sp-brand-copy {
+    display: grid;
+    gap: 0.12rem;
+  }
+
+  .sp-brand-title {
+    margin: 0;
+    color: var(--sp-title);
+    font-size: 0.88rem;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+  }
+
+  .sp-brand-sub {
+    margin: 0;
+    color: var(--sp-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .sp-nav {
+    padding: 0.72rem 0.62rem 0.62rem;
+    display: grid;
+    gap: 0.72rem;
+  }
+
+  .sp-nav-group {
+    display: grid;
+    gap: 0.24rem;
+  }
+
+  .sp-nav-title {
+    margin: 0.06rem 0.36rem 0.16rem;
+    color: #64748b;
+    font-size: 0.64rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .sp-link-category {
+    margin-inline-start: 0.16rem;
+  }
+
+  .sp-nav-separator {
+    margin: 0.06rem 0;
+    border-top: 1px solid var(--sp-border);
+  }
+
+  .sp-link {
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: #1f2937;
+    text-decoration: none;
+    font-size: 0.76rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.44rem 0.55rem;
+    transition: all 0.14s ease;
+  }
+
+  .sp-link:hover {
+    border-color: #c7d2fe;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .sp-link.active {
+    border-color: #93c5fd;
+    background: #eff6ff;
+    color: #1d4ed8;
+    box-shadow: inset 3px 0 0 #2563eb;
+  }
+
+  .sp-link-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.48rem;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .sp-pill {
+    min-width: 1.34rem;
+    height: 1.34rem;
+    border-radius: 999px;
+    border: 1px solid rgba(37, 99, 235, 0.28);
+    background: #ffffff;
+    color: #1d4ed8;
+    font-size: 0.66rem;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.34rem;
+  }
+
+  .sp-link-icon {
+    width: 1.2rem;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .sp-collapse-button {
+    width: 100%;
+    border: 1px solid var(--sp-border);
+    border-radius: 10px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 0.46rem 0.52rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
+  }
+
+  .sp-main {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 0.88rem;
+  }
+
+  .sp-topbar {
+    border: 1px solid var(--sp-border);
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 0.62rem 0.78rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    box-shadow: 0 14px 30px -26px rgba(15, 23, 42, 0.6);
+    position: sticky;
+    top: 8px;
+    z-index: 20;
+  }
+
+  .sp-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .sp-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.46rem;
+  }
+
+  .sp-menu-toggle {
+    border: 1px solid var(--sp-border);
+    border-radius: 10px;
+    width: 34px;
+    height: 34px;
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .sp-breadcrumb {
+    min-width: 0;
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .sp-breadcrumb a {
+    color: #1d4ed8;
+    text-decoration: none;
+  }
+
+  .sp-breadcrumb a:hover {
+    text-decoration: underline;
+  }
+
+  .sp-breadcrumb-sep {
+    color: #94a3b8;
+  }
+
+  .sp-notif-wrap {
+    position: relative;
+  }
+
+  .sp-notif-btn {
+    border: 1px solid var(--sp-border);
+    border-radius: 10px;
+    width: 36px;
+    height: 36px;
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .sp-notif-count {
+    position: absolute;
+    top: -5px;
+    right: -4px;
+    min-width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.62rem;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.18rem;
+  }
+
+  .sp-notif-dropdown {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    right: 0;
+    width: min(430px, calc(100vw - 40px));
+    border: 1px solid var(--sp-border);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 20px 35px -28px rgba(15, 23, 42, 0.9);
+    display: none;
+    z-index: 50;
+    overflow: hidden;
+  }
+
+  .sp-notif-dropdown.open {
+    display: block;
+  }
+
+  .sp-notif-head {
+    padding: 0.58rem 0.7rem;
+    border-bottom: 1px solid var(--sp-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+
+  .sp-notif-title {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 900;
+    color: #0f172a;
+  }
+
+  .sp-notif-mark {
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.66rem;
+    font-weight: 800;
+    padding: 0.2rem 0.46rem;
+    cursor: pointer;
+  }
+
+  .sp-notif-list {
+    max-height: 320px;
+    overflow: auto;
+    display: grid;
+    gap: 0;
+  }
+
+  .sp-notif-item {
+    border-bottom: 1px solid #edf2f7;
+    padding: 0.56rem 0.7rem;
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .sp-notif-item:last-child {
+    border-bottom: 0;
+  }
+
+  .sp-notif-message {
+    margin: 0;
+    color: #111827;
+    font-size: 0.73rem;
+    line-height: 1.35;
+    font-weight: 700;
+  }
+
+  .sp-notif-meta {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.67rem;
+    font-weight: 700;
+  }
+
+  .sp-user-chip {
+    border: 1px solid var(--sp-border);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.28rem 0.56rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.36rem;
+    max-width: 230px;
+  }
+
+  .sp-content {
+    min-width: 0;
+    padding-bottom: 0.2rem;
+  }
+
+  .sp-empty-notifs {
+    padding: 0.8rem;
+    color: #64748b;
+    text-align: center;
+    font-size: 0.73rem;
+    font-weight: 700;
+  }
+
+  .sidebar-collapsed .sp-brand-copy,
+  .sidebar-collapsed .sp-nav-title,
+  .sidebar-collapsed .sp-link-label,
+  .sidebar-collapsed .sp-pill,
+  .sidebar-collapsed .sp-collapse-text {
+    display: none;
+  }
+
+  .sidebar-collapsed .sp-nav {
+    padding: 0.68rem 0.42rem 0.52rem;
+  }
+
+  .sidebar-collapsed .sp-link {
+    justify-content: center;
+    padding-inline: 0.25rem;
+  }
+
+  .sidebar-collapsed .sp-link-main {
+    justify-content: center;
+  }
+
+  .sidebar-collapsed .sp-collapse-button {
+    padding-inline: 0;
+  }
+
+  .sidebar-collapsed .sp-brand {
+    justify-content: center;
+    padding: 0.72rem 0.4rem;
+  }
+
+  [dir="rtl"] .sp-notif-count {
+    right: auto;
+    left: -4px;
+  }
+
+  [dir="rtl"] .sp-notif-dropdown {
+    right: auto;
+    left: 0;
+  }
+
+  @media (max-width: 1090px) {
+    .sp-shell {
+      grid-template-columns: minmax(0, 1fr);
+      position: relative;
+    }
+
+    .sp-sidebar {
+      position: fixed;
+      top: 72px;
+      bottom: 12px;
+      left: 10px;
+      width: min(290px, calc(100vw - 30px));
+      transform: translateX(-120%);
+      transition: transform 0.2s ease;
+      z-index: 120;
+      max-height: calc(100vh - 84px);
+      overflow: auto;
+    }
+
+    [dir="rtl"] .sp-sidebar {
+      left: auto;
+      right: 10px;
+      transform: translateX(120%);
+    }
+
+    .sp-shell.mobile-nav-open .sp-sidebar {
+      transform: translateX(0);
+    }
+
+    .sp-shell.sidebar-collapsed {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sp-collapse-button {
+      display: none;
+    }
+  }
+</style>
+
+<div class="sp-shell" id="scrapingShell" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+  <aside class="sp-sidebar" id="scrapingSidebar" aria-label="{% trans 'Scraping navigation' %}">
+    <div class="sp-brand">
+      <span class="sp-brand-mark"><i class="fas fa-flask"></i></span>
+      <div class="sp-brand-copy">
+        <p class="sp-brand-title">{% trans "SANAD" %}</p>
+        <p class="sp-brand-sub">{% trans "Scraping Admin" %}</p>
+      </div>
+    </div>
+
+    <nav class="sp-nav">
+      <div class="sp-nav-group">
+        <p class="sp-nav-title">{% trans "Web Scraping" %}</p>
+        {% for nav_category in scraping_nav_categories %}
+        <a
+          class="sp-link sp-link-category {% if scraping_current_category == nav_category.key %}active{% endif %}"
+          href="{% url 'scraping:category_dashboard' nav_category.key %}"
+        >
+          <span class="sp-link-main">
+            <i class="sp-link-icon fas fa-layer-group"></i>
+            <span class="sp-link-label">{{ nav_category.label }}</span>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+
+      <div class="sp-nav-separator"></div>
+
+      <div class="sp-nav-group">
+        <a class="sp-link {% if scraping_active_page == 'dashboard' %}active{% endif %}" href="{% url 'scraping:category_dashboard' scraping_current_category %}">
+          <span class="sp-link-main">
+            <i class="sp-link-icon fas fa-house"></i>
+            <span class="sp-link-label">{% trans "Dashboard" %}</span>
+          </span>
+        </a>
+
+        <a class="sp-link {% if scraping_active_page == 'results' %}active{% endif %}" href="{% url 'scraping:category_results' scraping_current_category %}">
+          <span class="sp-link-main">
+            <i class="sp-link-icon fas fa-clipboard-list"></i>
+            <span class="sp-link-label">{% trans "Pending Queue" %}</span>
+          </span>
+          <span class="sp-pill">{{ scraping_pending_count|default:0 }}</span>
+        </a>
+
+        <a class="sp-link {% if scraping_active_page == 'analytics' %}active{% endif %}" href="{% url 'scraping:category_analytics' scraping_current_category %}">
+          <span class="sp-link-main">
+            <i class="sp-link-icon fas fa-chart-column"></i>
+            <span class="sp-link-label">{% trans "Analytics" %}</span>
+          </span>
+        </a>
+
+        <a class="sp-link {% if scraping_active_page == 'sources' %}active{% endif %}" href="{% url 'scraping:category_sources' scraping_current_category %}">
+          <span class="sp-link-main">
+            <i class="sp-link-icon fas fa-link"></i>
+            <span class="sp-link-label">{% trans "Sources" %}</span>
+          </span>
+        </a>
+
+        <a class="sp-link {% if scraping_active_page == 'settings' %}active{% endif %}" href="{% url 'scraping:category_settings' scraping_current_category %}">
+          <span class="sp-link-main">
+            <i class="sp-link-icon fas fa-gear"></i>
+            <span class="sp-link-label">{% trans "Settings" %}</span>
+          </span>
+        </a>
+      </div>
+
+      <div class="sp-nav-separator"></div>
+
+      <button type="button" class="sp-collapse-button" id="scrapingCollapseButton">
+        <i class="fas fa-angles-left" id="scrapingCollapseIcon"></i>
+        <span class="sp-collapse-text">{% trans "Collapse sidebar" %}</span>
+      </button>
+    </nav>
+  </aside>
+
+  <section class="sp-main">
+    <header class="sp-topbar">
+      <div class="sp-topbar-left">
+        <button type="button" class="sp-menu-toggle" id="scrapingMenuToggle" aria-label="{% trans 'Toggle menu' %}">
+          <i class="fas fa-bars"></i>
+        </button>
+
+        <nav class="sp-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+          {% for crumb in scraping_breadcrumbs %}
+            {% if crumb.url %}
+              <a href="{{ crumb.url }}">{{ crumb.label }}</a>
+            {% else %}
+              <span>{{ crumb.label }}</span>
+            {% endif %}
+            {% if not forloop.last %}
+              <span class="sp-breadcrumb-sep">â€º</span>
+            {% endif %}
+          {% endfor %}
+        </nav>
+      </div>
+
+      <div class="sp-topbar-right">
+        <div class="sp-notif-wrap">
+          <button type="button" class="sp-notif-btn" id="scrapingNotifToggle" aria-label="{% trans 'Notifications' %}">
+            <i class="fas fa-bell"></i>
+            <span class="sp-notif-count" id="scrapingNotifCount">{{ scraping_unread_count|default:0 }}</span>
+          </button>
+
+          <div class="sp-notif-dropdown" id="scrapingNotifDropdown">
+            <div class="sp-notif-head">
+              <p class="sp-notif-title">{% trans "Notifications" %}</p>
+              <button type="button" class="sp-notif-mark" id="scrapingMarkAllReadButton">
+                {% trans "Mark all as read" %}
+              </button>
+            </div>
+            <div class="sp-notif-list" id="scrapingNotifList">
+              {% for notif in scraping_notifications %}
+              <article class="sp-notif-item">
+                <p class="sp-notif-message">
+                  {% if notif.notification_type == 'run_complete' %}âœ…
+                  {% elif notif.notification_type == 'run_failed' %}âŒ
+                  {% elif notif.notification_type == 'source_failing' %}âš ï¸
+                  {% else %}â„¹ï¸{% endif %}
+                  {{ notif.message }}
+                </p>
+                <p class="sp-notif-meta">
+                  {{ notif.created_at|timesince }} {% trans "ago" %}
+                </p>
+              </article>
+              {% empty %}
+              <div class="sp-empty-notifs">{% trans "No notifications yet." %}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-user-chip">
+          <i class="fas fa-user-shield"></i>
+          <span>{{ scraping_admin_name|default:request.user.username }}</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="sp-content">
+      {% block scraping_page_content %}{% endblock %}
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const shell = document.getElementById("scrapingShell");
+  const sidebar = document.getElementById("scrapingSidebar");
+  const menuToggle = document.getElementById("scrapingMenuToggle");
+  const collapseButton = document.getElementById("scrapingCollapseButton");
+  const collapseIcon = document.getElementById("scrapingCollapseIcon");
+  const notifToggle = document.getElementById("scrapingNotifToggle");
+  const notifDropdown = document.getElementById("scrapingNotifDropdown");
+  const markReadButton = document.getElementById("scrapingMarkAllReadButton");
+  const notifCount = document.getElementById("scrapingNotifCount");
+
+  if (!shell) {
+    return;
+  }
+
+  const storageKey = "scraping_sidebar_collapsed";
+  const mobileQuery = window.matchMedia("(max-width: 1090px)");
+
+  function setCollapsed(collapsed) {
+    shell.classList.toggle("sidebar-collapsed", collapsed);
+    if (collapseIcon) {
+      collapseIcon.className = collapsed ? "fas fa-angles-right" : "fas fa-angles-left";
+    }
+    window.localStorage.setItem(storageKey, collapsed ? "1" : "0");
+  }
+
+  function setMobileMenu(opened) {
+    shell.classList.toggle("mobile-nav-open", opened);
+  }
+
+  if (!mobileQuery.matches) {
+    setCollapsed(window.localStorage.getItem(storageKey) === "1");
+  }
+
+  if (menuToggle) {
+    menuToggle.addEventListener("click", function () {
+      if (mobileQuery.matches) {
+        setMobileMenu(!shell.classList.contains("mobile-nav-open"));
+      } else {
+        setCollapsed(!shell.classList.contains("sidebar-collapsed"));
+      }
+    });
+  }
+
+  if (collapseButton) {
+    collapseButton.addEventListener("click", function () {
+      setCollapsed(!shell.classList.contains("sidebar-collapsed"));
+    });
+  }
+
+  document.addEventListener("click", function (event) {
+    if (mobileQuery.matches && sidebar && !sidebar.contains(event.target) && menuToggle && !menuToggle.contains(event.target)) {
+      setMobileMenu(false);
+    }
+
+    if (notifDropdown && notifToggle && !notifDropdown.contains(event.target) && !notifToggle.contains(event.target)) {
+      notifDropdown.classList.remove("open");
+    }
+  });
+
+  if (notifToggle && notifDropdown) {
+    notifToggle.addEventListener("click", function (event) {
+      event.stopPropagation();
+      notifDropdown.classList.toggle("open");
+    });
+  }
+
+  if (markReadButton) {
+    markReadButton.addEventListener("click", async function () {
+      try {
+        const csrfTokenMatch = document.cookie.match(/csrftoken=([^;]+)/);
+        const csrfToken = csrfTokenMatch ? decodeURIComponent(csrfTokenMatch[1]) : "";
+        const response = await fetch("{{ scraping_mark_notifications_read_url }}", {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": csrfToken,
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          credentials: "same-origin"
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        if (notifCount) {
+          notifCount.textContent = String(payload.unread_count || 0);
+        }
+      } catch (_error) {
+        // Silently ignore and keep current notification state.
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}
+

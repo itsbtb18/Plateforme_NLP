@@ -1,6 +1,6 @@
 ﻿{% extends "base.html" %} {% load static %} {% load i18n %}
  {% block title %}
-{{ profile_user.get_full_name_display }} | {% trans "Profile" %}
+{{ user.get_full_name_display }} | {% trans "Profile" %}
  {% endblock title %} 
 {% block extra_styles %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,37 +19,37 @@
     <!-- Left Column: Profile Card with Avatar -->
     <div class="profile-left-column">
       <div class="profile-card animate__animated animate__fadeInLeft">
-        {% if request.user == profile_user %}
+        {% if request.user == user %}
         <button type="button" class="profile-card-settings-btn" id="profileTopSettingsBtn" aria-label="{% trans 'Settings' %}">
           <i class="fas fa-cog"></i>
         </button>
         {% endif %}
-        {% if request.user.is_authenticated and request.user != profile_user %}
+        {% if request.user.is_authenticated and request.user != user %}
         <div class="profile-menu-wrap">
           <button type="button" class="profile-menu-toggle" aria-label="{% trans 'More options' %}" aria-expanded="false">
             <i class="fas fa-ellipsis-v"></i>
           </button>
           <div class="profile-menu-dropdown" hidden>
-            <button type="button" class="profile-menu-item profile-menu-block" data-user-id="{{ profile_user.id }}">
+            <button type="button" class="profile-menu-item profile-menu-block" data-user-id="{{ user.id }}">
               <i class="fas fa-ban"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حظر{% else %}Block{% endif %}</span>
+              <span>{% trans "Block" %}</span>
             </button>
-            <button type="button" class="profile-menu-item profile-menu-report" data-user-id="{{ profile_user.id }}">
+            <button type="button" class="profile-menu-item profile-menu-report" data-user-id="{{ user.id }}">
               <i class="fas fa-flag"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إبلاغ{% else %}Report{% endif %}</span>
+              <span>{% trans "Report" %}</span>
             </button>
             <button type="button" class="profile-menu-item profile-menu-copy-link">
               <i class="fas fa-link"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}Copy link{% endif %}</span>
+              <span>{% trans "Copy link" %}</span>
             </button>
             <button type="button" class="profile-menu-item profile-menu-share-message">
               <i class="fas fa-paper-plane"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مشاركة في رسالة{% else %}Share in message{% endif %}</span>
+              <span>{% trans "Share in message" %}</span>
             </button>
             <div class="profile-menu-separator"></div>
             <button type="button" class="profile-menu-item profile-menu-more">
               <i class="fas fa-ellipsis-h"></i>
-              <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}خيارات أخرى{% else %}More options{% endif %}</span>
+              <span>{% trans "More options" %}</span>
             </button>
           </div>
         </div>
@@ -58,7 +58,7 @@
           <!-- Large Profile Picture -->
           <div class="profile-picture-container">
             {% if user.avatar %}
-            <img src="{{ profile_user.avatar.url }}" alt="{{ profile_user.get_full_name_display }}" class="profile-picture">
+            <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}" class="profile-picture">
             {% else %}
             <div class="profile-picture-placeholder">
               <i class="fas fa-user"></i>
@@ -68,14 +68,45 @@
 
           <!-- User Info Section -->
           <div class="profile-user-info">
+<<<<<<< HEAD
+<<<<<<< HEAD
             <h1 class="profile-user-name">{{ profile_user.get_full_name_display }}</h1>
             <p class="profile-user-title">{{ profile_user.get_speciality_display|default:_("Member") }}</p>
+=======
+            <div class="profile-user-heading">
+              <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
+            </div>
+            <p class="profile-user-title">
+              {% if user.speciality %}
+                {{ user.get_speciality_display }}
+              {% else %}
+                {% trans "Member" %}
+              {% endif %}
+            </p>
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
+=======
+            <div class="profile-user-heading">
+              <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
+            </div>
+            <p class="profile-user-title">{{ user.get_speciality_display|default:_("Member") }}</p>
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
             
             {% if user.institution %}
+            {% if user.institution.website %}
+            <a href="{{ user.institution.website }}" target="_blank" rel="noopener noreferrer" class="profile-user-location" title="{{ user.institution.website }}">
+              {% if user.institution.logo %}
+              <img src="{{ user.institution.logo.url }}" alt="{{ user.institution }}" class="profile-user-location-logo">
+              {% endif %}
+              {{ user.institution }}
+            </a>
+            {% else %}
             <p class="profile-user-location">
-              <i class="fas fa-map-marker-alt"></i>
-              {{ profile_user.institution }}
+              {% if user.institution.logo %}
+              <img src="{{ user.institution.logo.url }}" alt="{{ user.institution }}" class="profile-user-location-logo">
+              {% endif %}
+              {{ user.institution }}
             </p>
+            {% endif %}
             {% endif %}
           </div>
         </div>
@@ -91,97 +122,83 @@
         {% if user.get_localized_bio %}
         {% if can_view_full_profile %}
         <span class="profile-bio-label">
-          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}السيرة الذاتية{% else %}Biography{% endif %}
+          {% trans "Biography" %}
         </span>
         <div class="profile-bio-inline">
-          <p class="bio-text">{{ profile_user.get_localized_bio }}</p>
+          <p class="bio-text">{{ user.get_localized_bio }}</p>
         </div>
         {% endif %}
         {% endif %}
+
+        <div class="profile-social-stats">
+          <button type="button" class="profile-stat-btn" id="followersStatBtn" data-follow-kind="followers" {% if not request.user.is_authenticated %}disabled title="{% trans 'Login required' %}"{% endif %}>
+            <strong id="followersCount">{{ followers_count }}</strong> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}
+          </button>
+          <button type="button" class="profile-stat-btn" id="followingStatBtn" data-follow-kind="following" {% if not request.user.is_authenticated %}disabled title="{% trans 'Login required' %}"{% endif %}>
+            <strong id="followingCount">{{ following_count }}</strong> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}
+          </button>
+        </div>
 
         <!-- Action Buttons -->
         <div class="profile-actions-new">
-          {% if request.user == profile_user %}
-          <a href="{% url 'accounts:profile-edit' pk=profile_user.pk %}" class="btn-action-primary">
+          {% if request.user == user %}
+          <a href="{% url 'accounts:profile-edit' pk=user.pk %}" class="btn-action-primary">
             <i class="fas fa-edit"></i>
             <span>{% trans "Edit Profile" %}</span>
           </a>
-          {% elif request.user.is_authenticated %}
-          <button type="button"
-                  class="btn-action-primary friend-action-btn"
-                  data-user-id="{{ profile_user.id }}"
-                  data-endpoint-base="{% url 'accounts:friendship_action' user_id=profile_user.id action='add' %}"
-                  data-state="{{ relation_state }}">
-            <i class="fas fa-user-plus"></i>
-            <span class="friend-action-label">
-              {% if relation_state == 'AMIS' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}صديق{% else %}Friend{% endif %}
-              {% elif relation_state == 'EN_ATTENTE_ENVOYE' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء الطلب{% else %}Cancel request{% endif %}
-              {% elif relation_state == 'EN_ATTENTE_RECU' %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تأكيد{% else %}Confirm{% endif %}
-              {% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة صديق{% else %}Add friend{% endif %}{% endif %}
-            </span>
-          </button>
-          {% if relation_state == 'AMIS' %}
+          {% elif request.user.is_authenticated and not is_blocked_profile %}
+          {% if is_following_profile %}
           <a href="{% url 'direct_messages:start_conversation' user_id=user.id %}" class="btn-action-secondary">
             <i class="fas fa-comments"></i>
-            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}محادثة{% else %}Chat{% endif %}</span>
+            <span>{% trans "Chat" %}</span>
           </a>
-          {% elif relation_state != 'BLOQUE' %}
+          {% else %}
           <a href="{% url 'direct_messages:start_conversation' user_id=user.id %}" class="btn-action-secondary">
             <i class="fas fa-paper-plane"></i>
-            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طلب مراسلة{% else %}Send message request{% endif %}</span>
+            <span>{% trans "Send message request" %}</span>
           </a>
           {% endif %}
-          {% if relation_state == 'EN_ATTENTE_RECU' %}
-          <button type="button"
-                  class="btn-action-secondary friend-reject-btn"
-                  data-user-id="{{ profile_user.id }}">
-            <i class="fas fa-user-times"></i>
-            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حذف{% else %}Delete{% endif %}</span>
-          </button>
-          {% endif %}
-          <button type="button"
-                  class="btn-action-secondary follow-action-btn"
-                  data-user-id="{{ profile_user.id }}"
-                  data-follow-url="{% url 'accounts:follow_user' user_id=profile_user.id %}"
-                  data-unfollow-url="{% url 'accounts:unfollow_user' user_id=profile_user.id %}"
-                  data-is-following="{% if is_following_profile %}1{% else %}0{% endif %}">
-            <i class="fas fa-user-check"></i>
-            <span class="follow-action-label">
-              {% if is_following_profile %}
-                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء المتابعة{% else %}Unfollow{% endif %}
-              {% else %}
-                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة{% else %}Follow{% endif %}
-              {% endif %}
-            </span>
-          </button>
           {% else %}
           <a href="{% url 'account_login' %}" class="btn-action-primary">
-            <i class="fas fa-user-plus"></i>
-            <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة صديق{% else %}Add friend{% endif %}</span>
+            <i class="fas fa-rss"></i>
+            <span>{% trans "Follow" %}</span>
           </a>
           {% endif %}
-        </div>
-
-        <div class="profile-follow-stats">
-          <span><strong id="followersCount">{{ followers_count }}</strong> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعون{% else %}Followers{% endif %}</span>
-          <span><strong id="followingCount">{{ following_count }}</strong> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابَعون{% else %}Following{% endif %}</span>
+          {% if request.user.is_authenticated and request.user != user and not is_blocked_profile %}
+          <button type="button"
+                  class="btn-action-secondary follow-toggle-btn"
+                  data-follow-url="{% url 'accounts:follow_user' user_id=user.id %}"
+                  data-unfollow-url="{% url 'accounts:unfollow_user' user_id=user.id %}"
+                  data-is-following="{% if is_following_profile %}1{% else %}0{% endif %}">
+            <i class="fas {% if is_following_profile %}fa-user-check{% else %}fa-rss{% endif %}"></i>
+            <span class="follow-action-label">
+              {% if is_following_profile %}{% trans "Unfollow" %}{% else %}{% trans "Follow" %}{% endif %}
+            </span>
+          </button>
+          {% endif %}
+          {% if request.user.is_authenticated and request.user != user and is_blocked_profile %}
+          <button type="button" class="btn-action-secondary" disabled>
+            <i class="fas fa-ban"></i>
+            <span>{% trans "Blocked" %}</span>
+          </button>
+          {% endif %}
         </div>
 
         <!-- Social Links -->
         <div class="social-links-section">
           <div class="social-links-list">
-            {% if profile_user.linkedin_url %}
-            <a href="{{ profile_user.linkedin_url }}" target="_blank" class="social-link-icon linkedin" title="LinkedIn">
+            {% if user.linkedin_url %}
+            <a href="{{ user.linkedin_url }}" target="_blank" class="social-link-icon linkedin" title="LinkedIn">
               <i class="fab fa-linkedin-in"></i>
             </a>
             {% endif %}
-            {% if profile_user.twitter_url %}
-            <a href="{{ profile_user.twitter_url }}" target="_blank" class="social-link-icon twitter" title="Twitter">>
+            {% if user.twitter_url %}
+            <a href="{{ user.twitter_url }}" target="_blank" class="social-link-icon twitter" title="Twitter">
               <i class="fab fa-twitter"></i>
             </a>
             {% endif %}
-            {% if profile_user.facebook_url %}
-            <a href="{{ profile_user.facebook_url }}" target="_blank" class="social-link-icon facebook" title="Facebook">>
+            {% if user.facebook_url %}
+            <a href="{{ user.facebook_url }}" target="_blank" class="social-link-icon facebook" title="Facebook">
               <i class="fab fa-facebook-f"></i>
             </a>
             {% endif %}
@@ -189,7 +206,7 @@
         </div>
 
         <!-- Delete Account (Danger Zone) -->
-        {% if request.user == profile_user %}
+        {% if request.user == user %}
         <div class="profile-danger-zone">
           <button type="button" class="btn-delete-account" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
             <i class="fas fa-trash-alt"></i>
@@ -224,7 +241,7 @@
         {% endif %}
       </div>
 
-      {% if request.user == profile_user %}
+      {% if request.user == user %}
       <div class="profile-settings-modal" id="profileSettingsModal" hidden>
         <div class="profile-settings-backdrop" data-close-settings></div>
         <div class="profile-settings-panel" role="dialog" aria-modal="true" aria-labelledby="profileSettingsTitle">
@@ -236,19 +253,19 @@
           </div>
 
           <div class="profile-settings-row">
-            <span><i class="fas fa-circle"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حالة الاتصال{% else %}Online status{% endif %}</span>
+            <span><i class="fas fa-circle"></i> {% trans "Online status" %}</span>
             <button type="button" class="profile-switch" id="profileOnlineSwitch" aria-pressed="true">
               <span class="profile-switch-knob"></span>
             </button>
           </div>
 
           <button type="button" class="profile-settings-row profile-settings-btn" id="profileBlockedListToggleBtn">
-            <span><i class="fas fa-user-lock"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}قائمة المحظورين{% else %}Blocked users{% endif %}</span>
+            <span><i class="fas fa-user-lock"></i> {% trans "Blocked users" %}</span>
           </button>
 
           <div id="profileBlockedUsersContainer" class="blocked-users-container" hidden data-api="{% url 'accounts:blocked_users_api' %}">
             <div class="blocked-users-list" id="profileBlockedUsersList"></div>
-            <div class="blocked-empty" id="profileBlockedUsersEmpty">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد مستخدمون محظورون حالياً{% else %}No blocked users currently{% endif %}</div>
+            <div class="blocked-empty" id="profileBlockedUsersEmpty">{% trans "No blocked users currently" %}</div>
           </div>
 
         </div>
@@ -269,21 +286,21 @@
             <span class="info-label">{% trans "Email:" %}</span>
             <span class="info-value">
               {% if can_view_full_profile %}
-                {{ profile_user.email }}
+                {{ user.email }}
               {% else %}
-                {% trans "Visible to friends only" %}
+                {% trans "Visible to followers only" %}
               {% endif %}
             </span>
           </div>
           <div class="info-row">
             <span class="info-label">{% trans "Member Since:" %}</span>
-            <span class="info-value">{{ profile_user.date_joined|date:"F j, Y" }}</span>
+            <span class="info-value">{{ user.date_joined|date:"F j, Y" }}</span>
           </div>
-          {% if profile_user.get_speciality_display %}
+          {% if user.get_speciality_display %}
           <div class="info-row">
             <span class="info-label">{% trans "Specialty:" %}</span>
             <span class="info-value specialty-value">
-              <span class="specialty-tag">{{ profile_user.get_speciality_display }}</span>
+              <span class="specialty-tag">{{ user.get_speciality_display }}</span>
             </span>
           </div>
           {% endif %}
@@ -306,92 +323,83 @@
         </div>
       </div>
 
-      <div class="info-section-card experience-card animate__animated animate__fadeInRight">
-        <div class="experience-head">
-          <h3 class="section-title mb-0">
+      {% if user_experiences %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <div class="section-header-row">
+          <h3 class="section-title section-title-inline">
             <i class="fas fa-briefcase"></i>
-            {% trans "Experience" %}
+            {% trans "Experience" %} <span class="section-count">{{ user_experiences_count|default:0 }}</span>
           </h3>
           {% if is_own_profile %}
-          <button type="button" class="experience-add-btn" id="experienceToggleBtn">
-            <i class="fas fa-plus"></i>
-            {% trans "Add Experience" %}
-          </button>
+          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm experience-add-btn">
+            <i class="fas fa-plus"></i> {% trans "Add Experience" %}
+          </a>
           {% endif %}
         </div>
-
-        {% if is_own_profile %}
-        <div class="experience-form-wrap" id="experienceInlineForm" hidden>
-          <form method="post" action="{% url 'accounts:experience_add' %}">
-            {% csrf_token %}
-            <div class="row g-2">
-              <div class="col-md-4">
-                <label class="form-label">{{ experience_form.experience_type.label }}</label>
-                {{ experience_form.experience_type }}
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">{{ experience_form.institution_name.label }}</label>
-                {{ experience_form.institution_name }}
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">{{ experience_form.role_title.label }}</label>
-                {{ experience_form.role_title }}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">{{ experience_form.start_date.label }}</label>
-                {{ experience_form.start_date }}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">{{ experience_form.end_date.label }}</label>
-                {{ experience_form.end_date }}
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">{{ experience_form.description.label }}</label>
-                {{ experience_form.description }}
-              </div>
+        <div class="contrib-list">
+          {% for exp in user_experiences %}
+          {% if exp.can_manage %}
+          <div class="contrib-item experience-item">
+          {% else %}
+          <a href="{{ exp.url }}" class="contrib-item experience-item">
+          {% endif %}
+            <div class="contrib-icon {% if exp.kind == 'event' %}topic-icon{% else %}project-icon{% endif %}">
+              <i class="fas {{ exp.icon }}"></i>
             </div>
-            <div class="d-flex justify-content-end mt-3">
-              <button type="submit" class="btn btn-primary px-4">{% trans "Save" %}</button>
-            </div>
-          </form>
-        </div>
-        {% endif %}
-
-        <div class="experience-list">
-          {% for exp in experiences %}
-          <div class="experience-item">
-            <div class="experience-dot"></div>
-            <div class="experience-content">
-              <div class="experience-row">
-                <h4 class="experience-role">{{ exp.role_title }}</h4>
-                <span class="experience-type-badge">{{ exp.get_experience_type_display }}</span>
-              </div>
-              <div class="experience-inst">{{ exp.institution_name }}</div>
-              <div class="experience-date">
-                {{ exp.start_date|date:"M Y" }}
-                –
-                {% if exp.is_current or not exp.end_date %}
-                  {% trans "Ongoing" %}
-                {% else %}
-                  {{ exp.end_date|date:"M Y" }}
-                {% endif %}
-              </div>
+            <div class="contrib-info">
+              {% if exp.can_manage %}
+              <span class="contrib-title">{{ exp.title|truncatechars:80 }}</span>
+              {% else %}
+              <span class="contrib-title">{{ exp.title|truncatechars:80 }}</span>
+              {% endif %}
+              <span class="experience-role-line">
+                <span class="experience-role">{{ exp.role }}</span>
+                <span class="experience-kind-badge">{{ exp.kind_label }}</span>
+              </span>
+              {% if exp.subtitle %}
+              <span class="contrib-subline">{{ exp.subtitle|truncatechars:80 }}</span>
+              {% endif %}
               {% if exp.description %}
-              <p class="experience-desc">{{ exp.description }}</p>
+              <span class="contrib-subline">{{ exp.description|striptags|truncatechars:120 }}</span>
               {% endif %}
-              {% if is_own_profile %}
-              <div class="experience-actions">
-                <a href="{% url 'accounts:experience_edit' exp.pk %}" class="btn btn-sm btn-outline-primary">{% trans "Edit" %}</a>
-                <a href="{% url 'accounts:experience_delete' exp.pk %}" class="btn btn-sm btn-outline-danger">{% trans "Delete" %}</a>
-              </div>
+              {% if exp.project_url %}
+              <span class="contrib-subline"><a href="{{ exp.project_url }}" target="_blank" rel="noopener noreferrer">{% trans "Project link" %}</a></span>
+              {% endif %}
+              <span class="contrib-date">
+                {% if exp.ended_at %}
+                  {{ exp.started_at|date:"M Y" }} - {{ exp.ended_at|date:"M Y" }}
+                {% else %}
+                  {% trans "Since" %} {{ exp.started_at|date:"M Y" }}
+                {% endif %}
+              </span>
+              {% if exp.can_manage %}
+              <span class="contrib-subline" style="margin-top:.35rem;display:flex;gap:.75rem;align-items:center;">
+                <span><a href="{{ exp.edit_url }}">{% trans "Edit" %}</a></span>
+                <span><a href="{{ exp.delete_url }}" style="color:#b91c1c;">{% trans "Delete" %}</a></span>
+              </span>
               {% endif %}
             </div>
+          {% if exp.can_manage %}
           </div>
-          {% empty %}
-          <p class="experience-empty">{% trans "No experiences yet." %}</p>
+          {% else %}
+          </a>
+          {% endif %}
           {% endfor %}
         </div>
       </div>
+      {% elif is_own_profile %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <div class="section-header-row">
+          <h3 class="section-title section-title-inline">
+            <i class="fas fa-briefcase"></i>
+            {% trans "Experience" %} <span class="section-count">0</span>
+          </h3>
+          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm experience-add-btn">
+            <i class="fas fa-plus"></i> {% trans "Add Experience" %}
+          </a>
+        </div>
+      </div>
+      {% endif %}
 
       <div
         class="info-section-card kpi-glass-card animate__animated animate__fadeInRight"
@@ -473,7 +481,12 @@
         </h3>
         <div class="contrib-list">
           {% for post in user_posts %}
+<<<<<<< HEAD
+<<<<<<< HEAD
           <a href="{% url 'QA:post_detail' post.slug %}" class="contrib-item">
+=======
+          <a href="{% url 'feed:post_detail' post.slug %}" class="contrib-item">
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
             <div class="contrib-icon post-icon"><i class="fas fa-pen-nib"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">
@@ -483,10 +496,57 @@
                   {{ post.get_localized_content|striptags|truncatechars:60 }}
                 {% endif %}
               </span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if post.approval_status %}
+                <span class="contrib-status-badge {% if post.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if post.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-subline">{{ post.get_localized_content|striptags|truncatechars:90 }}</span>
               <span class="contrib-date">{{ post.created_at|date:"j F Y" }}</span>
+=======
+          <div class="contrib-entry">
+            <a href="{% url 'feed:post_detail' post.slug %}" class="contrib-item">
+              <div class="contrib-icon post-icon"><i class="fas fa-pen-nib"></i></div>
+              <div class="contrib-info">
+                <span class="contrib-title">
+                  {% if post.get_localized_title %}
+                    {{ post.get_localized_title|truncatechars:60 }}
+                  {% else %}
+                    {{ post.get_localized_content|striptags|truncatechars:60 }}
+                  {% endif %}
+                </span>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                  {% if post.approval_status %}
+                  <span class="contrib-status-badge {% if post.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                    {% if post.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                  </span>
+                  {% endif %}
+                {% endif %}
+                <span class="contrib-subline">{{ post.get_localized_content|striptags|truncatechars:90 }}</span>
+                <span class="contrib-date">{{ post.created_at|date:"j F Y" }}</span>
+              </div>
+            </a>
+            <div class="contrib-actions">
+              <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                      data-ct="post" data-oid="{{ post.id }}"
+                      data-title="{% if post.get_localized_title %}{{ post.get_localized_title|truncatechars:200 }}{% else %}{{ post.get_localized_content|striptags|truncatechars:200 }}{% endif %}"
+                      data-category="post"
+                      data-author="{{ post.author.get_full_name_display|default:''|truncatechars:120 }}"
+                      data-description="{{ post.get_localized_content|striptags|default:''|truncatechars:400 }}"
+                      data-url="{% url 'feed:post_detail' post.slug %}"
+                      data-context='{"title":"{% if post.get_localized_title %}{{ post.get_localized_title|truncatechars:200|escapejs }}{% else %}{{ post.get_localized_content|striptags|truncatechars:200|escapejs }}{% endif %}","category":"post","author":"{{ post.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ post.get_localized_content|striptags|default:""|truncatechars:400|escapejs }}","url":"{% url 'feed:post_detail' post.slug %}","type":"post","id":"{{ post.id|escapejs }}"}'>
+                <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+              </button>
+              <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                      data-share-type="post" data-share-id="{{ post.id }}"
+                      data-share-title="{% if post.get_localized_title %}{{ post.get_localized_title|truncatechars:200 }}{% else %}{{ post.get_localized_content|striptags|truncatechars:200 }}{% endif %}">
+                <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+              </button>
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
             </div>
-          </a>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -503,13 +563,53 @@
         </h3>
         <div class="contrib-list">
           {% for course in user_courses %}
+<<<<<<< HEAD
           <a href="{% url 'resources:course_detail' course.pk %}" class="contrib-item">
             <div class="contrib-icon course-icon"><i class="fas fa-book-open"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ course.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if course.approval_status %}
+                <span class="contrib-status-badge {% if course.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if course.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ course.creation_date|date:"j F Y" }}</span>
+=======
+          <div class="contrib-entry">
+            <a href="{% url 'resources:course_detail' course.pk %}" class="contrib-item">
+              <div class="contrib-icon course-icon"><i class="fas fa-book-open"></i></div>
+              <div class="contrib-info">
+                <span class="contrib-title">{{ course.get_localized_title|truncatechars:60 }}</span>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                  {% if course.approval_status %}
+                  <span class="contrib-status-badge {% if course.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                    {% if course.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                  </span>
+                  {% endif %}
+                {% endif %}
+                <span class="contrib-date">{{ course.creation_date|date:"j F Y" }}</span>
+              </div>
+            </a>
+            <div class="contrib-actions">
+              <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                      data-ct="course" data-oid="{{ course.id }}"
+                      data-title="{{ course.get_localized_title|default:''|truncatechars:200 }}"
+                      data-category="{{ course.get_course_field_display|default:'course' }}"
+                      data-author="{{ course.author.get_full_name_display|default:''|truncatechars:120 }}"
+                      data-description="{{ course.get_localized_description|default:''|truncatechars:400 }}"
+                      data-url="{% url 'resources:course_detail' course.pk %}"
+                      data-context='{"title":"{{ course.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"{{ course.get_course_field_display|default:"course"|escapejs }}","author":"{{ course.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ course.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:course_detail' course.pk %}","type":"course","id":"{{ course.id|escapejs }}"}'>
+                <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+              </button>
+              <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                      data-share-type="course" data-share-id="{{ course.id }}" data-share-title="{{ course.get_localized_title|default:'' }}">
+                <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+              </button>
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
             </div>
-          </a>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -525,13 +625,38 @@
         </h3>
         <div class="contrib-list">
           {% for resource in user_resources %}
+          <div class="contrib-entry">
           <a href="{% url 'resources:resource-detail' type=resource.document_type pk=resource.pk %}" class="contrib-item">
             <div class="contrib-icon resource-icon"><i class="fas fa-file-alt"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ resource.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if resource.approval_status %}
+                <span class="contrib-status-badge {% if resource.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if resource.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ resource.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="{{ resource.document_type }}" data-oid="{{ resource.id }}"
+                    data-title="{{ resource.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="{{ resource.document_type|default:'resource' }}"
+                    data-author="{{ resource.author.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ resource.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'resources:resource-detail' type=resource.document_type pk=resource.pk %}"
+                    data-context='{"title":"{{ resource.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"{{ resource.document_type|default:"resource"|escapejs }}","author":"{{ resource.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ resource.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:resource-detail' type=resource.document_type pk=resource.pk %}","type":"{{ resource.document_type|escapejs }}","id":"{{ resource.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="{{ resource.document_type }}" data-share-id="{{ resource.id }}" data-share-title="{{ resource.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -546,13 +671,38 @@
         </h3>
         <div class="contrib-list">
           {% for tool in user_tools %}
+          <div class="contrib-entry">
           <a href="{% url 'resources:resource-detail' type='tool' pk=tool.pk %}" class="contrib-item">
             <div class="contrib-icon resource-icon"><i class="fas fa-screwdriver-wrench"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ tool.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if tool.approval_status %}
+                <span class="contrib-status-badge {% if tool.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if tool.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ tool.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="tool" data-oid="{{ tool.id }}"
+                    data-title="{{ tool.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="tool"
+                    data-author="{{ tool.author.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ tool.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'resources:resource-detail' type='tool' pk=tool.pk %}"
+                    data-context='{"title":"{{ tool.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"tool","author":"{{ tool.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ tool.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:resource-detail' type='tool' pk=tool.pk %}","type":"tool","id":"{{ tool.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="tool" data-share-id="{{ tool.id }}" data-share-title="{{ tool.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -567,13 +717,38 @@
         </h3>
         <div class="contrib-list">
           {% for corpus in user_corpora %}
+          <div class="contrib-entry">
           <a href="{% url 'resources:resource-detail' type='corpus' pk=corpus.pk %}" class="contrib-item">
             <div class="contrib-icon resource-icon"><i class="fas fa-database"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ corpus.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if corpus.approval_status %}
+                <span class="contrib-status-badge {% if corpus.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if corpus.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ corpus.creation_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="corpus" data-oid="{{ corpus.id }}"
+                    data-title="{{ corpus.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="corpus"
+                    data-author="{{ corpus.author.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ corpus.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'resources:resource-detail' type='corpus' pk=corpus.pk %}"
+                    data-context='{"title":"{{ corpus.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"corpus","author":"{{ corpus.author.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ corpus.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'resources:resource-detail' type='corpus' pk=corpus.pk %}","type":"corpus","id":"{{ corpus.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="corpus" data-share-id="{{ corpus.id }}" data-share-title="{{ corpus.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -589,27 +764,50 @@
         </h3>
         <div class="contrib-list">
           {% for project in user_projects %}
+          <div class="contrib-entry">
           <a href="{% url 'projects:project_detail' project.pk %}" class="contrib-item">
             <div class="contrib-icon project-icon"><i class="fas fa-diagram-project"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ project.title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if project.approval_status %}
+                <span class="contrib-status-badge {% if project.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if project.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ project.created_at|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="project" data-oid="{{ project.id }}"
+                    data-title="{{ project.title|default:''|truncatechars:200 }}"
+                    data-category="project"
+                    data-author="{{ project.coordinator.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ project.description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'projects:project_detail' project.pk %}"
+                    data-context='{"title":"{{ project.title|default:""|truncatechars:200|escapejs }}","category":"project","author":"{{ project.coordinator.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ project.description|default:""|truncatechars:400|escapejs }}","url":"{% url 'projects:project_detail' project.pk %}","type":"project","id":"{{ project.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="project" data-share-id="{{ project.id }}" data-share-title="{{ project.title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
       {% endif %}
 
-      {% if not can_view_contributions and request.user.is_authenticated and request.user != profile_user %}
+      {% if not can_view_contributions and request.user.is_authenticated and request.user != user %}
       <div class="info-section-card animate__animated animate__fadeInRight">
         <h3 class="section-title">
           <i class="fas fa-user-lock"></i>
           {% trans "Private Content" %}
         </h3>
-        <p class="bio-text">
-          {% blocktrans with name=profile_user.get_full_name_display %}Connect with {{ name }} to view their resources and events.{% endblocktrans %}
-        </p>
+        <p class="bio-text">Connectez-vous avec {{ user.get_full_name_display }} pour voir ses ressources et ÃƒÂ©vÃƒÂ©nements.</p>
       </div>
       {% endif %}
       {% endif %}
@@ -624,13 +822,38 @@
         </h3>
         <div class="contrib-list">
           {% for topic in user_topics %}
+          <div class="contrib-entry">
           <a href="{% url 'forum:chatroom-list' topic.id %}" class="contrib-item">
             <div class="contrib-icon topic-icon"><i class="fas fa-comment-dots"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ topic.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if topic.approval_status %}
+                <span class="contrib-status-badge {% if topic.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if topic.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ topic.created_at|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="topic" data-oid="{{ topic.id }}"
+                    data-title="{{ topic.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="topic"
+                    data-author="{{ topic.creator.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ topic.description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'forum:chatroom-list' topic.id %}"
+                    data-context='{"title":"{{ topic.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"topic","author":"{{ topic.creator.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ topic.description|default:""|truncatechars:400|escapejs }}","url":"{% url 'forum:chatroom-list' topic.id %}","type":"topic","id":"{{ topic.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="topic" data-share-id="{{ topic.id }}" data-share-title="{{ topic.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -645,13 +868,38 @@
         </h3>
         <div class="contrib-list">
           {% for reg in upcoming_events %}
+          <div class="contrib-entry">
           <a href="{% url 'events:event_detail' reg.event.pk %}" class="contrib-item">
             <div class="contrib-icon project-icon"><i class="fas fa-calendar-alt"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ reg.event.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if reg.event.approval_status %}
+                <span class="contrib-status-badge {% if reg.event.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if reg.event.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ reg.event.start_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="event" data-oid="{{ reg.event.id }}"
+                    data-title="{{ reg.event.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="event"
+                    data-author="{{ reg.event.created_by.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ reg.event.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'events:event_detail' reg.event.pk %}"
+                    data-context='{"title":"{{ reg.event.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"event","author":"{{ reg.event.created_by.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ reg.event.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'events:event_detail' reg.event.pk %}","type":"event","id":"{{ reg.event.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="event" data-share-id="{{ reg.event.id }}" data-share-title="{{ reg.event.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -665,13 +913,38 @@
         </h3>
         <div class="contrib-list">
           {% for reg in past_events %}
+          <div class="contrib-entry">
           <a href="{% url 'events:event_detail' reg.event.pk %}" class="contrib-item">
             <div class="contrib-icon topic-icon"><i class="fas fa-check-circle"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ reg.event.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if reg.event.approval_status %}
+                <span class="contrib-status-badge {% if reg.event.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if reg.event.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ reg.event.start_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="event" data-oid="{{ reg.event.id }}"
+                    data-title="{{ reg.event.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="event"
+                    data-author="{{ reg.event.created_by.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ reg.event.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'events:event_detail' reg.event.pk %}"
+                    data-context='{"title":"{{ reg.event.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"event","author":"{{ reg.event.created_by.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ reg.event.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'events:event_detail' reg.event.pk %}","type":"event","id":"{{ reg.event.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="event" data-share-id="{{ reg.event.id }}" data-share-title="{{ reg.event.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -686,13 +959,38 @@
         </h3>
         <div class="contrib-list">
           {% for event in user_events %}
+          <div class="contrib-entry">
           <a href="{% url 'events:event_detail' event.pk %}" class="contrib-item">
             <div class="contrib-icon project-icon"><i class="fas fa-calendar-plus"></i></div>
             <div class="contrib-info">
               <span class="contrib-title">{{ event.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if event.approval_status %}
+                <span class="contrib-status-badge {% if event.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if event.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
               <span class="contrib-date">{{ event.start_date|date:"j F Y" }}</span>
             </div>
           </a>
+          <div class="contrib-actions">
+            <button type="button" class="contrib-action-btn ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}"
+                    data-ct="event" data-oid="{{ event.id }}"
+                    data-title="{{ event.get_localized_title|default:''|truncatechars:200 }}"
+                    data-category="event"
+                    data-author="{{ event.created_by.get_full_name_display|default:''|truncatechars:120 }}"
+                    data-description="{{ event.get_localized_description|default:''|truncatechars:400 }}"
+                    data-url="{% url 'events:event_detail' event.pk %}"
+                    data-context='{"title":"{{ event.get_localized_title|default:""|truncatechars:200|escapejs }}","category":"event","author":"{{ event.created_by.get_full_name_display|default:""|truncatechars:120|escapejs }}","description":"{{ event.get_localized_description|default:""|truncatechars:400|escapejs }}","url":"{% url 'events:event_detail' event.pk %}","type":"event","id":"{{ event.id|escapejs }}"}'>
+              <i class="fas fa-robot"></i><span>{% trans "Ask chatbot" %}</span>
+            </button>
+            <button type="button" class="contrib-action-btn share-trigger-btn" title="{% trans 'Send to followers' %}"
+                    data-share-type="event" data-share-id="{{ event.id }}" data-share-title="{{ event.get_localized_title|default:'' }}">
+              <i class="bi bi-send"></i><span>{% trans "Send to followers" %}</span>
+            </button>
+          </div>
+          </div>
           {% endfor %}
         </div>
       </div>
@@ -702,272 +1000,149 @@
   </div>
 </div>
 <div class="profile-menu-toast" id="profileMenuToast" role="status" aria-live="polite"></div>
+<div class="profile-follow-modal" id="profileFollowModal" hidden>
+  <div class="profile-follow-backdrop" data-close-follow-modal></div>
+  <div class="profile-follow-panel" role="dialog" aria-modal="true" aria-labelledby="profileFollowTitle">
+    <div class="profile-follow-head">
+      <h3 id="profileFollowTitle">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}</h3>
+      <button type="button" class="profile-follow-close" data-close-follow-modal aria-label="{% trans 'Close' %}">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="profile-follow-tabs">
+      <button type="button" class="profile-follow-tab is-active" data-follow-tab="followers">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}</button>
+      <button type="button" class="profile-follow-tab" data-follow-tab="following">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}</button>
+    </div>
+    <div class="profile-follow-list" id="profileFollowList"></div>
+    <div class="profile-follow-empty" id="profileFollowEmpty" hidden>{% trans "No users found." %}</div>
+  </div>
+</div>
+<div class="profile-share-modal" id="profileShareModal" hidden>
+  <div class="profile-share-backdrop" data-close-share-modal></div>
+  <div class="profile-share-panel" role="dialog" aria-modal="true" aria-labelledby="profileShareTitle">
+    <div class="profile-share-head">
+      <h3 id="profileShareTitle">{% trans "Share profile" %}</h3>
+      <button type="button" class="profile-share-close" data-close-share-modal aria-label="{% trans 'Close' %}">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="profile-share-grid">
+      <button type="button" class="profile-share-item" data-share-network="linkedin">
+        <i class="fab fa-linkedin"></i>
+        <span>LinkedIn</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="facebook">
+        <i class="fab fa-facebook"></i>
+        <span>Facebook</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="x">
+        <i class="fab fa-x-twitter"></i>
+        <span>X</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="whatsapp">
+        <i class="fab fa-whatsapp"></i>
+        <span>WhatsApp</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="telegram">
+        <i class="fab fa-telegram-plane"></i>
+        <span>Telegram</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="email">
+        <i class="fas fa-envelope"></i>
+        <span>Email</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="copy">
+        <i class="fas fa-link"></i>
+        <span>{% trans "Copy link" %}</span>
+      </button>
+    </div>
+  </div>
+</div>
 <style>
-  :root {
-    --exp-bg: #ffffff;
-    --exp-border: #dfe4f0;
-    --exp-text: #1f2a3d;
-    --exp-muted: #667085;
-    --exp-accent: #3b5bdb;
-  }
-
-  [data-theme="dark"] {
-    --exp-bg: #141a24;
-    --exp-border: #2a3444;
-    --exp-text: #e8eefc;
-    --exp-muted: #a0acc2;
-    --exp-accent: #8fa7ff;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --exp-bg: #141a24;
-      --exp-border: #2a3444;
-      --exp-text: #e8eefc;
-      --exp-muted: #a0acc2;
-      --exp-accent: #8fa7ff;
-    }
-  }
-
-  .experience-card {
-    background: var(--exp-bg);
-    border: 1px solid var(--exp-border);
-  }
-
-  .experience-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    gap: 0.75rem;
-  }
-
-  .experience-add-btn {
-    border: 1px solid var(--exp-accent);
-    color: #fff;
-    background: var(--exp-accent);
-    border-radius: 10px;
-    padding: 0.45rem 0.85rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .experience-form-wrap {
-    border: 1px dashed var(--exp-border);
-    border-radius: 12px;
-    padding: 0.85rem;
-    margin-bottom: 1rem;
-    background: rgba(59, 91, 219, 0.04);
-  }
-
-  .experience-list {
-    display: grid;
-    gap: 0.9rem;
-  }
-
-  .experience-item {
-    position: relative;
-    padding-left: 1.1rem;
-    border-left: 2px solid var(--exp-border);
-  }
-
-  html[dir="rtl"] .experience-item {
-    padding-left: 0;
-    padding-right: 1.1rem;
-    border-left: 0;
-    border-right: 2px solid var(--exp-border);
-  }
-
-  .experience-dot {
-    position: absolute;
-    left: -7px;
-    top: 8px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--exp-accent);
-  }
-
-  html[dir="rtl"] .experience-dot {
-    left: auto;
-    right: -7px;
-  }
-
-  .experience-content {
-    border: 1px solid var(--exp-border);
-    border-radius: 12px;
-    padding: 0.8rem;
-    background: var(--exp-bg);
-  }
-
-  .experience-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .experience-role {
-    margin: 0;
-    color: var(--exp-text);
-    font-size: 1rem;
-    font-weight: 700;
-  }
-
-  .experience-type-badge {
-    font-size: 0.75rem;
-    border: 1px solid rgba(59, 91, 219, 0.3);
-    color: var(--exp-accent);
-    border-radius: 999px;
-    padding: 0.18rem 0.55rem;
-    font-weight: 700;
-  }
-
-  .experience-inst {
-    color: var(--exp-text);
-    opacity: 0.88;
-    font-weight: 600;
-    margin-top: 0.2rem;
-  }
-
-  .experience-date,
-  .experience-desc,
-  .experience-empty {
-    color: var(--exp-muted);
-  }
-
-  .experience-date {
-    margin-top: 0.2rem;
-    font-size: 0.9rem;
-  }
-
-  .experience-desc {
-    margin: 0.35rem 0 0;
-  }
-
-  .experience-actions {
-    display: flex;
-    gap: 0.45rem;
-    margin-top: 0.6rem;
-  }
+  /* ===== BLUE MINIMAL NOTION THEME - TWO-TONE DESIGN ===== */
+  /* LEFT: Dark Blue Profile Card | RIGHT: Clean White Cards */
 
   :root {
-    /* Blue Minimal Notion Theme Colors */
-    --primary-dark: #3481f0;
-    --primary: #3481f0;
-    --primary-light: #5492f5;
-    --primary-lightest: rgba(52, 129, 240, 0.08);
-    
-    /* Secondary */
-    --secondary: #6ba3f5;
-    --accent: #34a853;
-    
-    /* Text Colors */
-    --text-dark: #1a1a1a;
-    --text-secondary: #6b7280;
-    --text-muted: #9ca3af;
-    --text-light: #ffffff;
-    
-    /* Backgrounds */
-    --bg-light: #f8f9fb;
-    --bg-white: #ffffff;
-    
-    /* Shadows & Borders */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 2px 6px rgba(52, 129, 240, 0.08);
-    --shadow-lg: 0 4px 12px rgba(52, 129, 240, 0.12);
-    
-    /* Radius */
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 12px;
-    
-    /* Transitions */
-    --transition: all 0.25s ease;
+    --profile-bg: #ffffff;
+    --profile-bg-light: #f0f7ff;
+    --profile-text-dark: #111827;
+    --profile-text-secondary: #64748b;
+    --profile-text-accent: #2563eb;
+    --notion-bg: #ffffff;
+    --notion-border: #d9e1ee;
+    --notion-blue: #2563eb;
+    --notion-text-primary: #111827;
+    --notion-text-secondary: #64748b;
   }
 
-  /* ===== PAGE LAYOUT ===== */
+  /* Remove content padding for full-width profile layout */
+  .content {
+    padding: 0 !important;
+    margin-top: -32px !important;
+  }
+
+  /* Move sidebar border up */
+  .sidebar {
+    margin-top: -32px !important;
+    height: calc(100vh - var(--site-header-height) + 32px) !important;
+  }
+
+  /* PAGE LAYOUT */
   .profile-page-new {
-    min-height: 100vh;
-    background: #ffffff;
-    padding: 48px 20px;
-    font-family: 'Inter', 'IBM Plex Sans Arabic', sans-serif;
+    background: #ffffff !important;
+    padding: 40px 20px !important;
+    min-height: 50vh;
+    margin: 0 !important;
   }
 
   .profile-container-new {
-    max-width: 1200px;
+    max-width: 1240px;
     margin: 0 auto;
     display: grid;
     grid-template-columns: 340px 1fr;
-    gap: 48px;
+    gap: 32px;
     align-items: start;
   }
 
-  /* ===== LEFT COLUMN: PROFILE CARD ===== */
+  /* ===== LEFT COLUMN: DARK BLUE PROFILE CARD ===== */
   .profile-left-column {
     display: flex;
     flex-direction: column;
   }
 
   .profile-card {
-    background: var(--bg-white);
-    border-radius: var(--radius-lg);
+    background: #eff6ff !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 16px !important;
+    padding: 24px 16px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(52, 129, 240, 0.05);
-    border: 1px solid #e5e7eb;
-    transition: var(--transition);
     position: relative;
   }
 
-  .profile-card-settings-btn {
-    position: absolute;
-    top: 12px;
-    inset-inline-end: 12px;
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: 1px solid #e5e7eb;
-    background: #f8f9fb;
-    color: #6b7280;
-    display: inline-flex;
+  /* Profile Header */
+  .profile-identity-head {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    box-shadow: none;
-    z-index: 55;
-    transition: var(--transition);
+    gap: 12px;
+    padding: 0;
   }
 
-  .profile-card-settings-btn:hover {
-    color: var(--primary);
-    border-color: #d0e0ff;
-    background: #f0f6ff;
-  }
-
-  .profile-card:hover {
-    box-shadow: 0 2px 8px rgba(52, 129, 240, 0.1);
-    transform: translateY(-1px);
-  }
-
-  /* Profile Picture */
   .profile-picture-container {
-    width: 140px;
-    height: 140px;
-    margin: 0 auto 16px;
-    border-radius: 999px;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    border: 4px solid var(--profile-text-accent);
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%) !important;
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
     overflow: hidden;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-    border: 3px solid #e5e7eb;
-    box-shadow: 0 2px 8px rgba(52, 129, 240, 0.12);
   }
 
   .profile-picture {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    display: block;
   }
 
   .profile-picture-placeholder {
@@ -976,74 +1151,154 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 60px;
-    color: rgba(255, 255, 255, 0.3);
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 50px;
   }
 
+  /* User Info */
   .profile-user-info {
-    padding: 24px 16px;
+    padding: 8px 0;
     text-align: center;
   }
 
-  .profile-user-name {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--text-dark);
-    margin: 0 0 8px;
-    line-height: 1.2;
-  }
-
-  .profile-user-title {
-    font-size: 0.9rem;
-    color: var(--primary);
-    font-weight: 600;
-    margin: 0 0 8px;
-  }
-
-  .profile-user-location {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin: 0;
+  .profile-user-heading {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .profile-user-name {
+    color: var(--profile-text-dark) !important;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    margin: 0;
+    line-height: 1.1;
+  }
+
+  .profile-user-title {
+    color: var(--profile-text-accent) !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    margin: 6px 0 0 !important;
+  }
+
+  .profile-user-location {
+    color: var(--profile-text-secondary) !important;
+    font-size: 0.85rem !important;
+    margin: 8px 0 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  a.profile-user-location {
+    text-decoration: none;
+  }
+
+  a.profile-user-location:hover {
+    color: var(--profile-text-accent) !important;
+  }
+
+  .profile-user-location-logo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: inline-block;
+    flex-shrink: 0;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+  }
+
+  /* Bio */
+  .profile-bio-label {
+    color: #94a3b8 !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+    margin: 12px 0 8px !important;
+  }
+
+  .profile-bio-inline {
+    background: #f0f7ff !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 8px !important;
+    padding: 10px 12px !important;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .bio-text {
+    color: var(--profile-text-dark) !important;
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+    text-align: center !important;
   }
 
   /* Verification Pill */
   .verification-pill {
-    background: rgba(52, 129, 240, 0.12);
-    color: #1e40af;
-    padding: 6px 10px;
-    border-radius: 20px;
-    font-size: 0.76rem;
-    font-weight: 600;
-    text-align: center;
-    margin: 12px 16px;
+    background: rgba(74, 222, 128, 0.15) !important;
+    border: 1px solid rgba(74, 222, 128, 0.3) !important;
+    color: #86efac !important;
+    padding: 6px 12px !important;
+    border-radius: 20px !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    margin: 10px 0 !important;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
   }
 
-  /* Action Buttons */
+  /* Buttons */
   .profile-actions-new {
     display: grid;
-    gap: 8px;
-    padding: 0 16px;
-    margin-bottom: 16px;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 0;
   }
 
-  .btn-action-primary,
-  .btn-action-secondary {
-    padding: 10px 14px;
-    border: none;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    font-size: 0.85rem;
+  .btn-action-primary {
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    padding: 12px 16px !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
     cursor: pointer;
-    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+
+  .btn-action-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+  }
+
+  .btn-action-secondary {
+    background: transparent !important;
+    border: 1.5px solid var(--notion-blue) !important;
+    color: var(--notion-blue) !important;
+    padding: 10px 14px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1051,309 +1306,22 @@
     text-decoration: none;
   }
 
-  .btn-action-primary {
-    background: var(--primary);
-    color: var(--text-light);
-    box-shadow: 0 1px 3px rgba(52, 129, 240, 0.15);
-  }
-
-  .btn-action-primary:hover {
-    background: var(--primary-light);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(52, 129, 240, 0.2);
-  }
-
-  .friend-action-btn.is-pending {
-    background: #94a3b8;
-    box-shadow: none;
-  }
-
-  .friend-action-btn.is-friend {
-    background: #ffffff;
-    color: var(--primary);
-    border: 2px solid var(--primary);
-    box-shadow: none;
-  }
-
-  .friend-action-btn.btn-clicked {
-    transform: scale(0.97);
-    transition: transform 0.18s ease;
-  }
-
-  .btn-action-secondary {
-    background: #f8f9fb;
-    border: 1px solid var(--primary);
-    color: var(--primary);
-  }
-
   .btn-action-secondary:hover {
-    background: #f0f6ff;
-    transform: translateY(-1px);
-  }
-
-  .friend-menu-wrap {
-    position: relative;
-    width: 100%;
-  }
-
-  .friend-menu {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    inset-inline-start: 0;
-    background: #fff;
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    box-shadow: var(--shadow-md);
-    width: 100%;
-    z-index: 20;
-  }
-
-  .friend-menu-item {
-    width: 100%;
-    border: none;
-    background: transparent;
-    color: #334155;
-    text-align: start;
-    padding: 9px 12px;
-    font-weight: 600;
-  }
-
-  .friend-menu-item.friend-remove-btn {
-    color: #b91c1c;
-  }
-
-  .profile-settings-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 1500;
-  }
-
-  .profile-settings-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.35);
-  }
-
-  .profile-settings-panel {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(92vw, 420px);
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(52, 129, 240, 0.12);
-    padding: 16px;
-    direction: ltr;
-    text-align: left;
-  }
-
-  html[dir="rtl"] .profile-settings-panel {
-    direction: rtl;
-    text-align: right;
-  }
-
-  .profile-settings-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
-
-  .profile-settings-head h3 {
-    margin: 0;
-    font-size: 1rem;
-    color: #0f172a;
-  }
-
-  .profile-settings-close {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    color: #64748b;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .profile-settings-row {
-    width: 100%;
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    border-radius: 10px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    color: #334155;
-    font-weight: 600;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  }
-
-  .profile-settings-btn {
-    cursor: pointer;
-  }
-
-  .profile-settings-btn:hover {
-    border-color: #cbd5e1;
-    background: #f8fafc;
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
-  }
-
-  .profile-settings-row span {
-    display: inline-flex;
-    align-items: center;
-    flex-direction: row;
-    gap: 8px;
-  }
-
-  html[dir="rtl"] .profile-settings-row {
-    flex-direction: row-reverse;
-  }
-
-  html[dir="rtl"] .profile-settings-row span {
-    flex-direction: row-reverse;
-  }
-
-  .profile-settings-row i {
-    color: #6b7280;
-  }
-
-  .profile-switch {
-    width: 40px;
-    height: 22px;
-    border-radius: 999px;
-    border: none;
-    background: #d1d5db;
-    position: relative;
-    flex-shrink: 0;
-  }
-
-  .profile-switch .profile-switch-knob {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
-    transition: transform 0.2s ease;
-  }
-
-  .profile-switch.is-on {
-    background: #1D4ED8;
-  }
-
-  .profile-switch.is-on .profile-switch-knob {
-    transform: translateX(18px);
-  }
-
-  .blocked-users-container {
-    margin: 0 0 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    background: #f8fafc;
-    max-height: 220px;
-    overflow: auto;
-  }
-
-  .profile-menu-wrap {
-    position: absolute;
-    top: 12px;
-    inset-inline-end: 12px;
-    z-index: 60;
-  }
-
-  .profile-menu-toggle {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    border: 1px solid #e5e7eb;
-    background: rgba(255, 255, 255, 0.95);
-    color: #334155;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
-  }
-
-  .profile-menu-dropdown {
-    position: absolute;
-    top: 40px;
-    inset-inline-end: 0;
-    min-width: 220px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-    padding: 6px;
-    z-index: 1200;
-  }
-
-  .profile-menu-item {
-    width: 100%;
-    border: none;
-    background: transparent;
-    color: #334155;
-    padding: 9px 10px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    text-align: start;
-  }
-
-  .profile-menu-item:hover {
-    background: #f8fafc;
-  }
-
-  .profile-menu-block {
-    color: #dc2626;
-  }
-
-  .profile-menu-separator {
-    height: 1px;
-    background: #e5e7eb;
-    margin: 5px 0;
-  }
-
-  .profile-menu-toast {
-    position: fixed;
-    bottom: 20px;
-    inset-inline-end: 20px;
-    background: #0f172a;
-    color: #fff;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 0.88rem;
-    z-index: 1300;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
-    opacity: 0;
-    transform: translateY(6px);
-    pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-  }
-
-  .profile-menu-toast.show {
-    opacity: 1;
-    transform: translateY(0);
+    border-color: var(--notion-blue) !important;
+    background: rgba(37, 99, 235, 0.08) !important;
   }
 
   /* Social Links */
   .social-links-section {
-    padding: 0 16px;
-    margin-bottom: 16px;
+    padding: 12px 0;
+    margin: 12px 0;
+    border-top: 1px solid var(--notion-border);
+    border-bottom: 1px solid var(--notion-border);
   }
 
   .social-links-list {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     justify-content: center;
   }
 
@@ -1364,97 +1332,799 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-light);
-    font-size: 1rem;
+    color: #ffffff;
     text-decoration: none;
-    transition: var(--transition);
-  }
-
-  .social-link-icon.linkedin {
-    background: #0077b5;
-  }
-
-  .social-link-icon.twitter {
-    background: #1da1f2;
-  }
-
-  .social-link-icon.facebook {
-    background: #4267b2;
+    transition: all 0.2s ease;
   }
 
   .social-link-icon:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
   }
 
-  /* Danger Zone */
+  /* Delete Button */
   .profile-danger-zone {
-    padding: 12px 16px 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 12px 0;
     margin-top: 12px;
   }
 
   .btn-delete-account {
     width: 100%;
-    padding: 10px;
-    background: rgba(220, 53, 69, 0.08);
-    color: #dc3545;
-    border: 1px solid rgba(220, 53, 69, 0.2);
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    font-size: 0.85rem;
+    background: transparent !important;
+    border: 1.5px solid rgba(220, 38, 38, 0.3) !important;
+    color: #dc2626 !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
     cursor: pointer;
-    transition: var(--transition);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    transition: all 0.2s ease;
   }
 
   .btn-delete-account:hover {
-    background: #dc3545;
-    color: var(--text-light);
-    border-color: #dc3545;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(220, 53, 69, 0.2);
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    border-color: #dc2626 !important;
   }
 
-  /* ===== RIGHT COLUMN: INFO SECTIONS ===== */
+  /* Settings Button */
+  .profile-card-settings-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--notion-border);
+    background: #f8fafc;
+    color: var(--profile-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .profile-card-settings-btn:hover {
+    background: #f0f7ff;
+    color: var(--profile-text-accent);
+    border-color: var(--profile-text-accent);
+  }
+
+  /* ===== "..." PROFILE MENU (Professional) ===== */
+  .profile-menu-wrap {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 30;
+  }
+  html[dir="rtl"] .profile-menu-wrap { left: auto; right: 12px; }
+
+  .profile-menu-toggle {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.55);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(6px);
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+  .profile-menu-toggle:hover {
+    background: #ffffff;
+    border-color: rgba(37, 99, 235, 0.55);
+    color: #1d4ed8;
+    transform: translateY(-1px);
+  }
+
+  .profile-menu-dropdown {
+    position: absolute;
+    top: 44px;
+    left: 0;
+    width: 220px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: #ffffff;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
+    padding: 6px;
+    display: grid;
+    gap: 2px;
+  }
+  html[dir="rtl"] .profile-menu-dropdown { left: auto; right: 0; }
+
+  .profile-menu-dropdown::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 16px;
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    border-left: 1px solid rgba(148, 163, 184, 0.45);
+    border-top: 1px solid rgba(148, 163, 184, 0.45);
+    transform: rotate(45deg);
+  }
+  html[dir="rtl"] .profile-menu-dropdown::before { left: auto; right: 16px; }
+
+  .profile-menu-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    border-radius: 12px;
+    padding: 9px 10px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: start;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  }
+  html[dir="rtl"] .profile-menu-item { flex-direction: row-reverse; text-align: right; }
+
+  .profile-menu-item i {
+    width: 18px;
+    text-align: center;
+    color: #2563eb;
+    opacity: 0.92;
+  }
+
+  .profile-menu-item:hover {
+    background: rgba(37, 99, 235, 0.07);
+    color: #0b2f6f;
+    transform: translateY(-1px);
+  }
+
+  .profile-menu-item.profile-menu-block i,
+  .profile-menu-item.profile-menu-report i { color: #dc2626; }
+  .profile-menu-item.profile-menu-block:hover,
+  .profile-menu-item.profile-menu-report:hover { background: rgba(220, 38, 38, 0.08); }
+
+  .profile-menu-separator {
+    height: 1px;
+    background: rgba(148, 163, 184, 0.35);
+    margin: 6px 6px;
+  }
+
+
+  .profile-social-stats {
+    display: flex;
+    gap: 16px;
+    margin: 10px 0 14px;
+    color: #475569;
+    font-weight: 600;
+  }
+
+  .profile-stat-btn {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .profile-stat-btn:hover {
+    color: #1d4ed8;
+  }
+
+  .profile-stat-btn:disabled {
+    cursor: default;
+    opacity: 0.75;
+  }
+
+  .profile-follow-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2090;
+  }
+
+  .profile-follow-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  .profile-follow-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(520px, calc(100vw - 28px));
+    max-height: min(78vh, 680px);
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.32);
+    overflow: hidden;
+  }
+
+  .profile-follow-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  }
+
+  .profile-follow-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .profile-follow-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .profile-follow-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+  }
+
+  .profile-follow-tab {
+    flex: 1;
+    border: 0;
+    background: #ffffff;
+    color: #64748b;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+
+  .profile-follow-tab.is-active {
+    color: #1d4ed8;
+    box-shadow: inset 0 -2px 0 #1d4ed8;
+    background: #f8fbff;
+  }
+
+  .profile-follow-list {
+    padding: 8px 12px 12px;
+    overflow-y: auto;
+  }
+
+  .profile-follow-empty {
+    text-align: center;
+    color: #64748b;
+    font-weight: 600;
+    padding: 16px 12px 20px;
+  }
+
+  .profile-follow-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 6px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  }
+
+  .profile-follow-user {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+
+  .profile-follow-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: #e2e8f0;
+  }
+
+  .profile-follow-avatar-fallback {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+  }
+
+  .profile-follow-meta {
+    min-width: 0;
+  }
+
+  .profile-follow-name {
+    margin: 0;
+    color: #0f172a;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .profile-follow-sub {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .profile-follow-action {
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .profile-follow-action.icon-only {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+  }
+
+  .profile-follow-action.icon-only:hover {
+    border-color: rgba(148, 163, 184, 0.75);
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .profile-follow-action.is-danger {
+    border-color: rgba(220, 38, 38, 0.35);
+    color: #dc2626;
+  }
+
+  .profile-menu-toast {
+    position: fixed;
+    bottom: 18px;
+    inset-inline-end: 18px;
+    z-index: 2000;
+    background: rgba(15, 23, 42, 0.92);
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .profile-menu-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .profile-share-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+  }
+
+  .profile-share-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  .profile-share-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(460px, calc(100vw - 28px));
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.32);
+    overflow: hidden;
+  }
+
+  .profile-share-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  }
+
+  .profile-share-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .profile-share-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .profile-share-close:hover {
+    background: rgba(37, 99, 235, 0.07);
+    border-color: rgba(37, 99, 235, 0.45);
+    color: #1d4ed8;
+    transform: translateY(-1px);
+  }
+
+  .profile-share-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .profile-share-item {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: #ffffff;
+    border-radius: 12px;
+    min-height: 84px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #1e3a8a;
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .profile-share-item:hover {
+    transform: translateY(-2px);
+    border-color: rgba(37, 99, 235, 0.42);
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.14);
+  }
+
+  .profile-share-item i {
+    font-size: 1.15rem;
+  }
+
+  @media (max-width: 480px) {
+    .profile-share-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* ===== SETTINGS DROPDOWN (Professional) ===== */
+  .profile-left-column { position: relative; }
+
+  #profileSettingsModal.profile-settings-modal {
+    position: absolute;
+    top: 8px;
+    inset-inline-end: 8px;
+    z-index: 1200;
+  }
+
+  #profileSettingsModal .profile-settings-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.10);
+    backdrop-filter: blur(1px);
+  }
+
+  #profileSettingsModal .profile-settings-panel {
+    position: absolute;
+    top: 44px; /* under the gear button */
+    inset-inline-end: 0;
+    width: min(360px, calc(100vw - 32px));
+    background: #ffffff !important;
+    border: 1px solid rgba(148, 163, 184, 0.45) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18) !important;
+    overflow: hidden;
+    transform-origin: top right;
+    animation: profileDropIn 140ms ease-out;
+  }
+
+  html[dir="rtl"] #profileSettingsModal .profile-settings-panel { transform-origin: top left; }
+
+  #profileSettingsModal .profile-settings-panel::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    inset-inline-end: 16px;
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    border-left: 1px solid rgba(148, 163, 184, 0.45);
+    border-top: 1px solid rgba(148, 163, 184, 0.45);
+    transform: rotate(45deg);
+  }
+
+  #profileSettingsModal .profile-settings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  }
+
+  #profileSettingsModal .profile-settings-head h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: 0.1px;
+  }
+
+  #profileSettingsModal .profile-settings-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  #profileSettingsModal .profile-settings-close:hover {
+    background: #f1f5f9;
+    border-color: rgba(37, 99, 235, 0.55);
+    transform: translateY(-1px);
+  }
+
+  #profileSettingsModal .profile-settings-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    margin: 0;
+    background: #ffffff !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25) !important;
+    color: #0f172a !important;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: start;
+  }
+
+  #profileSettingsModal .profile-settings-row:last-child {
+    border-bottom: 0 !important;
+  }
+
+  #profileSettingsModal .profile-settings-row span {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #0f172a;
+    min-width: 0;
+  }
+
+  #profileSettingsModal .profile-settings-row i {
+    width: 18px;
+    text-align: center;
+    color: #2563eb !important;
+  }
+
+  #profileSettingsModal .profile-settings-btn {
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  #profileSettingsModal .profile-settings-btn:hover {
+    background: rgba(37, 99, 235, 0.06) !important;
+  }
+
+  /* Switch */
+  #profileSettingsModal .profile-switch {
+    width: 46px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    background: #e2e8f0;
+    position: relative;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease;
+  }
+
+  #profileSettingsModal .profile-switch .profile-switch-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.14);
+    transition: transform 0.18s ease;
+  }
+
+  #profileSettingsModal .profile-switch.is-on {
+    background: rgba(37, 99, 235, 0.18);
+    border-color: rgba(37, 99, 235, 0.55);
+  }
+
+  #profileSettingsModal .profile-switch.is-on .profile-switch-knob {
+    transform: translateX(18px);
+  }
+
+  html[dir="rtl"] #profileSettingsModal .profile-switch .profile-switch-knob { left: auto; right: 3px; }
+  html[dir="rtl"] #profileSettingsModal .profile-switch.is-on .profile-switch-knob { transform: translateX(-18px); }
+
+  /* Blocked users container */
+  #profileSettingsModal .blocked-users-container {
+    padding: 10px 14px 14px;
+    background: #fbfdff;
+    border-top: 1px solid rgba(148, 163, 184, 0.22);
+  }
+
+  #profileSettingsModal .blocked-user-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 12px;
+    background: #ffffff;
+    margin-bottom: 8px;
+  }
+
+  #profileSettingsModal .blocked-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    object-fit: cover;
+    background: #e2e8f0;
+    flex-shrink: 0;
+  }
+
+  #profileSettingsModal .blocked-user-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 700;
+    font-size: 0.86rem;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #profileSettingsModal .unblock-btn {
+    border: 1px solid rgba(37, 99, 235, 0.35);
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  #profileSettingsModal .unblock-btn:hover {
+    background: rgba(37, 99, 235, 0.14);
+    border-color: rgba(37, 99, 235, 0.55);
+    transform: translateY(-1px);
+  }
+
+  #profileSettingsModal .blocked-empty {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 700;
+    padding: 6px 2px 0;
+  }
+
+  @keyframes profileDropIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ===== RIGHT COLUMN: CLEAN WHITE NOTION CARDS ===== */
   .profile-right-column {
     display: flex;
     flex-direction: column;
     gap: 20px;
   }
 
+  /* All Info Cards */
   .info-section-card {
-    background: var(--bg-white);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    box-shadow: 0 1px 3px rgba(52, 129, 240, 0.05);
-    border: 1px solid #e5e7eb;
-    transition: var(--transition);
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+    transition: all 0.2s ease;
   }
 
   .info-section-card:hover {
-    box-shadow: 0 2px 8px rgba(52, 129, 240, 0.1);
-    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;
+    border-color: #c7d2fe !important;
   }
 
+  /* Section Title */
   .section-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text-dark);
-    margin: 0 0 16px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid var(--primary);
+    color: var(--notion-text-primary) !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    margin: 0 0 16px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 2px solid var(--notion-blue) !important;
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
   .section-title i {
-    color: var(--primary);
-    font-size: 1rem;
+    color: var(--notion-blue) !important;
+    font-size: 1.1rem;
+  }
+
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .section-title-inline {
+    margin: 0 !important;
+    flex: 1 1 auto;
+  }
+
+  .experience-add-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   /* Info Rows */
@@ -1470,7 +2140,7 @@
     align-items: center;
     gap: 16px;
     padding-bottom: 12px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid var(--notion-border);
   }
 
   .info-row:last-child {
@@ -1479,33 +2149,27 @@
   }
 
   .info-label {
-    font-weight: 600;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: #94a3b8 !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
   }
 
   .info-value {
-    font-size: 0.95rem;
-    color: var(--text-dark);
-    font-weight: 500;
-    word-break: break-word;
+    color: var(--notion-text-primary) !important;
+    font-weight: 500 !important;
   }
 
   /* Specialty Tag */
-  .specialty-value {
-    display: block;
-  }
-
   .specialty-tag {
     display: inline-block;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-    color: var(--text-light);
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
+    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
+    color: #ffffff !important;
+    padding: 6px 14px !important;
+    border-radius: 20px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
   }
 
   /* Status Badges */
@@ -1521,1787 +2185,44 @@
   }
 
   .status-badge-green {
-    background: rgba(52, 168, 83, 0.1);
-    color: var(--accent);
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
   }
 
   .status-badge-yellow {
-    background: rgba(255, 193, 7, 0.1);
-    color: #ffc107;
+    background: rgba(250, 204, 21, 0.1);
+    color: #ca8a04;
   }
 
-  /* Bio Card */
-  .bio-card .section-title {
-    margin-bottom: 16px;
-  }
-
-  .bio-text {
-    color: var(--text-secondary);
-    line-height: 1.7;
-    font-size: 0.95rem;
-    margin: 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-  }
-
-  /* Project Card */
-  .project-card .section-title {
-    margin-bottom: 16px;
-  }
-
-  .project-form-group-new {
-    display: flex;
-    gap: 8px;
-  }
-
-  .form-select-new {
-    flex: 1;
-    padding: 10px 12px;
-    border: 2px solid var(--primary);
-    border-radius: var(--radius-md);
-    font-size: 0.9rem;
-    color: var(--text-dark);
-    font-weight: 500;
-    background: var(--bg-light);
-    cursor: pointer;
-    transition: var(--transition);
-  }
-
-  .form-select-new:hover {
-    border-color: var(--primary-light);
-  }
-
-  .form-select-new:focus {
-    outline: none;
-    border-color: var(--primary-light);
-    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
-  }
-
-  .btn-invite-new {
-    padding: 10px 16px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-    color: var(--text-light);
-    border: none;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: var(--transition);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-  }
-
-  .btn-invite-new:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(26, 115, 232, 0.3);
-  }
-
-  /* Modal */
-  .modal-delete .modal-header {
-    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
-    color: var(--text-light);
-    border: none;
-  }
-
-  .modal-delete .modal-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 700;
-  }
-
-  .modal-delete .btn-close {
-    filter: brightness(0) invert(1);
-  }
-
-  /* ===== RESPONSIVE ===== */
-  @media (max-width: 900px) {
-    .profile-container-new {
-      grid-template-columns: 1fr;
-      gap: 24px;
-    }
-
-    .profile-left-column {
-      flex-direction: row;
-      gap: 24px;
-      align-items: flex-start;
-    }
-
-    .profile-card {
-      flex: 0 0 300px;
-    }
-
-    .profile-picture-container {
-      width: 100%;
-      aspect-ratio: 1;
-      border-radius: 0;
-      margin: 0;
-      border: none;
-    }
-  }
-
-  @media (max-width: 640px) {
-    .profile-page-new {
-      padding: 24px 12px;
-    }
-
-    .profile-container-new {
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
-
-    .profile-left-column {
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .profile-card {
-      flex: unset;
-    }
-
-    .profile-user-name {
-      font-size: 1.2rem;
-    }
-
-    .info-section-card {
-      padding: 16px;
-    }
-
-    .info-row {
-      grid-template-columns: 1fr;
-      gap: 8px;
-    }
-
-    .info-label {
-      font-size: 0.8rem;
-    }
-
-    .info-value {
-      font-size: 0.9rem;
-    }
-
-    .project-form-group-new {
-      flex-direction: column;
-    }
-
-    .form-select-new,
-    .btn-invite-new {
-      width: 100%;
-    }
-  }
-
-  /* Animation Delays */
-  .profile-card {
-    animation-delay: 0.1s;
-  }
-
-  .info-section-card:nth-child(1) {
-    animation-delay: 0.2s;
-  }
-
-  .info-section-card:nth-child(2) {
-    animation-delay: 0.3s;
-  }
-
-  .info-section-card:nth-child(3) {
-    animation-delay: 0.4s;
-  }
-
-  .info-section-card:nth-child(4) {
-    animation-delay: 0.5s;
-  }
-
-  /* ===== CONTRIBUTIONS SECTIONS ===== */
-  .contrib-card .section-title {
-    margin-bottom: 16px;
-  }
-
-  .contrib-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .contrib-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    border-radius: var(--radius-md);
-    background: #f8f9fb;
-    text-decoration: none;
-    transition: var(--transition);
-    border: 1px solid #e5e7eb;
-  }
-
-  .contrib-item:hover {
-    background: #f0f6ff;
-    border-color: #d0e0ff;
-    transform: translateX(2px);
-  }
-
-  .contrib-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    color: var(--text-light);
-    flex-shrink: 0;
-  }
-
-  .contrib-icon.post-icon { background: linear-gradient(135deg, #2563eb, #3b82f6); }
-  .contrib-icon.course-icon { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
-  .contrib-icon.resource-icon { background: linear-gradient(135deg, #1d4ed8, #4338ca); }
-  .contrib-icon.project-icon { background: linear-gradient(135deg, #d97706, #f59e0b); }
-  .contrib-icon.topic-icon { background: linear-gradient(135deg, #2563eb, #6d28d9); }
-
-  .contrib-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .contrib-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-dark);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .contrib-date {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-
-  /* ===== Profile White Bento Override ===== */
-  .profile-page-new {
-    background: #ffffff;
-  }
-
-  .profile-container-new {
-    max-width: 1240px;
-    grid-template-columns: 360px 1fr;
-    gap: 24px;
-  }
-
-  .profile-card,
-  .info-section-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
-  }
-
-  .profile-identity-head {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px 16px 0;
-  }
-
-  .profile-identity-head .profile-picture-container {
-    width: 118px;
-    height: 118px;
-    border-radius: 999px;
-    border: 3px solid #dbeafe;
-    background: #f1f5f9;
-    flex-shrink: 0;
-  }
-
-  .profile-identity-head .profile-user-info {
-    padding: 0;
-    text-align: start;
-  }
-
-  .profile-identity-head .profile-user-name {
-    margin: 0 0 6px;
-    font-size: 1.55rem;
-    font-weight: 800;
-  }
-
-  .profile-identity-head .profile-user-location {
-    justify-content: flex-start;
+  /* Filter Buttons */
+  .profile-section-filter-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    grid-column: 1 / -1;
   }
 
   .profile-section-filter-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 10px;
   }
 
   .profile-filter-btn {
     display: flex;
     justify-content: space-between;
-    flex-direction: row;
     align-items: center;
     gap: 8px;
+    padding: 12px 14px !important;
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 8px !important;
+    color: var(--notion-text-primary) !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
     text-decoration: none;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    background: #f8f9fb;
-    color: var(--text-dark);
-    font-size: 0.86rem;
-    font-weight: 600;
-    padding: 10px 12px;
-    transition: var(--transition);
-  }
-
-  .profile-filter-btn strong {
-    display: inline-flex;
-    min-width: 22px;
-    height: 20px;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    background: rgba(52, 129, 240, 0.12);
-    color: var(--primary);
-    font-size: 0.75rem;
-    font-weight: 700;
-  }
-
-  .profile-filter-btn:hover {
-    border-color: #d0e0ff;
-    background: #f0f6ff;
-    box-shadow: 0 1px 3px rgba(52, 129, 240, 0.1);
-    transform: translateY(-1px);
-  }
-
-  .profile-filter-btn.is-active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #ffffff;
-  }
-
-  .profile-filter-btn.is-active strong {
-    background: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
-  }
-
-  .section-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 22px;
-    height: 20px;
-    padding: 0 7px;
-    border-radius: 999px;
-    background: rgba(52, 129, 240, 0.12);
-    color: var(--primary);
-    font-size: 0.74rem;
-    font-weight: 700;
-  }
-
-  @media (max-width: 900px) {
-    .profile-container-new {
-      grid-template-columns: 1fr;
-    }
-
-    .profile-identity-head {
-      flex-direction: column;
-      text-align: center;
-    }
-
-    .profile-identity-head .profile-user-info,
-    .profile-identity-head .profile-user-name {
-      text-align: center;
-    }
-
-    .profile-identity-head .profile-user-location {
-      justify-content: center;
-    }
-
-    .profile-section-filter-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  /* ===== RTL SUPPORT ===== */
-  html[dir="rtl"] .profile-container-new {
-    direction: rtl;
-  }
-
-  html[dir="rtl"] .profile-user-info,
-  html[dir="rtl"] .profile-user-name,
-  html[dir="rtl"] .profile-user-title {
-    text-align: center;
-  }
-
-  html[dir="rtl"] .info-row {
-    direction: rtl;
-  }
-
-  html[dir="rtl"] .info-label {
-    text-align: right;
-  }
-
-  html[dir="rtl"] .info-value {
-    text-align: left;
-  }
-
-  html[dir="rtl"] .section-title {
-    direction: rtl;
-    text-align: right;
-  }
-
-  html[dir="rtl"] .bio-text {
-    direction: rtl;
-    text-align: right;
-  }
-
-  html[dir="rtl"] .contrib-item {
-    direction: rtl;
-    text-align: right;
-  }
-
-  html[dir="rtl"] .contrib-item:hover {
-    transform: translateX(-4px);
-  }
-
-  html[dir="rtl"] .contrib-title {
-    text-align: right;
-  }
-
-  html[dir="rtl"] .contrib-date {
-    text-align: right;
-  }
-
-  /* ===== REMOVED: Conflicting Glassmorphism Theme ===== */
-
-  .structured-info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-  }
-
-  .structured-info-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.60);
-    padding: 12px 14px;
-  }
-
-  .structured-info-icon {
-    width: 36px;
-    height: 36px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    color: #1d4ed8;
-    background: rgba(59, 130, 246, 0.14);
-    flex-shrink: 0;
-  }
-
-  .structured-info-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .structured-info-text small {
-    color: #64748b;
-    font-size: 0.8rem;
-  }
-
-  .structured-info-text strong {
-    color: #0f172a;
-    font-size: 0.95rem;
-    font-weight: 700;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .completion-section {
-    margin-top: 18px;
-  }
-
-  .completion-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    color: #0f172a;
-    font-weight: 700;
-  }
-
-  .completion-track {
-    height: 10px;
-    border-radius: 999px;
-    background: rgba(148, 163, 184, 0.30);
-    overflow: hidden;
-  }
-
-  .completion-bar {
-    width: 0;
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #1d4ed8, #7c3aed);
-    transition: width 280ms ease;
-  }
-
-  .kpi-chart-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-  }
-
-  .kpi-chart-box {
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.58);
-    padding: 10px;
-    min-height: 150px;
-  }
-
-  .kpi-chart-box h4 {
-    margin: 0 0 6px;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #0f172a;
-  }
-
-  .kpi-chart-box canvas {
-    display: block;
-    width: 100% !important;
-    height: 96px !important;
-    max-height: 96px !important;
-  }
-
-  @media (max-width: 991px) {
-    .structured-info-grid,
-    .kpi-chart-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  /* ===== Professional polish: Project invite + Posts list ===== */
-  .project-card .project-form-group-new {
-    background: linear-gradient(180deg, rgba(241, 245, 255, 0.82), rgba(255, 255, 255, 0.72));
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    border-radius: 14px;
-    padding: 8px;
-    gap: 10px;
-  }
-
-  .project-card .form-select-new {
-    min-height: 46px;
-    border: 1px solid rgba(37, 99, 235, 0.36);
-    background: rgba(255, 255, 255, 0.86);
-    font-weight: 600;
-  }
-
-  .project-card .btn-invite-new {
-    min-height: 46px;
-    padding: 0 18px;
-    border-radius: 12px;
-  }
-
-  .contrib-list {
-    gap: 10px;
-  }
-
-  .contrib-item {
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 14px;
-    padding: 13px 14px;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
-  }
-
-  .contrib-item:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 20px rgba(29, 78, 216, 0.14);
-  }
-
-  .contrib-info {
-    gap: 4px;
-  }
-
-  .contrib-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-  }
-
-  .contrib-subline {
-    display: block;
-    font-size: 0.82rem;
-    color: #64748b;
-    line-height: 1.35;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .contrib-date {
-    display: inline-flex;
-    width: fit-content;
-    margin-top: 2px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgba(59, 130, 246, 0.10);
-    color: #475569;
-    font-size: 0.74rem;
-    font-weight: 600;
-  }
-
-  /* ===== REMOVED: Conflicting Neon Dark Dashboard Override ===== */
-
-  .structured-info-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px !important;
-  }
-
-  .structured-info-item {
-    min-height: 66px;
-    border-radius: 12px !important;
-  }
-
-  .kpi-chart-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 12px !important;
-  }
-
-  .kpi-chart-box {
-    min-height: 138px !important;
-  }
-
-  @media (max-width: 1200px) {
-    .profile-container-new {
-      grid-template-columns: 290px minmax(0, 1fr) !important;
-    }
-
-    .profile-section-filter-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    }
-  }
-
-  @media (max-width: 991px) {
-    .profile-left-column {
-      position: static;
-    }
-
-    .profile-right-column {
-      grid-template-columns: 1fr !important;
-    }
-
-    .basic-card,
-    .profile-section-filter-card,
-    .kpi-glass-card {
-      grid-column: 1 / -1 !important;
-    }
-
-    .profile-section-filter-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    }
-  }
-
-  @media (max-width: 640px) {
-    .profile-section-filter-grid {
-      grid-template-columns: 1fr !important;
-    }
-  }
-
-  /* ===== Delete Modal: Larger + cleaner UX ===== */
-  #deleteAccountModal .modal-dialog {
-    max-width: 620px;
-    width: min(94vw, 620px);
-    margin: 1.75rem auto;
-    pointer-events: auto;
-  }
-
-  #deleteAccountModal {
-    position: fixed !important;
-    inset: 0 !important;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 3100 !important;
-  }
-
-  #deleteAccountModal.show {
-    display: flex !important;
-  }
-
-  .modal-backdrop.show {
-    z-index: 3090 !important;
-  }
-
-  body.modal-open .profile-card {
-    overflow: visible !important;
-    transform: none !important;
-  }
-
-  #deleteAccountModal .modal-content.modal-delete {
-    border-radius: 18px !important;
-    overflow: hidden;
-    border: 1px solid rgba(56, 189, 248, 0.28) !important;
-    background: linear-gradient(165deg, rgba(7, 17, 36, 0.96), rgba(6, 14, 30, 0.95)) !important;
-    box-shadow:
-      0 24px 48px rgba(2, 6, 23, 0.72),
-      0 0 30px rgba(34, 211, 238, 0.10) !important;
-  }
-
-  #deleteAccountModal .modal-header {
-    min-height: 78px;
-    padding: 18px 22px;
-    border-bottom: 1px solid rgba(56, 189, 248, 0.20);
-    background: linear-gradient(120deg, rgba(30, 64, 175, 0.72), rgba(79, 70, 229, 0.68)) !important;
-  }
-
-  #deleteAccountModal .modal-title {
-    font-size: 1.65rem;
-    font-weight: 800;
-    letter-spacing: 0.2px;
-    color: #e2e8f0;
-  }
-
-  #deleteAccountModal .modal-title i {
-    color: #f59e0b !important;
-  }
-
-  #deleteAccountModal .btn-close {
-    opacity: 1;
-    filter: brightness(0) invert(1);
-    border: 1px solid rgba(148, 163, 184, 0.45);
-    border-radius: 10px;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    box-shadow: none;
-  }
-
-  #deleteAccountModal .modal-body {
-    padding: 30px 24px 28px;
-    min-height: 126px;
-    display: flex;
-    align-items: center;
-  }
-
-  #deleteAccountModal .modal-body p {
-    margin: 0;
-    color: #cbd5e1;
-    font-size: 1.06rem;
-    line-height: 1.7;
-    font-weight: 500;
-  }
-
-  #deleteAccountModal .modal-footer {
-    padding: 18px 24px 22px;
-    border-top: 1px solid rgba(56, 189, 248, 0.18);
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-  }
-
-  #deleteAccountModal .modal-footer .btn,
-  #deleteAccountModal .modal-footer form .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 132px;
-    min-height: 48px;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 700;
-    border: 0;
-    box-shadow: none;
-  }
-
-  #deleteAccountModal .modal-footer .btn-secondary {
-    background: linear-gradient(140deg, #334155, #475569) !important;
-    color: #f1f5f9 !important;
-  }
-
-  #deleteAccountModal .modal-footer .btn-danger {
-    background: linear-gradient(140deg, #b91c1c, #dc2626) !important;
-    color: #fff !important;
-  }
-
-  #deleteAccountModal .modal-footer .btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.35);
-  }
-
-  @media (max-width: 640px) {
-    #deleteAccountModal .modal-dialog {
-      width: min(96vw, 620px);
-      margin: 0;
-    }
-
-    #deleteAccountModal .modal-title {
-      font-size: 1.3rem;
-    }
-
-    #deleteAccountModal .modal-footer {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    #deleteAccountModal .modal-footer form {
-      width: 100%;
-      display: block !important;
-      margin: 0;
-    }
-
-    #deleteAccountModal .modal-footer .btn,
-    #deleteAccountModal .modal-footer form .btn {
-      width: 100%;
-    }
-  }
-
-  /* ===== Final polish: Left profile card ===== */
-  .profile-left-column .profile-card {
-    padding: 16px 16px 14px;
-    min-height: 620px;
-    border-radius: 22px !important;
-  }
-
-  .profile-left-column {
-    min-width: 0;
-  }
-
-  .profile-card .profile-identity-head {
-    padding: 10px 6px 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .profile-card .profile-picture-container,
-  .profile-card .profile-picture-placeholder {
-    width: 132px;
-    height: 132px;
-    margin: 0;
-    justify-self: center;
-  }
-
-  .profile-card .profile-user-info {
-    padding: 0 4px;
-    text-align: center !important;
-  }
-
-  .profile-card .profile-user-name {
-    margin: 0 0 6px;
-    font-size: 2rem;
-    line-height: 1.06;
-    letter-spacing: -0.01em;
-  }
-
-  .profile-card .profile-user-title {
-    margin: 0 0 8px;
-    font-size: 0.98rem;
-    font-weight: 600;
-  }
-
-  .profile-card .profile-user-location {
-    justify-content: center;
-    font-size: 0.82rem;
-    opacity: 0.92;
-  }
-
-  html[dir="ltr"] .profile-card .profile-user-location {
-    display: inline-flex;
-    width: auto;
-    margin-inline: auto;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 6px;
-    text-align: left;
-  }
-
-  html[dir="ltr"] .profile-card .profile-user-location i {
-    margin-top: 2px;
-    flex: 0 0 auto;
-  }
-
-  .profile-card .verification-pill {
-    margin: 10px 2px 8px;
-    min-height: 36px;
-    border-radius: 999px;
-    font-size: 0.84rem;
-  }
-
-  .profile-bio-inline {
-    margin: 8px 2px 10px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-  }
-
-  .profile-bio-inline .bio-text {
-    margin: 0;
-    font-size: 0.92rem;
-    line-height: 1.55;
-    color: #111827 !important;
-    white-space: pre-wrap;
-    word-break: break-word;
-    text-align: center;
-  }
-
-  .profile-bio-label {
-    display: block;
-    margin: 2px 2px 8px;
-    text-align: center;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #475569 !important;
-  }
-
-  .profile-card .profile-actions-new {
-    margin: 10px 2px 0;
-    padding: 0;
-    gap: 10px;
-  }
-
-  .profile-card .btn-action-primary,
-  .profile-card .btn-action-secondary {
-    min-height: 46px;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-  }
-
-  .profile-card .social-links-section {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(56, 189, 248, 0.18);
-  }
-
-  .profile-card .profile-danger-zone {
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(239, 68, 68, 0.22);
-  }
-
-  .profile-card .btn-delete-account {
-    min-height: 44px;
-    border-radius: 16px;
-    padding: 12px;
-    font-size: 0.94rem;
-    font-weight: 650;
-    letter-spacing: 0.01em;
-    border: 1px solid rgba(239, 68, 68, 0.38) !important;
-    background: transparent !important;
-    color: #fca5a5 !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 180ms ease;
-  }
-
-  .profile-card .btn-delete-account i {
-    font-size: 0.86rem;
-    font-weight: 400;
-    line-height: 1;
-  }
-
-  .profile-card .btn-delete-account:hover {
-    color: #ffffff !important;
-    background: linear-gradient(135deg, rgba(220, 38, 38, 0.92), rgba(185, 28, 28, 0.90)) !important;
-    border-color: rgba(248, 113, 113, 0.62) !important;
-    transform: translateY(-1px);
-    box-shadow: 0 10px 20px rgba(127, 29, 29, 0.34);
-  }
-
-  @media (max-width: 640px) {
-    .profile-left-column {
-      min-width: 0;
-    }
-
-    .profile-card .profile-identity-head {
-      grid-template-columns: 1fr;
-      justify-items: center;
-      text-align: center;
-    }
-
-    .profile-card .profile-picture-container,
-    .profile-card .profile-picture-placeholder {
-      justify-self: center;
-    }
-
-    .profile-card .profile-user-info {
-      text-align: center !important;
-    }
-
-    .profile-card .profile-user-location {
-      justify-content: center;
-    }
-  }
-
-  /* White cards override */
-  .profile-card,
-  .info-section-card,
-  .profile-settings-panel,
-  .modal-delete {
-    background: #ffffff !important;
-    border: 1px solid #e5e7eb !important;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
-  }
-
-  .section-title,
-  .profile-user-name,
-  .info-value,
-  .contrib-title {
-    color: #0f172a !important;
-  }
-
-  .profile-user-title,
-  .info-label,
-  .contrib-date,
-  .contrib-subline,
-  .bio-text {
-    color: #475569 !important;
-  }
-
-  /* Final override: all page cards white */
-  .profile-page-new {
-    background: #ffffff !important;
-    padding: 6px 20px 20px !important;
-  }
-
-  .profile-card,
-  .info-section-card,
-  .profile-settings-panel,
-  .modal-delete,
-  .profile-section-filter-card,
-  .kpi-glass-card,
-  .contrib-card,
-  .kpi-chart-box,
-  .contrib-item,
-  .profile-filter-btn,
-  .structured-info-item,
-  .project-card .project-form-group-new {
-    background: #ffffff !important;
-    border: 1px solid #e5e7eb !important;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06) !important;
-  }
-
-  .profile-card .profile-card-settings-btn,
-  .profile-menu-toggle,
-  .profile-settings-close {
-    background: #ffffff !important;
-    color: #334155 !important;
-    border: 1px solid #d1d5db !important;
-  }
-
-  .section-title,
-  .profile-user-name,
-  .info-value,
-  .contrib-title,
-  .structured-info-text strong,
-  .profile-settings-head h3,
-  .profile-settings-row {
-    color: #0f172a !important;
-  }
-
-  .profile-user-title,
-  .info-label,
-  .contrib-date,
-  .contrib-subline,
-  .bio-text,
-  .structured-info-text small {
-    color: #475569 !important;
-  }
-
-  /* Dark text override */
-  .profile-page-new,
-  .profile-page-new p,
-  .profile-page-new span,
-  .profile-page-new a,
-  .profile-page-new li,
-  .profile-page-new td,
-  .profile-page-new th,
-  .profile-page-new label {
-    color: #111827;
-  }
-
-  .section-title,
-  .profile-user-name,
-  .profile-user-title,
-  .info-label,
-  .info-value,
-  .contrib-title,
-  .contrib-date,
-  .contrib-subline,
-  .bio-text,
-  .structured-info-text strong,
-  .structured-info-text small,
-  .profile-settings-head h3,
-  .profile-settings-row {
-    color: #111827 !important;
-  }
-
-  .profile-filter-btn,
-  .profile-filter-btn span,
-  .profile-filter-btn strong,
-  .section-count {
-    color: #111827 !important;
-  }
-
-  .profile-filter-btn.is-active,
-  .profile-filter-btn.is-active span,
-  .profile-filter-btn.is-active strong {
-    color: #ffffff !important;
-  }
-
-  .profile-page-new .btn-action-primary,
-  .profile-page-new .btn-action-primary span,
-  .profile-page-new .btn-action-primary i,
-  .profile-page-new .btn-invite-new,
-  .profile-page-new .btn-invite-new span,
-  .profile-page-new .btn-invite-new i {
-    color: #ffffff !important;
-  }
-
-  /* Settings popover anchored to profile card (AR + EN) */
-  #profileSettingsModal {
-    position: absolute !important;
-    top: 138px;
-    --settings-shift-rtl: 175px;
-    --settings-shift-ltr: 95px;
-    inset-inline-start: 0;
-    inset-inline-end: auto;
-    width: min(92vw, 340px);
-    z-index: 100000 !important;
-    pointer-events: none;
-  }
-
-  html[dir="rtl"] #profileSettingsModal {
-    inset-inline-start: calc(-1 * var(--settings-shift-rtl));
-    inset-inline-end: auto;
-  }
-
-  html[dir="ltr"] #profileSettingsModal {
-    inset-inline-start: auto;
-    inset-inline-end: calc(-1 * var(--settings-shift-ltr));
-  }
-
-  #profileSettingsModal[hidden] {
-    display: none !important;
-  }
-
-  #profileSettingsModal:not([hidden]) {
-    display: block !important;
-  }
-
-  #profileSettingsModal .profile-settings-backdrop {
-    display: none !important;
-  }
-
-  #profileSettingsModal .profile-settings-panel {
-    position: relative !important;
-    top: 0;
-    left: 0;
-    right: 0;
-    width: 100% !important;
-    max-height: 64vh !important;
-    overflow: auto !important;
-    z-index: 2 !important;
-    pointer-events: auto;
-    border-radius: 14px !important;
-    padding: 12px !important;
-    background: #ffffff !important;
-    border: 1px solid #dbe3ef !important;
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18) !important;
-    direction: ltr;
-    text-align: left;
-  }
-
-  html[dir="rtl"] #profileSettingsModal .profile-settings-panel {
-    direction: rtl;
-    text-align: right;
-  }
-
-  #profileSettingsModal .profile-settings-head {
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  #profileSettingsModal .profile-settings-head h3 {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: #111827 !important;
-  }
-
-  #profileSettingsModal .profile-settings-close {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    background: #f8fafc !important;
-    border: 1px solid #d1d5db !important;
-    color: #334155 !important;
-  }
-
-  #profileSettingsModal .profile-settings-row {
-    min-height: 40px;
-    padding: 8px 10px;
-    border-radius: 10px;
-    border: 1px solid #e5e7eb !important;
-    background: #ffffff !important;
-    color: #111827 !important;
-    font-size: 0.86rem;
-    margin-bottom: 8px;
-    flex-direction: row;
-  }
-
-  html[dir="rtl"] #profileSettingsModal .profile-settings-row {
-    flex-direction: row-reverse;
-  }
-
-  #profileSettingsModal .profile-settings-row i {
-    color: #2563eb !important;
-  }
-
-  #profileSettingsModal .profile-settings-btn:hover {
-    background: #f8fafc !important;
-    border-color: #bfdbfe !important;
-  }
-
-  .profile-left-column,
-  .profile-card {
-    overflow: visible !important;
-  }
-
-  @media (max-width: 991px) {
-    #profileSettingsModal {
-      position: fixed !important;
-      top: 50% !important;
-      left: 50% !important;
-      right: auto !important;
-      inset-inline-start: auto !important;
-      inset-inline-end: auto !important;
-      transform: translate(-50%, -50%) !important;
-      width: min(94vw, 360px) !important;
-    }
-
-    #profileSettingsModal .profile-settings-backdrop {
-      display: block !important;
-      position: fixed !important;
-      inset: 0 !important;
-      background: rgba(15, 23, 42, 0.3) !important;
-    }
-
-    #profileSettingsModal .profile-settings-panel {
-      max-height: 80vh !important;
-    }
-  }
-
-  /* ===== Platform Palette (Blue/Violet/Dark accents only) ===== */
-  :root {
-    --primary-dark: #1e1b4b;
-    --primary: #2563eb;
-    --primary-light: #4f46e5;
-    --primary-lightest: rgba(79, 70, 229, 0.1);
-  }
-
-  .profile-page-new,
-  .profile-card,
-  .info-section-card,
-  .profile-settings-panel,
-  .modal-delete,
-  .profile-section-filter-card,
-  .kpi-glass-card,
-  .contrib-card,
-  .kpi-chart-box,
-  .contrib-item,
-  .profile-filter-btn,
-  .structured-info-item,
-  .project-card .project-form-group-new {
-    background: #ffffff !important;
-  }
-
-  .profile-card,
-  .info-section-card,
-  .profile-section-filter-card,
-  .kpi-glass-card,
-  .contrib-card,
-  .kpi-chart-box,
-  .contrib-item,
-  .profile-filter-btn,
-  .structured-info-item,
-  .project-card .project-form-group-new,
-  #profileSettingsModal .profile-settings-panel,
-  #profileSettingsModal .profile-settings-row {
-    border-color: rgba(30, 41, 59, 0.14) !important;
-  }
-
-  .section-title {
-    border-bottom-color: #1e3a8a !important;
-  }
-
-  .section-title i,
-  .profile-user-title,
-  #profileSettingsModal .profile-settings-row i {
-    color: #4338ca !important;
-  }
-
-  .profile-filter-btn strong,
-  .section-count {
-    background: rgba(79, 70, 229, 0.12) !important;
-    color: #4338ca !important;
-  }
-
-  .profile-filter-btn:hover,
-  .contrib-item:hover,
-  #profileSettingsModal .profile-settings-btn:hover {
-    border-color: rgba(67, 56, 202, 0.38) !important;
-  }
-
-  .profile-filter-btn.is-active,
-  .btn-action-primary,
-  .btn-invite-new {
-    background: linear-gradient(120deg, #2563eb, #4338ca 58%, #6d28d9) !important;
-    color: #ffffff !important;
-  }
-
-  .verification-pill,
-  .profile-card .verification-pill {
-    background: rgba(79, 70, 229, 0.12) !important;
-    color: #3730a3 !important;
-    border: 1px solid rgba(79, 70, 229, 0.28) !important;
-  }
-
-  .profile-picture-container,
-  .profile-picture-placeholder,
-  .profile-card .profile-picture-container,
-  .profile-card .profile-picture-placeholder {
-    border-color: rgba(79, 70, 229, 0.45) !important;
-    box-shadow:
-      0 0 0 3px rgba(67, 56, 202, 0.1),
-      0 14px 32px rgba(37, 99, 235, 0.28) !important;
-    background: linear-gradient(145deg, #1e1b4b 0%, #1d4ed8 45%, #6d28d9 100%) !important;
-  }
-
-  /* ===== Night Blue Theme (Chatbot-like) ===== */
-  :root {
-    --hub-deep-blue: #0f172a;
-    --hub-navy: #1e3a5f;
-    --hub-accent: #2563eb;
-    --hub-accent-light: #3b82f6;
-    --hub-accent-glow: rgba(37, 99, 235, 0.12);
-    --hub-border: #dbe6ff;
-    --hub-text-primary: #0f172a;
-    --hub-text-secondary: #475569;
-  }
-
-  .profile-page-new {
-    background:
-      radial-gradient(980px 540px at 6% 2%, rgba(37, 99, 235, 0.22), transparent 64%),
-      radial-gradient(820px 460px at 92% 8%, rgba(59, 130, 246, 0.16), transparent 66%),
-      linear-gradient(180deg, #eef4ff 0%, #f8fbff 60%, #eef3ff 100%) !important;
-  }
-
-  .profile-card,
-  .info-section-card,
-  .profile-section-filter-card,
-  .kpi-glass-card,
-  .contrib-card,
-  .kpi-chart-box,
-  .contrib-item,
-  .profile-filter-btn,
-  .structured-info-item,
-  .project-card .project-form-group-new,
-  #profileSettingsModal .profile-settings-panel,
-  #profileSettingsModal .profile-settings-row {
-    background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%) !important;
-    border-color: rgba(37, 99, 235, 0.20) !important;
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.04),
-      0 8px 24px rgba(15, 23, 42, 0.08) !important;
-  }
-
-  .section-title {
-    border-bottom-color: #2563eb !important;
-  }
-
-  .section-title i,
-  .profile-user-title,
-  #profileSettingsModal .profile-settings-row i {
-    color: #2563eb !important;
-  }
-
-  .profile-filter-btn strong,
-  .section-count {
-    background: rgba(37, 99, 235, 0.12) !important;
-    color: #1d4ed8 !important;
-  }
-
-  .profile-filter-btn:hover,
-  .contrib-item:hover,
-  #profileSettingsModal .profile-settings-btn:hover {
-    border-color: rgba(37, 99, 235, 0.40) !important;
-    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.14) !important;
-  }
-
-  .profile-filter-btn.is-active,
-  .btn-action-primary,
-  .btn-invite-new {
-    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 60%, #1d4ed8 100%) !important;
-    color: #ffffff !important;
-  }
-
-  .verification-pill,
-  .profile-card .verification-pill {
-    background: rgba(37, 99, 235, 0.12) !important;
-    color: #1d4ed8 !important;
-    border: 1px solid rgba(37, 99, 235, 0.28) !important;
-  }
-
-  .profile-picture-container,
-  .profile-picture-placeholder,
-  .profile-card .profile-picture-container,
-  .profile-card .profile-picture-placeholder {
-    border-color: rgba(37, 99, 235, 0.45) !important;
-    box-shadow:
-      0 0 0 3px rgba(37, 99, 235, 0.1),
-      0 14px 32px rgba(37, 99, 235, 0.28) !important;
-    background: linear-gradient(145deg, #1e3a5f 0%, #2563eb 55%, #3b82f6 100%) !important;
-  }
-
-  /* ===== Chatbot Clean Blue Palette (match screenshot) ===== */
-  .profile-page-new {
-    background: #ffffff !important;
-  }
-
-  .info-section-card,
-  .profile-section-filter-card,
-  .kpi-glass-card,
-  .contrib-card,
-  .kpi-chart-box,
-  .contrib-item,
-  .profile-filter-btn,
-  .structured-info-item,
-  .project-card .project-form-group-new,
-  #profileSettingsModal .profile-settings-panel,
-  #profileSettingsModal .profile-settings-row {
-    background: #ffffff !important;
-    border-color: #d9e1ee !important;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08) !important;
-  }
-
-  .profile-left-column .profile-card {
-    background: linear-gradient(180deg, #0f172a 0%, #162544 62%, #1e3a5f 100%) !important;
-    border: 1px solid rgba(148, 163, 184, 0.22) !important;
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.26) !important;
-  }
-
-  .profile-card .profile-user-name,
-  .profile-card .profile-user-location,
-  .profile-card .profile-bio-label,
-  .profile-card .bio-text {
-    color: #e2e8f0 !important;
-  }
-
-  .profile-card .profile-user-title {
-    color: #93c5fd !important;
-  }
-
-  .profile-card .social-links-section,
-  .profile-card .profile-danger-zone {
-    border-top-color: rgba(148, 163, 184, 0.3) !important;
-  }
-
-  .profile-card .btn-action-primary,
-  .profile-card .btn-action-secondary {
-    border-color: rgba(148, 163, 184, 0.35) !important;
-  }
-
-  .kpi-chart-box {
-    background: #ffffff !important;
-    border: 1px solid #d9e1ee !important;
-  }
-
-  /* ===== Final Readability Fixes ===== */
-  .profile-page-new .specialty-tag,
-  .profile-page-new .specialty-tag span,
-  .profile-page-new .specialty-tag i {
-    color: #ffffff !important;
-  }
-
-  .profile-page-new .verification-pill,
-  .profile-page-new .verification-pill span,
-  .profile-page-new .verification-pill i {
-    color: #dbeafe !important;
-  }
-
-  .profile-card .btn-action-primary,
-  .profile-card .btn-action-primary span,
-  .profile-card .btn-action-primary i {
-    color: #ffffff !important;
-  }
-
-  .profile-card .btn-action-secondary,
-  .profile-card .btn-action-secondary span,
-  .profile-card .btn-action-secondary i {
-    color: #e2e8f0 !important;
-    background: rgba(255, 255, 255, 0.06) !important;
-  }
-
-  .profile-card .btn-delete-account,
-  .profile-card .btn-delete-account span,
-  .profile-card .btn-delete-account i {
-    color: #fecaca !important;
-    border-color: rgba(248, 113, 113, 0.45) !important;
-    background: rgba(239, 68, 68, 0.08) !important;
-  }
-
-  .profile-card .btn-delete-account:hover,
-  .profile-card .btn-delete-account:hover span,
-  .profile-card .btn-delete-account:hover i {
-    color: #ffffff !important;
-    background: #dc2626 !important;
-    border-color: #dc2626 !important;
-  }
-
-  /* ===== Minimal Blue polish (lines + charts containers) ===== */
-  .section-title {
-    border-bottom-color: #bfdbfe !important;
-  }
-
-  .info-row {
-    border-bottom-color: #e5edf8 !important;
-  }
-
-  .kpi-chart-box {
-    border-color: #dbeafe !important;
-    background: #ffffff !important;
-  }
-
-  /* ===== REMOVED: Conflicting dark and minimal blue overrides ===== *//* ===== BLUE MINIMAL NOTION THEME ===== */
-  /* Clean, professional Notion-inspired design */
-  
-  :root {
-    --notion-bg: #ffffff;
-    --notion-bg-secondary: #f8fafc;
-    --notion-border: #d9e1ee;
-    --notion-border-light: #e8ecf5;
-    --notion-blue: #2563eb;
-    --notion-blue-dark: #1d4ed8;
-    --notion-blue-light: #dbeafe;
-    --notion-text-primary: #111827;
-    --notion-text-secondary: #64748b;
-    --notion-text-tertiary: #94a3b8;
-  }
-
-  .profile-page-new {
-    background: var(--notion-bg) !important;
-    padding: 40px 20px !important;
-    min-height: 100vh;
-  }
-
-  .profile-container-new {
-    max-width: 1240px;
-    grid-template-columns: 340px 1fr;
-    gap: 32px;
-  }
-
-  /* Profile Card - Left Column */
-  .profile-left-column .profile-card {
-    background: var(--notion-bg) !important;
-    border: 1px solid var(--notion-border) !important;
-    border-radius: 12px !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-    padding: 24px 16px !important;
-  }
-
-  .profile-card:hover {
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;
-    border-color: var(--notion-blue-light) !important;
-  }
-
-  /* Profile Picture */
-  .profile-picture-container,
-  .profile-card .profile-picture-container {
-    width: 120px;
-    height: 120px;
-    border-radius: 12px;
-    border: 2px solid var(--notion-border) !important;
-    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12) !important;
-  }
-
-  .profile-picture-placeholder {
-    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
-  }
-
-  /* Text Colors */
-  .profile-user-name {
-    color: var(--notion-text-primary) !important;
-    font-size: 1.75rem !important;
-    font-weight: 800 !important;
-  }
-
-  .profile-user-title {
-    color: var(--notion-blue) !important;
-    font-weight: 600 !important;
-  }
-
-  .profile-user-location {
-    color: var(--notion-text-secondary) !important;
-  }
-
-  .profile-bio-label {
-    color: var(--notion-text-tertiary) !important;
-    font-weight: 600 !important;
-  }
-
-  .profile-card .profile-bio-inline {
-    background: var(--notion-bg-secondary) !important;
-    border: 1px solid var(--notion-border-light) !important;
-    border-radius: 8px !important;
-  }
-
-  .profile-card .profile-bio-inline .bio-text {
-    color: var(--notion-text-primary) !important;
-  }
-
-  /* Verification Pill */
-  .verification-pill {
-    background: rgba(37, 99, 235, 0.08) !important;
-    color: var(--notion-blue-dark) !important;
-    border: 1px solid rgba(37, 99, 235, 0.2) !important;
-  }
-
-  /* Action Buttons */
-  .btn-action-primary {
-    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 8px !important;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15) !important;
-    font-weight: 600 !important;
-  }
-
-  .btn-action-primary:hover {
-    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25) !important;
-    transform: translateY(-1px) !important;
-  }
-
-  .btn-action-secondary {
-    background: var(--notion-bg-secondary) !important;
-    border: 1.5px solid var(--notion-blue) !important;
-    color: var(--notion-blue) !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-  }
-
-  .btn-action-secondary:hover {
-    background: rgba(37, 99, 235, 0.06) !important;
-  }
-
-  /* Social Links */
-  .social-link-icon {
-    transition: all 0.2s ease;
-  }
-
-  .social-link-icon:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-  }
-
-  /* Delete Button */
-  .btn-delete-account {
-    background: rgba(239, 68, 68, 0.08) !important;
-    color: #dc2626 !important;
-    border: 1px solid rgba(239, 68, 68, 0.2) !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-  }
-
-  .btn-delete-account:hover {
-    background: #dc2626 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2) !important;
-  }
-
-  /* Info Section Cards */
-  .info-section-card {
-    background: var(--notion-bg) !important;
-    border: 1px solid var(--notion-border) !important;
-    border-radius: 12px !important;
-    padding: 24px !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-  }
-
-  .info-section-card:hover {
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;
-    border-color: var(--notion-blue-light) !important;
-  }
-
-  .section-title {
-    color: var(--notion-text-primary) !important;
-    border-bottom: 2px solid var(--notion-blue) !important;
-    font-weight: 700 !important;
-    font-size: 1rem !important;
-    margin-bottom: 16px !important;
-  }
-
-  .section-title i {
-    color: var(--notion-blue) !important;
-  }
-
-  .info-label {
-    color: var(--notion-text-tertiary) !important;
-    font-weight: 600 !important;
-    font-size: 0.85rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.4px !important;
-  }
-
-  .info-value {
-    color: var(--notion-text-primary) !important;
-    font-weight: 500 !important;
-  }
-
-  .info-row {
-    border-bottom-color: var(--notion-border-light) !important;
-    padding-bottom: 12px !important;
-  }
-
-  /* Specialty Tag */
-  .specialty-tag {
-    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
-    color: #ffffff !important;
-  }
-
-  /* Status Badges */
-  .status-badge-green {
-    background: rgba(40, 167, 69, 0.1) !important;
-    color: #20a645 !important;
-  }
-
-  .status-badge-yellow {
-    background: rgba(255, 193, 7, 0.1) !important;
-    color: #f59e0b !important;
-  }
-
-  /* Filter Buttons */
-  .profile-filter-btn {
-    background: var(--notion-bg) !important;
-    border: 1px solid var(--notion-border) !important;
-    color: var(--notion-text-primary) !important;
-    border-radius: 8px !important;
-    padding: 10px 12px !important;
-    font-weight: 600 !important;
+    cursor: pointer;
     transition: all 0.2s ease;
   }
 
@@ -3316,10 +2237,17 @@
     color: #ffffff !important;
   }
 
-  .profile-filter-btn strong,
-  .section-count {
+  .profile-filter-btn strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
     background: rgba(37, 99, 235, 0.12) !important;
     color: var(--notion-blue) !important;
+    font-size: 0.75rem !important;
     font-weight: 700 !important;
   }
 
@@ -3328,233 +2256,441 @@
     color: #ffffff !important;
   }
 
+<<<<<<< HEAD
+<<<<<<< HEAD
   /* Contribution Items */
+=======
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+  /* KPI Cards */
+  .kpi-glass-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .kpi-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .kpi-chart-box {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+<<<<<<< HEAD
+    border-radius: 8px !important;
+    padding: 12px !important;
+  }
+
+  .kpi-chart-box h4 {
+    color: var(--notion-text-primary) !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    margin: 0 0 8px !important;
+  }
+
+  .kpi-chart-box canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 96px !important;
+    max-height: 96px !important;
+  }
+
+  /* Contribution Cards */
+  .contrib-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .contrib-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .contrib-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .contrib-pager {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .contrib-pager-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid var(--notion-border);
+    background: #ffffff;
+    color: var(--notion-text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .contrib-pager-btn:hover:not(:disabled) {
+    border-color: var(--notion-blue);
+    color: var(--notion-blue);
+  }
+
+  .contrib-pager-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .contrib-pager-info {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--notion-text-secondary);
+    min-width: 68px;
+    text-align: center;
+  }
+
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
   .contrib-item {
     background: var(--notion-bg-secondary) !important;
     border: 1px solid var(--notion-border-light) !important;
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
     border-radius: 8px !important;
+    padding: 12px !important;
+  }
+
+  .kpi-chart-box h4 {
+    color: var(--notion-text-primary) !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    margin: 0 0 8px !important;
+  }
+
+  .kpi-chart-box canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 96px !important;
+    max-height: 96px !important;
+  }
+
+  /* Contribution Cards */
+  .contrib-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .contrib-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .contrib-pager {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .contrib-pager-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid var(--notion-border);
+    background: #ffffff;
+    color: var(--notion-text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .contrib-pager-btn:hover:not(:disabled) {
+    border-color: var(--notion-blue);
+    color: var(--notion-blue);
+  }
+
+  .contrib-pager-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .contrib-pager-info {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--notion-text-secondary);
+    min-width: 68px;
+    text-align: center;
+  }
+
+  .contrib-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     padding: 12px 14px !important;
+    background: #f8fafc !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 8px !important;
+    text-decoration: none;
     transition: all 0.2s ease;
   }
 
   .contrib-item:hover {
-    background: rgba(37, 99, 235, 0.05) !important;
     border-color: var(--notion-blue) !important;
+    background: rgba(37, 99, 235, 0.04) !important;
     transform: translateX(2px);
   }
 
+  .contrib-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .contrib-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(37, 99, 235, 0.14);
+    background: #ffffff;
+    color: var(--notion-text-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+
+  .contrib-action-btn i {
+    font-size: 0.9rem;
+  }
+
+  .contrib-action-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(37, 99, 235, 0.3);
+    box-shadow: 0 10px 18px rgba(37, 99, 235, 0.1);
+  }
+
+  .contrib-action-btn.ask-chatbot-btn:hover {
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--notion-blue);
+  }
+
+  .contrib-action-btn.share-trigger-btn:hover {
+    background: rgba(14, 165, 233, 0.08);
+    color: #0369a1;
+  }
+
   .contrib-icon {
-    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%);
+  }
+
+  .contrib-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .contrib-title {
     color: var(--notion-text-primary) !important;
     font-weight: 700 !important;
-  }
-
-  .contrib-date {
-    color: var(--notion-text-tertiary) !important;
-    background: transparent !important;
-    padding: 0 !important;
+    font-size: 0.9rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .contrib-subline {
     color: var(--notion-text-secondary) !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  /* KPI Chart Cards */
-  .kpi-glass-card,
-  .kpi-chart-box {
-    background: var(--notion-bg) !important;
-    border: 1px solid var(--notion-border) !important;
-    border-radius: 12px !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  .contrib-date {
+    color: #94a3b8 !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
   }
 
+<<<<<<< HEAD
+<<<<<<< HEAD
   .kpi-chart-box h4 {
+=======
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+  .experience-item {
+    align-items: flex-start;
+  }
+
+<<<<<<< HEAD
+  @media (max-width: 640px) {
+    .contrib-actions {
+      justify-content: stretch;
+    }
+
+    .contrib-action-btn {
+      flex: 1 1 calc(50% - 8px);
+    }
+  }
+
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+  .experience-role-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .experience-role {
+<<<<<<< HEAD
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
     color: var(--notion-text-primary) !important;
+    font-size: 0.8rem !important;
     font-weight: 700 !important;
   }
 
-  /* Structured Info */
-  .structured-info-item {
-    background: var(--notion-bg-secondary) !important;
-    border: 1px solid var(--notion-border-light) !important;
-    border-radius: 8px !important;
+  .experience-kind-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.12);
+    border: 1px solid rgba(37, 99, 235, 0.24);
   }
 
-  .structured-info-icon {
-    background: rgba(37, 99, 235, 0.1) !important;
-    color: var(--notion-blue) !important;
+  .contrib-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.2;
+    border: 1px solid transparent;
   }
 
-  .structured-info-text strong {
-    color: var(--notion-text-primary) !important;
+  .contrib-status-badge.is-approved {
+    color: #166534;
+    background: #dcfce7;
+    border-color: #86efac;
   }
 
-  .structured-info-text small {
-    color: var(--notion-text-secondary) !important;
+  .contrib-status-badge.is-pending {
+    color: #92400e;
+    background: #fef3c7;
+    border-color: #fcd34d;
   }
 
-  /* Completion Bar */
-  .completion-track {
-    background: var(--notion-border-light) !important;
-  }
-
-  .completion-bar {
-    background: linear-gradient(90deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
-  }
-
-  .completion-head {
-    color: var(--notion-text-primary) !important;
+  /* Section Count */
+  .section-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--notion-blue);
+    font-size: 0.75rem;
+    font-weight: 700;
   }
 
   /* Settings Modal */
-  #profileSettingsModal .profile-settings-panel {
-    background: var(--notion-bg) !important;
-    border: 1px solid var(--notion-border) !important;
-    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.1) !important;
-    border-radius: 12px !important;
-  }
-
-  #profileSettingsModal .profile-settings-row {
-    background: var(--notion-bg-secondary) !important;
-    border: 1px solid var(--notion-border-light) !important;
-    color: var(--notion-text-primary) !important;
-  }
-
-  #profileSettingsModal .profile-settings-row i {
-    color: var(--notion-blue) !important;
-  }
-
-  #profileSettingsModal .profile-settings-btn:hover {
-    background: rgba(37, 99, 235, 0.05) !important;
-    border-color: var(--notion-blue) !important;
-  }
-
-  /* Profile Settings Button */
-  .profile-card-settings-btn,
-  .profile-menu-toggle {
-    background: var(--notion-bg-secondary) !important;
-    border: 1px solid var(--notion-border) !important;
-    color: var(--notion-text-secondary) !important;
-  }
-
-  .profile-card-settings-btn:hover,
-  .profile-menu-toggle:hover {
-    color: var(--notion-blue) !important;
-    border-color: var(--notion-blue-light) !important;
-    background: rgba(37, 99, 235, 0.05) !important;
-  }
+  /* (Replaced by the "Settings Dropdown (Professional)" block above) */
 
   /* Delete Modal */
-  #deleteAccountModal .modal-content.modal-delete {
+  #deleteAccountModal .modal-content {
     background: var(--notion-bg) !important;
     border: 1px solid var(--notion-border) !important;
-    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.1) !important;
   }
 
   #deleteAccountModal .modal-header {
     background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+    color: #ffffff !important;
+    border: none !important;
   }
 
   #deleteAccountModal .modal-body p {
     color: var(--notion-text-primary) !important;
   }
 
-  #deleteAccountModal .modal-footer .btn-secondary {
-    background: var(--notion-border) !important;
-    color: var(--notion-text-primary) !important;
-  }
-
-  #deleteAccountModal .modal-footer .btn-danger {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
-  }
-
-  /* Form Elements */
-  .form-select-new {
-    background: var(--notion-bg) !important;
-    border: 1.5px solid var(--notion-border) !important;
-    color: var(--notion-text-primary) !important;
-    border-radius: 8px !important;
-  }
-
-  .form-select-new:focus {
-    border-color: var(--notion-blue) !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
-  }
-
-  .btn-invite-new {
-    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
+  .modal-title {
     color: #ffffff !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
   }
 
-  .btn-invite-new:hover {
-    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25) !important;
-  }
-
-  /* Profile Menu */
-  .profile-menu-dropdown {
-    background: var(--notion-bg) !important;
-    border: 1px solid var(--notion-border) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-    border-radius: 8px !important;
-  }
-
-  .profile-menu-item {
-    color: var(--notion-text-primary) !important;
-  }
-
-  .profile-menu-item:hover {
-    background: rgba(37, 99, 235, 0.05) !important;
-  }
-
-  .profile-menu-block {
-    color: #dc2626 !important;
-  }
-
-  .profile-menu-separator {
-    background: var(--notion-border-light) !important;
-  }
-
-  /* Toast Notification */
-  .profile-menu-toast {
-    background: var(--notion-text-primary) !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-  }
-
-  /* Responsive - Tablet */
+  /* RESPONSIVE */
   @media (max-width: 991px) {
     .profile-container-new {
       grid-template-columns: 1fr;
       gap: 24px;
     }
 
-    .profile-identity-head {
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
+    .profile-section-filter-grid {
+      grid-template-columns: repeat(3, 1fr);
     }
 
-    .profile-section-filter-grid {
-      grid-template-columns: repeat(2, 1fr);
+    .kpi-chart-grid {
+      grid-template-columns: 1fr;
     }
   }
 
-  /* Responsive - Mobile */
   @media (max-width: 640px) {
     .profile-page-new {
       padding: 20px 12px;
     }
 
-    .profile-card,
+    .profile-card {
+      padding: 20px 16px;
+    }
+
     .info-section-card {
-      border-radius: 10px !important;
-      padding: 18px !important;
+      padding: 16px;
     }
 
     .profile-user-name {
@@ -3562,16 +2698,23 @@
     }
 
     .profile-section-filter-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, 1fr);
     }
 
-    .section-title {
-      font-size: 0.95rem;
+    .info-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .profile-identity-head {
+      gap: 16px;
     }
   }
 
 </style>
-{% endblock content %} 
+{% endblock content %}
+
+
 {% block extra_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
@@ -3583,24 +2726,28 @@
 
     const langIsArabic = "{{ request.LANGUAGE_CODE|slice:':2' }}" === "ar";
     const uiText = {
-      friend: langIsArabic ? "صديق" : "Friend",
-      blocked: langIsArabic ? "محظور" : "Blocked",
-      cancelRequest: langIsArabic ? "إلغاء الطلب" : "Cancel request",
-      confirm: langIsArabic ? "تأكيد" : "Confirm",
-      addFriend: langIsArabic ? "إضافة صديق" : "Add friend",
-      follow: langIsArabic ? "متابعة" : "Follow",
-      unfollow: langIsArabic ? "إلغاء المتابعة" : "Unfollow",
-      noBlockedUsers: langIsArabic ? "لا يوجد مستخدمون محظورون حالياً" : "No blocked users currently",
-      unblock: langIsArabic ? "إلغاء الحظر" : "Unblock",
-      loadBlockedError: langIsArabic ? "تعذر تحميل القائمة" : "Unable to load list",
-      copiedLink: langIsArabic ? "تم نسخ الرابط" : "Link copied",
-      copyLinkFailed: langIsArabic ? "تعذر نسخ الرابط" : "Could not copy link",
-      copiedLinkForShare: langIsArabic ? "تم نسخ الرابط للمشاركة" : "Link copied for sharing",
-      prepareLinkFailed: langIsArabic ? "تعذر تجهيز الرابط" : "Could not prepare link",
-      reportSaved: langIsArabic ? "تم تسجيل البلاغ" : "Report submitted",
-      blockedDone: langIsArabic ? "تم الحظر" : "User blocked",
-      blockedFailed: langIsArabic ? "فشل تنفيذ الحظر" : "Block failed",
-      moreSoon: langIsArabic ? "خيارات إضافية قريبًا" : "More options coming soon",
+      blocked: "{% trans 'Blocked' %}",
+      noBlockedUsers: "{% trans 'No blocked users currently' %}",
+      unblock: "{% trans 'Unblock' %}",
+      loadBlockedError: "{% trans 'Unable to load list' %}",
+      copiedLink: "{% trans 'Link copied' %}",
+      copyLinkFailed: "{% trans 'Could not copy link' %}",
+      copiedLinkForShare: "{% trans 'Link copied for sharing' %}",
+      prepareLinkFailed: "{% trans 'Could not prepare link' %}",
+      reportSaved: "{% trans 'Report submitted' %}",
+      blockedDone: "{% trans 'User blocked' %}",
+      blockedFailed: "{% trans 'Block failed' %}",
+      moreSoon: "{% trans 'More options coming soon' %}",
+      sharedInNewTab: "{% trans 'Share opened in a new window' %}",
+      follow: "{% trans 'Follow' %}",
+      unfollow: "{% trans 'Unfollow' %}",
+      actionFailed: "{% trans 'Action failed.' %}",
+      followers: "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}المتابعون{% else %}Followers{% endif %}",
+      following: "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}أتابع{% else %}Following{% endif %}",
+      remove: "{% trans 'Remove' %}",
+      noUsersFound: "{% trans 'No users found.' %}",
+      loading: "{% trans 'Loading...' %}",
+      noInstitution: "{% trans 'No institution' %}",
     };
 
     const kpiCard = document.getElementById("profileKpiCard");
@@ -3619,10 +2766,10 @@
       const completionValueEl = document.getElementById("profileCompletionValue");
       const completionBarEl = document.getElementById("profileCompletionBar");
       const profileSignals = [
-        !!"{{ profile_user.avatar|default:'' }}",
-        !!"{{ profile_user.get_speciality_display|default:'' }}",
-        !!"{{ profile_user.institution|default:'' }}",
-        !!"{{ profile_user.get_localized_bio|default:'' }}",
+        !!"{{ user.avatar|default:'' }}",
+        !!"{{ user.get_speciality_display|default:'' }}",
+        !!"{{ user.institution|default:'' }}",
+        !!"{{ user.get_localized_bio|default:'' }}",
         metrics.projects > 0,
         metrics.news > 0
       ];
@@ -3679,8 +2826,8 @@
             type: "bar",
             data: {
               labels: langIsArabic
-                ? ["المشاريع", "الأخبار", "الدورات", "الموارد", "الأدوات", "المدونات", "المجتمع", "الأحداث"]
-                : ["Projects", "News", "Courses", "Resources", "Tools", "Corpus", "Community", "Events"],
+                ? ["المشاريع", "المنشورات", "الدورات", "الموارد", "الأدوات", "المدونات", "المجتمع", "الأحداث"]
+                : ["Projects", "Feed", "Courses", "Resources", "Tools", "Corpus", "Community", "Events"],
               datasets: [{
                 data: [
                   metrics.projects,
@@ -3729,41 +2876,10 @@
       return templateToken && templateToken !== "NOTPROVIDED" ? templateToken : '';
     }
 
-    function updateFriendButton(btn, state) {
-      const label = btn.querySelector('.friend-action-label');
-      const icon = btn.querySelector('i');
-      btn.dataset.state = state;
-      btn.classList.remove('is-pending', 'is-friend');
-      btn.disabled = false;
-      if (!label || !icon) return;
-      if (state === 'AMIS') {
-        label.textContent = uiText.friend;
-        icon.className = 'fas fa-user-check';
-        btn.classList.add('is-friend');
-      } else if (state === 'BLOQUE') {
-        label.textContent = uiText.blocked;
-        icon.className = 'fas fa-ban';
-        btn.classList.add('is-pending');
-        btn.disabled = true;
-      } else if (state === 'EN_ATTENTE_ENVOYE') {
-        label.textContent = uiText.cancelRequest;
-        icon.className = 'fas fa-clock';
-        btn.classList.add('is-pending');
-      } else if (state === 'EN_ATTENTE_RECU') {
-        label.textContent = uiText.confirm;
-        icon.className = 'fas fa-user-check';
-      } else {
-        label.textContent = uiText.addFriend;
-        icon.className = 'fas fa-user-plus';
-      }
-    }
-
-    const friendBtn = document.querySelector('.friend-action-btn');
-    const followBtn = document.querySelector('.follow-action-btn');
-    const rejectBtn = document.querySelector('.friend-reject-btn');
-    const actionsContainer = document.querySelector('.profile-actions-new');
+    const followBtn = document.querySelector('.follow-toggle-btn');
     const followersCountEl = document.getElementById('followersCount');
     const followingCountEl = document.getElementById('followingCount');
+    const actionsContainer = document.querySelector('.profile-actions-new');
     const settingsOpenBtn = document.getElementById('profileTopSettingsBtn');
     const settingsModal = document.getElementById('profileSettingsModal');
     const settingsBlockedToggleBtn = document.getElementById('profileBlockedListToggleBtn');
@@ -3775,6 +2891,17 @@
     const profileMenuToggle = document.querySelector('.profile-menu-toggle');
     const profileMenuDropdown = document.querySelector('.profile-menu-dropdown');
     const profileMenuToast = document.getElementById('profileMenuToast');
+    const profileShareModal = document.getElementById('profileShareModal');
+    const followersStatBtn = document.getElementById('followersStatBtn');
+    const followingStatBtn = document.getElementById('followingStatBtn');
+    const profileFollowModal = document.getElementById('profileFollowModal');
+    const profileFollowTitle = document.getElementById('profileFollowTitle');
+    const profileFollowList = document.getElementById('profileFollowList');
+    const profileFollowEmpty = document.getElementById('profileFollowEmpty');
+    const profileFollowTabs = document.querySelectorAll('.profile-follow-tab');
+    const viewedProfileId = "{{ user.id }}";
+    const isOwnProfilePage = {% if request.user == user %}true{% else %}false{% endif %};
+    let currentFollowKind = 'followers';
 
     function showMenuToast(message) {
       if (!profileMenuToast) return;
@@ -3783,50 +2910,16 @@
       setTimeout(() => profileMenuToast.classList.remove('show'), 1700);
     }
 
-    function updateFollowButton(btn, isFollowing) {
-      if (!btn) return;
-      const label = btn.querySelector('.follow-action-label');
-      btn.dataset.isFollowing = isFollowing ? '1' : '0';
-      if (label) {
-        label.textContent = isFollowing ? uiText.unfollow : uiText.follow;
-      }
+    function closeShareModal() {
+      if (!profileShareModal) return;
+      profileShareModal.hidden = true;
+      document.body.style.overflow = '';
     }
 
-    if (followBtn) {
-      updateFollowButton(followBtn, followBtn.dataset.isFollowing === '1');
-      followBtn.addEventListener('click', async function () {
-        if (this.dataset.loading === '1') return;
-        const isFollowing = this.dataset.isFollowing === '1';
-        const endpoint = isFollowing ? this.dataset.unfollowUrl : this.dataset.followUrl;
-        this.dataset.loading = '1';
-        this.disabled = true;
-
-        try {
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': getCsrfToken(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-
-          updateFollowButton(this, Boolean(data.is_following));
-          if (followersCountEl && Number.isFinite(Number(data.followers_count))) {
-            followersCountEl.textContent = String(data.followers_count);
-          }
-          if (followingCountEl && Number.isFinite(Number(data.following_count))) {
-            followingCountEl.textContent = String(data.following_count);
-          }
-        } catch (e) {
-          console.error(e);
-        } finally {
-          this.disabled = false;
-          this.dataset.loading = '0';
-        }
-      });
+    function openShareModal() {
+      if (!profileShareModal) return;
+      profileShareModal.hidden = false;
+      document.body.style.overflow = 'hidden';
     }
 
     async function copyProfileLink() {
@@ -3843,13 +2936,168 @@
       area.remove();
     }
 
-    function actionUrl(userId, action) {
-      const base = friendBtn?.dataset.endpointBase || '';
-      if (base) {
-        return base.replace(/\/add\/?$/, `/${action}/`).replace('{{ profile_user.id }}', userId);
+    function buildShareUrl(network) {
+      const profileUrl = encodeURIComponent(window.location.href);
+      const profileName = encodeURIComponent(document.querySelector('.profile-user-name')?.textContent?.trim() || 'Profile');
+      const text = encodeURIComponent(langIsArabic ? 'شاهد هذا الملف الشخصي' : 'Check this profile');
+      switch (network) {
+        case 'linkedin':
+          return `https://www.linkedin.com/sharing/share-offsite/?url=${profileUrl}`;
+        case 'facebook':
+          return `https://www.facebook.com/sharer/sharer.php?u=${profileUrl}`;
+        case 'x':
+          return `https://twitter.com/intent/tweet?url=${profileUrl}&text=${text}`;
+        case 'whatsapp':
+          return `https://wa.me/?text=${text}%20${profileUrl}`;
+        case 'telegram':
+          return `https://t.me/share/url?url=${profileUrl}&text=${text}`;
+        case 'email':
+          return `mailto:?subject=${profileName}&body=${text}%20${profileUrl}`;
+        default:
+          return '';
       }
+    }
+
+    async function handleShareAction(network) {
+      if (network === 'copy') {
+        try {
+          await copyProfileLink();
+          showMenuToast(uiText.copiedLink);
+        } catch (_) {
+          showMenuToast(uiText.copyLinkFailed);
+        }
+        return;
+      }
+      const targetUrl = buildShareUrl(network);
+      if (!targetUrl) return;
+      window.open(targetUrl, '_blank', 'noopener,noreferrer,width=760,height=620');
+      showMenuToast(uiText.sharedInNewTab);
+    }
+
+    function actionUrl(userId, action) {
       const lang = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
       return `/${lang}/accounts/network/${userId}/${action}/`;
+    }
+
+    function currentLangCode() {
+      return window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+    }
+
+    function followListApiUrl(kind) {
+      return `/${currentLangCode()}/accounts/network/follow-list/${viewedProfileId}/?kind=${encodeURIComponent(kind)}`;
+    }
+
+    function unfollowApiUrl(userId) {
+      return `/${currentLangCode()}/accounts/network/unfollow/${userId}/`;
+    }
+
+    function removeFollowerApiUrl(userId) {
+      return `/${currentLangCode()}/accounts/network/remove-follower/${userId}/`;
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function updateHeaderFollowCounts(payload) {
+      if (followersCountEl && Number.isFinite(Number(payload?.followers_count))) {
+        followersCountEl.textContent = String(payload.followers_count);
+      }
+      if (followingCountEl && Number.isFinite(Number(payload?.following_count))) {
+        followingCountEl.textContent = String(payload.following_count);
+      }
+    }
+
+    function closeFollowModal() {
+      if (!profileFollowModal) return;
+      profileFollowModal.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function openFollowModal(kind) {
+      if (!profileFollowModal) return;
+      profileFollowModal.hidden = false;
+      document.body.style.overflow = 'hidden';
+      loadFollowList(kind);
+    }
+
+    function renderFollowItems(items) {
+      if (!profileFollowList || !profileFollowEmpty) return;
+      if (!Array.isArray(items) || !items.length) {
+        profileFollowList.innerHTML = '';
+        profileFollowEmpty.hidden = false;
+        profileFollowEmpty.textContent = uiText.noUsersFound;
+        return;
+      }
+
+      profileFollowEmpty.hidden = true;
+      profileFollowList.innerHTML = items.map((item) => {
+        const avatar = item.avatar
+          ? `<img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.name)}" class="profile-follow-avatar">`
+          : `<span class="profile-follow-avatar-fallback">${escapeHtml((item.name || 'U').slice(0, 1).toUpperCase())}</span>`;
+
+        let actionBtn = '';
+        if (isOwnProfilePage && currentFollowKind === 'following') {
+          const removeLabel = langIsArabic ? 'احذف' : uiText.remove;
+          actionBtn = `<button type="button" class="profile-follow-action is-danger" data-follow-action="unfollow" data-user-id="${escapeHtml(item.id)}" title="${escapeHtml(removeLabel)}" aria-label="${escapeHtml(removeLabel)}">${escapeHtml(removeLabel)}</button>`;
+        } else if (isOwnProfilePage && currentFollowKind === 'followers') {
+          actionBtn = `<button type="button" class="profile-follow-action is-danger" data-follow-action="remove-follower" data-user-id="${escapeHtml(item.id)}">${escapeHtml(uiText.remove)}</button>`;
+        }
+
+        return `
+          <div class="profile-follow-row" data-follow-user-row="${escapeHtml(item.id)}">
+            <a class="profile-follow-user" href="${escapeHtml(item.profile_url)}">
+              ${avatar}
+              <span class="profile-follow-meta">
+                <p class="profile-follow-name">${escapeHtml(item.name)}</p>
+                <p class="profile-follow-sub">${escapeHtml(item.institution || uiText.noInstitution)}</p>
+              </span>
+            </a>
+            ${actionBtn}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadFollowList(kind) {
+      if (!profileFollowList || !profileFollowTitle || !profileFollowEmpty) return;
+      currentFollowKind = kind === 'following' ? 'following' : 'followers';
+
+      profileFollowTabs.forEach((tab) => {
+        tab.classList.toggle('is-active', tab.dataset.followTab === currentFollowKind);
+      });
+      profileFollowTitle.textContent = currentFollowKind === 'following' ? uiText.following : uiText.followers;
+      profileFollowList.innerHTML = `<div class="profile-follow-empty">${escapeHtml(uiText.loading)}</div>`;
+      profileFollowEmpty.hidden = true;
+
+      try {
+        const res = await fetch(followListApiUrl(currentFollowKind), {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+        renderFollowItems(data.items || []);
+      } catch (e) {
+        profileFollowList.innerHTML = '';
+        profileFollowEmpty.hidden = false;
+        profileFollowEmpty.textContent = uiText.actionFailed;
+        console.error(e);
+      }
+    }
+
+    function updateFollowButton(isFollowing) {
+      if (!followBtn) return;
+      const label = followBtn.querySelector('.follow-action-label');
+      const icon = followBtn.querySelector('i');
+      followBtn.dataset.isFollowing = isFollowing ? '1' : '0';
+      if (label) label.textContent = isFollowing ? uiText.unfollow : uiText.follow;
+      if (icon) icon.className = `fas ${isFollowing ? 'fa-user-check' : 'fa-rss'}`;
     }
 
     function setSwitchState(el, isOn, key) {
@@ -3919,54 +3167,19 @@
       }
     }
 
-    function ensureFriendMenu(userId) {
-      if (!actionsContainer || actionsContainer.querySelector('.friend-menu-wrap')) return;
-      const friendCancelLabel = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}إلغاء{% else %}Cancel{% endif %}";
-      const friendDeleteLabel = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}حذف الصديق{% else %}Delete friends{% endif %}";
-      const wrap = document.createElement('div');
-      wrap.className = 'friend-menu-wrap';
-      wrap.innerHTML = `
-        <div class="friend-menu" hidden>
-          <button type="button" class="friend-menu-item friend-cancel-btn" data-user-id="${userId}">${friendCancelLabel}</button>
-          <button type="button" class="friend-menu-item friend-remove-btn" data-user-id="${userId}">${friendDeleteLabel}</button>
-        </div>
-      `;
-      actionsContainer.appendChild(wrap);
-    }
-
-    function removeFriendMenu() {
-      actionsContainer?.querySelector('.friend-menu-wrap')?.remove();
-    }
-
-    if (friendBtn) {
-      updateFriendButton(friendBtn, friendBtn.dataset.state || 'NEUTRE');
-      friendBtn.addEventListener('click', async function () {
+    if (followBtn) {
+      updateFollowButton(followBtn.dataset.isFollowing === '1');
+      followBtn.addEventListener('click', async function () {
         if (this.dataset.loading === '1') return;
-        const userId = this.dataset.userId;
-        const state = this.dataset.state || 'NEUTRE';
-        let action = 'add';
-        if (state === 'EN_ATTENTE_ENVOYE') action = 'cancel';
-        if (state === 'EN_ATTENTE_RECU') action = 'accept';
-        if (state === 'AMIS') {
-          ensureFriendMenu(userId);
-          const menu = actionsContainer?.querySelector('.friend-menu-wrap .friend-menu');
-          if (menu) menu.hidden = !menu.hidden;
-          return;
-        }
-        if (state === 'BLOQUE') return;
         this.dataset.loading = '1';
         this.disabled = true;
 
-        // Optimistic UI
-        const previous = state;
-        if (action === 'add') updateFriendButton(this, 'EN_ATTENTE_ENVOYE');
-        if (action === 'cancel') updateFriendButton(this, 'NEUTRE');
-        if (action === 'accept') updateFriendButton(this, 'AMIS');
-        this.classList.add('btn-clicked');
-        setTimeout(() => this.classList.remove('btn-clicked'), 180);
+        const isFollowing = this.dataset.isFollowing === '1';
+        const endpoint = isFollowing ? this.dataset.unfollowUrl : this.dataset.followUrl;
+        const previous = isFollowing;
 
         try {
-          const res = await fetch(actionUrl(userId, action), {
+          const res = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'X-CSRFToken': getCsrfToken(),
@@ -3974,17 +3187,19 @@
             },
             credentials: 'same-origin'
           });
-          const data = await res.json();
+          const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          updateFriendButton(this, data.state || this.dataset.state);
-          if (data.state === 'AMIS' && rejectBtn) {
-            rejectBtn.style.display = 'none';
-            ensureFriendMenu(userId);
-          } else if (data.state !== 'AMIS') {
-            removeFriendMenu();
+
+          updateFollowButton(Boolean(data.is_following));
+          if (followersCountEl && Number.isFinite(Number(data.followers_count))) {
+            followersCountEl.textContent = String(data.followers_count);
+          }
+          if (followingCountEl && Number.isFinite(Number(data.following_count))) {
+            followingCountEl.textContent = String(data.following_count);
           }
         } catch (e) {
-          updateFriendButton(this, previous);
+          updateFollowButton(previous);
+          showMenuToast(uiText.actionFailed);
           console.error(e);
         } finally {
           this.disabled = false;
@@ -3993,15 +3208,39 @@
       });
     }
 
-    if (rejectBtn) {
-      rejectBtn.addEventListener('click', async function () {
-        if (this.dataset.loading === '1') return;
-        const userId = this.dataset.userId;
-        const friendButton = document.querySelector('.friend-action-btn');
-        this.dataset.loading = '1';
-        this.disabled = true;
+    if (followersStatBtn) {
+      followersStatBtn.addEventListener('click', function () {
+        openFollowModal('followers');
+      });
+    }
+
+    if (followingStatBtn) {
+      followingStatBtn.addEventListener('click', function () {
+        openFollowModal('following');
+      });
+    }
+
+    profileFollowTabs.forEach((tab) => {
+      tab.addEventListener('click', function () {
+        loadFollowList(this.dataset.followTab);
+      });
+    });
+
+    if (profileFollowList) {
+      profileFollowList.addEventListener('click', async function (e) {
+        const actionBtn = e.target.closest('[data-follow-action]');
+        if (!actionBtn) return;
+
+        const action = actionBtn.dataset.followAction;
+        const userId = actionBtn.dataset.userId;
+        if (!action || !userId) return;
+
+        actionBtn.disabled = true;
         try {
-          const res = await fetch(actionUrl(userId, 'reject'), {
+          const endpoint = action === 'remove-follower'
+            ? removeFollowerApiUrl(userId)
+            : unfollowApiUrl(userId);
+          const res = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'X-CSRFToken': getCsrfToken(),
@@ -4009,15 +3248,21 @@
             },
             credentials: 'same-origin'
           });
-          const data = await res.json();
+          const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          if (friendButton) updateFriendButton(friendButton, 'NEUTRE');
-          this.style.display = 'none';
-        } catch (e) {
-          console.error(e);
-        } finally {
-          this.disabled = false;
-          this.dataset.loading = '0';
+
+          const row = actionBtn.closest('[data-follow-user-row]');
+          if (row) row.remove();
+          updateHeaderFollowCounts(data);
+
+          if (!profileFollowList.querySelector('[data-follow-user-row]') && profileFollowEmpty) {
+            profileFollowEmpty.hidden = false;
+            profileFollowEmpty.textContent = uiText.noUsersFound;
+          }
+        } catch (err) {
+          actionBtn.disabled = false;
+          showMenuToast(uiText.actionFailed);
+          console.error(err);
         }
       });
     }
@@ -4129,10 +3374,8 @@
       }
 
       const blockBtn = e.target.closest('.profile-menu-block');
-      if (blockBtn && friendBtn) {
+      if (blockBtn) {
         const userId = blockBtn.dataset.userId;
-        const prev = friendBtn.dataset.state || 'NEUTRE';
-        updateFriendButton(friendBtn, 'BLOQUE');
         try {
           const res = await fetch(actionUrl(userId, 'block'), {
             method: 'POST',
@@ -4144,10 +3387,9 @@
           });
           const data = await res.json();
           if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          updateFriendButton(friendBtn, data.state || 'BLOQUE');
           showMenuToast(uiText.blockedDone);
+          setTimeout(() => window.location.reload(), 350);
         } catch (err) {
-          updateFriendButton(friendBtn, prev);
           showMenuToast(uiText.blockedFailed);
           console.error(err);
         }
@@ -4156,52 +3398,28 @@
       }
 
       if (e.target.closest('.profile-menu-more')) {
-        showMenuToast(uiText.moreSoon);
+        openShareModal();
         if (profileMenuDropdown) profileMenuDropdown.hidden = true;
         return;
       }
-
-      const cancelBtn = e.target.closest('.friend-cancel-btn');
-      if (cancelBtn) {
-        const menu = actionsContainer?.querySelector('.friend-menu-wrap .friend-menu');
-        if (menu) menu.hidden = true;
+      const shareBtn = e.target.closest('.profile-share-item');
+      if (shareBtn) {
+        const network = shareBtn.dataset.shareNetwork;
+        await handleShareAction(network);
+        if (network !== 'copy') closeShareModal();
         return;
       }
 
-      const removeBtn = e.target.closest('.friend-remove-btn');
-      if (removeBtn && friendBtn) {
-        const userId = removeBtn.dataset.userId;
-        const prev = friendBtn.dataset.state || 'AMIS';
-        updateFriendButton(friendBtn, 'NEUTRE');
-        removeFriendMenu();
-        try {
-          const res = await fetch(actionUrl(userId, 'remove'), {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': getCsrfToken(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-          updateFriendButton(friendBtn, data.state || 'NEUTRE');
-        } catch (err) {
-          updateFriendButton(friendBtn, prev);
-          if (prev === 'AMIS') ensureFriendMenu(userId);
-          console.error(err);
-        }
+      if (profileShareModal && e.target.closest('[data-close-share-modal]')) {
+        closeShareModal();
         return;
       }
 
-      const friendActionClick = e.target.closest('.friend-action-btn');
-      if (friendActionClick && (friendBtn?.dataset.state === 'AMIS')) {
+      if (profileFollowModal && e.target.closest('[data-close-follow-modal]')) {
+        closeFollowModal();
         return;
       }
 
-      document.querySelectorAll('.friend-menu').forEach((m) => {
-        if (!m.closest('.friend-menu-wrap')?.contains(e.target)) m.hidden = true;
-      });
       if (profileMenuDropdown && profileMenuWrap && !profileMenuWrap.contains(e.target)) {
         profileMenuDropdown.hidden = true;
         profileMenuToggle?.setAttribute('aria-expanded', 'false');
@@ -4212,6 +3430,12 @@
       if (e.key === 'Escape' && profileMenuDropdown && !profileMenuDropdown.hidden) {
         profileMenuDropdown.hidden = true;
         profileMenuToggle?.setAttribute('aria-expanded', 'false');
+      }
+      if (e.key === 'Escape' && profileShareModal && !profileShareModal.hidden) {
+        closeShareModal();
+      }
+      if (e.key === 'Escape' && profileFollowModal && !profileFollowModal.hidden) {
+        closeFollowModal();
       }
     });
 
@@ -4253,14 +3477,94 @@
         }
       });
     });
+  });
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const PAGE_SIZE = 5;
+    const contribLists = document.querySelectorAll(".contrib-card .contrib-list");
 
+<<<<<<< HEAD
+<<<<<<< HEAD
     const experienceToggleBtn = document.getElementById('experienceToggleBtn');
     const experienceInlineForm = document.getElementById('experienceInlineForm');
     if (experienceToggleBtn && experienceInlineForm) {
       experienceToggleBtn.addEventListener('click', function () {
         experienceInlineForm.hidden = !experienceInlineForm.hidden;
+=======
+    contribLists.forEach((list) => {
+      const items = Array.from(list.children);
+=======
+    contribLists.forEach((list) => {
+      const items = Array.from(list.querySelectorAll(":scope > .contrib-item"));
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+      if (items.length <= PAGE_SIZE) return;
+
+      let page = 0;
+      const totalPages = Math.ceil(items.length / PAGE_SIZE);
+
+      const pager = document.createElement("div");
+      pager.className = "contrib-pager";
+
+      const prevBtn = document.createElement("button");
+      prevBtn.type = "button";
+      prevBtn.className = "contrib-pager-btn";
+      prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+      prevBtn.setAttribute("aria-label", "Previous page");
+
+      const info = document.createElement("span");
+      info.className = "contrib-pager-info";
+
+      const nextBtn = document.createElement("button");
+      nextBtn.type = "button";
+      nextBtn.className = "contrib-pager-btn";
+      nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+      nextBtn.setAttribute("aria-label", "Next page");
+
+      function renderPage() {
+        const start = page * PAGE_SIZE;
+        const end = start + PAGE_SIZE;
+        items.forEach((item, idx) => {
+          item.style.display = idx >= start && idx < end ? "" : "none";
+        });
+        info.textContent = (page + 1) + " / " + totalPages;
+        prevBtn.disabled = page === 0;
+        nextBtn.disabled = page === totalPages - 1;
+      }
+
+      prevBtn.addEventListener("click", function () {
+        if (page > 0) {
+          page -= 1;
+          renderPage();
+        }
+<<<<<<< HEAD
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
       });
-    }
+
+      nextBtn.addEventListener("click", function () {
+        if (page < totalPages - 1) {
+          page += 1;
+          renderPage();
+        }
+      });
+
+      pager.appendChild(prevBtn);
+      pager.appendChild(info);
+      pager.appendChild(nextBtn);
+      list.insertAdjacentElement("afterend", pager);
+
+      renderPage();
+    });
   });
 </script>
 {% endblock extra_scripts %}
+
+
+
+
+
+
+
+

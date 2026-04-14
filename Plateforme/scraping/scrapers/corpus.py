@@ -11,7 +11,10 @@ from django.apps import apps as django_apps
 from django.utils import timezone
 
 from scraping.extractors.corpus.llm_corpus_extractor import LLMCorpusExtractor
+from scraping.field_mapping import get_auto_translate_fields
 from scraping.network.search_client import TavilySearchClient
+from scraping.translation.arabic_translator import ArabicTranslator
+from scraping.utils import infer_translation_status
 
 from .base import BaseScraper
 
@@ -49,6 +52,14 @@ class CorpusScraper(BaseScraper):
             logger.warning("Corpus scraper initialization failed: %s", exc)
             return
 
+        if not search_client.is_enabled:
+            self._log_error(
+                "corpus_search_unavailable",
+                search_client.disabled_reason or "Tavily search client unavailable",
+                source=self.name,
+            )
+            return
+
         search_queries = self.get_active_search_queries(self.category)
         if not search_queries:
             logger.warning(
@@ -57,10 +68,26 @@ class CorpusScraper(BaseScraper):
             return
 
         combined_results: list[dict] = []
-        for query in search_queries:
+        total_queries = len(search_queries)
+        self.emit_progress(
+            "discovery",
+            0,
+            total_queries,
+            "🔍 Starting discovery...",
+            current_source=self.name,
+        )
+        for query_index, query in enumerate(search_queries, start=1):
+            self.emit_progress(
+                "discovery",
+                query_index,
+                total_queries,
+                f"🔍 Searching: {query}",
+                current_source=query,
+                current_item=query,
+            )
             try:
                 time.sleep(self.API_CALL_DELAY_SECONDS)
-                results = async_to_sync(search_client.search_web)(query, max_results=12)
+                results = async_to_sync(search_client.search_corpus)(query)
             except Exception as exc:
                 self._log_error(
                     "corpus_tavily_search_failed",
@@ -79,6 +106,21 @@ class CorpusScraper(BaseScraper):
 
         try:
             time.sleep(self.API_CALL_DELAY_SECONDS)
+            total_batches = 1
+            self.emit_progress(
+                "extraction",
+                0,
+                total_batches,
+                "🤖 Starting extraction...",
+                current_item="Batch 0/1",
+            )
+            self.emit_progress(
+                "extraction",
+                1,
+                total_batches,
+                "🤖 Extracting batch 1/1",
+                current_item="Batch 1/1",
+            )
             candidates = async_to_sync(extractor.extract_corpus_from_search)(
                 combined_results
             )
@@ -90,16 +132,52 @@ class CorpusScraper(BaseScraper):
             logger.warning("No corpus candidates extracted from Tavily results.")
             return
 
+        translator = ArabicTranslator()
+        fields_to_translate = [
+            "title_ar",
+            "description_ar",
+            "short_description_ar",
+            *get_auto_translate_fields(self.category),
+        ]
+        candidates = translator.batch_translate(candidates, fields=fields_to_translate)
+
         fields = self._model_fields(model)
         author = self._resolve_system_user_if_needed(fields)
 
-        for candidate in candidates:
+        total_candidates = len(candidates)
+        self.emit_progress(
+            "validation",
+            0,
+            total_candidates,
+            "✅ Starting validation...",
+        )
+        for candidate_index, candidate in enumerate(candidates, start=1):
+            self.emit_progress(
+                "saving",
+                candidate_index,
+                total_candidates,
+                f"💾 Saving item {candidate_index}/{total_candidates}",
+                current_item=(
+                    str(
+                        candidate.get("dataset_name")
+                        or candidate.get("title_en")
+                        or candidate.get("title")
+                        or ""
+                    ).strip()
+                    if isinstance(candidate, dict)
+                    else ""
+                ),
+            )
             if not isinstance(candidate, dict):
                 self.items_skipped += 1
                 continue
 
             normalized = self._normalize_candidate(candidate)
             if normalized is None:
+                self.items_skipped += 1
+                continue
+
+            if not self.passes_min_confidence_to_save(normalized):
                 self.items_skipped += 1
                 continue
 
@@ -150,7 +228,17 @@ class CorpusScraper(BaseScraper):
                     or normalized.get("paper_url")
                     or "",
                     "title_en": normalized["dataset_name"],
+                    "title_ar": normalized.get("title_ar"),
                     "description_en": normalized["description_en"],
+                    "description_ar": normalized.get("description_ar"),
+                    "dataset_name": normalized["dataset_name"],
+                    "download_url": normalized.get("download_url"),
+                    "paper_url": normalized.get("paper_url"),
+                    "language_variants": normalized.get("language_variants") or [],
+                    "size_estimate": normalized.get("size_estimate"),
+                    "translation_status": normalized.get(
+                        "translation_status", "pending"
+                    ),
                 }
             )
 
@@ -204,7 +292,7 @@ class CorpusScraper(BaseScraper):
         self._set_if_present(defaults, fields, "dataset_name", item["dataset_name"])
         self._set_if_present(defaults, fields, "title", item["dataset_name"])
         self._set_if_present(defaults, fields, "title_en", item["dataset_name"])
-        self._set_if_present(defaults, fields, "title_ar", item["dataset_name"])
+        self._set_if_present(defaults, fields, "title_ar", item.get("title_ar"))
         self._set_if_present(defaults, fields, "description", item["description_en"])
         self._set_if_present(defaults, fields, "description_en", item["description_en"])
         self._set_if_present(defaults, fields, "description_ar", item["description_ar"])
@@ -283,7 +371,7 @@ class CorpusScraper(BaseScraper):
         if not dataset_name or not description_en:
             return None
 
-        description_ar = self._safe_text(item.get("description_ar")) or description_en
+        description_ar = self._safe_text(item.get("description_ar")) or None
 
         language_variants_raw = item.get("language_variants")
         language_variants: list[str] = []
@@ -300,14 +388,23 @@ class CorpusScraper(BaseScraper):
                 if chunk.strip()
             ]
 
+        title_ar = self._safe_text(item.get("title_ar"))[:300] or None
+        translation_status = infer_translation_status(
+            raw_status=self._safe_text(item.get("translation_status")) or "pending",
+            english_values=[dataset_name, description_en],
+            arabic_values=[title_ar, description_ar],
+        )
+
         return {
             "dataset_name": dataset_name[:300],
+            "title_ar": title_ar,
             "description_en": description_en[:5000],
-            "description_ar": description_ar[:5000],
+            "description_ar": description_ar[:5000] if description_ar else None,
             "language_variants": language_variants,
             "size_estimate": self._safe_text(item.get("size_estimate"))[:120] or None,
             "download_url": self._safe_text(item.get("download_url"))[:500],
             "paper_url": self._safe_text(item.get("paper_url"))[:500],
+            "translation_status": translation_status,
         }
 
     @staticmethod

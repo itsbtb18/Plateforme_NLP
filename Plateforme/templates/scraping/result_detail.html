@@ -1,120 +1,1531 @@
-{% extends 'base_admin.html' %}
+{% extends 'scraping/base_scraping.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Scraped Item Detail" %} - {% trans "Admin Panel" %}{% endblock %}
+{% block title %}{% trans "Moderation Detail" %} - {% trans "Admin Panel" %}{% endblock %}
 
 {% block extra_css %}
 <style>
-.sd-head{display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
-.sd-title{margin:0;display:flex;align-items:center;gap:.55rem;font-size:1.3rem}
-.sd-actions{display:flex;gap:.55rem;flex-wrap:wrap}
-.sd-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.52rem .9rem;border:1px solid var(--n-border);border-radius:8px;background:#fff;color:var(--n-text-2);font-size:.8rem;font-weight:600;cursor:pointer;text-decoration:none}
-.sd-btn:hover{border-color:var(--n-blue);color:var(--n-blue)}
-.sd-btn.validate{background:var(--n-green);border-color:var(--n-green);color:#fff}
-.sd-btn.delete{background:var(--n-red);border-color:var(--n-red);color:#fff}
-.sd-card{border:1px solid var(--n-border-s);border-radius:12px;background:var(--n-card);padding:1rem 1.1rem;margin-bottom:1rem}
-.sd-card h2{margin:0 0 .5rem;font-size:1.1rem}
-.sd-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.7rem;margin:.5rem 0 1rem}
-.sd-meta-item{background:var(--n-bg);border:1px solid var(--n-border-s);border-radius:10px;padding:.65rem .8rem}
-.sd-meta-label{font-size:.72rem;color:var(--n-text-3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}
-.sd-meta-value{font-size:.87rem;color:var(--n-text)}
-.sd-desc{white-space:pre-wrap;line-height:1.55;color:var(--n-text)}
-.sd-chip-wrap{display:flex;flex-wrap:wrap;gap:.4rem}
-.sd-chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:.75rem;background:#e2e8f0;color:#1e293b}
-.sd-badge{display:inline-flex;padding:4px 10px;border-radius:999px;font-size:.74rem;font-weight:700;letter-spacing:.02em}
-.sd-badge.warning{background:#fff3cd;color:#7a5a00}
-.sd-badge.success{background:#d1fae5;color:#065f46}
-.sd-badge.danger{background:#fee2e2;color:#991b1b}
-.sd-platform-preview{padding:.95rem 1rem;border:1px dashed var(--n-border);border-radius:12px;background:#fff}
-.sd-platform-preview h3{margin:0 0 .4rem;font-size:1rem}
-.sd-platform-preview p{margin:0;color:var(--n-text-2)}
+.mdt-shell {
+  display: grid;
+  gap: 1rem;
+  padding-bottom: 5.5rem;
+}
+
+.mdt-card {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 14px 30px -24px rgba(15, 23, 42, 0.5);
+}
+
+.mdt-topbar {
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.mdt-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.mdt-btn {
+  border: 1px solid var(--n-border);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--n-text-2);
+  padding: 0.48rem 0.74rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.mdt-btn:hover {
+  transform: translateY(-1px);
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.mdt-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mdt-btn.primary {
+  background: linear-gradient(120deg, #059669, #047857);
+  color: #ffffff;
+  border-color: #047857;
+}
+
+.mdt-btn.warn {
+  background: linear-gradient(120deg, #ca8a04, #a16207);
+  color: #ffffff;
+  border-color: #a16207;
+}
+
+.mdt-btn.danger {
+  background: linear-gradient(120deg, #dc2626, #b91c1c);
+  color: #ffffff;
+  border-color: #b91c1c;
+}
+
+.mdt-position {
+  color: var(--n-text-3);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.mdt-meta {
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.mdt-pill {
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.mdt-pill.meta {
+  color: #334155;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.mdt-pill.pending {
+  color: #92400e;
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+
+.mdt-pill.approved {
+  color: #065f46;
+  background: #d1fae5;
+  border-color: #a7f3d0;
+}
+
+.mdt-pill.rejected {
+  color: #991b1b;
+  background: #fee2e2;
+  border-color: #fecaca;
+}
+
+.mdt-header-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mdt-breakdown {
+  padding: 0.95rem 1rem;
+}
+
+.mdt-breakdown-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.mdt-breakdown-head h2 {
+  margin: 0;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mdt-breakdown-score {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.mdt-breakdown-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.mdt-breakdown-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 68px 110px;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mdt-breakdown-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.mdt-progress-track {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.mdt-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.mdt-progress-fill.good { background: #16a34a; }
+.mdt-progress-fill.partial { background: #ca8a04; }
+.mdt-progress-fill.copied { background: #f59e0b; }
+.mdt-progress-fill.missing { background: #94a3b8; }
+
+.mdt-breakdown-score-text {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #0f172a;
+  text-align: right;
+}
+
+.mdt-breakdown-state {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #334155;
+  text-align: left;
+}
+
+.mdt-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mdt-column {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 0.9rem;
+  background: #ffffff;
+}
+
+.mdt-column h3 {
+  margin: 0;
+  font-size: 0.88rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0f172a;
+}
+
+.mdt-column-sub {
+  margin: 0.3rem 0 0.8rem;
+  color: var(--n-text-3);
+  font-size: 0.73rem;
+}
+
+.mdt-field {
+  display: grid;
+  gap: 0.36rem;
+  margin-bottom: 0.75rem;
+}
+
+.mdt-field:last-child {
+  margin-bottom: 0;
+}
+
+.mdt-label {
+  margin: 0;
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.mdt-value {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 0.58rem 0.64rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mdt-value.link a {
+  color: #1d4ed8;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.mdt-value.link a:hover {
+  text-decoration: underline;
+}
+
+.mdt-ar-shell {
+  position: relative;
+}
+
+.mdt-save-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.mdt-ar-input,
+.mdt-ar-textarea,
+.mdt-ar-other {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 0.54rem 0.64rem;
+  font-size: 0.83rem;
+  font-family: "Noto Naskh Arabic", "Tajawal", "Cairo", Tahoma, sans-serif;
+}
+
+.mdt-ar-input:focus,
+.mdt-ar-textarea:focus,
+.mdt-ar-other:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.mdt-ar-textarea {
+  min-height: 95px;
+  resize: none;
+}
+
+.mdt-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.mdt-state-chip {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.16rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.mdt-state-chip.good {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.mdt-state-chip.copied {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.mdt-state-chip.missing {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.mdt-warning {
+  border-radius: 8px;
+  border: 1px dashed #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.28rem 0.45rem;
+}
+
+.mdt-translate-btn {
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 0.28rem 0.54rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mdt-translate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mdt-translate-note {
+  color: #166534;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.mdt-provenance {
+  padding: 0.85rem 1rem;
+}
+
+.mdt-provenance > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mdt-provenance-grid {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mdt-provenance-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.5rem 0.6rem;
+}
+
+.mdt-provenance-item strong {
+  display: block;
+  font-size: 0.68rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.2rem;
+}
+
+.mdt-provenance-item span {
+  font-size: 0.78rem;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.mdt-warning-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.mdt-warning-list li {
+  border-radius: 8px;
+  border: 1px dashed #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.73rem;
+  font-weight: 700;
+  padding: 0.36rem 0.45rem;
+}
+
+.mdt-sticky-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1100;
+  background: rgba(248, 250, 252, 0.96);
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(4px);
+}
+
+.mdt-sticky-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0.65rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.mdt-actions-left,
+.mdt-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mdt-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: none;
+}
+
+.mdt-modal.open {
+  display: block;
+}
+
+.mdt-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.58);
+}
+
+.mdt-modal-panel {
+  position: relative;
+  width: min(560px, calc(100vw - 30px));
+  margin: min(11vh, 90px) auto 0;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 26px 44px -24px rgba(15, 23, 42, 0.65);
+}
+
+.mdt-modal-head,
+.mdt-modal-foot {
+  padding: 0.85rem 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.55rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.mdt-modal-foot {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 0;
+  justify-content: flex-end;
+}
+
+.mdt-modal-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.mdt-modal-body {
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.62rem;
+}
+
+.mdt-modal-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+.mdt-toast {
+  position: fixed;
+  right: 14px;
+  bottom: 86px;
+  z-index: 1600;
+  border-radius: 10px;
+  padding: 0.58rem 0.78rem;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  background: #0f172a;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+
+.mdt-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mdt-hidden {
+  display: none !important;
+}
+
+@media (max-width: 980px) {
+  .mdt-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mdt-breakdown-row {
+    grid-template-columns: 120px 1fr 58px 100px;
+  }
+}
+
+@media (max-width: 760px) {
+  .mdt-breakdown-row {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+
+  .mdt-breakdown-score-text,
+  .mdt-breakdown-state {
+    text-align: left;
+  }
+}
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="sd-head">
-  <h1 class="sd-title"><i class="fas fa-file-alt"></i> {% trans "Scraped Item Detail" %}</h1>
+{% block scraping_page_content %}
+<div class="mdt-shell">
+  <section class="mdt-card">
+    <div class="mdt-topbar">
+      <div class="mdt-inline">
+        <a class="mdt-btn" href="{{ back_url }}">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i>
+          {% trans "Back to Queue" %}
+        </a>
+      </div>
 
-  <div class="sd-actions">
-    <form method="post" action="{% url 'scraping:scraping_result_validate' item_id %}" style="display:inline">{% csrf_token %}
-      <input type="hidden" name="category" value="{{ category }}">
-      <input type="hidden" name="q" value="{{ search_query|default:'' }}">
-      <input type="hidden" name="run_id" value="{{ selected_run_id|default:'' }}">
-      <button class="sd-btn validate" type="submit"><i class="fas fa-check"></i> {% trans "Validate & Publish" %}</button>
-    </form>
+      <div class="mdt-position">
+        {% blocktrans with index=position_index total=position_total filtered=filtered_total %}Item {{ index }} of {{ total }} (filtered: {{ filtered }}){% endblocktrans %}
+      </div>
 
-    <form method="post" action="{% url 'scraping:scraping_result_delete' item_id %}" style="display:inline" onsubmit="return confirm('{% trans 'Delete this scraped item permanently?' %}')">{% csrf_token %}
-      <input type="hidden" name="category" value="{{ category }}">
-      <input type="hidden" name="q" value="{{ search_query|default:'' }}">
-      <input type="hidden" name="run_id" value="{{ selected_run_id|default:'' }}">
-      <button class="sd-btn delete" type="submit"><i class="fas fa-trash"></i> {% trans "Delete" %}</button>
-    </form>
-
-    <a class="sd-btn" href="{{ back_url }}"><i class="fas fa-arrow-left"></i> {% trans "Back to Results" %}</a>
-  </div>
-</div>
-
-<div class="sd-card">
-  <h2>{{ title|default:"-" }}</h2>
-  <div class="sd-meta">
-    <div class="sd-meta-item">
-      <div class="sd-meta-label">{% trans "Category" %}</div>
-      <div class="sd-meta-value">{{ category_label }}</div>
-    </div>
-    <div class="sd-meta-item">
-      <div class="sd-meta-label">{% trans "Status" %}</div>
-      <div class="sd-meta-value"><span class="sd-badge {{ validation_badge }}">{{ validation_label }}</span></div>
-    </div>
-    <div class="sd-meta-item">
-      <div class="sd-meta-label">{% trans "Date" %}</div>
-      <div class="sd-meta-value">{% if scraped_date %}{{ scraped_date|date:"Y-m-d H:i" }}{% else %}-{% endif %}</div>
-    </div>
-    <div class="sd-meta-item">
-      <div class="sd-meta-label">{% trans "LLM Confidence Score" %}</div>
-      <div class="sd-meta-value">{% if confidence_score != None %}{{ confidence_score }}{% else %}-{% endif %}</div>
-    </div>
-    <div class="sd-meta-item">
-      <div class="sd-meta-label">{% trans "Source" %}</div>
-      <div class="sd-meta-value">{{ meta.source_name|default:item.source_name|default:"-" }}</div>
-    </div>
-    <div class="sd-meta-item">
-      <div class="sd-meta-label">{% trans "Raw URL" %}</div>
-      <div class="sd-meta-value">
-        {% if raw_url %}
-        <a href="{{ raw_url }}" target="_blank" rel="noopener">{{ raw_url }}</a>
-        {% else %}-{% endif %}
+      <div class="mdt-inline">
+        <a class="mdt-btn" href="{{ prev_url|default:'#' }}" {% if not has_prev %}aria-disabled="true"{% endif %}>
+          <i class="fas fa-arrow-left" aria-hidden="true"></i>
+          {% trans "Prev" %}
+        </a>
+        <a class="mdt-btn" href="{{ next_url|default:'#' }}" {% if not has_next %}aria-disabled="true"{% endif %}>
+          {% trans "Next" %}
+          <i class="fas fa-arrow-right" aria-hidden="true"></i>
+        </a>
       </div>
     </div>
-    {% if location %}
-    <div class="sd-meta-item">
-      <div class="sd-meta-label">{% trans "Location" %}</div>
-      <div class="sd-meta-value">{{ location }}</div>
+
+    <div class="mdt-meta">
+      <span class="mdt-pill meta">{{ category_label }}</span>
+      {% if status_badge == 'success' %}
+        {% include "scraping/components/status_badge.html" with status='approved' %}
+      {% elif status_badge == 'danger' %}
+        {% include "scraping/components/status_badge.html" with status='rejected' %}
+      {% else %}
+        {% include "scraping/components/status_badge.html" with status='pending' %}
+      {% endif %}
+      <span class="mdt-pill meta">{% blocktrans with score=overall_confidence %}Confidence: {{ score }}%{% endblocktrans %}</span>
+      {% if run_id %}
+      <span class="mdt-pill meta">{% blocktrans with run=run_id %}Run #{{ run }}{% endblocktrans %}</span>
+      {% endif %}
+      <span class="mdt-pill meta">
+        {% if scraped_date %}
+          {% blocktrans with ago=scraped_date|timesince %}Scraped {{ ago }} ago{% endblocktrans %}
+        {% else %}
+          {% trans "Scraped time unavailable" %}
+        {% endif %}
+      </span>
+      <span class="mdt-pill meta">{% blocktrans with src=source_domain|default:"-" %}Source: {{ src }}{% endblocktrans %}</span>
     </div>
-    {% endif %}
-  </div>
+  </section>
 
-  <div class="sd-card" style="margin:0 0 .9rem">
-    <div class="sd-meta-label">{% trans "Description" %}</div>
-    <div class="sd-desc">{{ description|default:"-" }}</div>
-  </div>
+  <section class="mdt-card mdt-breakdown">
+    <div class="mdt-breakdown-head">
+      <h2>{% trans "Confidence Breakdown" %}</h2>
+      <div class="mdt-breakdown-score">{{ overall_confidence }}%</div>
+    </div>
 
-  <div class="sd-card" style="margin:0">
-    <div class="sd-meta-label">{% trans "NER Entities Extracted" %}</div>
-    <div class="sd-chip-wrap">
-      {% for entity in ner_entities %}
-      <span class="sd-chip">{{ entity }}</span>
-      {% empty %}
-      <span style="color:var(--n-text-3)">{% trans "No extracted entities available." %}</span>
+    <ul class="mdt-breakdown-list">
+      {% for row in breakdown_rows %}
+      <li class="mdt-breakdown-row">
+        <span class="mdt-breakdown-label">
+          {% if row.key == 'title_en' %}{% trans "Title EN" %}
+          {% elif row.key == 'title_ar' %}{% trans "Title AR" %}
+          {% elif row.key == 'description_en' %}{% trans "Description EN" %}
+          {% elif row.key == 'description_ar' %}{% trans "Description AR" %}
+          {% elif row.key == 'date' %}{% trans "Date" %}
+          {% elif row.key == 'location' %}{% trans "Location" %}
+          {% elif row.key == 'url' %}{% trans "URL" %}
+          {% else %}{{ row.label }}{% endif %}
+        </span>
+
+        <span class="mdt-progress-track">
+          <span class="mdt-progress-fill {{ row.state }}" style="width: {{ row.score }}%;"></span>
+        </span>
+
+        <span class="mdt-breakdown-score-text">{{ row.score }}%</span>
+
+        <span class="mdt-breakdown-state">
+          {% if row.state == 'good' %}✅ {% trans "good" %}
+          {% elif row.state == 'copied' %}⚠️ {% trans "copied" %}
+          {% elif row.state == 'partial' %}⚠️ {% trans "partial" %}
+          {% else %}❌ {% trans "missing" %}{% endif %}
+        </span>
+      </li>
       {% endfor %}
+    </ul>
+  </section>
+
+  <section class="mdt-card" style="padding: 0.9rem;">
+    <div class="mdt-grid">
+      <div class="mdt-column">
+        <h3>{% trans "English (scraped)" %}</h3>
+        <p class="mdt-column-sub">{% trans "Read-only source values" %}</p>
+
+        <div class="mdt-field">
+          <p class="mdt-label">{% trans "Title" %}</p>
+          <div class="mdt-value" id="en-title-source">{{ title_en|default:"-" }}</div>
+        </div>
+
+        <div class="mdt-field">
+          <p class="mdt-label">{% trans "Description" %}</p>
+          <div class="mdt-value" id="en-description-source">{{ description_en|default:"-" }}</div>
+        </div>
+
+        <div class="mdt-field">
+          <p class="mdt-label">{% trans "Date" %}</p>
+          <div class="mdt-value">{{ date_display|default:"-" }}</div>
+        </div>
+
+        <div class="mdt-field" {% if not has_location %}style="display:none"{% endif %}>
+          <p class="mdt-label">{% trans "Location" %}</p>
+          <div class="mdt-value" id="en-location-source">{{ location_en|default:"-" }}</div>
+        </div>
+
+        <div class="mdt-field">
+          <p class="mdt-label">{% trans "URL" %}</p>
+          <div class="mdt-value link">
+            {% if source_url %}
+            <a href="{{ source_url }}" target="_blank" rel="noopener">{{ source_url }}</a>
+            {% else %}-{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="mdt-column mdt-ar-shell" dir="rtl">
+        <h3>{% trans "Arabic (for publication)" %}</h3>
+        <p class="mdt-column-sub">{% trans "Editable moderation fields" %}</p>
+        <div class="mdt-save-indicator" id="draft-save-indicator">{% trans "Saved" %}</div>
+
+        <div class="mdt-field" data-logical-field="title_ar" data-state="{{ title_translation_state }}">
+          <p class="mdt-label">{% trans "Title (Arabic)" %}</p>
+          <input
+            id="ar-title-input"
+            class="mdt-ar-input js-draft-field"
+            dir="rtl"
+            type="text"
+            value="{{ title_ar }}"
+            data-target-field="{{ title_ar_target_field }}"
+            data-source-text="{{ title_en|escapejs }}"
+            {% if not title_ar_target_field %}disabled{% endif %}
+          >
+          <div class="mdt-status-row">
+            <span class="mdt-state-chip {% if title_translation_state == 'translated' %}good{% elif title_translation_state == 'copied' %}copied{% else %}missing{% endif %}" id="title-ar-state-chip">
+              {% if title_translation_state == 'translated' %}✅ {% trans "Translated by AI" %}
+              {% elif title_translation_state == 'copied' %}⚠️ {% trans "Copied from English" %}
+              {% else %}❌ {% trans "Missing" %}{% endif %}
+            </span>
+            <span class="mdt-warning {% if title_translation_state != 'copied' %}mdt-hidden{% endif %}" id="title-ar-copied-warning">{% trans "Copied from English" %}</span>
+            <button
+              type="button"
+              class="mdt-translate-btn js-translate-btn"
+              data-input-id="ar-title-input"
+              data-state-chip-id="title-ar-state-chip"
+              data-warning-id="title-ar-copied-warning"
+              data-logical-field="title_ar"
+              data-field-type="title"
+              data-source-text="{{ title_en|escapejs }}"
+              {% if not title_ar_target_field %}disabled{% endif %}
+            >
+              🔄 {% trans "Re-translate with AI" %}
+            </button>
+            <span class="mdt-translate-note mdt-hidden" id="title-ar-translate-note">✅ {% trans "Translated just now" %}</span>
+          </div>
+        </div>
+
+        <div class="mdt-field" data-logical-field="description_ar" data-state="{{ description_translation_state }}">
+          <p class="mdt-label">{% trans "Description (Arabic)" %}</p>
+          <textarea
+            id="ar-description-input"
+            class="mdt-ar-textarea js-draft-field"
+            dir="rtl"
+            data-target-field="{{ description_ar_target_field }}"
+            data-source-text="{{ description_en|escapejs }}"
+            {% if not description_ar_target_field %}disabled{% endif %}
+          >{{ description_ar }}</textarea>
+          <div class="mdt-status-row">
+            <span class="mdt-state-chip {% if description_translation_state == 'translated' %}good{% elif description_translation_state == 'copied' %}copied{% else %}missing{% endif %}" id="description-ar-state-chip">
+              {% if description_translation_state == 'translated' %}✅ {% trans "Translated by AI" %}
+              {% elif description_translation_state == 'copied' %}⚠️ {% trans "Copied from English" %}
+              {% else %}❌ {% trans "Missing" %}{% endif %}
+            </span>
+            <span class="mdt-warning {% if description_translation_state != 'missing' %}mdt-hidden{% endif %}" id="description-ar-missing-warning">{% trans "Missing — needs input" %}</span>
+            <button
+              type="button"
+              class="mdt-translate-btn js-translate-btn"
+              data-input-id="ar-description-input"
+              data-state-chip-id="description-ar-state-chip"
+              data-warning-id="description-ar-missing-warning"
+              data-logical-field="description_ar"
+              data-field-type="description"
+              data-source-text="{{ description_en|escapejs }}"
+              {% if not description_ar_target_field %}disabled{% endif %}
+            >
+              🔄 {% trans "Generate with AI" %}
+            </button>
+            <span class="mdt-translate-note mdt-hidden" id="description-ar-translate-note">✅ {% trans "Translated just now" %}</span>
+          </div>
+        </div>
+
+        {% if has_location %}
+        <div class="mdt-field" data-logical-field="location_ar" data-state="{{ location_translation_state }}">
+          <p class="mdt-label">{% trans "Location (Arabic)" %}</p>
+          <input
+            id="ar-location-input"
+            class="mdt-ar-input js-draft-field"
+            dir="rtl"
+            type="text"
+            value="{{ location_ar }}"
+            data-target-field="{{ location_ar_target_field }}"
+            data-source-text="{{ location_en|escapejs }}"
+            {% if not location_ar_target_field %}disabled{% endif %}
+          >
+          <div class="mdt-status-row">
+            <span class="mdt-state-chip {% if location_translation_state == 'translated' %}good{% elif location_translation_state == 'copied' %}copied{% else %}missing{% endif %}" id="location-ar-state-chip">
+              {% if location_translation_state == 'translated' %}✅ {% trans "Translated by AI" %}
+              {% elif location_translation_state == 'copied' %}⚠️ {% trans "Copied from English" %}
+              {% else %}❌ {% trans "Missing" %}{% endif %}
+            </span>
+            <button
+              type="button"
+              class="mdt-translate-btn js-translate-btn"
+              data-input-id="ar-location-input"
+              data-state-chip-id="location-ar-state-chip"
+              data-logical-field="location_ar"
+              data-field-type="title"
+              data-source-text="{{ location_en|escapejs }}"
+              {% if not location_ar_target_field %}disabled{% endif %}
+            >
+              🔄 {% trans "Generate with AI" %}
+            </button>
+            <span class="mdt-translate-note mdt-hidden" id="location-ar-translate-note">✅ {% trans "Translated just now" %}</span>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="mdt-field">
+          <p class="mdt-label">{% trans "Date (Arabic display)" %}</p>
+          <div class="mdt-value" dir="rtl">{{ date_display_ar|default:"-" }}</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mdt-card">
+    <details class="mdt-provenance">
+      <summary>{% trans "Provenance" %} ▾</summary>
+      <div class="mdt-provenance-grid">
+        <div class="mdt-provenance-item">
+          <strong>{% trans "Run" %}</strong>
+          <span>
+            {% if run_id %}
+              {% blocktrans with run=run_id category=category_label started=run_started_at|date:"Y-m-d H:i" %}Run #{{ run }} · {{ category }} · {{ started }}{% endblocktrans %}
+            {% else %}
+              {% trans "Run metadata unavailable" %}
+            {% endif %}
+          </span>
+        </div>
+
+        <div class="mdt-provenance-item">
+          <strong>{% trans "Source" %}</strong>
+          <span>
+            {% if source_url %}
+              {% blocktrans with source_name=source_name score=trust_score %}{{ source_name }} (trust: {{ score }}){% endblocktrans %}
+              ✅
+            {% else %}
+              {% trans "Source metadata unavailable" %}
+            {% endif %}
+          </span>
+        </div>
+
+        <div class="mdt-provenance-item">
+          <strong>{% trans "Query" %}</strong>
+          <span>{{ query_used|default:"-" }}</span>
+        </div>
+
+        <div class="mdt-provenance-item">
+          <strong>{% trans "Extraction" %}</strong>
+          <span>
+            {% blocktrans with model=llm_model duration=llm_response_seconds %}Extracted by LLM ({{ model }}) · {{ duration }}s{% endblocktrans %}
+          </span>
+        </div>
+
+        <div class="mdt-provenance-item">
+          <strong>{% trans "Translation" %}</strong>
+          <span>
+            {% blocktrans with status=translation_status translated=translated_fields_count total=translation_total_fields %}LLM attempted · {{ status }} ({{ translated }}/{{ total }} fields){% endblocktrans %}
+          </span>
+        </div>
+
+        <div class="mdt-provenance-item">
+          <strong>{% trans "Warnings" %}</strong>
+          <ul class="mdt-warning-list">
+            {% for warning in provenance_warnings %}
+            <li>
+              {% if warning.key == 'title_copied' %}{% trans "title_ar copied from English" %}
+              {% elif warning.key == 'description_missing' %}{% trans "description_ar empty after extraction" %}
+              {% elif warning.key == 'location_missing' %}{% trans "location_ar empty after extraction" %}
+              {% elif warning.key == 'skip_reason' %}{% blocktrans with value=warning.value %}skip reason: {{ value }}{% endblocktrans %}
+              {% elif warning.key == 'source_error' %}{% blocktrans with value=warning.value %}source error: {{ value }}{% endblocktrans %}
+              {% else %}{{ warning.value }}{% endif %}
+            </li>
+            {% empty %}
+            <li>{% trans "No extraction warnings." %}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </details>
+  </section>
+</div>
+
+<form id="approve-form" method="post" action="{{ validate_url }}" class="mdt-hidden">
+  {% csrf_token %}
+  <input type="hidden" name="category" value="{{ current_filters.category }}">
+  <input type="hidden" name="q" value="{{ current_filters.q }}">
+  <input type="hidden" name="run_id" value="{{ current_filters.run_id }}">
+  <input type="hidden" name="source" value="{{ current_filters.source }}">
+  <input type="hidden" name="confidence" value="{{ current_filters.confidence }}">
+  <input type="hidden" name="translation" value="{{ current_filters.translation }}">
+  <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
+  <input type="hidden" name="date_from" value="{{ current_filters.date_from_raw }}">
+  <input type="hidden" name="date_to" value="{{ current_filters.date_to_raw }}">
+  <input type="hidden" name="per_page" value="{{ current_filters.per_page }}">
+  <input type="hidden" name="page" value="{{ current_filters.page }}">
+  <input type="hidden" name="next_item_url" value="{{ fallback_next_url }}">
+</form>
+
+<form id="delete-form" method="post" action="{{ delete_url }}" class="mdt-hidden">
+  {% csrf_token %}
+  <input type="hidden" name="category" value="{{ current_filters.category }}">
+  <input type="hidden" name="q" value="{{ current_filters.q }}">
+  <input type="hidden" name="run_id" value="{{ current_filters.run_id }}">
+  <input type="hidden" name="source" value="{{ current_filters.source }}">
+  <input type="hidden" name="confidence" value="{{ current_filters.confidence }}">
+  <input type="hidden" name="translation" value="{{ current_filters.translation }}">
+  <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
+  <input type="hidden" name="date_from" value="{{ current_filters.date_from_raw }}">
+  <input type="hidden" name="date_to" value="{{ current_filters.date_to_raw }}">
+  <input type="hidden" name="per_page" value="{{ current_filters.per_page }}">
+  <input type="hidden" name="page" value="{{ current_filters.page }}">
+  <input type="hidden" name="next_item_url" value="{{ fallback_next_url }}">
+</form>
+
+<div class="mdt-sticky-actions">
+  <div class="mdt-sticky-inner">
+    <div class="mdt-actions-left">
+      <button type="button" class="mdt-btn" id="save-draft-btn">💾 {% trans "Save Draft" %}</button>
+      <button type="button" class="mdt-btn primary" id="approve-btn">✅ {% trans "Approve & Publish" %}</button>
+      <button type="button" class="mdt-btn warn" id="reject-btn">❌ {% trans "Reject" %} ▾</button>
+    </div>
+    <div class="mdt-actions-right">
+      <button type="button" class="mdt-btn danger" id="delete-btn">🗑 {% trans "Delete" %}</button>
     </div>
   </div>
 </div>
 
-<div class="sd-card">
-  <div class="sd-meta-label" style="margin-bottom:.55rem">{% trans "Platform Preview" %}</div>
-  <div class="sd-platform-preview">
-    <h3>{{ title|default:"-" }}</h3>
-    <p>{{ description|truncatechars:280|default:"-" }}</p>
+<div class="mdt-modal" id="approve-warning-modal" aria-hidden="true">
+  <div class="mdt-modal-backdrop" data-close-modal="approve-warning-modal"></div>
+  <div class="mdt-modal-panel" role="dialog" aria-modal="true" aria-labelledby="approve-warning-title">
+    <div class="mdt-modal-head">
+      <h3 class="mdt-modal-title" id="approve-warning-title">{% trans "Publish Warning" %}</h3>
+      <button type="button" class="mdt-btn" data-close-modal="approve-warning-modal">{% trans "Close" %}</button>
+    </div>
+    <div class="mdt-modal-body">
+      <p class="mdt-modal-note" id="approve-warning-text"></p>
+    </div>
+    <div class="mdt-modal-foot">
+      <button type="button" class="mdt-btn" data-close-modal="approve-warning-modal">{% trans "Review Again" %}</button>
+      <button type="button" class="mdt-btn primary" id="approve-warning-confirm">{% trans "Publish Anyway" %}</button>
+    </div>
   </div>
 </div>
+
+<div class="mdt-modal" id="reject-modal" aria-hidden="true">
+  <div class="mdt-modal-backdrop" data-close-modal="reject-modal"></div>
+  <div class="mdt-modal-panel" role="dialog" aria-modal="true" aria-labelledby="reject-modal-title">
+    <div class="mdt-modal-head">
+      <h3 class="mdt-modal-title" id="reject-modal-title">{% trans "Reject Item" %}</h3>
+      <button type="button" class="mdt-btn" data-close-modal="reject-modal">{% trans "Close" %}</button>
+    </div>
+    <div class="mdt-modal-body">
+      <label class="mdt-label" for="reject-reason-select">{% trans "Reason" %}</label>
+      <select id="reject-reason-select" class="mdt-ar-other" dir="ltr">
+        <option value="irrelevant">{% trans "Irrelevant to Arabic NLP" %}</option>
+        <option value="poor_translation">{% trans "Poor Arabic translation" %}</option>
+        <option value="duplicate">{% trans "Duplicate content" %}</option>
+        <option value="unreliable_source">{% trans "Unreliable source" %}</option>
+        <option value="outdated">{% trans "Outdated information" %}</option>
+        <option value="other">{% trans "Other" %}</option>
+      </select>
+
+      <label class="mdt-label" for="reject-reason-other">{% trans "Additional details" %}</label>
+      <textarea id="reject-reason-other" class="mdt-ar-other" rows="3" dir="ltr" placeholder="{% trans 'Optional details' %}"></textarea>
+    </div>
+    <div class="mdt-modal-foot">
+      <button type="button" class="mdt-btn" data-close-modal="reject-modal">{% trans "Cancel" %}</button>
+      <button type="button" class="mdt-btn warn" id="reject-confirm-btn">{% trans "Confirm Reject" %}</button>
+    </div>
+  </div>
+</div>
+
+<div class="mdt-modal" id="delete-modal" aria-hidden="true">
+  <div class="mdt-modal-backdrop" data-close-modal="delete-modal"></div>
+  <div class="mdt-modal-panel" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+    <div class="mdt-modal-head">
+      <h3 class="mdt-modal-title" id="delete-modal-title">{% trans "Delete Item" %}</h3>
+      <button type="button" class="mdt-btn" data-close-modal="delete-modal">{% trans "Close" %}</button>
+    </div>
+    <div class="mdt-modal-body">
+      <p class="mdt-modal-note">{% trans "This will permanently delete this item. This cannot be undone." %}</p>
+      <label class="mdt-label" for="delete-confirm-input">{% trans "Type DELETE to confirm" %}</label>
+      <input id="delete-confirm-input" type="text" class="mdt-ar-other" dir="ltr" autocomplete="off">
+    </div>
+    <div class="mdt-modal-foot">
+      <button type="button" class="mdt-btn" data-close-modal="delete-modal">{% trans "Cancel" %}</button>
+      <button type="button" class="mdt-btn danger" id="delete-confirm-btn" disabled>{% trans "Delete Permanently" %}</button>
+    </div>
+  </div>
+</div>
+
+<div class="mdt-toast" id="moderation-toast"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  const itemId = '{{ item_id }}';
+  const categoryKey = '{{ category }}';
+  const overallConfidence = Number('{{ overall_confidence }}') || 0;
+  const prevUrl = '{{ prev_url|escapejs }}';
+  const nextUrl = '{{ next_url|escapejs }}';
+  const fallbackNextUrl = '{{ fallback_next_url|escapejs }}';
+
+  const urls = {
+    translateField: '{{ translate_field_api_url|escapejs }}',
+    saveDraft: '{{ save_draft_api_url|escapejs }}',
+    reject: '{{ reject_api_url|escapejs }}',
+  };
+
+  const i18n = {
+    saving: '{% trans "Saving..." %}',
+    saved: '{% trans "Draft saved" %} ✅',
+    saveFailed: '{% trans "Draft save failed" %}',
+    translating: '{% trans "Translating..." %}',
+    translationFailed: '{% trans "Translation failed" %}',
+    translatedNow: '✅ {% trans "Translated just now" %}',
+    approveCopiedWarning: '{% trans "Some Arabic fields are copies of English text. Are you sure you want to publish?" %}',
+    approveLowConfidence: '{% trans "Confidence is below 60%. Please review before publishing." %}',
+    rejectFailed: '{% trans "Reject request failed" %}',
+    deleteKeyword: 'DELETE',
+    rejectSaved: '{% trans "Rejected successfully" %}',
+  };
+
+  const draftIndicator = document.getElementById('draft-save-indicator');
+  const saveDraftBtn = document.getElementById('save-draft-btn');
+  const approveBtn = document.getElementById('approve-btn');
+  const rejectBtn = document.getElementById('reject-btn');
+  const deleteBtn = document.getElementById('delete-btn');
+  const approveForm = document.getElementById('approve-form');
+  const deleteForm = document.getElementById('delete-form');
+  const toastEl = document.getElementById('moderation-toast');
+
+  const rejectModal = document.getElementById('reject-modal');
+  const rejectReasonSelect = document.getElementById('reject-reason-select');
+  const rejectReasonOther = document.getElementById('reject-reason-other');
+  const rejectConfirmBtn = document.getElementById('reject-confirm-btn');
+
+  const deleteModal = document.getElementById('delete-modal');
+  const deleteInput = document.getElementById('delete-confirm-input');
+  const deleteConfirmBtn = document.getElementById('delete-confirm-btn');
+
+  const approveWarningModal = document.getElementById('approve-warning-modal');
+  const approveWarningText = document.getElementById('approve-warning-text');
+  const approveWarningConfirm = document.getElementById('approve-warning-confirm');
+
+  const stateMap = {
+    title_ar: '{{ title_translation_state }}',
+    description_ar: '{{ description_translation_state }}',
+    location_ar: '{{ location_translation_state }}',
+  };
+
+  const sourceMap = {
+    title_ar: '{{ title_en|escapejs }}',
+    description_ar: '{{ description_en|escapejs }}',
+    location_ar: '{{ location_en|escapejs }}',
+  };
+
+  const chipMap = {
+    title_ar: document.getElementById('title-ar-state-chip'),
+    description_ar: document.getElementById('description-ar-state-chip'),
+    location_ar: document.getElementById('location-ar-state-chip'),
+  };
+
+  const inputMap = {
+    title_ar: document.getElementById('ar-title-input'),
+    description_ar: document.getElementById('ar-description-input'),
+    location_ar: document.getElementById('ar-location-input'),
+  };
+
+  const warningMap = {
+    title_ar: document.getElementById('title-ar-copied-warning'),
+    description_ar: document.getElementById('description-ar-missing-warning'),
+  };
+
+  const warningConditionMap = {
+    title_ar: 'copied',
+    description_ar: 'missing',
+  };
+
+  let saveTimer = null;
+  let savingNow = false;
+  let savePromise = null;
+
+  function getCsrfToken() {
+    const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (tokenInput && tokenInput.value) {
+      return tokenInput.value;
+    }
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function showToast(message, isError) {
+    if (!toastEl) {
+      return;
+    }
+    toastEl.textContent = message;
+    toastEl.style.background = isError ? '#b91c1c' : '#0f172a';
+    toastEl.classList.add('show');
+    window.setTimeout(() => {
+      toastEl.classList.remove('show');
+    }, 2200);
+  }
+
+  function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+      return;
+    }
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+      return;
+    }
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function closeAllModals() {
+    closeModal('approve-warning-modal');
+    closeModal('reject-modal');
+    closeModal('delete-modal');
+  }
+
+  function normalizeValue(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  function updateStateChip(logicalField, newState) {
+    const chip = chipMap[logicalField];
+    if (!chip) {
+      return;
+    }
+
+    chip.classList.remove('good', 'copied', 'missing');
+    let text = '';
+    if (newState === 'translated') {
+      chip.classList.add('good');
+      text = '✅ {% trans "Translated by AI" %}';
+    } else if (newState === 'copied') {
+      chip.classList.add('copied');
+      text = '⚠️ {% trans "Copied from English" %}';
+    } else {
+      chip.classList.add('missing');
+      text = '❌ {% trans "Missing" %}';
+    }
+    chip.textContent = text;
+
+    if (warningMap[logicalField]) {
+      const visibleState = warningConditionMap[logicalField] || '';
+      if (visibleState && newState === visibleState) {
+        warningMap[logicalField].classList.remove('mdt-hidden');
+      } else {
+        warningMap[logicalField].classList.add('mdt-hidden');
+      }
+    }
+  }
+
+  function recalculateState(logicalField) {
+    const input = inputMap[logicalField];
+    if (!input || input.disabled) {
+      return;
+    }
+
+    const current = normalizeValue(input.value);
+    const source = normalizeValue(sourceMap[logicalField]);
+    let newState = 'translated';
+
+    if (!current) {
+      newState = 'missing';
+    } else if (source && current === source) {
+      newState = 'copied';
+    }
+
+    stateMap[logicalField] = newState;
+    updateStateChip(logicalField, newState);
+  }
+
+  function autoResizeTextareas() {
+    document.querySelectorAll('.mdt-ar-textarea').forEach((textarea) => {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.max(textarea.scrollHeight, 95) + 'px';
+    });
+  }
+
+  function collectDraftFields() {
+    const fields = {};
+
+    ['title_ar', 'description_ar', 'location_ar'].forEach((logical) => {
+      const input = inputMap[logical];
+      if (!input || input.disabled) {
+        return;
+      }
+      const targetField = input.dataset.targetField || '';
+      if (!targetField) {
+        return;
+      }
+      fields[logical] = input.value;
+    });
+
+    return fields;
+  }
+
+  async function saveDraft(showSuccessToast) {
+    if (savePromise) {
+      return savePromise;
+    }
+
+    const fields = collectDraftFields();
+    if (!Object.keys(fields).length) {
+      return true;
+    }
+
+    savePromise = (async function () {
+      savingNow = true;
+      if (draftIndicator) {
+        draftIndicator.textContent = i18n.saving;
+      }
+
+      try {
+        const response = await fetch(urls.saveDraft, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            category: categoryKey,
+            fields: fields,
+          }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.saved) {
+          throw new Error('save_failed');
+        }
+
+        if (draftIndicator) {
+          draftIndicator.textContent = '{% trans "Saved" %}';
+        }
+        if (showSuccessToast) {
+          showToast(i18n.saved, false);
+        }
+        return true;
+      } catch (_error) {
+        if (draftIndicator) {
+          draftIndicator.textContent = '{% trans "Save failed" %}';
+        }
+        showToast(i18n.saveFailed, true);
+        return false;
+      } finally {
+        savingNow = false;
+        savePromise = null;
+      }
+    })();
+
+    return savePromise;
+  }
+
+  function scheduleAutoSave() {
+    if (saveTimer) {
+      window.clearTimeout(saveTimer);
+    }
+    saveTimer = window.setTimeout(() => saveDraft(false), 3000);
+  }
+
+  async function translateField(button) {
+    const inputId = button.dataset.inputId;
+    const logicalField = button.dataset.logicalField;
+    const fieldType = button.dataset.fieldType;
+    const sourceText = button.dataset.sourceText || '';
+    const targetInput = document.getElementById(inputId);
+    if (!targetInput || targetInput.disabled) {
+      return;
+    }
+
+    const originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = i18n.translating;
+
+    try {
+      const response = await fetch(urls.translateField, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          item_id: itemId,
+          category: categoryKey,
+          field_name: logicalField,
+          field_type: fieldType,
+          source_text: sourceText,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.translated_text) {
+        throw new Error('translation_failed');
+      }
+
+      targetInput.value = payload.translated_text;
+      recalculateState(logicalField);
+      autoResizeTextareas();
+      scheduleAutoSave();
+
+      const noteId = logicalField === 'title_ar'
+        ? 'title-ar-translate-note'
+        : (logicalField === 'description_ar' ? 'description-ar-translate-note' : 'location-ar-translate-note');
+      const note = document.getElementById(noteId);
+      if (note) {
+        note.classList.remove('mdt-hidden');
+        note.textContent = i18n.translatedNow;
+        window.setTimeout(() => note.classList.add('mdt-hidden'), 2200);
+      }
+
+      showToast('{% trans "Field translated" %} ✅', false);
+    } catch (_error) {
+      showToast(i18n.translationFailed, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
+
+  function hasCopiedFields() {
+    return Object.keys(stateMap).some((field) => stateMap[field] === 'copied');
+  }
+
+  function openApproveWarningModal() {
+    const warnings = [];
+    if (hasCopiedFields()) {
+      warnings.push(i18n.approveCopiedWarning);
+    }
+    if (overallConfidence < 60) {
+      warnings.push(i18n.approveLowConfidence);
+    }
+
+    if (!warnings.length) {
+      if (approveForm) {
+        approveForm.submit();
+      }
+      return;
+    }
+
+    if (approveWarningText) {
+      approveWarningText.textContent = warnings.join(' ');
+    }
+    openModal('approve-warning-modal');
+  }
+
+  async function submitReject() {
+    const reason = rejectReasonSelect ? rejectReasonSelect.value : '';
+    const reasonOther = rejectReasonOther ? rejectReasonOther.value : '';
+
+    try {
+      const response = await fetch(urls.reject, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          category: categoryKey,
+          reason: reason,
+          reason_other: reasonOther,
+          next_item_url: fallbackNextUrl,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.rejected) {
+        throw new Error('reject_failed');
+      }
+
+      showToast(i18n.rejectSaved, false);
+      window.setTimeout(() => {
+        window.location.href = payload.next_url || fallbackNextUrl;
+      }, 250);
+    } catch (_error) {
+      showToast(i18n.rejectFailed, true);
+    }
+  }
+
+  document.querySelectorAll('[data-close-modal]').forEach((button) => {
+    button.addEventListener('click', function () {
+      closeModal(button.dataset.closeModal);
+    });
+  });
+
+  if (saveDraftBtn) {
+    saveDraftBtn.addEventListener('click', function () {
+      saveDraft(true);
+    });
+  }
+
+  if (approveBtn) {
+    approveBtn.addEventListener('click', async function () {
+      const saved = await saveDraft(false);
+      if (!saved) {
+        return;
+      }
+      openApproveWarningModal();
+    });
+  }
+
+  if (approveWarningConfirm) {
+    approveWarningConfirm.addEventListener('click', async function () {
+      const saved = await saveDraft(false);
+      if (!saved) {
+        return;
+      }
+      closeModal('approve-warning-modal');
+      if (approveForm) {
+        approveForm.submit();
+      }
+    });
+  }
+
+  if (rejectBtn) {
+    rejectBtn.addEventListener('click', function () {
+      openModal('reject-modal');
+    });
+  }
+
+  if (rejectConfirmBtn) {
+    rejectConfirmBtn.addEventListener('click', async function () {
+      await saveDraft(false);
+      submitReject();
+    });
+  }
+
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', function () {
+      if (deleteInput) {
+        deleteInput.value = '';
+      }
+      if (deleteConfirmBtn) {
+        deleteConfirmBtn.disabled = true;
+      }
+      openModal('delete-modal');
+    });
+  }
+
+  if (deleteInput) {
+    deleteInput.addEventListener('input', function () {
+      if (!deleteConfirmBtn) {
+        return;
+      }
+      deleteConfirmBtn.disabled = String(deleteInput.value || '').trim().toUpperCase() !== i18n.deleteKeyword;
+    });
+  }
+
+  if (deleteConfirmBtn) {
+    deleteConfirmBtn.addEventListener('click', function () {
+      if (deleteForm) {
+        deleteForm.submit();
+      }
+    });
+  }
+
+  document.querySelectorAll('.js-translate-btn').forEach((button) => {
+    button.addEventListener('click', function () {
+      translateField(button);
+    });
+  });
+
+  document.querySelectorAll('.js-draft-field').forEach((field) => {
+    field.addEventListener('input', function () {
+      const wrapper = field.closest('[data-logical-field]');
+      if (wrapper) {
+        recalculateState(wrapper.dataset.logicalField);
+      }
+      scheduleAutoSave();
+      autoResizeTextareas();
+    });
+  });
+
+  document.addEventListener('keydown', function (event) {
+    const targetTag = (event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '');
+    const isFieldFocused = targetTag === 'input' || targetTag === 'textarea' || targetTag === 'select' || (event.target && event.target.isContentEditable);
+
+    if (event.key === 'Escape') {
+      closeAllModals();
+      return;
+    }
+
+    if (isFieldFocused) {
+      return;
+    }
+
+    if (event.key === 'ArrowLeft' && prevUrl) {
+      event.preventDefault();
+      window.location.href = prevUrl;
+      return;
+    }
+
+    if (event.key === 'ArrowRight' && nextUrl) {
+      event.preventDefault();
+      window.location.href = nextUrl;
+    }
+  });
+
+  autoResizeTextareas();
+})();
+</script>
 {% endblock %}

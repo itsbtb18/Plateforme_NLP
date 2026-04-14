@@ -124,7 +124,7 @@ class HomePageView(TemplateView):
 
 
 class OpportunitiesPageView(LoginRequiredMixin, TemplateView):
-    template_name = "opportunities.html"
+    template_name = "opportunities/list.html"
     login_url = "account_login"
 
     def get_context_data(self, **kwargs):
@@ -257,6 +257,29 @@ class OpportunitiesPageView(LoginRequiredMixin, TemplateView):
 
 
 def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
+    def _safe_iso_date(value):
+        if hasattr(value, "isoformat"):
+            try:
+                return value.isoformat()
+            except Exception:
+                pass
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        return timezone.localdate().isoformat()
+
+    def _safe_iso_datetime(value):
+        if hasattr(value, "isoformat"):
+            try:
+                return value.isoformat()
+            except Exception:
+                pass
+        return timezone.now().isoformat()
+
+    def _safe_datetime(value):
+        if isinstance(value, datetime.datetime):
+            return value
+        return timezone.now()
+
     institution = getattr(opportunity, "institution", None)
     organization_en = (
         opportunity.organization_en
@@ -272,7 +295,9 @@ def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
     location_ar = opportunity.location or getattr(institution, "city_ar", "") or getattr(institution, "city", "")
     description = (opportunity.description or "").strip()
     short_text = description[:180] + ("..." if len(description) > 180 else "")
-    created_at = getattr(opportunity, "created_at", timezone.now())
+    created_at = _safe_datetime(getattr(opportunity, "created_at", None))
+    deadline_value = getattr(opportunity, "deadline", None)
+    deadline_iso = _safe_iso_date(deadline_value)
     return {
         "id": str(opportunity.pk),
         "title": {
@@ -287,12 +312,14 @@ def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
         "mode": opportunity.mode,
         "level": opportunity.level,
         "skills": normalize_skills(opportunity.skills or []),
-        "deadline": opportunity.deadline.isoformat(),
-        "createdAt": created_at.isoformat(),
+        "deadline": deadline_iso,
+        "createdAt": _safe_iso_datetime(created_at),
         "relevance": 100,
         "isNew": (timezone.now() - created_at).days <= 30,
         "orgInitials": "".join(part[0] for part in organization_en.split()[:2]).upper() if organization_en else "OP",
         "contact": opportunity.contact,
+        "author": getattr(getattr(opportunity, "created_by", None), "get_full_name_display", lambda: "")() or organization_en,
+        "url": reverse("pages:opportunities"),
     }
 
 

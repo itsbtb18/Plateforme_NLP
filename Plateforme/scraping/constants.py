@@ -14,6 +14,68 @@ from __future__ import annotations
 
 import os
 
+# Canonical category source of truth used across scraping registries, model
+# choices, and management commands.
+CANONICAL_CATEGORIES: list[str] = [
+    "events",
+    "tools",
+    "courses",
+    "news",
+    "opportunities",
+    "corpus",
+]
+
+CATEGORY_META: dict[str, dict[str, str]] = {
+    "events": {
+        "label": "Events",
+        "label_ar": "الفعاليات",
+        "icon": "calendar",
+        "color": "blue",
+        "model_app": "events",
+        "model_name": "Event",
+    },
+    "tools": {
+        "label": "Tools",
+        "label_ar": "الأدوات",
+        "icon": "wrench",
+        "color": "purple",
+        "model_app": "resources",
+        "model_name": "NLPTool",
+    },
+    "courses": {
+        "label": "Courses",
+        "label_ar": "الدورات",
+        "icon": "academic-cap",
+        "color": "green",
+        "model_app": "resources",
+        "model_name": "Course",
+    },
+    "news": {
+        "label": "News",
+        "label_ar": "الأخبار",
+        "icon": "newspaper",
+        "color": "yellow",
+        "model_app": "QA",
+        "model_name": "Post",
+    },
+    "opportunities": {
+        "label": "Opportunities",
+        "label_ar": "الفرص",
+        "icon": "briefcase",
+        "color": "orange",
+        "model_app": "pages",
+        "model_name": "Opportunity",
+    },
+    "corpus": {
+        "label": "Corpus",
+        "label_ar": "المدونات اللغوية",
+        "icon": "database",
+        "color": "red",
+        "model_app": "resources",
+        "model_name": "Corpus",
+    },
+}
+
 # ---------------------------------------------------------------------------
 # API base URLs
 # ---------------------------------------------------------------------------
@@ -157,11 +219,11 @@ CATEGORY_EVENTS: str = "events"
 CATEGORY_TOOLS: str = "tools"
 CATEGORY_COURSES: str = "courses"
 
-ALL_CATEGORIES: tuple[str, ...] = (
-    CATEGORY_EVENTS,
-    CATEGORY_TOOLS,
-    CATEGORY_COURSES,
-)
+CATEGORY_NEWS: str = "news"
+CATEGORY_OPPORTUNITIES: str = "opportunities"
+CATEGORY_CORPUS: str = "corpus"
+
+ALL_CATEGORIES: tuple[str, ...] = tuple(CANONICAL_CATEGORIES)
 """Exhaustive tuple of valid scraping category keys."""
 
 EVENT_PRIORITY_SCORES: dict[str, int] = {
@@ -384,7 +446,10 @@ PDF_URL_PATTERNS: list[str] = os.getenv(
 
 SCRAPER_REGISTRY: dict[str, str] = {
     "events": "scraping.scrapers.events.EventScraper",
-    "courses": "scraping.scrapers.courses.CourseScraper",
     "tools": "scraping.scrapers.tools.ToolScraper",
+    "courses": "scraping.scrapers.courses.CourseScraper",
+    "news": "scraping.scrapers.news.NewsScraper",
+    "opportunities": "scraping.scrapers.opportunities.OpportunityScraper",
+    "corpus": "scraping.scrapers.corpus.CorpusScraper",
 }
 """Map of category to scraper class path for dynamic loading."""

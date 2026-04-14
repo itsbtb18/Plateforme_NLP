@@ -3,9 +3,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
+import re
+import time
 from typing import Any
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
+from scraping.utils import infer_translation_status
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +37,7 @@ class LLMCourseExtractor:
             default=str,
         )
 
+        await asyncio.to_thread(time.sleep, random.uniform(1, 3))
         try:
             raw_text = await asyncio.to_thread(
                 self.client._chat,
@@ -56,23 +61,39 @@ class LLMCourseExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
-        return """You are a strict extraction assistant for NLP/AI courses.
-You receive search_results as JSON array entries (title/url/content).
-Return ONLY a JSON array and no markdown.
-Each output item should include these keys:
-- title_en
-- title_ar
-- description_en
-- description_ar
-- platform
-- level
-- price
-- url
-Rules:
-- Keep only real course/training items relevant to NLP/AI.
-- level should be one of: beginner, intermediate, advanced when possible.
-- price can be textual (e.g. Free, $49, 0), null if unknown.
-- If a field is unknown, return null.
+        return """You are an expert data extractor for an Arabic NLP research platform.
+Extract structured information about NLP/AI courses and training.
+
+EXTRACTION RULES:
+1. Return ONLY valid JSON (no explanation, no markdown).
+2. Return a JSON array of course objects.
+3. If unknown, return null.
+4. Do NOT invent platforms, prices, or URLs.
+5. title_en and description_en must be in English.
+6. title_ar and description_ar MUST be real Arabic translations.
+
+CRITICAL ARABIC RULES:
+- Use Modern Standard Arabic.
+- NEVER copy English text into Arabic fields.
+- Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
+- Keep technical terms in English when needed.
+
+OUTPUT FORMAT:
+{
+  "title_en": "string or null",
+  "title_ar": "Arabic translation or null",
+  "description_en": "string or null",
+  "description_ar": "Arabic translation or null",
+  "platform": "string or null",
+  "level": "beginner|intermediate|advanced or null",
+  "price": "string or null",
+  "url": "https://... or null",
+  "is_arabic_nlp_relevant": true or false,
+  "relevance_score": 0.0 to 1.0,
+  "extraction_confidence": 0.0 to 1.0
+}
+
+Return [] if no relevant courses are found.
 """
 
     @staticmethod
@@ -97,7 +118,13 @@ Rules:
         try:
             parsed = json.loads(cleaned)
         except json.JSONDecodeError:
-            return []
+            fallback_json = self._extract_json_array_block(cleaned)
+            if not fallback_json:
+                return []
+            try:
+                parsed = json.loads(fallback_json)
+            except json.JSONDecodeError:
+                return []
 
         if isinstance(parsed, list):
             return [item for item in parsed if isinstance(item, dict)]
@@ -116,6 +143,13 @@ Rules:
             cleaned = cleaned.replace("```json", "", 1).replace("```", "")
         return cleaned.strip()
 
+    @staticmethod
+    def _extract_json_array_block(text: str) -> str:
+        match = re.search(r"\[[\s\S]*\]", text)
+        if not match:
+            return ""
+        return match.group(0).strip()
+
     def _normalize_item(self, item: dict[str, Any]) -> dict[str, Any] | None:
         title_en = self._pick_text(item, "title_en", "title", "name")
         description_en = self._pick_text(
@@ -128,8 +162,8 @@ Rules:
         if not title_en or not description_en:
             return None
 
-        title_ar = self._pick_text(item, "title_ar") or title_en
-        description_ar = self._pick_text(item, "description_ar") or description_en
+        title_ar = self._pick_text(item, "title_ar") or None
+        description_ar = self._pick_text(item, "description_ar") or None
 
         platform = self._pick_text(item, "platform", "provider", "institution")
         level = self._pick_text(item, "level", "course_level")
@@ -140,15 +174,22 @@ Rules:
         if not url:
             return None
 
+        translation_status = infer_translation_status(
+            raw_status=item.get("translation_status"),
+            english_values=[title_en, description_en],
+            arabic_values=[title_ar, description_ar],
+        )
+
         return {
             "title_en": title_en[:300],
-            "title_ar": title_ar[:300],
+            "title_ar": title_ar[:300] if title_ar else None,
             "description_en": description_en[:5000],
-            "description_ar": description_ar[:5000],
+            "description_ar": description_ar[:5000] if description_ar else None,
             "platform": platform[:200],
             "level": level[:80],
             "price": price[:80],
             "url": url[:500],
+            "translation_status": translation_status,
         }
 
     @staticmethod

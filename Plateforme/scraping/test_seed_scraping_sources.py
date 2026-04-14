@@ -12,7 +12,17 @@ def test_seed_scraping_sources_populates_empty_table(db):
     categories = set(
         ScrapingSource.objects.values_list("category", flat=True).distinct()
     )
-    assert categories == {"events", "tools", "news", "courses", "institutions"}
+    canonical_categories = {
+        "events",
+        "tools",
+        "courses",
+        "news",
+        "opportunities",
+        "corpus",
+    }
+    assert categories.issubset(canonical_categories)
+    assert "institutions" not in categories
+    assert "opportunities" in categories
 
 
 def test_seed_scraping_sources_skips_when_not_empty(db):

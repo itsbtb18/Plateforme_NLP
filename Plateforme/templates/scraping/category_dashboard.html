@@ -1,0 +1,244 @@
+{% extends 'scraping/category_base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Category Dashboard" %} — {{ category_name|default:scraping_current_category|title }}{% endblock %}
+
+{% block category_extra_css %}
+<style>
+  .cat-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+
+  .cat-kpi {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    padding: 1rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .cat-kpi-label {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .cat-kpi-value {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  .cat-split {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .cat-panel {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    padding: 1.5rem;
+  }
+
+  .cat-panel-title {
+    margin: 0 0 0.85rem;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .cat-prompts-list {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .cat-prompt-pill {
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.42rem 0.7rem;
+  }
+
+  .cat-run-box {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .cat-run-btn {
+    width: 100%;
+    border: none;
+    border-radius: 0.8rem;
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 800;
+    padding: 0.82rem 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .cat-run-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 30px rgba(37, 99, 235, 0.34);
+  }
+
+  .cat-run-status {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    color: #334155;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .cat-table-wrap {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+  }
+
+  .cat-table-head {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  .cat-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .cat-table th,
+  .cat-table td {
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+    padding: 0.74rem 1.2rem;
+    font-size: 0.8rem;
+    color: #334155;
+  }
+
+  .cat-table th {
+    background: #fcfdff;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+
+  @media (max-width: 1160px) {
+    .cat-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cat-split {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .cat-kpi-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block category_content %}
+<section class="cat-kpi-grid" aria-label="{% trans 'Category KPI cards' %}">
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Items scrapés" %}</p>
+    <p class="cat-kpi-value">{{ kpi_scraped|default:0 }}</p>
+  </article>
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "En attente" %}</p>
+    <p class="cat-kpi-value">{{ kpi_pending|default:0 }}</p>
+  </article>
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Approuvés" %}</p>
+    <p class="cat-kpi-value">{{ kpi_approved|default:0 }}</p>
+  </article>
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Taux de succès" %}</p>
+    <p class="cat-kpi-value">{{ kpi_success_rate|default:'0%' }}</p>
+  </article>
+</section>
+
+<section class="cat-split" aria-label="{% trans 'Dashboard middle layout' %}">
+  <article class="cat-panel">
+    <h2 class="cat-panel-title">{% trans "AI Prompts" %}</h2>
+    <div class="cat-prompts-list">
+      {% for prompt in ai_prompts %}
+      <div class="cat-prompt-pill">{{ prompt }}</div>
+      {% empty %}
+      <div class="cat-prompt-pill">{% trans "Aucun prompt configuré pour cette catégorie." %}</div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <aside class="cat-panel cat-run-box">
+    <h2 class="cat-panel-title">{% trans "Run Control" %}</h2>
+    <button type="button" class="cat-run-btn">
+      {% trans "Run Scraper" %}
+    </button>
+    <div class="cat-run-status">
+      <strong>{% trans "Dernier run" %}</strong>
+      <span>{{ last_run_status|default:_('Aucun run') }}</span>
+      <span>{{ last_run_time|default:'' }}</span>
+    </div>
+  </aside>
+</section>
+
+<section class="cat-table-wrap" aria-label="{% trans 'Recent run snapshots' %}">
+  <div class="cat-table-head">{% trans "Recent Run Snapshots" %}</div>
+  <table class="cat-table">
+    <thead>
+      <tr>
+        <th>{% trans "Run ID" %}</th>
+        <th>{% trans "Started" %}</th>
+        <th>{% trans "Duration" %}</th>
+        <th>{% trans "Items" %}</th>
+        <th>{% trans "Status" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recent_run_snapshots %}
+      <tr>
+        <td>{{ row.run_id }}</td>
+        <td>{{ row.started_at }}</td>
+        <td>{{ row.duration }}</td>
+        <td>{{ row.items }}</td>
+        <td>{{ row.status }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5">{% trans "Aucun snapshot disponible pour cette catégorie." %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

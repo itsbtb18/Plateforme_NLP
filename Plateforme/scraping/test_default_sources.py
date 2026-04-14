@@ -15,7 +15,17 @@ def test_list_sources_auto_seeds_defaults_without_duplicates(client, staff_user)
     assert first_sources
 
     categories = {src.get("category") for src in first_sources}
-    assert categories == {"events", "tools", "news", "courses", "institutions"}
+    canonical_categories = {
+        "events",
+        "tools",
+        "courses",
+        "news",
+        "opportunities",
+        "corpus",
+    }
+    assert categories.issubset(canonical_categories)
+    assert "institutions" not in categories
+    assert "opportunities" in categories
 
     for source in first_sources:
         assert source.get("name")

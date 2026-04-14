@@ -9,9 +9,13 @@ from typing import Any
 
 from django.utils import timezone
 
-from scraping.llm_validation import GroqLLMClient
+from scraping.extractors.core.llm_validation import GroqLLMClient
 
 logger = logging.getLogger(__name__)
+
+# Backward-compatible hooks used by enrichment tests that monkeypatch spaCy models.
+_NLP = None
+_NLP_AR = None
 
 
 _ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
@@ -23,13 +27,43 @@ def extract_named_entities(
     text: str,
     detected_language: str = "en",
 ) -> dict[str, list[str]]:
-    """Best-effort entity extraction using lightweight regex heuristics."""
+    """Best-effort entity extraction using optional NLP models."""
     if not isinstance(text, str):
         return {}
 
     cleaned = text.strip()
     if not cleaned:
         return {}
+
+    nlp_model = _NLP_AR if detected_language.startswith("ar") and _NLP_AR else _NLP
+    if nlp_model is None:
+        return {}
+
+    try:
+        doc = nlp_model(cleaned)
+    except Exception:
+        logger.debug("named_entity_extraction_failed", exc_info=True)
+        return {}
+
+    mapped: dict[str, set[str]] = {}
+    label_map = {
+        "PRODUCT": "TECH",
+        "TECH": "TECH",
+    }
+    allowed = {"PERSON", "ORG", "GPE", "DATE", "EVENT", "TECH"}
+
+    for ent in getattr(doc, "ents", []) or []:
+        raw_text = str(getattr(ent, "text", "") or "").strip()
+        raw_label = str(getattr(ent, "label_", "") or "").strip().upper()
+        if not raw_text:
+            continue
+        normalized_label = label_map.get(raw_label, raw_label)
+        if normalized_label not in allowed:
+            continue
+        mapped.setdefault(normalized_label, set()).add(raw_text)
+
+    if mapped:
+        return {label: sorted(values) for label, values in mapped.items()}
 
     entities: dict[str, list[str]] = {}
 
@@ -103,7 +137,7 @@ class EnrichmentEngine:
         )
         payload["entities"] = extract_named_entities(entity_text, detected_language)
 
-        if self.client and self.client.is_configured:
+        if self.client and getattr(self.client, "is_configured", True):
             payload = self._apply_llm_enrichment(payload, normalized_category)
 
         payload.setdefault("enrichment_status", "complete")
@@ -172,6 +206,20 @@ class EnrichmentEngine:
         if any(token in lowered for token in (" le ", " la ", " de ", " des ", " et ")):
             return "fr"
         return "en"
+
+    @staticmethod
+    def _extract_keywords(text: str, max_keywords: int = 10) -> list[str]:
+        if not isinstance(text, str):
+            return []
+        tokens = re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", text.lower())
+        seen: list[str] = []
+        for token in tokens:
+            if token in seen:
+                continue
+            seen.append(token)
+            if len(seen) >= max(1, int(max_keywords or 10)):
+                break
+        return seen
 
 
 def enrich_scraped_item(item, category):

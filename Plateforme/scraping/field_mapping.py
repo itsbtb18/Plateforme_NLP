@@ -2,6 +2,8 @@
 Field mapping and completeness scoring for scraped items.
 """
 
+from scraping.utils import translation_field_credit
+
 FIELD_MAPPINGS = {
     "events": {
         "required": {
@@ -296,7 +298,7 @@ FIELD_MAPPINGS = {
                 "max_length": 300,
                 "description": "Post title in English",
             },
-            "content_en": {
+            "description_en": {
                 "model_field": "content_en",
                 "min_length": 50,
                 "max_length": 50000,
@@ -311,7 +313,7 @@ FIELD_MAPPINGS = {
                 "auto_translate": True,
                 "description": "Post title in Arabic",
             },
-            "content_ar": {
+            "description_ar": {
                 "model_field": "content_ar",
                 "min_length": 50,
                 "max_length": 50000,
@@ -547,6 +549,145 @@ FIELD_MAPPINGS = {
                 "max_length": 120,
                 "description": "Source name",
             },
+            "level": {
+                "model_field": "academic_level",
+                "max_length": 80,
+                "description": "Course level alias",
+            },
+        },
+    },
+    "opportunities": {
+        "required": {
+            "job_title": {
+                "model_field": "job_title",
+                "min_length": 5,
+                "max_length": 300,
+                "description": "Opportunity title in English",
+            },
+            "description": {
+                "model_field": "description",
+                "min_length": 20,
+                "max_length": 5000,
+                "description": "Opportunity description in English",
+            },
+            "opportunity_type": {
+                "model_field": "opportunity_type",
+                "max_length": 50,
+                "description": "Opportunity type",
+            },
+            "url": {
+                "model_field": "url",
+                "type": "url",
+                "max_length": 500,
+                "description": "Opportunity URL",
+            },
+        },
+        "optional": {
+            "title_ar": {
+                "model_field": "title_ar",
+                "min_length": 5,
+                "max_length": 300,
+                "auto_translate": True,
+                "description": "Opportunity title in Arabic",
+            },
+            "description_ar": {
+                "model_field": "description_ar",
+                "min_length": 20,
+                "max_length": 5000,
+                "auto_translate": True,
+                "description": "Opportunity description in Arabic",
+            },
+            "institution_name": {
+                "model_field": "institution_name",
+                "max_length": 255,
+                "description": "Institution name",
+            },
+            "deadline": {
+                "model_field": "deadline",
+                "type": "date",
+                "description": "Opportunity deadline",
+            },
+            "location": {
+                "model_field": "location",
+                "max_length": 255,
+                "description": "Opportunity location",
+            },
+            "source_name": {
+                "model_field": "source_name",
+                "max_length": 120,
+                "description": "Source name",
+            },
+            "source_url": {
+                "model_field": "source_url",
+                "type": "url",
+                "max_length": 500,
+                "description": "Source URL",
+            },
+        },
+    },
+    "corpus": {
+        "required": {
+            "dataset_name": {
+                "model_field": "dataset_name",
+                "min_length": 5,
+                "max_length": 300,
+                "description": "Corpus or dataset name in English",
+            },
+            "description_en": {
+                "model_field": "description_en",
+                "min_length": 20,
+                "max_length": 5000,
+                "description": "Corpus description in English",
+            },
+        },
+        "optional": {
+            "title_ar": {
+                "model_field": "title_ar",
+                "min_length": 5,
+                "max_length": 300,
+                "auto_translate": True,
+                "description": "Corpus title in Arabic",
+            },
+            "description_ar": {
+                "model_field": "description_ar",
+                "min_length": 20,
+                "max_length": 5000,
+                "auto_translate": True,
+                "description": "Corpus description in Arabic",
+            },
+            "download_url": {
+                "model_field": "download_url",
+                "type": "url",
+                "max_length": 500,
+                "description": "Primary download URL",
+            },
+            "paper_url": {
+                "model_field": "paper_url",
+                "type": "url",
+                "max_length": 500,
+                "description": "Paper or reference URL",
+            },
+            "language_variants": {
+                "model_field": "language_variants",
+                "type": "list",
+                "description": "Language variants covered by the corpus",
+            },
+            "size_estimate": {
+                "model_field": "size_estimate",
+                "max_length": 120,
+                "description": "Dataset size estimate",
+            },
+            "source_name": {
+                "model_field": "source_name",
+                "max_length": 120,
+                "description": "Source name",
+            },
+            "source_url": {
+                "model_field": "source_url",
+                "type": "url",
+                "max_length": 500,
+                "description": "Source URL",
+            },
         },
     },
     "institutions": {
@@ -697,88 +838,63 @@ FIELD_MAPPINGS = {
 
 COMPLETENESS_WEIGHTS = {
     "events": {
-        "title_en": 16,
-        "description_en": 16,
-        "start_date": 12,
-        "event_type": 10,
-        "title_ar": 8,
-        "description_ar": 8,
+        "title_en": 20,
+        "title_ar": 15,
+        "description_en": 15,
+        "description_ar": 10,
+        "start_date": 15,
+        "website": 10,
         "location_en": 8,
-        "website": 7,
-        "research_domains": 7,
-        "submission_deadline": 4,
-        "contact_email": 4,
-        "notification_date": 4,
-        "registration_link": 4,
-        "is_online": 4,
-        "is_hybrid": 3,
-        "source_url": 3,
-        "source_name": 3,
-        "language": 3,
-        "banner_url": 2,
-        "tags": 3,
+        "end_date": 5,
+        "event_type": 2,
     },
     "tools": {
-        "title_en": 16,
-        "description_en": 16,
-        "tool_type": 12,
-        "access_link": 14,
-        "title_ar": 8,
-        "description_ar": 8,
-        "keywords": 8,
-        "supported_languages": 8,
-        "documentation_url": 5,
-        "version": 5,
-        "github_url": 4,
-        "demo_url": 3,
-        "paper_url": 3,
-        "license": 3,
-        "stars_count": 3,
-        "last_updated": 3,
-        "installation_instructions": 3,
-        "use_cases": 3,
-        "author_organization": 2,
-        "source_url": 3,
-        "source_name": 2,
+        "title_en": 20,
+        "title_ar": 15,
+        "description_en": 20,
+        "description_ar": 10,
+        "access_link": 15,
+        "keywords": 10,
+        "supported_languages": 10,
     },
     "news": {
-        "title_en": 20,
-        "content_en": 30,
-        "title_ar": 10,
-        "content_ar": 15,
-        "published_date": 10,
-        "keywords": 8,
-        "authors": 7,
-        "doi": 5,
-        "arxiv_id": 5,
-        "source_name": 3,
-        "source_url": 3,
-        "relevance_score": 4,
-        "thumbnail_url": 3,
-        "news_category": 2,
+        "title_en": 25,
+        "title_ar": 15,
+        "description_en": 20,
+        "description_ar": 10,
+        "published_date": 15,
+        "source_url": 10,
+        "source_name": 5,
     },
     "courses": {
-        "title_en": 15,
-        "description_en": 15,
-        "field_of_study": 12,
-        "academic_level": 10,
-        "teaching_language": 8,
-        "course_url": 8,
-        "title_ar": 8,
-        "description_ar": 8,
-        "keywords": 8,
-        "syllabus": 8,
-        "instructor": 8,
-        "duration": 4,
-        "platform": 6,
-        "enrollment_url": 4,
-        "thumbnail_url": 3,
-        "is_free": 3,
-        "price": 3,
-        "certificate_available": 4,
-        "start_date": 4,
-        "source_url": 4,
-        "source_name": 3,
+        "title_en": 20,
+        "title_ar": 15,
+        "description_en": 20,
+        "description_ar": 10,
+        "platform": 15,
+        "course_url": 10,
+        "level": 5,
+        "price": 5,
+    },
+    "opportunities": {
+        "job_title": 22,
+        "title_ar": 14,
+        "description": 18,
+        "description_ar": 10,
+        "opportunity_type": 14,
+        "deadline": 10,
+        "url": 7,
+        "institution_name": 5,
+    },
+    "corpus": {
+        "dataset_name": 22,
+        "title_ar": 12,
+        "description_en": 20,
+        "description_ar": 10,
+        "download_url": 15,
+        "paper_url": 8,
+        "language_variants": 8,
+        "size_estimate": 5,
     },
     "institutions": {
         "name_en": 18,
@@ -823,6 +939,28 @@ def _is_value_filled(value, field_config):
     return True
 
 
+def _normalize_compare_text(value) -> str:
+    return " ".join(str(value or "").strip().casefold().split())
+
+
+def _score_arabic_field(ar_value, en_value, field_name):
+    del field_name
+
+    ar_text = str(ar_value or "").strip()
+    en_text = str(en_value or "").strip()
+    if not ar_text:
+        return 0.0
+
+    if en_text and _normalize_compare_text(ar_text) == _normalize_compare_text(en_text):
+        return 0.3
+
+    arabic_chars = sum(1 for ch in ar_text if "\u0600" <= ch <= "\u06ff")
+    if arabic_chars < len(ar_text) * 0.3:
+        return 0.2
+
+    return 1.0
+
+
 def calculate_completeness_score(item, category):
     """
     Calculate weighted completeness score for a scraped item.
@@ -843,15 +981,46 @@ def calculate_completeness_score(item, category):
     weights = COMPLETENESS_WEIGHTS.get(category, {})
     total_weight = 0.0
     earned_weight = 0.0
+    arabic_fields = {"title_ar", "description_ar", "short_description_ar"}
 
     for field_key, field_config in all_fields.items():
-        weight = float(weights.get(field_key, 1))
+        weight = float(weights.get(field_key, 0.0))
+        if weight <= 0:
+            continue
+
         total_weight += weight
-        if _is_value_filled(item.get(field_key), field_config):
-            earned_weight += weight
+        field_value = item.get(field_key)
+        if _is_value_filled(field_value, field_config):
+            if field_key in arabic_fields:
+                english_key = f"{field_key[:-3]}_en"
+                english_value = item.get(english_key) or item.get(field_key[:-3])
+                earned_weight += weight * _score_arabic_field(
+                    field_value,
+                    english_value,
+                    field_key,
+                )
+            else:
+                earned_weight += weight * translation_field_credit(item, field_key)
 
     if total_weight <= 0:
         return 0.0
 
     score = (earned_weight / total_weight) * 100.0
     return round(score, 1)
+
+
+def get_auto_translate_fields(category: str) -> list[str]:
+    """Return optional field keys that require automatic Arabic translation."""
+    mapping = FIELD_MAPPINGS.get((category or "").strip().lower(), {})
+    optional = mapping.get("optional", {})
+    if not isinstance(optional, dict):
+        return []
+
+    fields: list[str] = []
+    for field_key, config in optional.items():
+        if not isinstance(config, dict):
+            continue
+        if bool(config.get("auto_translate")):
+            fields.append(str(field_key))
+
+    return fields

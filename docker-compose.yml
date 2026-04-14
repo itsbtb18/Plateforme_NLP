@@ -1,7 +1,8 @@
 services:
   # PostgreSQL Database with pgvector extension
   db:
-    image: ankane/pgvector:latest
+    profiles: ["scraping", "full"]
+    image: pgvector/pgvector:pg16
     container_name: nlp_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
@@ -9,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
       - "5432:5432"
@@ -24,11 +25,12 @@ services:
 
   # Redis for Django Channels
   redis:
+    profiles: ["scraping", "full"]
     image: redis:7-alpine
     container_name: nlp_redis
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
     volumes:
-      - redis_data:/data
+      - ./data/redis:/data
     ports:
       - "6379:6379"
     healthcheck:
@@ -42,10 +44,11 @@ services:
 
   # Qdrant vector database
   qdrant:
+    profiles: ["full"]
     image: qdrant/qdrant:v1.12.4
     container_name: nlp_qdrant
     volumes:
-      - qdrant_data:/qdrant/storage
+      - ./data/qdrant:/qdrant/storage
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -62,21 +65,23 @@ services:
 
   # Elasticsearch for search functionality
   elasticsearch:
+    profiles: ["full"]
     build:
       context: ./elasticsearch
       dockerfile: Dockerfile
     container_name: nlp_elasticsearch
+    mem_limit: 512m
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
       - bootstrap.memory_lock=true
     ulimits:
       memlock:
         soft: -1
         hard: -1
     volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./data/elasticsearch:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
     healthcheck:
@@ -90,10 +95,13 @@ services:
 
   # Django Application (Plateforme)
   django:
+    profiles: ["scraping", "full"]
     build:
       context: ./Plateforme
       dockerfile: Dockerfile
     container_name: nlp_django
+    user: "0:0"
+    mem_limit: 512m
     environment:
       # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
@@ -133,10 +141,15 @@ services:
       # Groq (scraping LLM validation)
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
       GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
+      SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
+      SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
     volumes:
       - ./Plateforme:/app
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
+      - ./scraping_data:/app/scraping_data
     ports:
       - "8888:8000"
     command: >
@@ -150,8 +163,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz/"]
       interval: 30s
@@ -164,12 +175,13 @@ services:
 
   # FastAPI Chatbot
   fastapi:
+    profiles: ["full"]
     build:
       context: ./fastapi_chatbot
       dockerfile: Dockerfile
     container_name: nlp_fastapi
     cpus: 1.0
-    mem_limit: 2g
+    mem_limit: 1.5g
     mem_reservation: 512m
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
@@ -185,6 +197,16 @@ services:
       QDRANT_GRPC_PORT: "6334"
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
+      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
+      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
+      # ---- Gemini ----
+      GENAI_API_KEY: ${GENAI_API_KEY:-}
+      GENAI_MODEL: ${GENAI_MODEL:-gemini-2.0-flash}
+      GENAI_INTERNAL_API_KEY: ${GENAI_INTERNAL_API_KEY:-}
+      GENAI_INTERNAL_MODEL: ${GENAI_INTERNAL_MODEL:-gemini-2.0-flash}
+      # ---- Provider Selection ----
+      LLM_PROVIDER_CHAT: ${LLM_PROVIDER_CHAT:-gemini}
+      LLM_PROVIDER_INTERNAL: ${LLM_PROVIDER_INTERNAL:-gemini}
       ELASTICSEARCH_HOST: http://elasticsearch:9200
       # Disable parallelism — protect CPU
       OMP_NUM_THREADS: "1"
@@ -197,7 +219,7 @@ services:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -207,7 +229,7 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -220,12 +242,13 @@ services:
 
   # Celery Worker for background document processing
   celery_worker:
+    profiles: ["full"]
     build:
       context: ./fastapi_chatbot
       dockerfile: Dockerfile
     container_name: nlp_celery_worker
     cpus: 1.0
-    mem_limit: 2g
+    mem_limit: 1.5g
     mem_reservation: 512m
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
@@ -241,6 +264,16 @@ services:
       QDRANT_GRPC_PORT: "6334"
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
+      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
+      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
+      # ---- Gemini ----
+      GENAI_API_KEY: ${GENAI_API_KEY:-}
+      GENAI_MODEL: ${GENAI_MODEL:-gemini-2.0-flash}
+      GENAI_INTERNAL_API_KEY: ${GENAI_INTERNAL_API_KEY:-}
+      GENAI_INTERNAL_MODEL: ${GENAI_INTERNAL_MODEL:-gemini-2.0-flash}
+      # ---- Provider Selection ----
+      LLM_PROVIDER_CHAT: ${LLM_PROVIDER_CHAT:-gemini}
+      LLM_PROVIDER_INTERNAL: ${LLM_PROVIDER_INTERNAL:-gemini}
       # Disable parallelism — protect CPU
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
@@ -271,6 +304,7 @@ services:
 
   # Nginx Reverse Proxy
   nginx:
+    profiles: ["scraping", "full"]
     image: nginx:1.25-alpine
     container_name: nlp_nginx
     volumes:
@@ -283,7 +317,6 @@ services:
       - "443:443"
     depends_on:
       - django
-      - fastapi
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
       interval: 30s
@@ -296,10 +329,13 @@ services:
 
   # ── Django Celery Worker (scraping background tasks) ──────────────
   django_celery_worker:
+    profiles: ["scraping", "full"]
     build:
       context: ./Plateforme
       dockerfile: Dockerfile
     container_name: nlp_django_celery_worker
+    user: "celery:celery"
+    mem_limit: 512m
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
       SECRET_KEY: ${DJANGO_SECRET_KEY}
@@ -313,17 +349,20 @@ services:
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
       GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
+      SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
+      SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
     volumes:
       - ./Plateforme:/app
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
-    command: celery -A Plateforme worker -Q scraping -l info --concurrency=2
+      - ./scraping_data:/app/scraping_data
+    command: celery -A Plateforme worker -Q scraping -l info --concurrency=1
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      elasticsearch:
         condition: service_healthy
     networks:
       - nlp_network
@@ -331,10 +370,13 @@ services:
 
   # ── Django Celery Beat (periodic task scheduler) ──────────────────
   django_celery_beat:
+    profiles: ["scheduler"]
     build:
       context: ./Plateforme
       dockerfile: Dockerfile
     container_name: nlp_django_celery_beat
+    user: "0:0"
+    mem_limit: 128m
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
       SECRET_KEY: ${DJANGO_SECRET_KEY}
@@ -344,6 +386,8 @@ services:
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
       ELASTICSEARCH_HOST: http://elasticsearch:9200
+      SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
+      SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
     volumes:
       - ./Plateforme:/app
     command: celery -A Plateforme beat -l info --scheduler celery.beat:PersistentScheduler
