@@ -280,6 +280,17 @@ def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
             return value
         return timezone.now()
 
+    def _safe_display_name(user):
+        if not user:
+            return ""
+        display_attr = getattr(user, "get_full_name_display", "")
+        if callable(display_attr):
+            try:
+                return (display_attr() or "").strip()
+            except Exception:
+                return ""
+        return str(display_attr or "").strip()
+
     institution = getattr(opportunity, "institution", None)
     organization_en = (
         opportunity.organization_en
@@ -318,7 +329,7 @@ def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
         "isNew": (timezone.now() - created_at).days <= 30,
         "orgInitials": "".join(part[0] for part in organization_en.split()[:2]).upper() if organization_en else "OP",
         "contact": opportunity.contact,
-        "author": getattr(getattr(opportunity, "created_by", None), "get_full_name_display", lambda: "")() or organization_en,
+        "author": _safe_display_name(getattr(opportunity, "created_by", None)) or organization_en,
         "url": reverse("pages:opportunities"),
     }
 
