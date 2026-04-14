@@ -160,13 +160,25 @@ def feed(request):
     """Research Feed with filtering and sorting support."""
     from pages.content_parser import extract_paper_metadata
 
-    # Get filter parameter
+    # Get filter and search parameters
     filter_type = request.GET.get("filter", "all")
+    search_query = request.GET.get("q", "").strip()
 
     # Only show approved posts - strict approval workflow
     posts = exclude_hidden_users(
         Post.objects.filter(approval_status="approved"), request.user, ("author",)
     )
+
+    # Apply search filter if search query is provided
+    if search_query:
+        posts = posts.filter(
+            Q(title__icontains=search_query)
+            | Q(title_ar__icontains=search_query)
+            | Q(title_en__icontains=search_query)
+            | Q(content__icontains=search_query)
+            | Q(content_ar__icontains=search_query)
+            | Q(content_en__icontains=search_query)
+        )
 
     # Apply filters
     if filter_type == "my_posts":
@@ -207,6 +219,7 @@ def feed(request):
             "comment_form": comment_form,
             "page": "feed",
             "current_filter": filter_type,
+            "search_query": search_query,
         },
     )
 
