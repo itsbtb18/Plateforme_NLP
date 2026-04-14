@@ -55,6 +55,12 @@
     transition: transform 0.22s ease, box-shadow 0.22s ease;
   }
 
+  .hub-card-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
   .hub-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 20px 36px rgba(15, 23, 42, 0.12);
@@ -165,13 +171,13 @@
   <header class="hub-header">
     <h1 class="hub-title">{% trans "Scraping Hub" %}</h1>
     <p class="hub-subtitle">
-      {% trans "Choisissez une catégorie pour accéder à son dashboard dédié." %}
+      {% trans "Select a category to open its dedicated dashboard." %}
     </p>
   </header>
 
   <div class="hub-grid" aria-label="{% trans 'Category cards' %}">
     {% for cat in categories %}
-    <article class="hub-card" style="--hub-color: {{ cat.meta.color|default:'#2563eb' }};">
+    <a class="hub-card hub-card-link" href="{% url 'scraping:category_dashboard' cat.key %}" style="--hub-color: {{ cat.meta.color|default:'#2563eb' }};">
       <div class="hub-card-head">
         <span class="hub-icon" aria-hidden="true">
           <i class="fas {{ cat.meta.icon|default:'fa-layer-group' }}"></i>
@@ -180,12 +186,17 @@
         {% if cat.last_run and cat.last_run.status == 'completed' %}
         <span class="hub-status ok">
           <span class="hub-status-dot"></span>
-          {% trans "Run OK" %}
+          {% trans "Last run OK" %}
+        </span>
+        {% elif cat.last_run and cat.last_run.status == 'failed' %}
+        <span class="hub-status ko">
+          <span class="hub-status-dot"></span>
+          {% trans "Last run failed" %}
         </span>
         {% else %}
         <span class="hub-status ko">
           <span class="hub-status-dot"></span>
-          {% trans "Run KO" %}
+          {% trans "No recent run" %}
         </span>
         {% endif %}
       </div>
@@ -194,21 +205,21 @@
 
       <p class="hub-meta">
         {% if cat.last_run and cat.last_run.started_at %}
-          {% trans "Dernier lancement" %}: {{ cat.last_run.started_at|timesince }} {% trans "ago" %}
+          {% trans "Last run" %}: {{ cat.last_run.started_at|timesince }} {% trans "ago" %}
         {% else %}
-          {% trans "Aucun run enregistré pour cette catégorie." %}
+          {% trans "No runs recorded for this category yet." %}
         {% endif %}
       </p>
 
-      <a class="hub-btn" href="{% url 'scraping:category_dashboard' cat.key %}">
+      <span class="hub-btn">
         <i class="fas fa-arrow-right"></i>
-        <span>{% trans "Gérer cette catégorie" %}</span>
-      </a>
-    </article>
+        <span>{% trans "Open category dashboard" %}</span>
+      </span>
+    </a>
     {% empty %}
     <article class="hub-card">
-      <h2 class="hub-category">{% trans "Aucune catégorie disponible" %}</h2>
-      <p class="hub-meta">{% trans "Vérifiez la configuration des catégories de scraping." %}</p>
+      <h2 class="hub-category">{% trans "No categories available" %}</h2>
+      <p class="hub-meta">{% trans "Check the scraping category configuration." %}</p>
     </article>
     {% endfor %}
   </div>
