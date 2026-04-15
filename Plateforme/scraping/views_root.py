@@ -5671,7 +5671,30 @@ def scraping_sources_page(request):
 
     _ensure_default_scraping_sources()
 
-    sources = list(ScrapingSource.objects.all().order_by("category", "name"))
+    resolver_url_name = ""
+    route_category = ""
+    if request.resolver_match is not None:
+        resolver_url_name = str(request.resolver_match.url_name or "")
+        route_category = (
+            str((request.resolver_match.kwargs or {}).get("category") or "")
+            .strip()
+            .lower()
+        )
+
+    category_scope = None
+    if route_category in SCRAPING_NAV_CATEGORY_KEYS:
+        category_scope = route_category
+    elif (
+        getattr(request, "_scraping_category", "")
+        or resolver_url_name == "category_sources"
+    ):
+        category_scope = _resolve_scraping_nav_category(request)
+
+    sources_queryset = ScrapingSource.objects.all()
+    if category_scope:
+        sources_queryset = sources_queryset.filter(category=category_scope)
+
+    sources = list(sources_queryset.order_by("category", "name"))
     rows = [_build_source_row_payload(source) for source in sources]
 
     active_sources = [row for row in rows if row["is_active"]]
@@ -5758,6 +5781,7 @@ def scraping_sources_page(request):
 
     context = {
         "sources_rows": rows,
+        "sources_default_category": category_scope or "all",
         "category_options": category_options,
         "active_sources_count": len(active_sources),
         "failing_sources_count": len(failing_sources),
