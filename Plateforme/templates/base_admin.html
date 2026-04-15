@@ -98,6 +98,31 @@
             
             <!-- RIGHT: Action Buttons -->
             <div class="admin-actions">
+                <div class="language-dropdown-container action-dropdown-container">
+                    <button class="action-btn icon-btn language-icon-btn" id="languageIconBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Language">
+                        <i class="fas fa-globe"></i>
+                        <span class="btn-label">{% if LANGUAGE_CODE == 'en' %}EN{% elif LANGUAGE_CODE == 'ar' %}AR{% endif %}</span>
+                        <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
+                    </button>
+                    <div class="dropdown-panel language-dropdown" id="languageDropdown" role="menu" aria-labelledby="languageIconBtn">
+                        <a href="{% url 'translate:switch_language' %}?language=en"
+                           class="language-dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}"
+                           role="menuitem">
+                            <span>{% trans "English" %}</span>
+                            {% if LANGUAGE_CODE == 'en' %}
+                            <i class="fas fa-check"></i>
+                            {% endif %}
+                        </a>
+                        <a href="{% url 'translate:switch_language' %}?language=ar"
+                           class="language-dropdown-item {% if LANGUAGE_CODE == 'ar' %}active{% endif %}"
+                           role="menuitem">
+                            <span>{% trans "Arabic" %}</span>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                            <i class="fas fa-check"></i>
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
                 <a href="{% url 'pages:home' %}" class="btn-admin btn-admin-secondary">
                     <i class="fas fa-home"></i>
                     <span>{% trans "Return to site" %}</span>
@@ -457,6 +482,33 @@
           });
         });
       });
+    </script>
+
+    <script>
+      /* Language dropdown toggle for admin panel */
+      const languageIconBtn = document.getElementById('languageIconBtn');
+      const languageDropdown = document.getElementById('languageDropdown');
+
+      if (languageIconBtn && languageDropdown) {
+        languageIconBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const isShown = languageDropdown.classList.contains('show');
+          languageDropdown.classList.toggle('show', !isShown);
+          languageIconBtn.setAttribute('aria-expanded', !isShown);
+        });
+
+        /* Close dropdown when clicking outside */
+        document.addEventListener('click', function(e) {
+          if (languageDropdown.classList.contains('show') &&
+              !languageDropdown.contains(e.target) &&
+              !languageIconBtn.contains(e.target)) {
+            languageDropdown.classList.remove('show');
+            if (languageIconBtn) languageIconBtn.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
     </script>
     
     {% block extra_js %}{% endblock %}
