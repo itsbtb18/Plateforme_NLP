@@ -2742,7 +2742,7 @@ def _build_scraping_results_dataset(
         )
 
         score = row["confidence_score"]
-        if score is None and meta and meta.relevance_score is not None:
+        if meta and meta.relevance_score is not None:
             score = float(meta.relevance_score)
         if score is not None:
             score = round(float(score), 2)
@@ -2756,11 +2756,6 @@ def _build_scraping_results_dataset(
             row["title_ar"],
             raw_translation_status,
         )
-        score = apply_translation_confidence_cap(
-            score,
-            _confidence_cap_status(raw_translation_status, translation_state),
-        )
-
         if row["source_domain"]:
             source_options_set.add(row["source_domain"])
 
@@ -3303,6 +3298,10 @@ def scraping_results_bulk_action(request):
 def scraping_results(request):
     """Staff review queue for scraped items across categories."""
     _log_scraping_action(request)
+
+    if request.method == "POST":
+        return scraping_results_bulk_action(request)
+
     category_map = _scraping_result_category_map()
 
     filters = _extract_results_filters(request.GET)
@@ -3544,6 +3543,28 @@ def scraping_result_detail(request, item_id):
     if not obj or not cfg or not cat_key:
         raise Http404("Scraped review item not found")
 
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip().lower()
+        if action in {"validate", "reject", "delete"}:
+            _apply_scraping_item_action(
+                obj,
+                cfg,
+                action=action,
+                category=cat_key,
+                reject_reason=request.POST.get("reject_reason", "other"),
+                reject_notes=request.POST.get("reject_notes", ""),
+                user=request.user,
+            )
+
+        return redirect(
+            _results_redirect_url(
+                queue_category,
+                filters["q"],
+                run_id=selected_run_id,
+                extra_params=filters,
+            )
+        )
+
     detail_filters = dict(filters)
     detail_filters["category"] = queue_category
     detail_filters["run_id"] = selected_run_id
@@ -3722,10 +3743,14 @@ def scraping_result_detail(request, item_id):
         .order_by("-updated_at", "-created_at")
         .first()
     )
-    if confidence_score is None and meta and meta.relevance_score is not None:
+    if meta and meta.relevance_score is not None:
         confidence_score = meta.relevance_score
     if confidence_score is not None:
         confidence_score = round(float(confidence_score), 2)
+
+    domain_scores = {}
+    if meta is not None and isinstance(meta.domain_scores, dict):
+        domain_scores = meta.domain_scores
 
     raw_translation_status = ""
     if "translation_status" in model_field_names:
@@ -4033,6 +4058,8 @@ def scraping_result_detail(request, item_id):
             "provenance_warnings": provenance_warnings,
             "ner_entities": ner_entities,
             "meta": meta,
+            "domain_scores": domain_scores,
+            "domain_scores_json": json.dumps(domain_scores, ensure_ascii=False),
             "back_url": back_url,
             "fallback_next_url": fallback_next_url,
             "current_filters": detail_filters,
@@ -6072,11 +6099,15 @@ def generate_latest_metrics_response():
 
 
 @csrf_exempt
-@staff_member_required
 @require_GET
 def scraping_metrics_view(request):
     """Prometheus metrics endpoint restricted to authenticated staff users."""
     _log_scraping_action(request)
+
+    if not request.user.is_authenticated or not bool(
+        getattr(request.user, "is_staff", False)
+    ):
+        return JsonResponse({"error": "forbidden"}, status=403)
 
     ip = _client_ip(request)
     metrics_key = f"scraping:metrics:ip:{ip}"

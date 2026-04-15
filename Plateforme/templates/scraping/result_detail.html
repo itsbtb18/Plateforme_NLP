@@ -622,6 +622,9 @@
         {% include "scraping/components/status_badge.html" with status='pending' %}
       {% endif %}
       <span class="mdt-pill meta">{% blocktrans with score=overall_confidence %}Confidence: {{ score }}%{% endblocktrans %}</span>
+      {% if extracted_confidence != None %}
+      <span class="mdt-pill meta">{% blocktrans with score=extracted_confidence|floatformat:1 %}Extracted confidence: {{ score }}%{% endblocktrans %}</span>
+      {% endif %}
       {% if run_id %}
       <span class="mdt-pill meta">{% blocktrans with run=run_id %}Run #{{ run }}{% endblocktrans %}</span>
       {% endif %}
@@ -672,6 +675,13 @@
       {% endfor %}
     </ul>
   </section>
+
+  {% if domain_scores %}
+  <section class="mdt-card" style="padding:0.9rem;">
+    <h3 style="margin:0 0 .45rem;">{% trans "Domain Scores" %}</h3>
+    <pre style="margin:0; white-space:pre-wrap; word-break:break-word;">{{ domain_scores_json }}</pre>
+  </section>
+  {% endif %}
 
   <section class="mdt-card" style="padding: 0.9rem;">
     <div class="mdt-grid">

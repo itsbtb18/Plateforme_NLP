@@ -5,7 +5,7 @@ from scraping.models import ScrapingSource
 
 
 @pytest.fixture
-def user(db):
+def user(transactional_db):
     user_model = get_user_model()
     return user_model.objects.create_user(  # type: ignore[call-arg]
         email="test@test.com",
