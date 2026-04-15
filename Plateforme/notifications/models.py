@@ -121,26 +121,52 @@ class Notification(models.Model):
 
     def get_localized_title(self):
         """Return title based on current language with fallback."""
-        from django.utils.translation import get_language
-        lang = get_language()
-        if lang and lang.startswith('ar') and self.title_ar:
-            return self.title_ar
-        if self.title_en:
-            return self.title_en
-        return self.title
+        try:
+            from django.utils.translation import get_language
+            lang = get_language()
+            if lang and lang.startswith('ar') and self.title_ar:
+                return str(self.title_ar)
+            if self.title_en:
+                return str(self.title_en)
+            if self.title:
+                return str(self.title)
+            return "Notification"
+        except Exception:
+            # Ultimate fallback if anything goes wrong
+            try:
+                return str(self.title) if self.title else "Notification"
+            except Exception:
+                return "Notification"
 
     def get_localized_message(self):
         """Return message based on current language with fallback."""
-        from django.utils.translation import get_language
-        lang = get_language()
-        if lang and lang.startswith('ar') and self.message_ar:
-            return self.message_ar
-        if self.message_en:
-            return self.message_en
-        return self.message
+        try:
+            from django.utils.translation import get_language
+            lang = get_language()
+            if lang and lang.startswith('ar') and self.message_ar:
+                return str(self.message_ar)
+            if self.message_en:
+                return str(self.message_en)
+            if self.message:
+                return str(self.message)
+            return ""
+        except Exception:
+            # Ultimate fallback if anything goes wrong
+            try:
+                return str(self.message) if self.message else ""
+            except Exception:
+                return ""
 
     def __str__(self):
-        return f"{self.title} - {self.recipient.email}"
+        try:
+            user_email = self.recipient.email if self.recipient else "Unknown"
+            title = str(self.title) if self.title else "Notification"
+            return f"{title} - {user_email}"
+        except Exception:
+            try:
+                return str(self.title) if self.title else "Notification"
+            except Exception:
+                return "Notification"
         
     def get_type_display(self):
         """Retourne l'affichage du type de notification"""

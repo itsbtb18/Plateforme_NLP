@@ -12,13 +12,21 @@ from django.contrib import messages
 from datetime import timedelta
 from collections import OrderedDict
 from accounts.blocking import blocked_user_ids_for
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _exclude_blocked_senders(queryset, user):
-    hidden_ids = blocked_user_ids_for(user)
-    if not hidden_ids:
+    """Exclude notifications from blocked users. Returns unfiltered queryset if blocking fails."""
+    try:
+        hidden_ids = blocked_user_ids_for(user)
+        if not hidden_ids:
+            return queryset
+        return queryset.exclude(sender_id__in=hidden_ids)
+    except Exception as e:
+        # If blocking logic fails, return unfiltered queryset rather than crashing
         return queryset
-    return queryset.exclude(sender_id__in=hidden_ids)
 
 
 def group_notifications_by_date(notifications):
@@ -26,8 +34,14 @@ def group_notifications_by_date(notifications):
     Group notifications by Today, Yesterday, and Earlier.
     Returns an OrderedDict with date groups.
     """
-    today = timezone.now().date()
-    yesterday = today - timedelta(days=1)
+    try:
+        today = timezone.now().date()
+        yesterday = today - timedelta(days=1)
+    except Exception:
+        # Fallback if timezone fails
+        from datetime import date
+        today = date.today()
+        yesterday = date.fromordinal(today.toordinal() - 1)
     
     grouped = OrderedDict([
         ('today', []),
@@ -36,12 +50,20 @@ def group_notifications_by_date(notifications):
     ])
     
     for notification in notifications:
-        notification_date = notification.created_at.date()
-        if notification_date == today:
-            grouped['today'].append(notification)
-        elif notification_date == yesterday:
-            grouped['yesterday'].append(notification)
-        else:
+        try:
+            if not hasattr(notification, 'created_at') or notification.created_at is None:
+                grouped['earlier'].append(notification)
+                continue
+                
+            notification_date = notification.created_at.date()
+            if notification_date == today:
+                grouped['today'].append(notification)
+            elif notification_date == yesterday:
+                grouped['yesterday'].append(notification)
+            else:
+                grouped['earlier'].append(notification)
+        except Exception:
+            # If anything goes wrong with this notification, add it to 'earlier'
             grouped['earlier'].append(notification)
     
     return grouped
@@ -51,63 +73,118 @@ def group_notifications_by_date(notifications):
 def notification_list(request):
     
     """Vue pour afficher la liste des notifications"""
-    base_queryset = _exclude_blocked_senders(
-        Notification.objects.filter(recipient=request.user),
-        request.user,
-    )
-    notifications = base_queryset.order_by('-created_at')
+    try:
+        try:
+            base_queryset = _exclude_blocked_senders(
+                Notification.objects.filter(recipient=request.user),
+                request.user,
+            )
+        except Exception:
+            # If blocking fails, get all notifications
+            base_queryset = Notification.objects.filter(recipient=request.user)
+        
+        try:
+            notifications = base_queryset.order_by('-created_at')
+            paginator = Paginator(notifications, 10)
+            page = request.GET.get('page')
+            notifications = paginator.get_page(page)
+        except Exception:
+            # If pagination fails, return empty page object
+            notifications = []
+        
+        action_required_types = {
+            'PROJECT_INVITE',
+            'PROJECT_INVITATION',
+            'PROJECT_JOIN_REQUEST',
+            'MEMBERSHIP_REQUEST',
+            'LEAVE_REQUEST',
+        }
+        project_invite_types = {'PROJECT_INVITE', 'PROJECT_INVITATION'}
+        join_request_types = {'PROJECT_JOIN_REQUEST', 'MEMBERSHIP_REQUEST'}
 
-    paginator = Paginator(notifications, 10)
-    page = request.GET.get('page')
-    notifications = paginator.get_page(page)
-    
-    action_required_types = {
-        'PROJECT_INVITE',
-        'PROJECT_INVITATION',
-        'PROJECT_JOIN_REQUEST',
-        'MEMBERSHIP_REQUEST',
-        'LEAVE_REQUEST',
-    }
-    project_invite_types = {'PROJECT_INVITE', 'PROJECT_INVITATION'}
-    join_request_types = {'PROJECT_JOIN_REQUEST', 'MEMBERSHIP_REQUEST'}
-
-    notification_list = (
-        notifications.object_list
-        if hasattr(notifications, 'object_list')
-        else notifications
-    )
-    for notification in notification_list:
-        notification.requires_action = (
-            notification.type in action_required_types and not notification.response_given
-        )
-        notification.is_project_invite = bool(
-            notification.project_id and notification.type in project_invite_types
-        )
-        notification.is_join_request = bool(
-            notification.project_id
-            and notification.sender_id
-            and notification.type in join_request_types
-        )
-        notification.is_leave_request = bool(
-            notification.project_id
-            and notification.sender_id
-            and notification.type == 'LEAVE_REQUEST'
-        )
-    
-    # Group notifications by date (Today, Yesterday, Earlier)
-    grouped_notifications = group_notifications_by_date(notification_list)
-    
-    return render(request, 'notifications/list.html', {
-        'notifications': notifications,
-        'grouped_notifications': grouped_notifications,
-        'user': request.user,  # Assurez-vous que l'utilisateur est explicitement passAc
-        'total_notifications': base_queryset.count(),
-        'unread_notifications': base_queryset.filter(read=False).count(),
-        'action_required_count': base_queryset.filter(
-            type__in=action_required_types,
-            response_given=False
-        ).count(),
-    })
+        try:
+            notification_list = (
+                notifications.object_list
+                if hasattr(notifications, 'object_list')
+                else notifications
+            )
+        except Exception:
+            notification_list = []
+        
+        for notification in notification_list:
+            try:
+                # Ensure IDs are not None before setting boolean flags that depend on URLs
+                has_project_id = notification.project_id is not None
+                has_sender_id = notification.sender_id is not None
+                
+                notification.requires_action = (
+                    notification.type in action_required_types and not notification.response_given
+                )
+                notification.is_project_invite = bool(
+                    has_project_id and notification.type in project_invite_types
+                )
+                notification.is_join_request = bool(
+                    has_project_id and has_sender_id and notification.type in join_request_types
+                )
+                notification.is_leave_request = bool(
+                    has_project_id and has_sender_id and notification.type == 'LEAVE_REQUEST'
+                )
+            except Exception:
+                # Fallback values if any attribute is missing
+                notification.requires_action = False
+                notification.is_project_invite = False
+                notification.is_join_request = False
+                notification.is_leave_request = False
+        
+        # Group notifications by date (Today, Yesterday, Earlier)
+        try:
+            grouped_notifications = group_notifications_by_date(notification_list)
+        except Exception:
+            # If grouping fails, put all in 'earlier'
+            grouped_notifications = OrderedDict([
+                ('today', []),
+                ('yesterday', []),
+                ('earlier', list(notification_list) if notification_list else []),
+            ])
+        
+        # Count notifications safely
+        try:
+            total_count = base_queryset.count()
+        except Exception:
+            total_count = 0
+        
+        try:
+            unread_count = base_queryset.filter(read=False).count()
+        except Exception:
+            unread_count = 0
+        
+        try:
+            action_required_count = base_queryset.filter(
+                type__in=action_required_types,
+                response_given=False
+            ).count()
+        except Exception:
+            action_required_count = 0
+        
+        return render(request, 'notifications/list.html', {
+            'notifications': notifications,
+            'grouped_notifications': grouped_notifications,
+            'user': request.user,
+            'total_notifications': total_count,
+            'unread_notifications': unread_count,
+            'action_required_count': action_required_count,
+        })
+    except Exception as e:
+        # Last-resort error handling - return empty notifications
+        logger.exception(f"Critical error in notification_list view: {e}")
+        return render(request, 'notifications/list.html', {
+            'notifications': [],
+            'grouped_notifications': OrderedDict([('today', []), ('yesterday', []), ('earlier', [])]),
+            'user': request.user,
+            'total_notifications': 0,
+            'unread_notifications': 0,
+            'action_required_count': 0,
+        })
 
 
 @login_required
