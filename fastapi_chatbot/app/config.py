@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     GROQ_INTERNAL_API_KEY: str = ""
     GROQ_INTERNAL_MODEL: str = "llama-3.1-8b-instant"
 
+    # Gemini API (fallback)
+    GENAI_API_KEY: str = ""
+    GENAI_MODEL: str = "gemini-2.0-flash"
+
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
@@ -51,6 +55,35 @@ class Settings(BaseSettings):
 
     # Rate Limiting
     MAX_REQUESTS_PER_MINUTE: int = 30
+
+    # AI Gateway security
+    AI_JWT_SECRET: str = "change-me"
+    AI_JWT_OPTIONAL: bool = True
+    AI_RATE_LIMIT_PER_MINUTE: int = 60
+
+    # AI providers
+    AI_OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    AI_OPENAI_API_KEY: str = ""
+    AI_OPENAI_TRANSLATION_MODEL: str = "gpt-4o-mini"
+    AI_OPENAI_SUMMARY_MODEL: str = "gpt-4o-mini"
+
+    AI_LOCAL_PROVIDER_URL: str = "http://localhost:11434"
+    AI_LOCAL_TRANSLATION_MODEL: str = "llama3.1:8b"
+    AI_LOCAL_SUMMARY_MODEL: str = "llama3.1:8b"
+
+    # AI storage and files
+    AI_STORAGE_BUCKET: str = "corpus-ai"
+    AI_ENABLE_RESULT_STORAGE: bool = False
+    AI_MAX_FILE_SIZE_MB: int = 100
+    AI_S3_ENDPOINT: str = "http://minio:9000"
+    AI_S3_ACCESS_KEY: str = ""
+    AI_S3_SECRET_KEY: str = ""
+    AI_S3_REGION: str = "us-east-1"
+
+    # AI caching
+    AI_TRANSLATION_CACHE_TTL_SECONDS: int = 604800
+    AI_SUMMARY_CACHE_TTL_SECONDS: int = 604800
+    AI_EMBEDDINGS_CACHE_TTL_SECONDS: int = 2592000
 
     # Document Processing
     MAX_UPLOAD_SIZE_MB: int = 20

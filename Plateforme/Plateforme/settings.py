@@ -163,6 +163,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.runtime_urls",
                 "notifications.context_processors.notification_processor",
             ],
         },
@@ -400,6 +401,8 @@ ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
 # Chatbot / FastAPI Configuration
 FASTAPI_URL = os.getenv("FASTAPI_URL", "http://fastapi:8000")
+FASTAPI_BROWSER_URL = os.getenv("FASTAPI_BROWSER_URL", "/ai")
+FASTAPI_LOCAL_BROWSER_URL = os.getenv("FASTAPI_LOCAL_BROWSER_URL", "http://localhost:8000")
 FASTAPI_API_KEY = os.getenv("FASTAPI_API_KEY", "")
 CHATBOT_MAX_HISTORY = int(os.getenv("CHATBOT_MAX_HISTORY", "20"))
 CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "8192"))

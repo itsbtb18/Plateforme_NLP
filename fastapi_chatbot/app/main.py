@@ -35,6 +35,7 @@ from app.services.chat_logic import get_chat_logic
 from app.services.memory import get_session_service
 from app.services.documents import get_document_service
 from app.services.platform_queries import get_platform_query_service
+from app.ai.api import router as ai_router
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -120,11 +121,30 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost",
+        "http://localhost:80",
+        "http://localhost:8000",
+        "http://localhost:8001",
+        "http://localhost:8888",
+        "http://127.0.0.1",
+        "http://127.0.0.1:80",
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8001",
+        "http://127.0.0.1:8888",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_incoming_requests(request, call_next):
+    logger.info("Incoming request: %s %s", request.method, request.url.path)
+    return await call_next(request)
+
+
+app.include_router(ai_router, prefix="/ai")
 
 
 # ==================================================================

@@ -130,6 +130,8 @@ services:
       
       # FastAPI Chatbot
       FASTAPI_URL: http://fastapi:8000
+      FASTAPI_BROWSER_URL: /ai
+      FASTAPI_LOCAL_BROWSER_URL: ${FASTAPI_LOCAL_BROWSER_URL:-http://localhost:8000}
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
       
       # Chatbot Settings
@@ -284,7 +286,7 @@ services:
     volumes:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
-    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info --concurrency=1
+    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion,translation,summarization,postprocess,quality -l info --concurrency=1
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping --timeout 10 || exit 1"]
       interval: 30s

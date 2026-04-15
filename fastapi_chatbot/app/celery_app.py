@@ -38,6 +38,12 @@ celery.conf.update(
         "app.tasks.crawl_and_index_url": {"queue": "ingestion"},
         "app.tasks.summarise_text": {"queue": "chatbot"},
         "app.tasks.reindex_collection": {"queue": "documents"},
+        "app.tasks.ai.run_translation_job": {"queue": "translation"},
+        "app.tasks.ai.run_summarization_job": {"queue": "summarization"},
+        "app.tasks.ai.translation_task": {"queue": "translation"},
+        "app.tasks.ai.summarization_task": {"queue": "summarization"},
+        "app.tasks.ai.run_postprocess_job": {"queue": "postprocess"},
+        "app.tasks.ai.run_quality_job": {"queue": "quality"},
     },
 )
 
