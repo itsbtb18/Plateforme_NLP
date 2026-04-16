@@ -19,7 +19,7 @@ from app.services.llm.prompts import (
 import asyncio
 import logging
 import time
-from typing import List, Dict, Optional, Any, AsyncGenerator
+from typing import List, Dict, Optional, Any, AsyncGenerator, Union
 import threading
 
 logger = logging.getLogger(__name__)
@@ -507,27 +507,293 @@ class GroqClient:
         return any(m in text for m in _markers)
 
 
+class GeminiClient:
+    """Gemini client with Groq-compatible high-level methods.
+
+    The public methods mirror GroqClient so existing call sites remain unchanged.
+    """
+
+    def __init__(self, api_key: str, model_name: str, fallback_client: Optional[GroqClient] = None):
+        self.api_key = api_key or ""
+        self.model = model_name
+        self.fallback_client = fallback_client
+        if not self.api_key:
+            logger.warning("GENAI API key is missing. Gemini calls will fallback when possible.")
+        logger.info("Gemini client initialised – model: %s", self.model)
+
+    def _build_system_prompt(
+        self,
+        *,
+        language: str,
+        source_type: Optional[str] = None,
+        username: Optional[str] = None,
+        session_summary: Optional[str] = None,
+        mode: Optional[str] = None,
+    ) -> str:
+        if mode and mode in MODE_SYSTEM_PROMPTS:
+            mode_prompts = MODE_SYSTEM_PROMPTS[mode]
+            system = mode_prompts.get(language, mode_prompts["en"])
+        else:
+            system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
+        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
+        if source_type:
+            system += source_rules(language, source_type)
+        system += identity_hint(username, language)
+        if session_summary:
+            system += f"\n\n[Previous conversation summary]\n{session_summary}"
+        return system
+
+    @staticmethod
+    def _messages_to_prompt(messages: List[ChatCompletionMessageParam]) -> str:
+        parts: List[str] = []
+        for m in messages:
+            role = str(m.get("role", "user")).upper()
+            content = str(m.get("content", ""))
+            parts.append(f"{role}: {content}")
+        return "\n\n".join(parts)
+
+    @staticmethod
+    def _fallback_message(language: str) -> str:
+        return GroqClient._fallback_message(language)
+
+    async def chat_completion(
+        self,
+        messages: List[ChatCompletionMessageParam],
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+        max_retries: Optional[int] = None,
+        base_delay: Optional[float] = None,
+    ) -> str:
+        try:
+            if not self.api_key:
+                raise RuntimeError("Missing Gemini API key")
+
+            def _sync_call() -> str:
+                import google.generativeai as genai
+
+                genai.configure(api_key=self.api_key)
+                model = genai.GenerativeModel(self.model)
+                prompt = self._messages_to_prompt(messages)
+                cfg = genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                )
+                resp = model.generate_content(prompt, generation_config=cfg)
+                text = (getattr(resp, "text", "") or "").strip()
+                return text
+
+            text = await asyncio.to_thread(_sync_call)
+            if text:
+                return text
+            raise RuntimeError("Gemini returned empty response")
+
+        except Exception as e:
+            logger.warning("Gemini completion failed: %s", type(e).__name__)
+            if self.fallback_client is not None:
+                return await self.fallback_client.chat_completion(
+                    messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    max_retries=max_retries,
+                    base_delay=base_delay,
+                )
+
+            fb_lang = "en"
+            for m in reversed(messages):
+                if m.get("role") == "system":
+                    text = str(m.get("content", ""))
+                    if "العربية" in text or "عربية" in text:
+                        fb_lang = "ar"
+                    elif "français" in text.lower():
+                        fb_lang = "fr"
+                    break
+            return self._fallback_message(fb_lang)
+
+    async def generate_answer_with_context(
+        self,
+        question: str,
+        context: str,
+        language: str = "en",
+        chat_history: Optional[List[Dict[str, Any]]] = None,
+        session_summary: Optional[str] = None,
+        source_type: Optional[str] = None,
+        username: Optional[str] = None,
+        mode: Optional[str] = None,
+    ) -> str:
+        system = self._build_system_prompt(
+            language=language,
+            source_type=source_type,
+            username=username,
+            session_summary=session_summary,
+            mode=mode,
+        )
+
+        messages: List[ChatCompletionMessageParam] = [{"role": "system", "content": system}]
+        if chat_history:
+            messages.extend(chat_history)
+
+        user_msg = rag_prompt(question, context, language, source_type)
+        messages.append({"role": "user", "content": user_msg})
+        return await self.chat_completion(messages, max_tokens=settings.GROQ_MAX_TOKENS)
+
+    async def generate_answer_with_context_stream(
+        self,
+        question: str,
+        context: str,
+        language: str = "en",
+        chat_history: Optional[List[Dict[str, Any]]] = None,
+        session_summary: Optional[str] = None,
+        source_type: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> AsyncGenerator[str, None]:
+        answer = await self.generate_answer_with_context(
+            question=question,
+            context=context,
+            language=language,
+            chat_history=chat_history,
+            session_summary=session_summary,
+            source_type=source_type,
+            username=username,
+        )
+        if answer:
+            yield answer
+
+
+    async def quick_answer(
+        self,
+        question: str,
+        language: str = "en",
+        username: Optional[str] = None,
+    ) -> str:
+        system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
+        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
+        guardrails = {
+            "ar": "\n\nأنت الآن في وضع المحادثة. استخدم معرفتك ومنطقك للإجابة بشكل طبيعي. إذا لم تكن واثقاً من الإجابة، قل ذلك بصراحة. لا تروّج للمنصة تلقائياً.",
+            "fr": "\n\nVous êtes en mode conversationnel. Utilisez vos connaissances et votre raisonnement pour répondre naturellement. Si vous n'êtes pas sûr, dites-le clairement. Ne faites pas la promotion de la plateforme spontanément.",
+            "en": "\n\nYou are in conversational mode. Use your knowledge and reasoning to answer naturally. If you are unsure, say so clearly. Do not promote the platform spontaneously.",
+        }
+        system += guardrails.get(language, guardrails["en"])
+        system += identity_hint(username, language)
+        messages: List[ChatCompletionMessageParam] = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": question},
+        ]
+        return await self.chat_completion(messages, max_tokens=settings.GROQ_MAX_TOKENS)
+
+    async def quick_answer_stream(
+        self,
+        question: str,
+        language: str = "en",
+        username: Optional[str] = None,
+    ) -> AsyncGenerator[str, None]:
+        answer = await self.quick_answer(question=question, language=language, username=username)
+        if answer:
+            yield answer
+
+
+LLMClient = Union[GroqClient, GeminiClient]
+
+
 # Singletons
-_groq_client = None
-_internal_groq_client = None
+_chat_client = None
+_internal_client = None
 
 
-def get_groq_client() -> GroqClient:
-    """Get the primary (user-facing chatbot) client."""
-    global _groq_client
-    if _groq_client is None:
-        _groq_client = GroqClient()
-    return _groq_client
+def _pick_provider(kind: str) -> str:
+    if kind == "internal":
+        provider = (settings.LLM_PROVIDER_INTERNAL or "groq").strip().lower()
+    else:
+        provider = (settings.LLM_PROVIDER_CHAT or "groq").strip().lower()
+    return provider
 
 
-def get_internal_groq_client() -> GroqClient:
-    """Get the internal client (for classification, rewriting, etc.)."""
-    global _internal_groq_client
-    if _internal_groq_client is None:
-        # If internal key is missing, fallback to primary key
+def get_chat_provider_label() -> str:
+    """Return a stable source label for user-facing LLM responses."""
+    provider = _pick_provider("chat")
+    if provider == "gemini":
+        return "gemini"
+    return "groq"
+
+
+def _gemini_credentials(kind: str) -> tuple[str, str]:
+    if kind == "internal":
+        key = (
+            settings.GENAI_INTERNAL_API_KEY
+            or settings.GEMINI_INTERNAL_API_KEY
+            or settings.GENAI_API_KEY
+            or settings.GEMINI_API_KEY
+        )
+        model = (
+            settings.GENAI_INTERNAL_MODEL
+            or settings.GEMINI_INTERNAL_MODEL
+            or settings.GENAI_MODEL
+            or settings.GEMINI_MODEL
+            or "gemini-2.0-flash"
+        )
+    else:
+        key = settings.GENAI_API_KEY or settings.GEMINI_API_KEY
+        model = settings.GENAI_MODEL or settings.GEMINI_MODEL or "gemini-2.0-flash"
+    return key or "", model
+
+
+def _build_groq_client(kind: str) -> GroqClient:
+    if kind == "internal":
         key = settings.GROQ_INTERNAL_API_KEY or settings.GROQ_API_KEY
-        # If internal model is missing, fallback to primary model
         model = settings.GROQ_INTERNAL_MODEL or settings.GROQ_MODEL
-        
-        _internal_groq_client = GroqClient(api_key=key, model_name=model)
-    return _internal_groq_client
+        return GroqClient(api_key=key, model_name=model)
+    return GroqClient()
+
+
+def _build_provider_client(kind: str):
+    provider = _pick_provider(kind)
+    if provider == "gemini":
+        key, model = _gemini_credentials(kind)
+        fallback = _build_groq_client(kind)
+        if not key:
+            logger.warning(
+                "Gemini selected for %s but API key is missing; falling back to Groq.",
+                kind,
+            )
+            return fallback
+        return GeminiClient(api_key=key, model_name=model, fallback_client=fallback)
+
+    if provider != "groq":
+        logger.warning("Unknown LLM provider '%s' for %s; using Groq.", provider, kind)
+    return _build_groq_client(kind)
+
+
+def get_groq_client():
+    """Get the primary (user-facing chatbot) client.
+
+    Backward-compatible function name: may return GeminiClient or GroqClient
+    depending on provider configuration.
+    """
+    global _chat_client
+    if _chat_client is None:
+        _chat_client = _build_provider_client("chat")
+    return _chat_client
+
+
+def get_internal_groq_client():
+    """Get the internal client (classification, rewriting, faithfulness).
+
+    Backward-compatible function name: may return GeminiClient or GroqClient
+    depending on provider configuration.
+    """
+    global _internal_client
+    if _internal_client is None:
+        _internal_client = _build_provider_client("internal")
+    return _internal_client
+
+
+def get_llm_client():
+    """Provider-aware primary client alias.
+
+    Kept to match older code paths that moved away from Groq-specific names.
+    """
+    return get_groq_client()
+
+
+def get_internal_llm_client():
+    """Provider-aware internal client alias."""
+    return get_internal_groq_client()
