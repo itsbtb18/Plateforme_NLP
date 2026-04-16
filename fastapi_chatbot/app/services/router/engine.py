@@ -37,10 +37,12 @@ from app.services.web.confidence import (
 from app.services.web.exa_client import search_exa
 from app.services.web.cache import cache_get, cache_set
 from app.services.web.policy import get_exa_policy
+from app.services.llm.client import get_chat_provider_label
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+LLM_SOURCE_LABEL = get_chat_provider_label()
 
 # ---------------------------------------------------------------------------
 # Phase 3: Explicit intent → route mapping (documentation only).
@@ -48,7 +50,7 @@ settings = get_settings()
 # provides a single reference for understanding the intent→source mapping.
 # ---------------------------------------------------------------------------
 ROUTING_TABLE = {
-    "general_knowledge":   {"source": "groq",       "retrieval": None,             "note": "Direct LLM, no retrieval"},
+    "general_knowledge":   {"source": LLM_SOURCE_LABEL, "retrieval": None,             "note": "Direct LLM, no retrieval"},
     "user_query":          {"source": "postgresql",  "retrieval": "platform_qs",    "note": "PostgreSQL user lookup"},
     "metadata_query":      {"source": "postgresql",  "retrieval": "platform_qs",    "note": "Stats, counts, navigation"},
     "platform_query":      {"source": "postgresql",  "retrieval": "platform_qs",    "note": "Platform resources search"},
@@ -106,6 +108,7 @@ class QueryRouter:
         document_id: Optional[int] = None,
         user_email: Optional[str] = None,
         on_exa_fallback: Optional[Callable[[], Awaitable[None]]] = None,
+        mode: Optional[str] = None,
     ) -> RoutingResult:
         """Execute the retrieval strategy dictated by *classification*."""
 
@@ -141,11 +144,12 @@ class QueryRouter:
                 exa_docs = await self._maybe_exa_fallback(
                     question,
                     docs,
-                    "conceptual_question",
+                    "general_knowledge",
                     lang,
                     session_id=session_id,
                     user_id=user_id,
                     on_exa_fallback=on_exa_fallback,
+                    mode=mode,
                 )
                 if exa_docs:
                     if should_use_web_only_context(docs, question, "conceptual_question"):
@@ -161,11 +165,11 @@ class QueryRouter:
 
                 if not result.retrieved_docs:
                     result.skip_retrieval = True
-                    result.primary_source = "groq"
+                    result.primary_source = LLM_SOURCE_LABEL
                 return result
 
             result.skip_retrieval = True
-            result.primary_source = "groq"
+            result.primary_source = LLM_SOURCE_LABEL
             return result
 
         # ----- user_query → self-only PostgreSQL user lookup -----
@@ -227,6 +231,7 @@ class QueryRouter:
                 question, docs, intent, lang,
                 session_id=session_id, user_id=user_id,
                 on_exa_fallback=on_exa_fallback,
+                mode=mode,
             )
             if exa_docs:
                 if should_use_web_only_context(docs, question, intent):
@@ -244,7 +249,7 @@ class QueryRouter:
 
             if not result.retrieved_docs:
                 result.skip_retrieval = True
-                result.primary_source = "groq"
+                result.primary_source = LLM_SOURCE_LABEL
             return result
 
         # ----- platform_query → type-filtered search -----
@@ -368,6 +373,7 @@ class QueryRouter:
                 question, docs, intent, lang,
                 session_id=session_id, user_id=user_id,
                 on_exa_fallback=on_exa_fallback,
+                mode=mode,
             )
             if exa_docs:
                 if should_use_web_only_context(docs, question, intent):
@@ -397,7 +403,7 @@ class QueryRouter:
                 result.primary_source = "user_document" if docs else "none"
             else:
                 result.skip_retrieval = True
-                result.primary_source = "groq"
+                result.primary_source = LLM_SOURCE_LABEL
             return result
 
         # ----- bug_query → Qdrant (nlp_knowledge + platform_docs) -----
@@ -410,7 +416,7 @@ class QueryRouter:
                 top_k=settings.TOP_K_RESULTS,
             )
             result.retrieved_docs = docs
-            result.primary_source = src if docs else "groq"
+            result.primary_source = src if docs else LLM_SOURCE_LABEL
             return result
 
         # ----- metadata_query → PostgreSQL stats + navigation -----
@@ -568,11 +574,11 @@ class QueryRouter:
     # Avoids weak / irrelevant matches from polluting the LLM context.
     _COLLECTION_THRESHOLDS: Dict[str, float] = {
         "document_chunks": 0.65,
-        "legal_documents": 0.60,
+        "legal_documents": 0.45,  # Lowered from 0.60 to improve Legal Advisor coverage
         # NLP queries with typos/noisy wording often score around 0.47-0.52.
         # Some valid conceptual queries score around 0.40-0.44 in this corpus.
-        # 0.40 reduces unnecessary non-RAG fallbacks while keeping weak noise out.
-        "nlp_knowledge": 0.40,
+        # 0.35 reduces unnecessary non-RAG fallbacks while keeping weak noise out.
+        "nlp_knowledge": 0.35,
         "platform_docs": 0.50,
         "resources": 0.50,
     }
@@ -643,6 +649,7 @@ class QueryRouter:
         session_id: Optional[str] = None,
         user_id: Optional[str] = None,
         on_exa_fallback: Optional[Callable[[], Awaitable[None]]] = None,
+        mode: Optional[str] = None,
     ) -> List[Dict]:
         """Check retrieval confidence and call Exa if below threshold.
 
@@ -652,7 +659,7 @@ class QueryRouter:
             return []
 
         confidence = compute_retrieval_confidence(retrieved_docs)
-        if not should_trigger_exa(confidence, intent, retrieved_docs, question):
+        if not should_trigger_exa(confidence, intent, retrieved_docs, question, mode=mode):
             logger.info(
                 "Exa fallback NOT triggered: confidence=%.3f intent=%s",
                 confidence, intent,
