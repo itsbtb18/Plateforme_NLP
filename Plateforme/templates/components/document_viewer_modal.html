@@ -15,7 +15,7 @@
     data-resource-id="{{ doc_resource_id|default:'' }}"
     data-resource-title="{{ doc_resource_title|default:'' }}"
     data-convert-url="{% if doc_resource_id %}{% url 'resources:convert-to-text' doc_resource_id %}{% endif %}"
-    data-ai-base="{{ FASTAPI_BROWSER_URL|default:'/ai' }}"
+    data-ts-base="/ts-ai"
      style="display: none;">
     
     <!-- Animated Backdrop -->
@@ -399,6 +399,38 @@
                         </svg>
                         {% trans "Download .txt" %}
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Translation Language Pair Overlay -->
+    <div id="translationPairOverlay" class="ctt-overlay" style="display:none;">
+        <div class="ctt-modal tlp-modal">
+            <div class="ctt-header">
+                <div class="ctt-header-left">
+                    <svg class="ctt-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 8h14"/>
+                        <path d="M5 12h6"/>
+                        <path d="M5 16h10"/>
+                        <path d="M17 10l2 2-2 2"/>
+                    </svg>
+                    <h3 class="ctt-title">{% trans "Choose translation language pair" %}</h3>
+                </div>
+                <button id="closeTranslationPairOverlay" class="ctt-close-btn" title="{% trans 'Close' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="tlp-body">
+                <label for="translationPairSelect" class="tlp-label">{% trans "Language pair" %}</label>
+                <select id="translationPairSelect" class="tlp-select"></select>
+                <div class="tlp-actions">
+                    <button type="button" id="cancelTranslationPairBtn" class="ctt-btn ctt-btn-secondary">{% trans "Cancel" %}</button>
+                    <button type="button" id="confirmTranslationPairBtn" class="ctt-btn ctt-btn-primary">{% trans "Start Translation" %}</button>
                 </div>
             </div>
         </div>
@@ -1682,10 +1714,141 @@ html[dir="rtl"] .docviewer-exit-btn {
     border-color: #cbd5e1;
 }
 
+.tlp-modal {
+    max-width: 520px;
+    background: linear-gradient(160deg, #18122b 0%, #21153a 55%, #2a1b4d 100%);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    box-shadow: 0 24px 56px rgba(5, 4, 16, 0.55);
+}
+
+.tlp-modal .ctt-header {
+    background: linear-gradient(145deg, rgba(167, 139, 250, 0.14), rgba(96, 165, 250, 0.08));
+    border-bottom: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+.tlp-modal .ctt-title {
+    color: #f3f1ff;
+}
+
+.tlp-modal .ctt-header-icon {
+    color: #c4b5fd;
+}
+
+.tlp-modal .ctt-close-btn {
+    color: #cbd5ff;
+}
+
+.tlp-modal .ctt-close-btn:hover {
+    background: rgba(167, 139, 250, 0.18);
+    color: #ffffff;
+}
+
+.tlp-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px 16px;
+    background: rgba(15, 10, 30, 0.35);
+}
+
+.tlp-label {
+    font-size: 0.82rem;
+    color: #c4b5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+
+.tlp-select {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(167, 139, 250, 0.55);
+    background: linear-gradient(140deg, #24193f, #2f1f52);
+    color: #f8fafc;
+    padding: 11px 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    outline: none;
+}
+
+.tlp-select:focus {
+    border-color: rgba(196, 181, 253, 0.95);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.24);
+}
+
+.tlp-select option {
+    background: #24193f;
+    color: #f8fafc;
+}
+
+.tlp-select option:checked {
+    background: #6d28d9;
+    color: #ffffff;
+}
+
+.tlp-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.tlp-actions .ctt-btn-secondary {
+    background: rgba(255, 255, 255, 0.07);
+    color: #e5e7eb;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.tlp-actions .ctt-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(167, 139, 250, 0.6);
+}
+
+.tlp-actions .ctt-btn-primary {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: #fff;
+}
+
+.tlp-actions .ctt-btn-primary:hover {
+    background: linear-gradient(135deg, #9f7aea 0%, #8b5cf6 100%);
+}
+
+@media (max-width: 560px) {
+    .tlp-actions {
+        flex-direction: column-reverse;
+    }
+
+    .tlp-actions .ctt-btn {
+        width: 100%;
+    }
+}
+
 /* RTL support */
 html[dir="rtl"] .ctt-header { flex-direction: row-reverse; }
 html[dir="rtl"] .ctt-header-left { flex-direction: row-reverse; }
 html[dir="rtl"] .ctt-actions { flex-direction: row-reverse; }
+
+.docviewer-ai-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.docviewer-ai-action-btn {
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    background: rgba(15, 23, 42, 0.45);
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.docviewer-ai-action-btn:hover {
+    border-color: rgba(96, 165, 250, 0.7);
+    background: rgba(30, 41, 59, 0.65);
+}
 
 </style>
 
@@ -1710,12 +1873,18 @@ if (typeof pdfjsLib !== 'undefined') {
         backdrop: null,
         currentUrl: null,
         currentType: null,
+        currentText: null,
         pdfDoc: null,
         currentPage: 1,
         totalPages: 1,
         scale: 1,
         baseScale: 1,
         isOpen: false,
+        aiPollTimer: null,
+        aiRequestController: null,
+        activeAiJob: null,
+        translationPairResolver: null,
+        currentTranslationPairs: [],
         
         init() {
             this.modal = document.getElementById('documentViewerModal');
@@ -1752,6 +1921,14 @@ if (typeof pdfjsLib !== 'undefined') {
             document.getElementById('convertTextOverlay')?.addEventListener('click', (e) => {
                 if (e.target.id === 'convertTextOverlay') this.closeConvertOverlay();
             });
+
+            // Translation language modal
+            document.getElementById('closeTranslationPairOverlay')?.addEventListener('click', () => this.closeTranslationPairOverlay(null));
+            document.getElementById('cancelTranslationPairBtn')?.addEventListener('click', () => this.closeTranslationPairOverlay(null));
+            document.getElementById('confirmTranslationPairBtn')?.addEventListener('click', () => this.confirmTranslationPairSelection());
+            document.getElementById('translationPairOverlay')?.addEventListener('click', (e) => {
+                if (e.target.id === 'translationPairOverlay') this.closeTranslationPairOverlay(null);
+            });
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => this.handleKeyboard(e));
@@ -1762,6 +1939,7 @@ if (typeof pdfjsLib !== 'undefined') {
             
             this.currentUrl = url;
             this.currentType = fileType || this.getFileType(url);
+            this.currentText = null;
             this.isOpen = true;
 
             if (resourceId) {
@@ -1817,39 +1995,135 @@ if (typeof pdfjsLib !== 'undefined') {
             document.getElementById('docxContainer').innerHTML = '';
             document.getElementById('imageViewer').src = '';
             document.getElementById('textViewer').textContent = '';
+            this.cancelAiOperation(false);
+            this.closeTranslationPairOverlay(null);
             const statusBox = document.getElementById('docviewerAiStatus');
             if (statusBox) {
                 statusBox.style.display = 'none';
                 statusBox.innerHTML = '';
             }
+            this.pdfDoc = null;
+            this.currentText = null;
+        },
+
+        cancelAiOperation(showStatus = true) {
             if (this.aiPollTimer) {
                 clearInterval(this.aiPollTimer);
                 this.aiPollTimer = null;
             }
-            this.pdfDoc = null;
+
+            if (this.aiRequestController) {
+                this.aiRequestController.abort();
+                this.aiRequestController = null;
+            }
+
+            const buttonId = this.activeAiJob?.buttonId || null;
+            if (buttonId) {
+                this.setNlpButtonLoading(buttonId, false);
+            }
+
+            const stoppedJobId = this.activeAiJob?.jobId || '';
+            this.activeAiJob = null;
+
+            if (showStatus) {
+                this.showAiStatus(
+                    'info',
+                    '{% trans "Operation closed" %}',
+                    '{% trans "Summarization/translation tracking stopped." %}',
+                    { jobId: stoppedJobId }
+                );
+            }
+        },
+
+        getCurrentFileUri() {
+            if (!this.currentUrl) return null;
+            try {
+                return new URL(this.currentUrl, window.location.origin).href;
+            } catch {
+                return this.currentUrl;
+            }
         },
 
         getAiBaseUrl() {
-            const base = this.modal?.dataset?.aiBase || '/ai';
+            const base = this.modal?.dataset?.tsBase || '/ts-ai';
             let normalized = base.endsWith('/') ? base.slice(0, -1) : base;
 
-            // Backward-compatible guard: if legacy base points to /api or a host URL
-            // without /ai, enforce /ai prefix so FastAPI routes resolve.
-            if (normalized.endsWith('/api')) {
-                normalized = normalized + '/ai';
-            } else if (normalized.startsWith('http') && !normalized.endsWith('/ai')) {
-                normalized = normalized + '/ai';
+            if (normalized.startsWith('http') && normalized.endsWith('/')) {
+                normalized = normalized.slice(0, -1);
             }
 
-            // When accessing Django directly on localhost:8888, /ai is not proxied.
-            // Route browser calls to the host-published FastAPI port.
+            // When accessing Django directly on localhost:8888, /ts-ai may not be proxied.
+            // Route browser calls to the host-published standalone service port.
             const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
             const isDirectDjangoPort = window.location.port && !['80', '443', '8000'].includes(window.location.port);
             if (normalized.startsWith('/') && isLocalHost && isDirectDjangoPort) {
-                return 'http://localhost:8000/ai';
+                return 'http://localhost:8010';
             }
 
             return normalized;
+        },
+
+        getAiBaseCandidates() {
+            const primary = this.getAiBaseUrl();
+            const candidates = [primary];
+
+            // Same-origin proxy path via nginx (works when site is on port 80/443).
+            candidates.push('/ts-ai');
+
+            // Host-level nginx fallback when page is served from a non-standard port.
+            const sameHostProxy = `${window.location.protocol}//${window.location.hostname}/ts-ai`;
+            candidates.push(sameHostProxy);
+
+            // Direct standalone service fallback for local Docker setup.
+            candidates.push('http://localhost:8010');
+
+            // De-duplicate while preserving order.
+            return [...new Set(candidates.filter(Boolean).map((u) => u.replace(/\/$/, '')))];
+        },
+
+        async fetchAiWithFallback(path, options = {}) {
+            const bases = this.getAiBaseCandidates();
+            let lastError = null;
+            let lastHttpFailure = null;
+
+            for (const base of bases) {
+                const url = `${base}${path}`;
+                try {
+                    console.log('DocViewer AI trying URL:', url);
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        const status = Number(response.status || 0);
+                        const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                        const looksLikeWrongRoute =
+                            status === 404 ||
+                            status === 405 ||
+                            status >= 500 ||
+                            (status >= 400 && contentType.includes('text/html'));
+
+                        if (looksLikeWrongRoute) {
+                            lastHttpFailure = { response, base, url };
+                            continue;
+                        }
+
+                        // Validation/auth/task errors from the actual AI service are returned immediately.
+                        return { response, base, url };
+                    }
+                    this.lastWorkingAiBase = base;
+                    return { response, base, url };
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+
+            if (lastError) {
+                throw lastError;
+            }
+
+            if (lastHttpFailure) {
+                return lastHttpFailure;
+            }
+
+            throw lastError || new Error('Unable to reach AI service');
         },
 
         setNlpButtonLoading(buttonId, loading, loadingText) {
@@ -1867,21 +2141,239 @@ if (typeof pdfjsLib !== 'undefined') {
             }
         },
 
+        escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        },
+
+        getTranslationLanguagePairs() {
+            return [
+                { source: 'fr', target: 'ar', label: 'French -> Arabic' },
+                { source: 'fr', target: 'en', label: 'French -> English' },
+                { source: 'en', target: 'ar', label: 'English -> Arabic' },
+                { source: 'en', target: 'fr', label: 'English -> French' },
+                { source: 'ar', target: 'en', label: 'Arabic -> English' },
+                { source: 'ar', target: 'fr', label: 'Arabic -> French' },
+            ];
+        },
+
+        normalizeLangCode(lang) {
+            const value = String(lang || '').trim().toLowerCase();
+            if (!value) return '';
+            if (value.startsWith('ar')) return 'ar';
+            if (value.startsWith('fr')) return 'fr';
+            if (value.startsWith('en')) return 'en';
+            return '';
+        },
+
+        async ensureLanguageSampleForDetection() {
+            if (String(this.currentText || '').trim()) {
+                return;
+            }
+
+            if (this.currentType === 'pdf' && this.pdfDoc) {
+                try {
+                    const maxPages = Math.min(2, this.pdfDoc.numPages || 0);
+                    const parts = [];
+                    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+                        const page = await this.pdfDoc.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        const pageText = (textContent.items || [])
+                            .map((item) => (item && typeof item.str === 'string') ? item.str : '')
+                            .join(' ')
+                            .trim();
+                        if (pageText) {
+                            parts.push(pageText);
+                        }
+                    }
+                    if (parts.length) {
+                        this.currentText = parts.join('\n\n');
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('DocViewer language sample extraction failed for PDF:', err);
+                }
+            }
+
+            if (this.currentType === 'docx') {
+                const docxContainer = document.getElementById('docxContainer');
+                const docxText = String(docxContainer?.innerText || '').trim();
+                if (docxText) {
+                    this.currentText = docxText.slice(0, 6000);
+                }
+            }
+        },
+
+        async ensureDocumentTextForAi() {
+            const existing = String(this.currentText || '').trim();
+            if (existing) {
+                return existing;
+            }
+
+            // Reuse language sample extraction for quick in-memory sources (PDF/DOCX render).
+            await this.ensureLanguageSampleForDetection();
+            const sampled = String(this.currentText || '').trim();
+            if (sampled) {
+                return sampled;
+            }
+
+            // Fall back to backend conversion endpoint for robust extraction.
+            const apiUrl = this.modal?.dataset?.convertUrl || '';
+            if (!apiUrl) {
+                return '';
+            }
+
+            try {
+                const resp = await fetch(apiUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin'
+                });
+                const data = await resp.json();
+                if (resp.ok && data?.success && String(data.text || '').trim()) {
+                    this.currentText = String(data.text || '').trim();
+                    return this.currentText;
+                }
+            } catch (err) {
+                console.warn('DocViewer ensureDocumentTextForAi failed:', err);
+            }
+
+            return '';
+        },
+
+        detectDocumentLanguage() {
+            const explicit = this.normalizeLangCode(this.modal?.dataset?.resourceLanguage || '');
+            if (explicit) return explicit;
+
+            const sample = String(this.currentText || '').slice(0, 4000);
+            if (sample) {
+                if (/[\u0600-\u06FF]/.test(sample)) {
+                    return 'ar';
+                }
+
+                const lower = sample.toLowerCase();
+                const frenchHints = [' le ', ' la ', ' les ', ' des ', ' est ', ' une ', ' que ', ' dans ', ' pour '];
+                const englishHints = [' the ', ' and ', ' with ', ' this ', ' that ', ' for ', ' from ', ' are '];
+                const frenchScore = frenchHints.reduce((acc, token) => acc + (lower.includes(token) ? 1 : 0), 0);
+                const englishScore = englishHints.reduce((acc, token) => acc + (lower.includes(token) ? 1 : 0), 0);
+
+                if (frenchScore > englishScore) return 'fr';
+                if (englishScore > frenchScore) return 'en';
+            }
+
+            const pageLang = this.normalizeLangCode(document.documentElement.lang || '');
+            return pageLang || 'en';
+        },
+
+        getAvailableTranslationPairs() {
+            const sourceLang = this.detectDocumentLanguage();
+            const all = this.getTranslationLanguagePairs();
+            const filtered = all.filter((pair) => pair.source === sourceLang);
+            return filtered.length ? filtered : all;
+        },
+
+        getDefaultTranslationPairIndex() {
+            const source = this.detectDocumentLanguage();
+            if (source === 'fr') return 0;
+            if (source === 'ar') return 0;
+            return 0;
+        },
+
+        async askTranslationPair() {
+            await this.ensureLanguageSampleForDetection();
+            const pairs = this.getAvailableTranslationPairs();
+            const defaultIndex = this.getDefaultTranslationPairIndex();
+            const overlay = document.getElementById('translationPairOverlay');
+            const select = document.getElementById('translationPairSelect');
+            if (!overlay || !select) {
+                return Promise.resolve(null);
+            }
+
+            this.currentTranslationPairs = pairs;
+
+            select.innerHTML = pairs
+                .map((pair, index) => `<option value="${index}">${this.escapeHtml(pair.label)}</option>`)
+                .join('');
+            const safeIndex = Math.max(0, Math.min(defaultIndex, pairs.length - 1));
+            select.value = String(safeIndex);
+            overlay.style.display = 'flex';
+
+            return new Promise((resolve) => {
+                this.translationPairResolver = resolve;
+                setTimeout(() => select.focus(), 0);
+            });
+        },
+
+        closeTranslationPairOverlay(selectedPair = null) {
+            const overlay = document.getElementById('translationPairOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+
+            this.currentTranslationPairs = [];
+
+            if (this.translationPairResolver) {
+                this.translationPairResolver(selectedPair);
+                this.translationPairResolver = null;
+            }
+        },
+
+        confirmTranslationPairSelection() {
+            const pairs = this.currentTranslationPairs?.length ? this.currentTranslationPairs : this.getAvailableTranslationPairs();
+            const select = document.getElementById('translationPairSelect');
+            if (!select) {
+                this.closeTranslationPairOverlay(null);
+                return;
+            }
+
+            const idx = Number.parseInt(select.value, 10);
+            if (!Number.isInteger(idx) || idx < 0 || idx >= pairs.length) {
+                this.showAiStatus('error', '{% trans "AI Error" %}', '{% trans "Invalid language choice. Please select a valid option." %}');
+                return;
+            }
+
+            this.closeTranslationPairOverlay(pairs[idx]);
+        },
+
         showAiStatus(kind, title, message, meta = {}) {
             const box = document.getElementById('docviewerAiStatus');
             if (!box) return;
+
+            const safeTitle = this.escapeHtml(title);
+            const safeMessage = this.escapeHtml(message);
+            const safeJobId = this.escapeHtml(meta.jobId || '');
+            const safeOutput = this.escapeHtml(meta.output || '');
+
             box.style.display = 'block';
             box.innerHTML = `
-                <div style="font-weight:700;margin-bottom:6px;">${title}</div>
-                <div style="font-size:0.9rem;line-height:1.35;">${message}</div>
-                ${meta.jobId ? `<div style="margin-top:8px;font-size:0.78rem;opacity:0.8;">Job: ${meta.jobId}</div>` : ''}
-                ${meta.output ? `<pre style="margin-top:10px;white-space:pre-wrap;background:rgba(255,255,255,0.07);padding:10px;border-radius:10px;max-height:180px;overflow:auto;">${meta.output}</pre>` : ''}
+                <div style="font-weight:700;margin-bottom:6px;">${safeTitle}</div>
+                <div style="font-size:0.9rem;line-height:1.35;">${safeMessage}</div>
+                ${meta.jobId ? `<div style="margin-top:8px;font-size:0.78rem;opacity:0.8;">Job: ${safeJobId}</div>` : ''}
+                ${meta.output ? `<pre style="margin-top:10px;white-space:pre-wrap;background:rgba(255,255,255,0.07);padding:10px;border-radius:10px;max-height:180px;overflow:auto;">${safeOutput}</pre>` : ''}
+                ${meta.canCloseOperation ? `
+                    <div class="docviewer-ai-actions">
+                        ${meta.canCloseOperation ? `
+                            <button type="button" class="docviewer-ai-action-btn" id="docviewerCloseOperationBtn">
+                                {% trans "Close" %}
+                            </button>
+                        ` : ''}
+                    </div>
+                ` : ''}
             `;
             box.style.border = kind === 'error' ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid rgba(99, 102, 241, 0.35)';
             box.style.background = kind === 'error' ? 'rgba(127, 29, 29, 0.22)' : 'rgba(30, 41, 59, 0.28)';
             box.style.padding = '12px';
             box.style.borderRadius = '12px';
             box.style.marginTop = '12px';
+
+            if (meta.canCloseOperation) {
+                const closeBtn = box.querySelector('#docviewerCloseOperationBtn');
+                closeBtn?.addEventListener('click', () => this.cancelAiOperation(true));
+            }
         },
 
         getDocumentIdFromButton(buttonId) {
@@ -1894,110 +2386,90 @@ if (typeof pdfjsLib !== 'undefined') {
             return resolved;
         },
 
-        async startAiJob(task, buttonElement = null) {
+        async startAiJob(task, buttonElement = null, options = {}) {
             const buttonId = task === 'translation' ? 'translateDocBtn' : 'summarizeDocBtn';
-            const documentId = (buttonElement?.dataset?.documentId || this.getDocumentIdFromButton(buttonId) || '').trim();
 
-            if (!documentId) {
-                this.showAiStatus('error', '{% trans "AI Error" %}', '{% trans "Missing document identifier." %}');
+            this.cancelAiOperation(false);
+            this.activeAiJob = {
+                task,
+                buttonId,
+                jobId: '',
+            };
+            this.aiRequestController = new AbortController();
+
+            const isTranslation = task === 'translation';
+            const textForAi = await this.ensureDocumentTextForAi();
+            const endpoint = isTranslation ? '/translate' : '/summarize';
+            const payload = isTranslation
+                ? {
+                    text: String(textForAi || '').trim(),
+                    source_language: options.sourceLanguage || this.detectDocumentLanguage() || 'en',
+                    target_language: options.targetLanguage || 'en',
+                }
+                : {
+                    text: String(textForAi || '').trim(),
+                    language: this.detectDocumentLanguage() || 'en',
+                    style: 'brief',
+                    max_words: 180,
+                };
+
+            if (!payload.text) {
+                this.activeAiJob = null;
+                this.aiRequestController = null;
+                this.showAiStatus('error', '{% trans "AI Error" %}', '{% trans "No document text available. Unable to extract text from this file." %}');
                 return;
             }
 
-            const isTranslation = task === 'translation';
-            const endpoint = isTranslation ? '/translation/jobs' : '/summarization/jobs';
-            const payload = isTranslation
-                ? {
-                    document_id: documentId,
-                    target_language: (document.documentElement.lang || 'en').startsWith('ar') ? 'en' : 'ar',
-                }
-                : {
-                    document_id: documentId,
-                    summary_type: 'brief',
-                };
-
-            console.log('DocViewer AI payload:', payload);
-
             this.setNlpButtonLoading(buttonId, true, '{% trans "Processing..." %}');
-            this.showAiStatus('info', '{% trans "AI Processing" %}', '{% trans "Submitting job..." %}');
+            this.showAiStatus('info', '{% trans "AI Processing" %}', '{% trans "Generating output..." %}', { canCloseOperation: true });
 
             try {
-                const requestUrl = `${this.getAiBaseUrl()}${endpoint}`;
-                console.log('DocViewer AI request URL:', requestUrl);
-
-                const submitResp = await fetch(requestUrl, {
+                const submitResult = await this.fetchAiWithFallback(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin',
+                    signal: this.aiRequestController.signal,
                     body: JSON.stringify(payload),
                 });
-
-                if (!submitResp.ok) {
-                    const errText = await submitResp.text();
-                    throw new Error(errText || 'Failed to submit AI job');
+                const response = submitResult.response;
+                const responseText = await response.text();
+                let responseJson = {};
+                try {
+                    responseJson = responseText ? JSON.parse(responseText) : {};
+                } catch {
+                    responseJson = {};
                 }
 
-                const submitData = await submitResp.json();
-                const jobId = submitData.job_id;
-                console.log('DocViewer AI job_id:', jobId);
-                this.showAiStatus('info', '{% trans "AI Processing" %}', '{% trans "Job queued. Waiting for result..." %}', { jobId });
-
-                if (this.aiPollTimer) {
-                    clearInterval(this.aiPollTimer);
+                if (!response.ok) {
+                    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                    const looksLikeHtml = contentType.includes('text/html') || /<!doctype html|<html/i.test(responseText || '');
+                    const msg = looksLikeHtml
+                        ? '{% trans "AI service endpoint was not found on this route. Please use nginx proxy or ensure the standalone service is reachable on port 8010." %}'
+                        : (responseJson.detail || responseText || '{% trans "Request failed." %}');
+                    throw new Error(msg);
                 }
 
-                this.aiPollTimer = setInterval(async () => {
-                    try {
-                        const statusUrl = `${this.getAiBaseUrl()}/jobs/${jobId}`;
-                        console.log('DocViewer AI status URL:', statusUrl);
-                        const statusResp = await fetch(statusUrl, {
-                            credentials: 'same-origin',
-                        });
-                        if (!statusResp.ok) return;
-                        const statusData = await statusResp.json();
-
-                        if (statusData.status === 'queued' || statusData.status === 'running' || statusData.status === 'pending') {
-                            this.showAiStatus(
-                                'info',
-                                '{% trans "AI Processing" %}',
-                                `{% trans "Status" %}: ${statusData.status}`,
-                                { jobId }
-                            );
-                            return;
-                        }
-
-                        if (statusData.status === 'failed') {
-                            clearInterval(this.aiPollTimer);
-                            this.aiPollTimer = null;
-                            this.setNlpButtonLoading(buttonId, false);
-                            this.showAiStatus('error', '{% trans "AI Error" %}', statusData.error_message || '{% trans "Job failed." %}', { jobId });
-                            return;
-                        }
-
-                        if (statusData.status === 'succeeded') {
-                            const resultUrl = `${this.getAiBaseUrl()}/jobs/${jobId}/result`;
-                            console.log('DocViewer AI result URL:', resultUrl);
-                            const resultResp = await fetch(resultUrl, {
-                                credentials: 'same-origin',
-                            });
-                            if (!resultResp.ok) return;
-                            const resultData = await resultResp.json();
-                            clearInterval(this.aiPollTimer);
-                            this.aiPollTimer = null;
-                            this.setNlpButtonLoading(buttonId, false);
-                            this.showAiStatus(
-                                'success',
-                                isTranslation ? '{% trans "Translation Ready" %}' : '{% trans "Summary Ready" %}',
-                                '{% trans "Result generated successfully." %}',
-                                { jobId, output: resultData.output_text || '' }
-                            );
-                        }
-                    } catch (pollErr) {
-                        console.error('AI polling error:', pollErr);
-                    }
-                }, 2000);
-            } catch (err) {
+                const output = String(responseJson.output || '').trim();
                 this.setNlpButtonLoading(buttonId, false);
-                this.showAiStatus('error', '{% trans "AI Error" %}', err.message || '{% trans "Unable to start AI job." %}');
+                this.aiRequestController = null;
+                this.activeAiJob = null;
+                this.showAiStatus(
+                    'success',
+                    isTranslation ? '{% trans "Translation Ready" %}' : '{% trans "Summary Ready" %}',
+                    '{% trans "Result generated successfully." %}',
+                    { output }
+                );
+            } catch (err) {
+                if (err?.name === 'AbortError') {
+                    return;
+                }
+                this.aiRequestController = null;
+                this.activeAiJob = null;
+                this.setNlpButtonLoading(buttonId, false);
+                const message = (err && err.message === 'Failed to fetch')
+                    ? '{% trans "Translation/Summarization service is unreachable. Please restart nginx and translation_summarization services." %}'
+                    : (err.message || '{% trans "Unable to process request." %}');
+                this.showAiStatus('error', '{% trans "AI Error" %}', message);
             }
         },
         
@@ -2132,6 +2604,7 @@ if (typeof pdfjsLib !== 'undefined') {
             const response = await fetch(this.currentUrl);
             const text = await response.text();
             
+            this.currentText = text;
             document.getElementById('textViewer').textContent = text;
             this.hideLoading();
             document.getElementById('textContainer').style.display = 'block';
@@ -2280,6 +2753,7 @@ if (typeof pdfjsLib !== 'undefined') {
             .then(data => {
                 spinner.style.display = 'none';
                 if (data.success) {
+                    this.currentText = String(data.text || '').trim();
                     textArea.value = data.text;
                     metaInfo.textContent = data.filename
                         + '  •  ' + (data.word_count || 0).toLocaleString() + ' {% trans "words" %}'
@@ -2324,8 +2798,16 @@ if (typeof pdfjsLib !== 'undefined') {
             this.startAiJob('summarization', buttonElement);
         },
         
-        translateDoc(buttonElement) {
-            this.startAiJob('translation', buttonElement);
+        async translateDoc(buttonElement) {
+            const selection = await this.askTranslationPair();
+            if (selection === null) {
+                return;
+            }
+
+            this.startAiJob('translation', buttonElement, {
+                sourceLanguage: selection.source,
+                targetLanguage: selection.target,
+            });
         },
         
         askChatbot() {

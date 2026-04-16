@@ -242,6 +242,34 @@ services:
       - nlp_network
     restart: unless-stopped
 
+  # Standalone Translation/Summarization Service
+  translation_summarization:
+    profiles: ["full"]
+    build:
+      context: ./translation_summarization_service
+      dockerfile: Dockerfile
+    container_name: nlp_translation_summarization
+    environment:
+      TS_SERVICE_API_KEY: ${TS_SERVICE_API_KEY:-}
+      TS_PRIMARY_PROVIDER: ${TS_PRIMARY_PROVIDER:-gemini}
+      TS_FALLBACK_PROVIDER: ${TS_FALLBACK_PROVIDER:-groq}
+      TS_GEMINI_API_KEY: ${TS_GEMINI_API_KEY:-}
+      TS_GEMINI_MODEL: ${TS_GEMINI_MODEL:-gemini-2.0-flash}
+      TS_GROQ_API_KEY: ${TS_GROQ_API_KEY:-}
+      TS_GROQ_TRANSLATION_MODEL: ${TS_GROQ_TRANSLATION_MODEL:-llama-3.3-70b-versatile}
+      TS_GROQ_SUMMARIZATION_MODEL: ${TS_GROQ_SUMMARIZATION_MODEL:-llama-3.3-70b-versatile}
+    ports:
+      - "${TS_SERVICE_PORT:-8010}:8010"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
   # Celery Worker for background document processing
   celery_worker:
     profiles: ["full"]
