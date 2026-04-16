@@ -234,6 +234,35 @@ html[dir="rtl"] body {
     border: 1px solid var(--border-light);
 }
 
+.pd-file-link {
+    margin-top: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgba(167, 139, 250, 0.28);
+    background: rgba(124, 58, 237, 0.1);
+    color: #ddd6fe;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 700;
+    max-width: 100%;
+}
+
+.pd-file-link:hover {
+    color: #f5f3ff;
+    border-color: rgba(167, 139, 250, 0.48);
+    background: rgba(124, 58, 237, 0.18);
+}
+
+.pd-file-link-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
 .pd-stats {
     display: flex;
     gap: 1.5rem;
@@ -892,12 +921,25 @@ html[dir="rtl"] .pd-card-body {
                         </a>
                     </div>
                     {% endif %}
+
+                    {% if post.file %}
+                    <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+                        <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+                        <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
+                    </a>
+                    {% endif %}
                 </div>
                 {% else %}
                 <!-- Fallback to regular post content -->
                 <p class="pd-content">{{ post.content }}</p>
                 {% if post.image %}
                 <img src="{{ post.image.url }}" alt="{% trans 'Post image' %}" class="pd-image">
+                {% endif %}
+                {% if post.file %}
+                <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+                    <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+                    <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
+                </a>
                 {% endif %}
                 {% endif %}
             </div>

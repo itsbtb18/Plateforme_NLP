@@ -26,7 +26,11 @@ class GroqProvider(Provider):
             source_language=source_language,
             target_language=target_language,
         )
-        return await self._chat(prompt=prompt, model=self.model_translate, max_tokens=768)
+        return await self._chat(
+            prompt=prompt,
+            model=self.model_translate,
+            max_tokens=self._translation_max_tokens(text),
+        )
 
     async def summarize(self, *, text: str, language: str, style: str, max_words: int | None) -> str:
         prompt = PromptEngine.summarization_prompt(
@@ -54,3 +58,9 @@ class GroqProvider(Provider):
             return (response.choices[0].message.content or "").strip()
 
         return await asyncio.to_thread(_run)
+
+    @staticmethod
+    def _translation_max_tokens(text: str) -> int:
+        # Use a larger dynamic completion budget for full-document translation.
+        estimated = (len(text) // 3) + 900
+        return max(1200, min(8192, estimated))

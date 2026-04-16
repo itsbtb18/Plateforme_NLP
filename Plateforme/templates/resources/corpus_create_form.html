@@ -1,1911 +1,598 @@
-﻿{% extends "base.html" %}
-{% load static crispy_forms_tags i18n %}
+{% extends "base.html" %}
+{% load static i18n %}
 
-{% block title %}
-{% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "Create New Corpus" %}{% endif %} - {% trans "Resources" %}
-{% endblock %}
+{% block title %}{% trans "Create Corpus" %} - {% trans "Academic Platform" %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
-/* ===== CSS VARIABLES - Modern Dark Theme ===== */
 :root {
-<<<<<<< HEAD
-<<<<<<< HEAD
-    --primary-accent: #4F46E5;
-    --primary-hover: #4338CA;
-    --surface-white: #ffffff;
-    --surface-bg: #F9FAFB;
-    --border-subtle: #E5E7EB;
-    --border-focus: #4F46E5;
-    --text-primary: #111827;
-    --text-secondary: #6B7280;
-    --text-muted: #9CA3AF;
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    --primary-color: #a78bfa;
-    --primary-dark: #8b5cf6;
-    --accent-color: #7c3aed;
-    --accent-pink: #ec4899;
-    --accent-cyan: #06b6d4;
-    --bg-dark: #0f1419;
-    --bg-darker: #0a0e14;
-    --bg-card: rgba(167, 139, 250, 0.05);
-    --bg-card-hover: rgba(167, 139, 250, 0.08);
-    --text-primary: #ffffff;
-    --text-secondary: #d1d5db;
+    --primary: #a78bfa;
+    --primary-strong: #8b5cf6;
+    --accent: #7c3aed;
+    --bg-main: #0f1419;
+    --bg-gradient: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    --surface: rgba(167, 139, 250, 0.04);
+    --surface-hover: rgba(167, 139, 250, 0.08);
+    --border: rgba(167, 139, 250, 0.18);
+    --text-main: #ffffff;
     --text-muted: #9ca3af;
-    --border-color: rgba(167, 139, 250, 0.2);
-    --border-light: rgba(167, 139, 250, 0.1);
-    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
-    /* Legacy variables for compatibility */
-    --primary-accent: #8B5CF6;
-    --primary-hover: #7C3AED;
-    --primary-purple: #7C3AED;
-    --surface-white: #18142b;
-    --surface-bg: #0A0B18;
-    --border-subtle: rgba(167, 139, 250, 0.16);
-    --border-focus: #8B5CF6;
-    --text-primary-legacy: #F8FAFC;
-    --text-secondary-legacy: #CBD5E1;
-    --text-muted-legacy: #94A3B8;
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    --radius: 8px;
-    --success: #059669;
-    --success-light: #ECFDF5;
-    --danger: #DC2626;
-    --teal: #0D9488;
-}
-
-* {
-    box-sizing: border-box;
+    --danger: #ef4444;
+    --radius: 12px;
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    -moz-osx-font-smoothing: grayscale;
-    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
-    background-attachment: fixed;
-    color: var(--text-primary);
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
+    background: var(--bg-main);
+    color: var(--text-main);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 html[dir="rtl"] body {
-    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: "Tajawal", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-/* ===== DARK BLUE HERO HEADER (like projects page) ===== */
-.page-hero {
-    background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%);
-    padding: 2.5rem 2rem 3rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.page-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 70% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
-    pointer-events: none;
-}
-
-.page-hero .hero-inner {
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-/* ===== PAGE LAYOUT ===== */
-.corpus-form-page {
+.corpus-page {
     min-height: calc(100vh - 100px);
-    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
-    background-attachment: fixed;
-    padding: 1rem;
+    background: var(--bg-gradient);
+    padding: 2.75rem 1rem 3.5rem;
     position: relative;
     overflow-x: hidden;
 }
 
-.corpus-form-page::before {
-    content: '';
+.corpus-page::before {
+    content: "";
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        radial-gradient(circle at 20% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 85% 85%, rgba(124, 58, 237, 0.06) 0%, transparent 45%);
+    inset: 0;
     pointer-events: none;
-    z-index: 0;
+    background:
+        radial-gradient(circle at 18% 26%, rgba(167, 139, 250, 0.1) 0%, transparent 38%),
+        radial-gradient(circle at 85% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 44%);
 }
 
-.form-container {
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    max-width: 900px;
+.corpus-shell {
+    max-width: 920px;
     margin: 0 auto;
     position: relative;
     z-index: 1;
 }
 
-/* ===== MINIMAL PAGE HEADER (Simplified Hero) ===== */
-.page-hero {
-    margin-bottom: 2.5rem;
+.page-head {
     text-align: center;
+    margin-bottom: 2rem;
 }
 
-.page-hero::before {
-    display: none;
-}
-
-/* Breadcrumb */
-.breadcrumb {
+.breadcrumbs {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    font-size: 0.85rem;
-    color: rgba(255,255,255,0.5);
-    list-style: none;
+    flex-wrap: wrap;
+    margin: 0 0 1.25rem;
     padding: 0;
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-    margin-left: 0;
-    flex-wrap: wrap;
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-    margin-left: 0;
-    flex-wrap: wrap;
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
+    list-style: none;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
 }
 
-.breadcrumb a {
-    color: var(--primary-color);
+.breadcrumbs a {
+    color: var(--primary);
     text-decoration: none;
-    transition: color 0.2s ease;
     font-weight: 500;
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-.breadcrumb a:hover {
-    color: white;
+.breadcrumbs a:hover {
+    color: #d8b4fe;
 }
 
-.breadcrumb .separator {
-    color: rgba(255,255,255,0.35);
-    font-size: 0.75rem;
-}
-
-.breadcrumb .current {
-    color: rgba(255,255,255,0.9);
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.breadcrumb a:hover { 
-    color: var(--accent-cyan);
-}
-
-.breadcrumb .separator { 
-    color: rgba(255,255,255,0.3); 
-    font-size: 0.7rem;
-}
-
-.breadcrumb .current { 
-    color: rgba(255,255,255,0.8); 
-    font-weight: 600;
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-}
-
-/* Hero Icon */
-.hero-icon-wrap {
-<<<<<<< HEAD
-<<<<<<< HEAD
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.18);
+.hero-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 0.9rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1.25rem;
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     color: white;
-    backdrop-filter: blur(8px);
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    width: 60px;
-    height: 60px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 1.75rem;
-    color: white;
-    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.25);
-    transition: all 0.3s ease;
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.28);
 }
 
-.hero-icon-wrap::after {
-    display: none;
-}
-
-.hero-icon-wrap:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-}
-
-.page-hero h1 {
+.page-head h1 {
+    margin: 0 0 0.45rem;
     font-size: 2rem;
     font-weight: 700;
-    color: white;
-    margin: 0 0 0.5rem;
     letter-spacing: -0.02em;
+    font-family: "Space Grotesk", "Inter", sans-serif;
 }
 
-.page-hero p {
-<<<<<<< HEAD
-<<<<<<< HEAD
-    color: rgba(255,255,255,0.65);
-    font-size: 0.9375rem;
+.page-head p {
     margin: 0;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.95rem;
 }
 
-/* Step indicator (matching projects) */
-.steps-bar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-    margin-top: 2rem;
-    background: rgba(255,255,255,0.07);
-    border-radius: 999px;
-    padding: 0.375rem;
-    width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
-    border: 1px solid rgba(255,255,255,0.12);
-}
-
-.step-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1.25rem;
-    border-radius: 999px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: rgba(255,255,255,0.5);
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-
-.step-item.active {
-    background: white;
-    color: var(--primary-accent);
-    font-weight: 600;
-}
-
-.step-number {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 700;
-    background: rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.7);
-}
-
-.step-item.active .step-number {
-    background: var(--primary-accent);
-    color: white;
-}
-
-/* ===== PAGE BODY ===== */
-.corpus-form-page {
-    min-height: calc(100vh - 200px);
-    background: var(--surface-bg);
-    padding: 2.5rem 1rem;
-}
-
-.form-container {
-    max-width: 860px;
-    margin: 0 auto;
-}
-
-/* ===== WHITE CARD ===== */
-.card {
-    background: var(--surface-white);
-    border-radius: var(--radius);
-    box-shadow:
-        0 1px 2px 0 rgba(0,0,0,0.03),
-        0 2px 4px 0 rgba(0,0,0,0.04),
-        0 4px 8px 0 rgba(0,0,0,0.05);
-    border: 1px solid var(--border-subtle);
-    margin-bottom: 1.5rem;
-}
-
-.card-header {
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--border-subtle);
-    background: linear-gradient(180deg, #fff 0%, #FAFBFC 100%);
-    border-radius: var(--radius) var(--radius) 0 0;
-}
-
-.card-header h2 {
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    color: rgba(255,255,255,0.6);
-    font-size: 0.9rem;
-    margin: 0;
-    font-weight: 400;
-}
-
-/* Steps bar */
-.steps-bar {
-    display: none;
-}
-
-/* RTL Support */
-html[dir="rtl"] .form-group label { text-align: right; }
-html[dir="rtl"] .form-group input,
-html[dir="rtl"] .form-group textarea,
-html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
-html[dir="rtl"] .translation-toggle { flex-direction: row-reverse; }
-html[dir="rtl"] .translation-toggle-content { flex-direction: row-reverse; }
-html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; text-align: right; }
-html[dir="rtl"] .icon-file-preview { flex-direction: row-reverse; text-align: right; }
-html[dir="rtl"] .page-hero { text-align: right; }
-html[dir="rtl"] .page-hero .breadcrumb { justify-content: flex-end; }
-
-/* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
-.card {
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.03) 0%, rgba(124, 58, 237, 0.01) 100%);
-    border: 1px solid rgba(167, 139, 250, 0.12);
-    border-radius: 14px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+.form-card {
+    background: linear-gradient(145deg, rgba(167, 139, 250, 0.05), rgba(30, 20, 55, 0.2));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.22);
     overflow: hidden;
-    backdrop-filter: blur(8px);
-    transition: all 0.3s ease;
-    margin-bottom: 1.5rem;
 }
 
-.card:hover {
-    /* Minimal hover effect */
+.section {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.12);
 }
 
-.card-header {
-    padding: 1.25rem;
-    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
-    background: transparent;
+.section:last-child {
+    border-bottom: 0;
+}
+
+.section-title {
     display: flex;
+    gap: 0.7rem;
     align-items: center;
-    gap: 0.75rem;
+    margin: 0 0 1.15rem;
 }
 
-.card-header-icon {
-    width: 40px;
-    height: 40px;
+.section-title i {
+    width: 36px;
+    height: 36px;
     border-radius: 10px;
-    display: flex;
+    background: rgba(167, 139, 250, 0.14);
+    color: var(--primary);
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
-    flex-shrink: 0;
 }
 
-.card-header-icon.blue { background: rgba(59, 130, 246, 0.1); color: #60A5FA; }
-.card-header-icon.purple { background: rgba(167, 139, 250, 0.1); color: #A78BFA; }
-.card-header-icon.teal { background: rgba(13, 148, 136, 0.1); color: #0D9488; }
-.card-header-icon.gray { background: rgba(71, 85, 105, 0.1); color: #94A3B8; }
-
-.card-header-text h2 {
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
+.section-title h2 {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
-    color: var(--text-primary);
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-.card-header p {
-    margin: 0.25rem 0 0;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.card-header-text p {
-    margin: 0.25rem 0 0;
-    font-size: 0.8rem;
+.section-title small {
+    display: block;
     color: var(--text-muted);
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
+    font-size: 0.8rem;
 }
 
-.card-body {
-    padding: 1.5rem;
+.field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
 }
 
-/* ===== FORM FIELDS ===== */
-<<<<<<< HEAD
-<<<<<<< HEAD
 .form-group {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
 }
-=======
-.form-group { margin-bottom: 1.5rem; }
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-.form-group { margin-bottom: 1.5rem; }
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
 
 .form-group label {
     display: block;
-    font-size: 0.9rem;
+    margin-bottom: 0.45rem;
+    font-size: 0.88rem;
     font-weight: 500;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
+    color: var(--text-main);
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-.form-group label .required {
+.form-group .required {
     color: var(--danger);
-    margin-left: 0.125rem;
 }
-=======
-.form-group label .required { color: #ef4444; margin-left: 0.125rem; }
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-.form-group label .required { color: #ef4444; margin-left: 0.125rem; }
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
 
-.form-group input[type="text"],
-.form-group input[type="url"],
-.form-group input[type="number"],
-.form-group textarea,
-.form-group select {
+.form-group input,
+.form-group select,
+.form-group textarea {
     width: 100%;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    padding: 0.625rem 0.875rem;
-    font-size: 0.9375rem;
-    border: 1px solid #E5E7EB;
-    border-radius: var(--radius);
-    background: var(--surface-white);
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    padding: 0.625rem 0.75rem;
-    font-size: 0.9rem;
-    border: 1px solid rgba(167, 139, 250, 0.12);
-    border-radius: 8px;
-    background: rgba(255,255,255,.05);
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    transition: all 0.2s ease;
-    color: var(--text-primary);
-    font-family: inherit;
-}
-
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-    color: var(--text-muted);
-}
-
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
-    outline: none;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    border-color: var(--border-focus);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08), 0 1px 2px 0 rgba(0,0,0,0.05);
-=======
-    border-color: #a78bfa;
-    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.1);
-    background: rgba(255,255,255,.08);
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-    border-color: #a78bfa;
-    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.1);
-    background: rgba(255,255,255,.08);
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-}
-
-.form-group input:hover,
-.form-group textarea:hover,
-<<<<<<< HEAD
-<<<<<<< HEAD
-.form-group select:hover {
-    border-color: #D1D5DB;
-=======
-.form-group select:hover { 
-    border-color: rgba(167, 139, 250, 0.18);
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-.form-group select:hover { 
-    border-color: rgba(167, 139, 250, 0.18);
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(167, 139, 250, 0.22);
+    border-radius: 9px;
+    color: var(--text-main);
+    padding: 0.62rem 0.75rem;
+    font-size: 0.92rem;
 }
 
 .form-group textarea {
-    min-height: 110px;
+    min-height: 120px;
     resize: vertical;
-    line-height: 1.5;
 }
 
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2);
+}
+
+.form-group .helptext,
 .form-text {
-    display: block;
-    margin-top: 0.375rem;
-    font-size: 0.8125rem;
+    margin-top: 0.35rem;
     color: var(--text-muted);
+    font-size: 0.8rem;
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-/* Input with leading icon */
-.input-with-icon {
-    position: relative;
+.file-upload-shell {
+    border: 1px solid rgba(167, 139, 250, 0.24);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.75rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.input-with-icon .input-icon {
+.file-upload-shell:hover {
+    border-color: rgba(167, 139, 250, 0.45);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.file-upload-shell.focused {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.22);
+}
+
+.file-input-native {
     position: absolute;
-    left: 0.875rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 1rem;
-    pointer-events: none;
-}
-
-.input-with-icon input {
-    padding-left: 2.5rem;
-}
-
-html[dir="rtl"] .input-with-icon .input-icon { left: auto; right: 0.875rem; }
-html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 2.5rem; }
-
-/* URL validation */
-.url-valid { border-color: var(--success) !important; }
-.url-invalid { border-color: var(--danger) !important; }
-
-.url-feedback {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    margin-top: 0.375rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-}
-
-.url-feedback.valid { color: var(--success); }
-.url-feedback.invalid { color: var(--danger); }
-
-/* ===== CHAR COUNTER ===== */
-.char-counter-wrap { display: flex; justify-content: flex-end; margin-top: 0.375rem; }
-
-.char-counter {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    padding: 0.25rem 0.5rem;
-    background: rgba(167, 139, 250, 0.1);
-    border-radius: 6px;
-    border: 1px solid var(--border-light);
-}
-
-.char-counter.warn { 
-    color: #f97316; 
-    background: rgba(249, 115, 22, 0.1);
-    border-color: #f97316;
-}
-
-.char-counter.danger { 
-    color: var(--danger);
-    background: rgba(239, 68, 68, 0.1);
-    border-color: #DC2626;
-}
-
-/* Field Grid for Side-by-Side Inputs */
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.field-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-}
-
-@media (max-width: 768px) {
-    .field-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* Form Grid */
-.form-grid {
-    display: block;
-}
-
-/* Page Header */
-.page-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.page-header h1 {
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 0.25rem 0;
-    letter-spacing: -0.025em;
-}
-
-.page-header p {
-    color: var(--text-secondary);
-    font-size: 0.9375rem;
-    margin: 0;
-    font-weight: 400;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 640px) {
-    .page-hero h1 { font-size: 1.875rem; }
-    .page-hero { padding: 2rem 0; }
-    .form-container { padding: 0 1rem; }
-}
-.translation-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    padding: 0.875rem 1rem;
-    background: var(--surface-bg);
-    border-radius: var(--radius);
-    margin-bottom: 1.5rem;
-    border: 1px solid var(--border-subtle);
-}
-
-.translation-toggle-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    padding: 1rem;
-    background: linear-gradient(135deg, rgba(13, 148, 136, 0.12) 0%, rgba(13, 148, 136, 0.08) 100%);
-    border-radius: 10px;
-    margin-bottom: 1.5rem;
-    border: 1px solid rgba(13, 148, 136, 0.18);
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.translation-toggle:hover {
-    background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(13, 148, 136, 0.1) 100%);
-    border-color: rgba(13, 148, 136, 0.25);
-}
-
-.translation-toggle-content {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.translation-toggle-content i { 
-    font-size: 1.5rem; 
-    color: #0D9488;
-}
-
-.translation-toggle-content h4 {
-    margin: 0 0 0.125rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.translation-toggle-content p {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--text-muted);
-}
-
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.toggle-switch {
-    position: relative;
-    width: 48px;
-    height: 26px;
-    flex-shrink: 0;
-}
-
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-
-.toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    inset: 0;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    background: #D1D5DB;
-=======
-    background: rgba(255,255,255,.2);
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-    background: rgba(255,255,255,.2);
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    border-radius: 999px;
-    transition: all 0.2s ease;
-}
-
-.toggle-slider::before {
-    position: absolute;
-    content: "";
-    height: 20px;
-    width: 20px;
-    left: 3px;
-    bottom: 3px;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    background: white;
-=======
-    background: rgba(255,255,255,.9);
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-    background: rgba(255,255,255,.9);
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    border-radius: 50%;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-}
-
-.toggle-switch input:checked + .toggle-slider { background: var(--teal); }
-.toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-.translation-fields {
-    display: none;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-subtle);
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-/* Conditional fields - Arabic Content */
-.arabic-fields { display: none; }
-.arabic-fields.visible {
-    display: block;
-    animation: fadeIn 0.3s ease;
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-}
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-/* ===== UPLOAD ZONE ===== */
-.upload-zone {
-    border: 1.5px dashed #D1D5DB;
-    border-radius: var(--radius);
-    padding: 2rem 1.5rem;
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-/* Arabic section divider */
-.lang-divider {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 1.5rem 0 1.25rem;
-}
-
-.lang-divider-line { flex: 1; height: 1px; background: var(--border-light); }
-
-.lang-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.lang-badge.en { background: var(--primary-color); color: white; }
-.lang-badge.ar { background: #0D9488; color: white; }
-
-/* ===== ICON UPLOAD ZONE ===== */
-.icon-upload-zone {
-    border: 1.5px dashed rgba(167, 139, 250, 0.15);
-    border-radius: 8px;
-    padding: 1.5rem 1.25rem;
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    text-align: center;
-    transition: all 0.25s ease;
-    cursor: pointer;
-    background: rgba(167, 139, 250, 0.02);
-    position: relative;
-}
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-.upload-zone:hover {
-    border-color: var(--primary-accent);
-    background: rgba(79, 70, 229, 0.02);
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.08);
-}
-
-.upload-zone.drag-over {
-    border-color: var(--primary-accent);
-    border-style: solid;
-    background: rgba(79, 70, 229, 0.05);
-    transform: scale(1.01);
-}
-
-.upload-zone.has-file {
-    border-color: var(--success);
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.icon-upload-zone:hover {
-    border-color: rgba(167, 139, 250, 0.25);
-    background: rgba(167, 139, 250, 0.05);
-}
-
-.icon-upload-zone.drag-over {
-    border-color: #a78bfa;
-    border-style: solid;
-    background: rgba(167, 139, 250, 0.08);
-    transform: scale(1.01);
-}
-
-.icon-upload-zone.has-file {
-    border-color: #10b981;
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    border-style: solid;
-    background: rgba(16, 185, 129, 0.05);
-}
-
-.icon-upload-zone input[type="file"] {
-    position: absolute;
-    left: -9999px;
     width: 1px;
     height: 1px;
     opacity: 0;
     pointer-events: none;
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-.file-preview {
-    display: none;
+.file-upload-row {
+    display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.875rem 1rem;
-    background: var(--surface-white);
-    border-radius: var(--radius);
-    margin-top: 1rem;
-    border: 1px solid #E5E7EB;
-    box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.icon-preview-circle {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    color: white;
-    margin: 0 auto 1rem;
-    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
-    overflow: hidden;
-    transition: all 0.3s ease;
 }
 
-.icon-preview-circle img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: none;
-}
-
-.icon-upload-zone.has-file .icon-preview-circle {
-    box-shadow: 0 0 0 4px var(--success), 0 6px 20px rgba(16, 185, 129, 0.3);
-}
-
-.icon-upload-zone.has-file .icon-preview-circle i { display: none; }
-.icon-upload-zone.has-file .icon-preview-circle img { display: block; }
-
-.icon-upload-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.25rem;
-}
-
-.icon-upload-sub {
-    font-size: 0.8125rem;
-    color: var(--text-muted);
-    margin-bottom: 0.875rem;
-}
-
-.icon-upload-formats {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-top: 0.5rem;
-}
-
-.icon-file-preview {
-    display: none;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: rgba(167, 139, 250, 0.08);
-    border-radius: 10px;
-    margin-top: 1rem;
-    border: 1px solid var(--border-light);
-    text-align: left;
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-}
-
-.icon-file-preview.visible { display: flex; }
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-.file-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius);
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.icon-file-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--success);
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    flex-shrink: 0;
-}
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-.file-info { flex: 1; min-width: 0; }
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.icon-file-info { flex: 1; min-width: 0; }
-.icon-file-name { 
-    font-size: 0.875rem; 
-    font-weight: 500; 
-    color: var(--text-primary); 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
-}
-.icon-file-size { 
-    font-size: 0.8125rem; 
-    color: var(--text-muted); 
-}
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-
-.icon-file-remove {
-    padding: 0.375rem;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.15s;
-}
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-.file-remove:hover { background: var(--surface-bg); color: var(--danger); }
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.icon-file-remove:hover { 
-    background: rgba(239, 68, 68, 0.1); 
-    color: var(--danger); 
-}
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-
-/* ===== KEYWORDS INPUT - CLEAN TAGS ===== */
-.keywords-container {
-    border: 1px solid var(--border-light);
-    border-radius: 10px;
-    padding: 0.5rem;
-    min-height: 48px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    align-items: center;
-    background: rgba(255,255,255,.05);
-    transition: all 0.15s ease;
-}
-
-.keywords-container:focus-within {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15);
-}
-
-.keyword-pill {
+.file-upload-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    padding: 0.35rem 0.75rem;
-    background: var(--primary-color);
-    color: white;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    border-radius: 6px;
-}
-
-.keyword-pill .remove-keyword {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
+    gap: 0.45rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid rgba(167, 139, 250, 0.5);
+    color: #f3e8ff;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.65), rgba(91, 33, 182, 0.8));
+    font-size: 0.86rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
+    white-space: nowrap;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.keyword-pill .remove-keyword:hover {
-    background: rgba(255, 255, 255, 0.35);
+.file-upload-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(124, 58, 237, 0.25);
 }
 
-.keyword-input {
+.file-upload-name {
     flex: 1;
-    min-width: 140px;
-    border: none;
-    outline: none;
-    font-size: 0.875rem;
-    padding: 0.35rem;
-    background: transparent;
-    color: var(--text-primary);
-}
-
-/* ===== SUBMIT BUTTONS ===== */
-.btn-submit-wrapper {
-<<<<<<< HEAD
-<<<<<<< HEAD
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border-subtle);
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    margin-top: 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1.5rem;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(124, 58, 237, 0.02) 100%);
-    border-top: 1px solid rgba(167, 139, 250, 0.1);
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-}
-
-.btn-submit {
-    width: 100%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    padding: 0.875rem 1.5rem;
-    background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
-=======
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    color: white;
-    font-weight: 600;
-    font-size: 0.9rem;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.25s ease;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.15), 0 4px 8px rgba(79, 70, 229, 0.1);
-}
-
-.btn-submit:hover {
-    background: linear-gradient(135deg, #4338CA 0%, #5B21B6 100%);
-    box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2), 0 8px 16px rgba(79, 70, 229, 0.15);
-    transform: translateY(-1px);
-}
-
-.btn-submit:active {
-    transform: translateY(0) scale(0.98);
-}
-
-.btn-submit:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.25);
-}
-
-.btn-submit:hover {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
-    transform: translateY(-1px);
-}
-
-.btn-submit:active { 
-    transform: translateY(0) scale(0.98); 
-}
-
-.btn-submit:disabled { 
-    opacity: 0.5; 
-    cursor: not-allowed; 
-    transform: none; 
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-}
-
-.btn-submit .spinner {
-    display: none;
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-.btn-submit.loading .spinner { display: block; }
-.btn-submit.loading .btn-text { display: none; }
-.btn-submit.loading .btn-icon { display: none; }
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.btn-cancel {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: rgba(255,255,255,.05);
-    color: var(--text-secondary);
-    font-weight: 500;
-    font-size: 0.9rem;
-    border: 1px solid rgba(167, 139, 250, 0.12);
-    border-radius: 8px;
-    text-decoration: none;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    transition: all 0.2s ease;
-    cursor: pointer;
-=======
-    transition: all 0.25s ease;
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-    transition: all 0.25s ease;
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    width: 100%;
-}
-
-.btn-cancel:hover {
-    border-color: rgba(167, 139, 250, 0.2);
-    color: var(--primary-color);
-    background: rgba(167, 139, 250, 0.06);
-}
-
-/* ===== ERROR ALERT ===== */
-.alert {
-    padding: 1rem 1.25rem;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    border-radius: 8px;
-=======
-    border-radius: 12px;
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-    border-radius: 12px;
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-    margin-bottom: 1.5rem;
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-}
-
-.alert-error {
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    color: #FCA5A5;
-}
-
-.alert-icon { 
-    font-size: 1.25rem; 
-    flex-shrink: 0; 
-    margin-top: 0.125rem;
-    color: #DC2626;
-}
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-.alert-content ul {
-    margin: 0;
-    padding-left: 1.25rem;
-    font-size: 0.875rem;
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-.alert-content h4 {
-    margin: 0 0 0.5rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #FCA5A5;
-}
-
-.alert-content ul { 
-    margin: 0; 
-    padding-left: 1.25rem; 
-    font-size: 0.875rem; 
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-}
-
-.alert-content li { margin-bottom: 0.25rem; }
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-/* ===== RTL ===== */
-html[dir="rtl"] .form-group label { text-align: right; }
-html[dir="rtl"] .form-group input,
-html[dir="rtl"] .form-group textarea,
-html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
-html[dir="rtl"] .translation-toggle { flex-direction: row-reverse; }
-html[dir="rtl"] .file-preview { flex-direction: row-reverse; }
-html[dir="rtl"] .file-info { text-align: right; }
-html[dir="rtl"] .keywords-container { direction: rtl; }
-html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; }
-
-/* ===== PLATFORM DARK CARD OVERRIDES ===== */
-.corpus-form-page .card {
-    background: linear-gradient(160deg, var(--card-violet-start) 0%, var(--card-violet-end) 100%);
-    border: 1px solid var(--card-violet-border);
-    box-shadow: 0 25px 60px rgba(6, 1, 18, 0.65);
-    color: var(--card-text-strong);
-    position: relative;
+    min-width: 0;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.88rem;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.corpus-form-page .card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at top right, rgba(140, 82, 255, 0.25), transparent 55%);
-    pointer-events: none;
+.file-upload-name.empty {
+    color: var(--text-muted);
 }
 
-.corpus-form-page .card-header,
-.corpus-form-page .card-body {
+.file-upload-meta {
+    margin-top: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+.error-box {
+    margin: 0.6rem 0 0;
+    padding: 0.45rem 0.6rem;
+    border-radius: 7px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(127, 29, 29, 0.25);
+    color: #fecaca;
+    font-size: 0.82rem;
+}
+
+.global-errors {
+    margin: 1.25rem 1.5rem 0;
+    padding: 0.85rem 0.95rem;
+    border-radius: 10px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(127, 29, 29, 0.22);
+    color: #fecaca;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.7rem;
+    padding: 1.25rem 1.5rem 1.5rem;
+    border-top: 1px solid rgba(167, 139, 250, 0.12);
+    background: rgba(10, 14, 20, 0.45);
+}
+
+.btn-link-muted,
+.btn-primary-violet {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.62rem 1rem;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-link-muted {
     background: transparent;
+    color: #d1d5db;
+    border-color: rgba(209, 213, 219, 0.25);
+}
+
+.btn-link-muted:hover {
+    color: white;
+    border-color: rgba(209, 213, 219, 0.4);
+}
+
+.btn-primary-violet {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: white;
     border-color: rgba(255, 255, 255, 0.08);
-    position: relative;
-    z-index: 1;
 }
 
-.corpus-form-page .card-header h2,
-.corpus-form-page .translation-toggle-label,
-.corpus-form-page .form-group label {
-    color: var(--card-text-strong);
+.btn-primary-violet:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(124, 58, 237, 0.35);
 }
 
-.corpus-form-page .card-header p,
-.corpus-form-page .form-text,
-.corpus-form-page .upload-subtitle {
-    color: var(--card-text-muted);
+.review-note {
+    margin: 0 1.5rem 1rem;
+    padding: 0.85rem 0.95rem;
+    border-radius: 10px;
+    background: rgba(167, 139, 250, 0.12);
+    border: 1px solid rgba(167, 139, 250, 0.24);
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 0.88rem;
 }
 
-.corpus-form-page .form-group input[type="text"],
-.corpus-form-page .form-group input[type="url"],
-.corpus-form-page .form-group input[type="number"],
-.corpus-form-page .form-group textarea,
-.corpus-form-page .form-group select {
-    background: var(--input-dark-bg);
-    border: 1px solid var(--input-dark-border);
-    color: var(--card-text-strong);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+@media (max-width: 768px) {
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .btn-link-muted,
+    .btn-primary-violet {
+        justify-content: center;
+        width: 100%;
+    }
 }
 
-.corpus-form-page .form-group input::placeholder,
-.corpus-form-page .form-group textarea::placeholder {
-    color: var(--card-text-muted);
+html[dir="rtl"] .form-actions {
+    justify-content: flex-start;
 }
-
-.corpus-form-page .form-group input:focus,
-.corpus-form-page .form-group textarea:focus,
-.corpus-form-page .form-group select:focus {
-    border-color: var(--input-dark-focus);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.35);
-}
-
-.corpus-form-page .translation-toggle,
-.corpus-form-page .keywords-container,
-.corpus-form-page .upload-zone,
-.corpus-form-page .file-preview {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.12);
-    color: var(--card-text-strong);
-}
-
-.corpus-form-page .upload-zone:hover,
-.corpus-form-page .keywords-container:focus-within {
-    border-color: rgba(168, 139, 255, 0.9);
-    box-shadow: 0 10px 30px rgba(12, 5, 32, 0.35);
-}
-
-.corpus-form-page .upload-icon {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: var(--card-text-strong);
-}
-
-.corpus-form-page .format-badge {
-    background: var(--chip-dark-bg);
-    border-color: var(--chip-dark-border);
-    color: var(--card-text-strong);
-}
-
-.corpus-form-page .keyword-pill {
-    background: rgba(139, 92, 246, 0.2);
-    border: 1px solid rgba(139, 92, 246, 0.4);
-}
-
-.corpus-form-page .file-preview {
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.corpus-form-page .btn-submit {
-    background: linear-gradient(120deg, #A855F7 0%, #7C3AED 100%);
-    box-shadow: 0 18px 35px rgba(124, 58, 237, 0.45);
-}
-
-.corpus-form-page .btn-submit:hover {
-    background: linear-gradient(120deg, #C084FC 0%, #8B5CF6 100%);
-}
-
-.corpus-form-page .btn-cancel {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: var(--card-text-muted);
-}
-
-.corpus-form-page .btn-cancel:hover {
-    background: rgba(255, 255, 255, 0.07);
-    color: var(--card-text-strong);
-    border-color: rgba(255, 255, 255, 0.25);
-}
-=======
-
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
-
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
 </style>
 {% endblock %}
 
 {% block content %}
-
-<!-- ===== DARK HERO HEADER ===== -->
-<!-- ===== FORM BODY ===== -->
-<div class="corpus-form-page">
-    <div class="page-hero">
-        <!-- Breadcrumb -->
-        <ol class="breadcrumb">
-            <li><a href="{% url 'resources:corpus_list' %}">{% trans "Resources" %}</a></li>
-            <li><span class="separator"><i class="bi bi-chevron-left"></i></span></li>
-            <li class="current">{% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "New Corpus" %}{% endif %}</li>
-        </ol>
-
-        <!-- Icon -->
-        <div class="hero-icon-wrap">
-            <i class="bi bi-book"></i>
-        </div>
-
-        <!-- Title -->
-        <h1>{% if object %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل المدونة{% else %}{% trans "Edit Corpus" %}{% endif %}{% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة مدونة جديدة{% else %}{% trans "Add New Corpus" %}{% endif %}{% endif %}</h1>
-        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}شارك مدونتك مع مجتمع البحث في المنصة{% else %}{% trans "Share your corpus with the research community" %}{% endif %}</p>
-
-        <!-- Steps bar (decorative) -->
-        <div class="steps-bar">
-            <div class="step-item active">
-                <span class="step-number">1</span>
-                {% trans "Basic Information" %}
+<div class="corpus-page">
+    <div class="corpus-shell">
+        <header class="page-head">
+            <ul class="breadcrumbs">
+                <li><a href="{% url 'resources:list' %}">{% trans "Resources" %}</a></li>
+                <li><i class="bi bi-chevron-right" aria-hidden="true"></i></li>
+                <li><a href="{% url 'resources:corpus_list' %}">{% trans "Corpora" %}</a></li>
+                <li><i class="bi bi-chevron-right" aria-hidden="true"></i></li>
+                <li>{% trans "Create" %}</li>
+            </ul>
+            <div class="hero-icon">
+                <i class="bi bi-collection"></i>
             </div>
-            <div class="step-item">
-                <span class="step-number">2</span>
-                {% trans "Details" %}
-            </div>
-            <div class="step-item">
-                <span class="step-number">3</span>
-                {% trans "Review" %}
-            </div>
-        </div>
-    </div>
+            <h1>{% trans "Create Corpus" %}</h1>
+            <p>{% trans "Add a corpus with bilingual metadata and optional source file." %}</p>
+        </header>
 
-    <div class="form-container">
-
-        <form method="post" enctype="multipart/form-data" id="corpus-form" novalidate>
+        <form method="post" enctype="multipart/form-data" class="form-card" novalidate>
             {% csrf_token %}
             <input type="hidden" name="resource_type" value="corpus">
 
-            <!-- Errors -->
-            {% if form.errors or form.non_field_errors %}
-            <div class="alert alert-error" role="alert">
-                <div class="alert-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
-                <div class="alert-content">
-                    <h4>{% trans "Please correct the following errors:" %}</h4>
-                    {% if form.non_field_errors %}
-                        <ul>{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.errors %}
-                        <ul>
-                        {% for field, errors in form.errors.items %}
-                            {% if field != '__all__' %}
-                                {% for error in errors %}
-                                    <li><strong>{{ field }}:</strong> {{ error }}</li>
-                                {% endfor %}
-                            {% endif %}
-                        {% endfor %}
-                        </ul>
-                    {% endif %}
-                </div>
+            {% if form.non_field_errors %}
+            <div class="global-errors">
+                {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
             </div>
             {% endif %}
 
-            <!-- ===== CARD 1: CORPUS IDENTITY ===== -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-header-icon blue"><i class="bi bi-book"></i></div>
-                    <div class="card-header-text">
-                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}هوية المدونة{% else %}{% trans "Corpus Identity" %}{% endif %}</h2>
-                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الاسم، المجال، اللغة، والوصف{% else %}{% trans "Name, field of study, language and description" %}{% endif %}</p>
+            <div class="review-note">
+                <i class="bi bi-shield-check" aria-hidden="true"></i>
+                {% trans "All new corpora are submitted for moderation before they become public." %}
+            </div>
+
+            <section class="section">
+                <div class="section-title">
+                    <i class="bi bi-type"></i>
+                    <div>
+                        <h2>{% trans "Title and Description" %}</h2>
+                        <small>{% trans "Provide at least one language version for title and description." %}</small>
                     </div>
                 </div>
-                <div class="card-body">
 
-                    <!-- Title English -->
+                <div class="field-row">
                     <div class="form-group">
-                        <label for="id_title_en">{% trans "Title (English)" %} <span class="required">*</span></label>
+                        <label for="{{ form.title_en.id_for_label }}">{% trans "Title (English)" %}</label>
                         {{ form.title_en }}
+                        {% if form.title_en.errors %}
+                        <div class="error-box">{{ form.title_en.errors|striptags }}</div>
+                        {% endif %}
                     </div>
-
-                    <!-- Language & Field Row -->
-                    <div class="field-row">
-                        <div class="form-group">
-                            <label for="id_language">{% trans "Language" %} <span class="required">*</span></label>
-                            {{ form.language }}
-                        </div>
-                        <div class="form-group">
-                            <label for="id_corpus_field">{% trans "Field of Study" %} <span class="required">*</span></label>
-                            {{ form.corpus_field }}
-                        </div>
-                    </div>
-
-                    <!-- Description English -->
                     <div class="form-group">
-                        <label for="id_description_en">{% trans "Description (English)" %}</label>
+                        <label for="{{ form.title_ar.id_for_label }}">{% trans "Title (Arabic)" %}</label>
+                        {{ form.title_ar }}
+                        {% if form.title_ar.errors %}
+                        <div class="error-box">{{ form.title_ar.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="form-group">
+                        <label for="{{ form.description_en.id_for_label }}">{% trans "Description (English)" %}</label>
                         {{ form.description_en }}
-                        <div class="char-counter-wrap">
-                            <span class="char-counter" id="en-counter">0 / 2000</span>
-                        </div>
+                        {% if form.description_en.errors %}
+                        <div class="error-box">{{ form.description_en.errors|striptags }}</div>
+                        {% endif %}
                     </div>
-
-                    <!-- Keywords -->
                     <div class="form-group">
-                        <label for="id_keywords">{% trans "Keywords" %}</label>
+                        <label for="{{ form.description_ar.id_for_label }}">{% trans "Description (Arabic)" %}</label>
+                        {{ form.description_ar }}
+                        {% if form.description_ar.errors %}
+                        <div class="error-box">{{ form.description_ar.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-title">
+                    <i class="bi bi-sliders"></i>
+                    <div>
+                        <h2>{% trans "Corpus Metadata" %}</h2>
+                        <small>{% trans "Set the corpus domain, language and discoverability details." %}</small>
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="form-group">
+                        <label for="{{ form.corpus_field.id_for_label }}">{% trans "Field of Study" %} <span class="required">*</span></label>
+                        {{ form.corpus_field }}
+                        {% if form.corpus_field.errors %}
+                        <div class="error-box">{{ form.corpus_field.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.language.id_for_label }}">{% trans "Language" %} <span class="required">*</span></label>
+                        {{ form.language }}
+                        {% if form.language.errors %}
+                        <div class="error-box">{{ form.language.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="form-group">
+                        <label for="{{ form.keywords.id_for_label }}">{% trans "Keywords" %}</label>
                         {{ form.keywords }}
-                        <span class="form-text">{% trans "Comma-separated keywords to help users discover your corpus" %}</span>
+                        {% if form.keywords.help_text %}
+                        <div class="form-text">{{ form.keywords.help_text }}</div>
+                        {% endif %}
+                        {% if form.keywords.errors %}
+                        <div class="error-box">{{ form.keywords.errors|striptags }}</div>
+                        {% endif %}
                     </div>
-
-                </div>
-            </div>
-
-            <!-- ===== CARD 2: CORPUS FILE ===== -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-header-icon purple"><i class="bi bi-cloud-arrow-up"></i></div>
-                    <div class="card-header-text">
-                        <h2>{% trans "Corpus File" %}</h2>
-                        <p>{% trans "Upload your corpus data file (max 50MB)" %}</p>
-                    </div>
-                </div>
-                <div class="card-body">
-
-                    <!-- Upload File -->
                     <div class="form-group">
-                        <label for="file-input">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رفع الملف{% else %}{% trans "Upload Document" %}{% endif %}</label>
-                        <div class="icon-upload-zone" id="icon-upload-zone">
-                            <div class="icon-preview-circle" id="icon-preview-circle">
-                                <i class="bi bi-cloud-arrow-up"></i>
-                            </div>
-                            <div class="icon-upload-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسحب ملف المدونة وأفلته هنا{% else %}{% trans "Drag & drop your corpus file" %}{% endif %}</div>
-                            <div class="icon-upload-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أو اضغط للاختيار{% else %}{% trans "or click to browse" %}{% endif %}</div>
-                            <div class="icon-upload-formats">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كل أنواع الملفات · الحد الأقصى 50MB{% else %}All file types · 50MB max{% endif %}</div>
-                            <input type="file" id="icon-input" name="uploaded_file" accept="*/*" aria-label="{% trans 'Choose file' %}">
-                        </div>
-                        <div class="icon-file-preview" id="icon-file-preview">
-                            <div class="icon-file-icon"><i class="bi bi-file-earmark-check"></i></div>
-                            <div class="icon-file-info">
-                                <div class="icon-file-name" id="icon-file-name">filename.txt</div>
-                                <div class="icon-file-size" id="icon-file-size">0 KB</div>
-                            </div>
-                            <button type="button" class="icon-file-remove" id="icon-file-remove">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </div>
+                        <label for="{{ form.access_link.id_for_label }}">{% trans "Access Link" %}</label>
+                        {{ form.access_link }}
+                        {% if form.access_link.errors %}
+                        <div class="error-box">{{ form.access_link.errors|striptags }}</div>
+                        {% endif %}
                     </div>
-
-                    <!-- Access Link -->
-                    <div class="form-group">
-                        <label for="id_access_link">{% trans "Access Link" %}</label>
-                        <div class="input-with-icon">
-                            <i class="bi bi-link-45deg input-icon"></i>
-                            {{ form.access_link }}
-                        </div>
-                        <div id="access-feedback"></div>
-                        <span class="form-text">{% trans "External URL where the corpus can be accessed (optional)" %}</span>
-                    </div>
-
                 </div>
+            </section>
+
+            <section class="section">
+                <div class="section-title">
+                    <i class="bi bi-file-earmark-arrow-up"></i>
+                    <div>
+                        <h2>{% trans "File Upload" %}</h2>
+                        <small>{% trans "Attach a source file if you want to store the corpus document directly." %}</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.uploaded_file.id_for_label }}">{% trans "Corpus File" %}</label>
+                    <div class="file-upload-shell" id="corpusFileShell">
+                        {{ form.uploaded_file }}
+                        <div class="file-upload-row">
+                            <label class="file-upload-btn" for="{{ form.uploaded_file.id_for_label }}">
+                                <i class="bi bi-upload"></i>
+                                {% trans "Choose file" %}
+                            </label>
+                            <span id="corpusFileName" class="file-upload-name empty">{% trans "No file selected" %}</span>
+                        </div>
+                        <div class="file-upload-meta">
+                            <i class="bi bi-info-circle"></i>
+                            {% trans "Upload any file type (max 50MB)" %}
+                        </div>
+                    </div>
+                    {% if form.uploaded_file.help_text %}
+                    <div class="form-text">{{ form.uploaded_file.help_text }}</div>
+                    {% endif %}
+                    {% if form.uploaded_file.errors %}
+                    <div class="error-box">{{ form.uploaded_file.errors|striptags }}</div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <div class="form-actions">
+                <a class="btn-link-muted" href="{% url 'resources:corpus_list' %}">
+                    <i class="bi bi-arrow-left"></i>
+                    {% trans "Cancel" %}
+                </a>
+                <button type="submit" class="btn-primary-violet">
+                    <i class="bi bi-check2-circle"></i>
+                    {% trans "Create Corpus" %}
+                </button>
             </div>
-
-            <!-- ===== CARD 3: MULTILINGUAL CONTENT ===== -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-header-icon teal"><i class="bi bi-translate"></i></div>
-                    <div class="card-header-text">
-                        <h2>{% trans "Multilingual Content" %}</h2>
-                        <p>{% trans "Add Arabic translations for your corpus information" %}</p>
-                    </div>
-                </div>
-                <div class="card-body">
-
-                    <!-- Arabic Translation Toggle -->
-                    <div class="translation-toggle">
-                        <div class="translation-toggle-content">
-                            <i class="bi bi-globe2"></i>
-                            <div>
-                                <h4>{% trans "Arabic Translation" %}</h4>
-                                <p>{% trans "Enable to add Arabic title & description" %}</p>
-                            </div>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="arabic-toggle">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-
-                    <!-- Arabic fields (conditional) -->
-                    <div class="arabic-fields" id="arabic-fields">
-                        <div class="lang-divider">
-                            <span class="lang-badge ar">AR</span>
-                            <div class="lang-divider-line"></div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="id_title_ar">{% trans "Title (Arabic)" %}</label>
-                            {{ form.title_ar }}
-                        </div>
-
-                        <div class="form-group">
-                            <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
-                            {{ form.description_ar }}
-                            <div class="char-counter-wrap">
-                                <span class="char-counter" id="ar-counter">0 / 2000</span>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Submit inside card footer -->
-                <div class="btn-submit-wrapper">
-                    <button type="submit" class="btn-submit" id="submit-btn">
-                        <span class="spinner"></span>
-                        <i class="bi bi-check2 btn-icon"></i>
-                        <span class="btn-text">
-                            {% if object %}{% trans "Update Corpus" %}{% else %}{% trans "Submit Corpus" %}{% endif %}
-                        </span>
-                    </button>
-                    <a href="{% url 'resources:corpus_list' %}" class="btn-cancel">
-                        <i class="bi bi-x"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}
-                    </a>
-                </div>
-            </div>
-
         </form>
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function () {
+    const fileInput = document.getElementById("{{ form.uploaded_file.id_for_label }}");
+    const fileShell = document.getElementById("corpusFileShell");
+    const fileName = document.getElementById("corpusFileName");
 
-    // ===== Arabic Toggle =====
-    const arabicToggle = document.getElementById('arabic-toggle');
-    const arabicFields = document.getElementById('arabic-fields');
+    if (!fileInput || !fileName || !fileShell) return;
 
-    if (arabicToggle && arabicFields) {
-        arabicToggle.addEventListener('change', function() {
-            arabicFields.classList.toggle('visible', this.checked);
-        });
-    }
+    fileInput.classList.add("file-input-native");
 
-    // ===== FILE UPLOAD - VERSION CORRIGÉE =====
-    (function initIconUpload() {
-        const iconZone = document.getElementById('icon-upload-zone');
-        const iconInput = document.getElementById('icon-input');
-        const iconPreviewCircle = document.getElementById('icon-preview-circle');
-        const iconFilePreview = document.getElementById('icon-file-preview');
-        const iconFileName = document.getElementById('icon-file-name');
-        const iconFileSize = document.getElementById('icon-file-size');
-        const iconFileRemove = document.getElementById('icon-file-remove');
-
-        if (!iconZone || !iconInput) return;
-        
-        // Évite la double initialisation
-        if (iconZone._iconUploadInitialized) return;
-        iconZone._iconUploadInitialized = true;
-
-        // Fonction pour formater la taille du fichier
-        function formatSize(bytes) {
-            if (!bytes || bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        // Fonction pour afficher le fichier sélectionné
-        function showIcon(file) {
-            if (!file) return;
-            
-            iconFileName.textContent = file.name;
-            iconFileSize.textContent = formatSize(file.size);
-            iconZone.classList.add('has-file');
-            iconFilePreview.classList.add('visible');
-        }
-
-        // Fonction pour effacer le fichier
-        function clearIcon() {
-            iconInput.value = '';
-            iconZone.classList.remove('has-file', 'drag-over');
-            iconFilePreview.classList.remove('visible');
-        }
-
-        // ===== DRAG & DROP =====
-        iconZone.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            iconZone.classList.add('drag-over');
-        });
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-    if (keywordInput) {
-        keywordInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === ',') {
-=======
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-        iconZone.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            iconZone.classList.remove('drag-over');
-        });
-
-        iconZone.addEventListener('drop', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            iconZone.classList.remove('drag-over');
-
-            const file = e.dataTransfer.files[0];
-            if (file) {
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                iconInput.files = dataTransfer.files;
-                showIcon(file);
-            }
-        });
-
-        // Gérer le clic sur la zone d'upload
-        iconZone.addEventListener('click', function(e) {
-            // Don't open dialog if clicking the remove button
-            if (e.target.closest('.icon-file-remove')) {
-                return;
-            }
-            
-            iconInput.click();
-        });
-
-        iconInput.addEventListener('change', function() {
-            if (this.files.length) {
-                showIcon(this.files[0]);
-            }
-        });
-
-        // Gérer le bouton de suppression
-        if (iconFileRemove) {
-            iconFileRemove.addEventListener('click', function(e) {
-<<<<<<< HEAD
->>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
-=======
->>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
-                e.preventDefault();
-                e.stopPropagation();
-                clearIcon();
-            });
-        }
-
-    })();
-
-    // ===== URL Validation =====
-    function validateUrl(inputEl, feedbackEl) {
-        const val = inputEl.value.trim();
-        const pattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$/;
-
-        inputEl.classList.remove('url-valid', 'url-invalid');
-        if (feedbackEl) feedbackEl.innerHTML = '';
-
-        if (!val) return;
-
-        if (pattern.test(val)) {
-            inputEl.classList.add('url-valid');
-            if (feedbackEl) {
-                feedbackEl.innerHTML = '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> Valid URL</span>';
-            }
+    const updateFileName = () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (file && file.name) {
+            fileName.textContent = file.name;
+            fileName.classList.remove("empty");
         } else {
-            inputEl.classList.add('url-invalid');
-            if (feedbackEl) {
-                feedbackEl.innerHTML = '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> Please enter a valid URL (https://...)</span>';
-            }
+            fileName.textContent = "{% trans 'No file selected' %}";
+            fileName.classList.add("empty");
         }
-    }
+    };
 
-    const accessInput = document.getElementById('id_access_link');
-    const accessFeedback = document.getElementById('access-feedback');
+    fileInput.addEventListener("change", updateFileName);
+    fileInput.addEventListener("focus", () => fileShell.classList.add("focused"));
+    fileInput.addEventListener("blur", () => fileShell.classList.remove("focused"));
 
-    if (accessInput) accessInput.addEventListener('input', function() { validateUrl(accessInput, accessFeedback); });
-    if (accessInput && accessInput.value) validateUrl(accessInput, accessFeedback);
-
-    // ===== Character Counters =====
-    function setupCounter(textareaId, counterId, max) {
-        const ta = document.getElementById(textareaId);
-        const ct = document.getElementById(counterId);
-        if (!ta || !ct) return;
-
-        function update() {
-            const len = ta.value.length;
-            const pct = (len / max) * 100;
-            ct.textContent = len + ' / ' + max;
-            ct.classList.remove('warn', 'danger');
-            if (pct >= 90) ct.classList.add('danger');
-            else if (pct >= 75) ct.classList.add('warn');
-        }
-
-        ta.addEventListener('input', update);
-        update();
-    }
-
-    setupCounter('id_description_en', 'en-counter', 2000);
-    setupCounter('id_description_ar', 'ar-counter', 2000);
-
-});
+    updateFileName();
+})();
 </script>
 {% endblock %}

@@ -22,7 +22,10 @@ class GeminiProvider(Provider):
             source_language=source_language,
             target_language=target_language,
         )
-        return await self._generate(prompt)
+        return await self._generate(
+            prompt,
+            max_output_tokens=self._translation_max_tokens(text),
+        )
 
     async def summarize(self, *, text: str, language: str, style: str, max_words: int | None) -> str:
         prompt = PromptEngine.summarization_prompt(
@@ -31,15 +34,19 @@ class GeminiProvider(Provider):
             style=style,
             max_words=max_words,
         )
-        return await self._generate(prompt)
+        return await self._generate(prompt, max_output_tokens=1536)
 
-    async def _generate(self, prompt: str) -> str:
+    async def _generate(self, prompt: str, max_output_tokens: int | None = None) -> str:
         if not self.api_key:
             raise RuntimeError("TS_GEMINI_API_KEY is not configured")
 
+        generation_config: dict[str, object] = {"temperature": 0.1}
+        if max_output_tokens is not None:
+            generation_config["maxOutputTokens"] = max_output_tokens
+
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.1},
+            "generationConfig": generation_config,
         }
         url = f"{self.base_url}/models/{self.model}:generateContent"
         async with httpx.AsyncClient(timeout=90.0) as client:
@@ -52,3 +59,8 @@ class GeminiProvider(Provider):
             return ""
         parts = (candidates[0].get("content") or {}).get("parts") or []
         return "\n".join(str(p.get("text", "")).strip() for p in parts if p.get("text")).strip()
+
+    @staticmethod
+    def _translation_max_tokens(text: str) -> int:
+        estimated = (len(text) // 3) + 900
+        return max(1200, min(8192, estimated))

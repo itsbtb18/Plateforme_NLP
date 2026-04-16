@@ -68,7 +68,8 @@ def test_summarize_uses_primary(monkeypatch):
         svc.summarize(text="Long text", language="en", style="brief", max_words=120)
     )
 
-    assert output == "fallback-summary"
+    assert "fallback-summary" in output
+    assert "# Document" in output
     assert provider == "groq"
     assert fallback is False
 

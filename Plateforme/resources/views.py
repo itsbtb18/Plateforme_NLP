@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from collections.abc import Sequence
 from typing import cast
 
@@ -1667,7 +1668,61 @@ class ToolCreateView(LoginAndVerifiedRequiredMixin, FormView):
 # =============================================================================
 
 
-def _extract_text_from_pdf(file_path: str) -> str:
+def _normalize_pdf_block_text(text: str) -> str:
+    """Normalize PDF block text into readable paragraph segments."""
+    cleaned = (text or "").replace("\r", "\n")
+    # Merge hyphenated words split by line breaks.
+    cleaned = re.sub(r"(?<=\w)-\n(?=\w)", "", cleaned)
+    # Preserve paragraph breaks, but merge hard line breaks inside paragraphs.
+    cleaned = re.sub(r"(?<!\n)\n(?!\n)", " ", cleaned)
+    cleaned = re.sub(r"[ \t]+", " ", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+def _get_page_block_texts(page) -> list[str]:
+    """Extract page text blocks ordered for single/dual-column layouts."""
+    blocks = page.get_text("blocks") or []
+    parsed: list[tuple[float, float, str]] = []
+    for block in blocks:
+        # PyMuPDF block tuple: (x0, y0, x1, y1, text, block_no, block_type, ...)
+        if len(block) < 5:
+            continue
+        x0, y0, _, _, block_text = block[:5]
+        if not isinstance(block_text, str):
+            continue
+        normalized = _normalize_pdf_block_text(block_text)
+        if normalized:
+            parsed.append((float(x0), float(y0), normalized))
+
+    if not parsed:
+        return []
+
+    # Heuristic: detect two columns by spread in x positions.
+    width = float(page.rect.width or 0)
+    x_positions = [x for x, _, _ in parsed]
+    min_x = min(x_positions)
+    max_x = max(x_positions)
+    has_two_columns = (
+        width > 0
+        and len(parsed) >= 6
+        and (max_x - min_x) > (width * 0.35)
+    )
+
+    if has_two_columns:
+        split_x = width * 0.52
+        left = [item for item in parsed if item[0] < split_x]
+        right = [item for item in parsed if item[0] >= split_x]
+        if left and right:
+            left.sort(key=lambda item: (item[1], item[0]))
+            right.sort(key=lambda item: (item[1], item[0]))
+            return [text for _, _, text in left + right]
+
+    parsed.sort(key=lambda item: (item[1], item[0]))
+    return [text for _, _, text in parsed]
+
+
+def _extract_text_from_pdf(file_path: str) -> tuple[str, dict[str, int | float | bool]]:
     """
     Extract text from PDF using PyMuPDF.
     Falls back to Tesseract OCR for image-based pages.
@@ -1676,20 +1731,45 @@ def _extract_text_from_pdf(file_path: str) -> str:
 
     doc = fitz.open(file_path)
     pages_text: list[str] = []
+    raw_pages_text: list[str] = []
+    ocr_pages = 0
 
     for page_num in range(len(doc)):
         page = doc[page_num]
-        text = page.get_text("text")
 
-        # If a page yields very little text, it's likely an image-based page → OCR
-        if len(text.strip()) < 30:
-            text = _ocr_page(page) or text
+        # Raw extraction reference for coverage estimation.
+        raw_text = (page.get_text("text") or "").strip()
+        raw_pages_text.append(raw_text)
 
-        if text.strip():
-            pages_text.append(f"--- Page {page_num + 1} ---\n{text.strip()}")
+        block_texts = _get_page_block_texts(page)
+        page_text = "\n\n".join(block_texts).strip()
+
+        # OCR fallback on likely image-based pages.
+        if len(page_text) < 30:
+            ocr_text = _ocr_page(page)
+            if ocr_text:
+                page_text = ocr_text
+                ocr_pages += 1
+
+        if page_text:
+            pages_text.append(page_text)
 
     doc.close()
-    return "\n\n".join(pages_text)
+
+    merged_text = "\n\n".join(pages_text).strip()
+    raw_text_all = "\n\n".join(raw_pages_text).strip()
+    extracted_chars = len(merged_text)
+    raw_chars = len(raw_text_all)
+    coverage_ratio = (extracted_chars / raw_chars) if raw_chars > 0 else 1.0
+
+    meta: dict[str, int | float | bool] = {
+        "page_count": len(raw_pages_text),
+        "ocr_pages": ocr_pages,
+        "raw_char_count": raw_chars,
+        "coverage_ratio": round(coverage_ratio, 3),
+        "coverage_ok": coverage_ratio >= 0.7,
+    }
+    return merged_text, meta
 
 
 def _ocr_page(page) -> str | None:
@@ -1792,8 +1872,9 @@ def convert_to_text(request, pk):
     ext = os.path.splitext(filename)[1].lower()
 
     try:
+        extraction_meta: dict[str, int | float | bool] = {}
         if ext == ".pdf":
-            text = _extract_text_from_pdf(file_path)
+            text, extraction_meta = _extract_text_from_pdf(file_path)
         elif ext in (".docx", ".doc"):
             text = _extract_text_from_docx(file_path)
         elif ext in (".txt", ".md", ".csv", ".json", ".xml", ".log"):
@@ -1825,6 +1906,7 @@ def convert_to_text(request, pk):
                 "filename": filename,
                 "char_count": len(text),
                 "word_count": len(text.split()),
+                **extraction_meta,
             }
         )
 

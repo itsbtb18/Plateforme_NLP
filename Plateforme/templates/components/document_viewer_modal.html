@@ -435,6 +435,55 @@
             </div>
         </div>
     </div>
+
+    <!-- Translation/Summarization Result Overlay -->
+    <div id="aiResultOverlay" class="ctt-overlay" style="display:none;">
+        <div class="ctt-modal ai-result-modal">
+            <div class="ctt-header ai-result-header">
+                <div class="ctt-header-left">
+                    <svg class="ctt-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 7h16"/>
+                        <path d="M4 12h16"/>
+                        <path d="M4 17h10"/>
+                    </svg>
+                    <h3 id="aiResultTitle" class="ctt-title">{% trans "AI Result" %}</h3>
+                </div>
+                <button id="closeAiResultOverlay" class="ctt-close-btn" title="{% trans 'Close' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="ctt-meta" id="aiResultMeta"></div>
+            <div class="ai-result-content-wrap">
+                <pre id="aiResultContent" class="ai-result-content" dir="auto"></pre>
+            </div>
+
+            <div class="ctt-actions ai-result-actions">
+                <div class="ai-result-download-group">
+                    <label for="aiResultFormatSelect" class="ai-result-format-label">{% trans "Format" %}</label>
+                    <select id="aiResultFormatSelect" class="ai-result-format-select">
+                        <option value="pdf">PDF</option>
+                        <option value="doc">WORD</option>
+                        <option value="txt">TXT</option>
+                        <option value="md">MD</option>
+                        <option value="json">JSON</option>
+                    </select>
+                    <button id="downloadAiResultBtn" class="ctt-btn ctt-btn-secondary">
+                        {% trans "Download" %}
+                    </button>
+                </div>
+                <button id="copyAiResultBtn" class="ctt-btn ctt-btn-primary">
+                    {% trans "Copy" %}
+                </button>
+                <button id="closeAiResultBtn" class="ctt-btn ctt-btn-secondary">
+                    {% trans "Close operation" %}
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Premium Document Viewer Styles -->
@@ -1850,6 +1899,125 @@ html[dir="rtl"] .ctt-actions { flex-direction: row-reverse; }
     background: rgba(30, 41, 59, 0.65);
 }
 
+.ai-result-modal {
+    width: min(94vw, 1220px);
+    max-width: none;
+    height: min(84vh, 900px);
+    background: linear-gradient(165deg, #130c24 0%, #1b1233 48%, #261645 100%);
+    border: 1px solid rgba(167, 139, 250, 0.42);
+    box-shadow: 0 30px 70px rgba(26, 10, 46, 0.55);
+}
+
+.ai-result-header {
+    background: linear-gradient(145deg, rgba(124, 58, 237, 0.3), rgba(76, 29, 149, 0.2));
+    border-bottom: 1px solid rgba(167, 139, 250, 0.4);
+}
+
+.ai-result-header .ctt-title,
+.ai-result-header .ctt-header-icon,
+.ai-result-header .ctt-close-btn {
+    color: #e2e8f0;
+}
+
+.ai-result-content-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background: rgba(10, 6, 22, 0.65);
+}
+
+.ai-result-content {
+    margin: 0;
+    padding: 24px 28px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #ede9fe;
+    line-height: 1.75;
+    font-family: 'Consolas', 'Courier New', 'Noto Naskh Arabic', monospace;
+    font-size: 14.5px;
+}
+
+.ai-result-actions {
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    border-top: 1px solid rgba(167, 139, 250, 0.28);
+    background: rgba(18, 10, 34, 0.8);
+}
+
+.ai-result-download-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.ai-result-format-label {
+    font-size: 12px;
+    color: #c4b5fd;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.ai-result-format-select {
+    border-radius: 9px;
+    border: 1px solid rgba(167, 139, 250, 0.45);
+    background: rgba(38, 22, 69, 0.95);
+    color: #ede9fe;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+}
+
+.ai-result-format-select:focus {
+    border-color: rgba(196, 181, 253, 0.95);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.2);
+}
+
+.ai-result-format-select option {
+    background: #261645;
+    color: #ede9fe;
+}
+
+.ai-result-actions .ctt-btn {
+    border: 1px solid rgba(167, 139, 250, 0.55);
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    color: #f5f3ff;
+    padding: 8px 14px;
+}
+
+.ai-result-actions .ctt-btn:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    border-color: rgba(196, 181, 253, 0.8);
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+@media (max-width: 768px) {
+    .ai-result-modal {
+        width: 100%;
+        height: 92vh;
+    }
+
+    .ai-result-content-wrap {
+        max-height: none;
+    }
+
+    .ai-result-actions {
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .ai-result-download-group {
+        width: auto;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+}
+
 </style>
 
 <!-- PDF.js Library -->
@@ -1862,6 +2030,9 @@ if (typeof pdfjsLib !== 'undefined') {
 
 <!-- docx-preview Library -->
 <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.20/dist/docx-preview.min.js"></script>
+
+<!-- jsPDF Library -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <!-- Premium Document Viewer Script -->
 <script>
@@ -1883,6 +2054,7 @@ if (typeof pdfjsLib !== 'undefined') {
         aiPollTimer: null,
         aiRequestController: null,
         activeAiJob: null,
+        lastAiResult: null,
         translationPairResolver: null,
         currentTranslationPairs: [],
         
@@ -1928,6 +2100,15 @@ if (typeof pdfjsLib !== 'undefined') {
             document.getElementById('confirmTranslationPairBtn')?.addEventListener('click', () => this.confirmTranslationPairSelection());
             document.getElementById('translationPairOverlay')?.addEventListener('click', (e) => {
                 if (e.target.id === 'translationPairOverlay') this.closeTranslationPairOverlay(null);
+            });
+
+            // AI result overlay
+            document.getElementById('closeAiResultOverlay')?.addEventListener('click', () => this.closeAiOperationResult());
+            document.getElementById('closeAiResultBtn')?.addEventListener('click', () => this.closeAiOperationResult());
+            document.getElementById('copyAiResultBtn')?.addEventListener('click', () => this.copyAiResult());
+            document.getElementById('downloadAiResultBtn')?.addEventListener('click', () => this.downloadAiResult());
+            document.getElementById('aiResultOverlay')?.addEventListener('click', (e) => {
+                if (e.target.id === 'aiResultOverlay') this.closeAiOperationResult();
             });
             
             // Keyboard shortcuts
@@ -1997,13 +2178,171 @@ if (typeof pdfjsLib !== 'undefined') {
             document.getElementById('textViewer').textContent = '';
             this.cancelAiOperation(false);
             this.closeTranslationPairOverlay(null);
+            this.closeAiResultOverlay();
             const statusBox = document.getElementById('docviewerAiStatus');
             if (statusBox) {
                 statusBox.style.display = 'none';
                 statusBox.innerHTML = '';
             }
+            this.lastAiResult = null;
             this.pdfDoc = null;
             this.currentText = null;
+        },
+
+        closeAiOperationResult() {
+            this.lastAiResult = null;
+            this.closeAiResultOverlay();
+            const box = document.getElementById('docviewerAiStatus');
+            if (box) {
+                box.style.display = 'none';
+                box.innerHTML = '';
+            }
+        },
+
+        openAiResultOverlay() {
+            if (!this.lastAiResult) return;
+
+            const overlay = document.getElementById('aiResultOverlay');
+            const titleEl = document.getElementById('aiResultTitle');
+            const metaEl = document.getElementById('aiResultMeta');
+            const contentEl = document.getElementById('aiResultContent');
+            if (!overlay || !titleEl || !metaEl || !contentEl) return;
+
+            titleEl.textContent = this.lastAiResult.title || '{% trans "AI Result" %}';
+            metaEl.textContent = this.lastAiResult.meta || '{% trans "Generated without leaving the current page." %}';
+            contentEl.textContent = this.lastAiResult.output || '';
+            const copyBtn = document.getElementById('copyAiResultBtn');
+            if (copyBtn) {
+                copyBtn.textContent = '{% trans "Copy" %}';
+            }
+            overlay.style.display = 'flex';
+        },
+
+        closeAiResultOverlay() {
+            const overlay = document.getElementById('aiResultOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        },
+
+        async copyAiResult() {
+            if (!this.lastAiResult?.output) return;
+            const copyBtn = document.getElementById('copyAiResultBtn');
+            try {
+                await navigator.clipboard.writeText(this.lastAiResult.output);
+                if (copyBtn) {
+                    copyBtn.textContent = '{% trans "Copied!" %}';
+                    setTimeout(() => {
+                        copyBtn.textContent = '{% trans "Copy" %}';
+                    }, 1400);
+                }
+            } catch (err) {
+                console.warn('Copy AI result failed:', err);
+            }
+        },
+
+        buildAiResultDownloadContent(format) {
+            const output = String(this.lastAiResult?.output || '');
+            const task = String(this.lastAiResult?.task || 'result');
+            const title = String(this.lastAiResult?.title || 'AI Result');
+            const meta = String(this.lastAiResult?.meta || '');
+
+            const escapeHtml = (value) => String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+            if (format === 'doc') {
+                const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head><body style="font-family:Segoe UI,Arial,sans-serif;line-height:1.6;color:#111;"><h2>${escapeHtml(title)}</h2><p><strong>Meta:</strong> ${escapeHtml(meta)}</p><pre style="white-space:pre-wrap;font-family:Consolas,monospace;">${escapeHtml(output)}</pre></body></html>`;
+                return {
+                    ext: 'doc',
+                    mime: 'application/msword;charset=utf-8',
+                    body: html,
+                };
+            }
+
+            if (format === 'md') {
+                return {
+                    ext: 'md',
+                    mime: 'text/markdown;charset=utf-8',
+                    body: `# ${title}\n\n- Task: ${task}\n- Meta: ${meta}\n\n## Output\n\n${output}\n`,
+                };
+            }
+
+            if (format === 'json') {
+                return {
+                    ext: 'json',
+                    mime: 'application/json;charset=utf-8',
+                    body: JSON.stringify({
+                        task,
+                        title,
+                        meta,
+                        output,
+                        exported_at: new Date().toISOString(),
+                    }, null, 2),
+                };
+            }
+
+            return {
+                ext: 'txt',
+                mime: 'text/plain;charset=utf-8',
+                body: `${title}\n${meta}\n\n${output}`,
+            };
+        },
+
+        downloadAiResultPdf(fileName) {
+            const content = `${String(this.lastAiResult?.title || 'AI Result')}\n${String(this.lastAiResult?.meta || '')}\n\n${String(this.lastAiResult?.output || '')}`;
+            const jsPdfNs = window.jspdf;
+            if (!jsPdfNs || !jsPdfNs.jsPDF) {
+                throw new Error('PDF library is not available');
+            }
+
+            const doc = new jsPdfNs.jsPDF({ unit: 'pt', format: 'a4' });
+            const margin = 44;
+            const pageWidth = doc.internal.pageSize.getWidth() - (margin * 2);
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const lines = doc.splitTextToSize(content, pageWidth);
+
+            let y = 56;
+            doc.setFont('courier', 'normal');
+            doc.setFontSize(11);
+            for (const line of lines) {
+                if (y > pageHeight - 48) {
+                    doc.addPage();
+                    y = 56;
+                }
+                doc.text(String(line), margin, y);
+                y += 15;
+            }
+
+            doc.save(fileName);
+        },
+
+        downloadAiResult() {
+            if (!this.lastAiResult?.output) return;
+
+            const select = document.getElementById('aiResultFormatSelect');
+            const format = String(select?.value || 'pdf').toLowerCase();
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const task = String(this.lastAiResult.task || 'result').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
+
+            if (format === 'pdf') {
+                const fileName = `ai-${task}-${timestamp}.pdf`;
+                this.downloadAiResultPdf(fileName);
+                return;
+            }
+
+            const payload = this.buildAiResultDownloadContent(format);
+            const fileName = `ai-${task}-${timestamp}.${payload.ext}`;
+            const blob = new Blob([payload.body], { type: payload.mime });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
         },
 
         cancelAiOperation(showStatus = true) {
@@ -2347,6 +2686,7 @@ if (typeof pdfjsLib !== 'undefined') {
             const safeMessage = this.escapeHtml(message);
             const safeJobId = this.escapeHtml(meta.jobId || '');
             const safeOutput = this.escapeHtml(meta.output || '');
+            const showActions = Boolean(meta.canCloseOperation);
 
             box.style.display = 'block';
             box.innerHTML = `
@@ -2354,11 +2694,11 @@ if (typeof pdfjsLib !== 'undefined') {
                 <div style="font-size:0.9rem;line-height:1.35;">${safeMessage}</div>
                 ${meta.jobId ? `<div style="margin-top:8px;font-size:0.78rem;opacity:0.8;">Job: ${safeJobId}</div>` : ''}
                 ${meta.output ? `<pre style="margin-top:10px;white-space:pre-wrap;background:rgba(255,255,255,0.07);padding:10px;border-radius:10px;max-height:180px;overflow:auto;">${safeOutput}</pre>` : ''}
-                ${meta.canCloseOperation ? `
+                ${showActions ? `
                     <div class="docviewer-ai-actions">
                         ${meta.canCloseOperation ? `
                             <button type="button" class="docviewer-ai-action-btn" id="docviewerCloseOperationBtn">
-                                {% trans "Close" %}
+                                {% trans "Close operation" %}
                             </button>
                         ` : ''}
                     </div>
@@ -2372,8 +2712,9 @@ if (typeof pdfjsLib !== 'undefined') {
 
             if (meta.canCloseOperation) {
                 const closeBtn = box.querySelector('#docviewerCloseOperationBtn');
-                closeBtn?.addEventListener('click', () => this.cancelAiOperation(true));
+                closeBtn?.addEventListener('click', () => this.closeAiOperationResult());
             }
+
         },
 
         getDocumentIdFromButton(buttonId) {
@@ -2388,6 +2729,9 @@ if (typeof pdfjsLib !== 'undefined') {
 
         async startAiJob(task, buttonElement = null, options = {}) {
             const buttonId = task === 'translation' ? 'translateDocBtn' : 'summarizeDocBtn';
+
+            this.closeAiResultOverlay();
+            this.lastAiResult = null;
 
             this.cancelAiOperation(false);
             this.activeAiJob = {
@@ -2409,8 +2753,8 @@ if (typeof pdfjsLib !== 'undefined') {
                 : {
                     text: String(textForAi || '').trim(),
                     language: this.detectDocumentLanguage() || 'en',
-                    style: 'brief',
-                    max_words: 180,
+                    style: 'professional',
+                    max_words: 420,
                 };
 
             if (!payload.text) {
@@ -2453,12 +2797,19 @@ if (typeof pdfjsLib !== 'undefined') {
                 this.setNlpButtonLoading(buttonId, false);
                 this.aiRequestController = null;
                 this.activeAiJob = null;
-                this.showAiStatus(
-                    'success',
-                    isTranslation ? '{% trans "Translation Ready" %}' : '{% trans "Summary Ready" %}',
-                    '{% trans "Result generated successfully." %}',
-                    { output }
-                );
+                this.lastAiResult = {
+                    task: isTranslation ? 'translation' : 'summarization',
+                    title: isTranslation ? '{% trans "Translation" %}' : '{% trans "Summarization" %}',
+                    meta: isTranslation ? '{% trans "Translation completed in current page." %}' : '{% trans "Summary generated in current page." %}',
+                    output,
+                };
+                this.openAiResultOverlay();
+
+                const statusBox = document.getElementById('docviewerAiStatus');
+                if (statusBox) {
+                    statusBox.style.display = 'none';
+                    statusBox.innerHTML = '';
+                }
             } catch (err) {
                 if (err?.name === 'AbortError') {
                     return;

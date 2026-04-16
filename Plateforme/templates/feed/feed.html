@@ -41,6 +41,10 @@
 .feed-info{display:flex;flex-direction:column;gap:.45rem;margin-top:.5rem;font-size:.8rem}
 .feed-info-row{display:flex;align-items:center;gap:.4rem;color:#cbd5e1}
 .feed-info-row i{color:#a78bfa;font-size:.85rem;width:14px;text-align:center}
+.feed-file-link{display:flex;align-items:center;gap:.45rem;margin-top:.6rem;padding:.5rem .65rem;border:1px solid rgba(167,139,250,.28);border-radius:10px;background:rgba(124,58,237,.08);color:#ddd6fe;text-decoration:none;font-size:.78rem;font-weight:700;min-width:0}
+.feed-file-link:hover{background:rgba(124,58,237,.16);border-color:rgba(167,139,250,.5);color:#f5f3ff}
+.feed-file-link i{font-size:.9rem;flex-shrink:0}
+.feed-file-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .feed-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
 .feed-link:hover{background:rgba(255,255,255,.04)}
 .feed-actions{display:flex;align-items:center;justify-content:space-around;padding:1rem .85rem;border-top:1px solid rgba(167,139,250,.16);gap:.5rem}
@@ -122,6 +126,12 @@
         </div>
         <div class="feed-body">
           <p class="feed-excerpt">{{ post.content|truncatechars:150 }}</p>
+          {% if post.file %}
+          <a class="feed-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+            <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+            <span class="feed-file-name">{{ post.file.name|cut:'posts/files/' }}</span>
+          </a>
+          {% endif %}
           <div class="feed-info">
             <div class="feed-info-row"><i class="bi bi-person"></i><span>{{ post.author.get_full_name_display }}</span></div>
             <div class="feed-info-row"><i class="bi bi-chat-dots"></i><span>{{ post.comments.count }} {% if LANGUAGE_CODE|slice:":2" == "ar" %}تعليق{% else %}comments{% endif %}</span></div>
