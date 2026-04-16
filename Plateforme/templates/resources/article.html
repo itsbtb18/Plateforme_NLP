@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}المقالات والأطروحات والمذكرات{% else %}Articles, Theses & Memoirs{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.pub-shell{position:relative;padding:1rem 0 2.5rem;color:#fff;overflow:hidden}
+.pub-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.pub-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.pub-wrap>*{position:relative;z-index:1}
+.pub-hero{position:relative;padding:3rem 2rem;margin:5rem auto 1.25rem;background:transparent;border:none;border-radius:24px;box-shadow:none;backdrop-filter:none;overflow:visible;text-align:left;display:flex;align-items:center;gap:2.5rem;justify-content:space-between}
+.pub-hero-content{display:flex;align-items:center;gap:2.5rem;flex:0 1 auto}
+.pub-hero::before{content:"";position:absolute;inset:0;background:none;pointer-events:none}
+.pub-hero::after{content:"";position:absolute;inset:0;background:none;pointer-events:none}
+.pub-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.pub-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-top:-3.5rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.pub-hero h1{margin:-3rem 0 0 0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.pub-hero p{margin:0;font-family:'Inter',sans-serif;color:#a78bfa;max-width:760px;font-size:1.3rem;line-height:1.7;font-weight:600;text-align:left}
+
+/* Category Buttons */
+.pub-category-buttons{display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.pub-category-btn{padding:0.6rem 1.5rem;border:1.5px solid rgba(167,139,250,.3);border-radius:20px;background:transparent;color:#a78bfa;font-weight:600;cursor:pointer;transition:all .3s ease;font-size:0.95rem;white-space:nowrap}
+.pub-category-btn:hover{background:rgba(167,139,250,.15);border-color:#a78bfa}
+.pub-category-btn.active{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);color:#fff;border-color:#a78bfa}
+
+.pub-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.pub-filter-grid{display:grid;grid-template-columns:auto 1fr 1fr auto auto;gap:1rem;align-items:center;flex-wrap:wrap}
+.pub-input-wrapper{position:relative;display:flex;align-items:center}
+.pub-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none}
+.pub-input::placeholder{color:rgba(255,255,255,.6);font-weight:400}
+.pub-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.pub-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background-color:#1a1a2e;color:#fff;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
+.pub-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
+.pub-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
+.pub-select:hover{border-color:rgba(167,139,250,.24);background-color:#1a1a2e;box-shadow:0 4px 12px rgba(167,139,250,.15);transform:translateY(-2px)}
+.pub-select:focus{outline:none;border-color:rgba(167,139,250,.24) !important;box-shadow:none;background-color:#1a1a2e}
+.pub-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.pub-btn:hover{transform:translateY(-3px);background:#a78bfa}
+.pub-grid{display:flex;flex-direction:row;gap:1rem;flex-wrap:wrap;padding-bottom:1rem}
+.pub-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:312px;flex:1;min-width:250px}
+.pub-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.pub-accent{height:4px;width:100%;flex-shrink:0;background:#a78bfa}
+.pub-cover{height:104px;background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.02));display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;color:#a78bfa;font-size:2.4rem}
+.pub-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
+.pub-type{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .58rem;border-radius:999px;color:#fff;font-size:.7rem;font-weight:800}
+.pub-title{margin:.55rem 0 .22rem;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pub-meta{color:#cbd5e1;font-size:.74rem;margin-bottom:.42rem;display:flex;flex-wrap:wrap;gap:.3rem}
+.pub-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem}
+.pub-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;padding-top:.55rem;border-top:1px solid rgba(167,139,250,.16)}
+.pub-tag{background:rgba(167,139,250,.12);color:#ede9fe;border-radius:999px;padding:.2rem .48rem;font-size:.66rem;font-weight:700;border:1px solid rgba(167,139,250,.18)}
+.pub-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
+.pub-link:hover{background:rgba(255,255,255,.04)}
+.pub-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pub-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.pub-empty-inner{position:relative;z-index:1}
+.pub-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem}
+.pub-empty h3{margin:1rem 0 .75rem;font-size:1.5rem;font-weight:800;color:#fff}
+.pub-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+.pub-empty-reset{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+.pub-empty-reset:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+.pub-stats{display:flex;gap:1.5rem;flex-direction:column;align-items:flex-start}
+.pub-stat-badge{background:transparent;border:none;padding:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;white-space:nowrap}
+.pub-stat-number{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.pub-stat-label{font-size:0.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.4rem;font-weight:700}
+@media (max-width:1000px){.pub-filter-grid{grid-template-columns:auto 1fr 1fr auto}.pub-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}.pub-hero-content{flex-direction:column;justify-content:center}}
+@media (max-width:768px){.pub-wrap{width:min(100%,calc(100% - 1rem))}.pub-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center}.pub-hero-content{flex-direction:column;text-align:center}.pub-hero h1{font-size:2rem;text-align:center}.pub-hero p{font-size:1rem;text-align:center}.pub-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.pub-btn{padding:.85rem 1.2rem;font-size:.85rem}.pub-grid{padding-right:1rem}.pub-filter-grid{grid-template-columns:1fr}.pub-category-buttons{flex-direction:column}}
+@media (max-width:480px){.pub-filter-grid{grid-template-columns:1fr}.pub-input-wrapper{grid-column:1/-1}.pub-btn{width:100%;padding:.75rem 1rem;font-size:.8rem}.pub-filter-card{padding:1rem;margin-bottom:1rem}.pub-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.pub-hero-content{flex-direction:column;text-align:center}.pub-hero h1{font-size:1.5rem}.pub-hero p{font-size:.9rem}.pub-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.pub-stat-number{font-size:1.4rem}.pub-stat-label{font-size:.55rem;margin-top:.25rem}}
+</style>
+
+<div class="pub-shell">
+  <div class="pub-wrap">
+    <div class="pub-hero">
+      <div class="pub-hero-content">
+        <span class="pub-hero-icon" aria-hidden="true"><i class="fas fa-book"></i></span>
+        <div class="pub-hero-inner">
+          <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المقالات والأطروحات والمذكرات{% else %}Articles, Theses & Memoirs{% endif %}</h1>
+          <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف أحدث المقالات العلمية والأطروحات والمذكرات في مجال معالجة اللغة العربية.{% else %}Discover the latest research articles, theses,<br>and memoirs in Arabic Natural Language Processing.{% endif %}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Buttons -->
+    <div class="pub-category-buttons" style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0;margin-bottom:1.5rem">
+        <button type="button" disabled class="pub-category-btn {% if not request.GET.type or request.GET.type == '' %}active{% endif %}">
+          {% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الفئات{% else %}All categories{% endif %}
+        </button>
+        <button type="button" disabled class="pub-category-btn {% if request.GET.type == 'article' %}active{% endif %}">
+          {% if LANGUAGE_CODE|slice:":2" == "ar" %}مقالات{% else %}Articles{% endif %}
+        </button>
+        <button type="button" disabled class="pub-category-btn {% if request.GET.type == 'thesis' %}active{% endif %}">
+          {% if LANGUAGE_CODE|slice:":2" == "ar" %}أطروحات{% else %}Theses{% endif %}
+        </button>
+        <button type="button" disabled class="pub-category-btn {% if request.GET.type == 'memoir' %}active{% endif %}">
+          {% if LANGUAGE_CODE|slice:":2" == "ar" %}مذكرات{% else %}Memoirs{% endif %}
+        </button>
+    </div>
+
+    <div class="pub-filter-card">
+      <form method="get" class="pub-filter-grid">
+        <div class="pub-stat-badge">
+          <div class="pub-stat-number">{{ total_count|default:"0" }}</div>
+          <div class="pub-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}نتائج{% else %}Results{% endif %}</div>
+        </div>
+        <div class="pub-input-wrapper">
+          <input class="pub-input" type="text" name="q" value="{{ search_query|default:'' }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}ابحث...{% else %}Search...{% endif %}">
+        </div>
+        <select class="pub-select" name="type" onchange="this.form.submit();" id="typeFilter">
+          <option value="" {% if not request.GET.type %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الفئات{% else %}All categories{% endif %}</option>
+          <option value="article" {% if request.GET.type == 'article' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مقالات{% else %}Articles{% endif %}</option>
+          <option value="thesis" {% if request.GET.type == 'thesis' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}أطروحات{% else %}Theses{% endif %}</option>
+          <option value="memoir" {% if request.GET.type == 'memoir' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مذكرات{% else %}Memoirs{% endif %}</option>
+        </select>
+        <select class="pub-select" name="sort" onchange="this.form.submit();" id="sortFilter">
+          <option value="newest" {% if request.GET.sort == 'newest' or not request.GET.sort %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأحدث أولاً{% else %}Newest First{% endif %}</option>
+          <option value="oldest" {% if request.GET.sort == 'oldest' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأقدم أولاً{% else %}Oldest First{% endif %}</option>
+          <option value="popular" {% if request.GET.sort == 'popular' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأكثر شهرة{% else %}Most Popular{% endif %}</option>
+        </select>
+        <button class="pub-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث{% else %}Search{% endif %}</button>
+      </form>
+    </div>
+
+    {% if articles %}
+    <div class="pub-grid">
+      {% for article in articles %}
+      <article class="pub-card">
+        <div class="pub-accent"></div>
+        <div class="pub-cover">
+          {% if article.document_type == 'thesis' %}
+            <i class="fas fa-graduation-cap"></i>
+          {% elif article.document_type == 'memoir' %}
+            <i class="fas fa-scroll"></i>
+          {% else %}
+            <i class="fas fa-file-alt"></i>
+          {% endif %}
+        </div>
+        <div class="pub-body">
+          <span class="pub-type" style="background:#a78bfa">
+            <i class="fas fa-tag"></i>
+            {{ article.get_document_type_display|default:"Article" }}
+          </span>
+          <h2 class="pub-title">{{ article.get_localized_title }}</h2>
+          <div class="pub-meta">
+            <span>{{ article.creation_date|date:"M d, Y" }}</span>
+            {% if article.author %}
+              <span>{{ article.author.get_full_name|default:article.author.email }}</span>
+            {% endif %}
+          </div>
+          <p class="pub-excerpt">{{ article.get_localized_description|truncatechars:120 }}</p>
+          {% if article.keywords %}
+          <div class="pub-tags">
+            {% for keyword in article.get_keywords_list|slice:":3" %}
+              <span class="pub-tag">{{ keyword }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        <div class="pub-card-actions" style="display:flex;justify-content:flex-end;padding:0 .85rem .75rem;">
+          {% include "includes/card_top_actions.html" with content_type="document" object_id=article.id title=article.get_localized_title description=article.get_localized_description|truncatewords:40 category=article.get_document_type_display author=article.author.get_full_name_display url=article.get_absolute_url|default:'' %}
+        </div>
+        <a class="pub-link" href="{% url 'resources:resource-detail' type=article.document_type pk=article.id %}">
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}التفاصيل{% else %}Details{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    
+    {% if page_obj.has_other_pages %}
+    <div style="display:flex;justify-content:center;gap:1rem;margin:2rem 0">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&type={{ request.GET.type }}&sort={{ request.GET.sort }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">← Prev</a>
+      {% endif %}
+      <span style="color:#9ca3af;padding:.5rem 1rem">{% if LANGUAGE_CODE|slice:":2" == "ar" %}صفحة{% else %}Page{% endif %} {{ page_obj.number }} {% if LANGUAGE_CODE|slice:":2" == "ar" %}من{% else %}of{% endif %} {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&type={{ request.GET.type }}&sort={{ request.GET.sort }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">Next →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="pub-empty">
+      <div class="pub-empty-inner">
+        <i class="fas fa-inbox pub-empty-icon"></i>
+        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على نتائج{% else %}No results found{% endif %}</h3>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرب تغيير البحث أو الفلاتر.{% else %}Try adjusting your search or filters.{% endif %}</p>
+        <a href="{% url 'resources:article_list' %}" class="pub-empty-reset">
+          <i class="fas fa-redo-alt"></i>
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إعادة تعيين{% else %}Reset{% endif %}</span>
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
