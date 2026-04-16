@@ -1,8 +1,9 @@
 services:
   # PostgreSQL Database with pgvector extension
+  # Keep PG image compatible with existing on-disk data.
   db:
     profiles: ["scraping", "full"]
-    image: pgvector/pgvector:pg16
+    image: ankane/pgvector:latest
     container_name: nlp_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
@@ -105,45 +106,57 @@ services:
     environment:
       # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
-      
-      # Django
+
+      # Django (support both old and new env keys)
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
-      
+
       # Celery
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
-      
+
       # Email (optional)
       EMAIL_HOST: ${EMAIL_HOST:-}
       EMAIL_PORT: ${EMAIL_PORT:-587}
       EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
-      
+
       # Elasticsearch
       ELASTICSEARCH_HOST: http://elasticsearch:9200
-      
+
       # FastAPI Chatbot
       FASTAPI_URL: http://fastapi:8000
       FASTAPI_BROWSER_URL: /ai
       FASTAPI_LOCAL_BROWSER_URL: ${FASTAPI_LOCAL_BROWSER_URL:-http://localhost:8000}
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
-      
+
       # Chatbot Settings
       CHATBOT_MAX_HISTORY: ${CHATBOT_MAX_HISTORY:-20}
       CHATBOT_MAX_TOKENS: ${CHATBOT_MAX_TOKENS:-8192}
       CHATBOT_TIMEOUT: ${CHATBOT_TIMEOUT:-180}
       CHATBOT_MAX_FILE_SIZE: ${CHATBOT_MAX_FILE_SIZE:-20971520}
-      
+
       # Groq (scraping LLM validation)
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
       GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      GEMINI_SCRAPING_API_KEY: ${GEMINI_SCRAPING_API_KEY:-}
+      GEMINI_SCRAPING_MODEL: ${GEMINI_SCRAPING_MODEL:-gemini-3.5-preview}
+      GEMINI_SCRAPING_TIMEOUT: ${GEMINI_SCRAPING_TIMEOUT:-30}
+      GEMINI_SCRAPING_MAX_RETRIES: ${GEMINI_SCRAPING_MAX_RETRIES:-2}
+      GEMINI_SCRAPING_MAX_RPM: ${GEMINI_SCRAPING_MAX_RPM:-10}
+      SCRAPING_LLM_PRIMARY_PROVIDER: ${SCRAPING_LLM_PRIMARY_PROVIDER:-gemini}
+      SCRAPING_LLM_FALLBACK_PROVIDER: ${SCRAPING_LLM_FALLBACK_PROVIDER:-groq}
+      SCRAPING_LLM_MODE: ${SCRAPING_LLM_MODE:-primary_with_fallback}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      SCRAPING_TAVILY_API_KEY: ${SCRAPING_TAVILY_API_KEY:-}
       TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
       SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
       SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
@@ -210,7 +223,7 @@ services:
       LLM_PROVIDER_CHAT: ${LLM_PROVIDER_CHAT:-gemini}
       LLM_PROVIDER_INTERNAL: ${LLM_PROVIDER_INTERNAL:-gemini}
       ELASTICSEARCH_HOST: http://elasticsearch:9200
-      # Disable parallelism — protect CPU
+      # Disable parallelism - protect CPU
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
       OPENBLAS_NUM_THREADS: "1"
@@ -304,7 +317,7 @@ services:
       # ---- Provider Selection ----
       LLM_PROVIDER_CHAT: ${LLM_PROVIDER_CHAT:-gemini}
       LLM_PROVIDER_INTERNAL: ${LLM_PROVIDER_INTERNAL:-gemini}
-      # Disable parallelism — protect CPU
+      # Disable parallelism - protect CPU
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
       OPENBLAS_NUM_THREADS: "1"
@@ -357,7 +370,7 @@ services:
       - nlp_network
     restart: unless-stopped
 
-  # ── Django Celery Worker (scraping background tasks) ──────────────
+  # -- Django Celery Worker (scraping background tasks) --
   django_celery_worker:
     profiles: ["scraping", "full"]
     build:
@@ -371,6 +384,9 @@ services:
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
@@ -379,7 +395,16 @@ services:
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
       GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      GEMINI_SCRAPING_API_KEY: ${GEMINI_SCRAPING_API_KEY:-}
+      GEMINI_SCRAPING_MODEL: ${GEMINI_SCRAPING_MODEL:-gemini-3.5-preview}
+      GEMINI_SCRAPING_TIMEOUT: ${GEMINI_SCRAPING_TIMEOUT:-30}
+      GEMINI_SCRAPING_MAX_RETRIES: ${GEMINI_SCRAPING_MAX_RETRIES:-2}
+      GEMINI_SCRAPING_MAX_RPM: ${GEMINI_SCRAPING_MAX_RPM:-10}
+      SCRAPING_LLM_PRIMARY_PROVIDER: ${SCRAPING_LLM_PRIMARY_PROVIDER:-gemini}
+      SCRAPING_LLM_FALLBACK_PROVIDER: ${SCRAPING_LLM_FALLBACK_PROVIDER:-groq}
+      SCRAPING_LLM_MODE: ${SCRAPING_LLM_MODE:-primary_with_fallback}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      SCRAPING_TAVILY_API_KEY: ${SCRAPING_TAVILY_API_KEY:-}
       TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
       SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
       SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
@@ -388,7 +413,7 @@ services:
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
       - ./scraping_data:/app/scraping_data
-    command: celery -A Plateforme worker -Q scraping -l info --concurrency=1
+    command: celery -A Plateforme worker -Q scraping -l info --concurrency=2
     depends_on:
       db:
         condition: service_healthy
@@ -398,7 +423,7 @@ services:
       - nlp_network
     restart: unless-stopped
 
-  # ── Django Celery Beat (periodic task scheduler) ──────────────────
+  # -- Django Celery Beat (periodic task scheduler) --
   django_celery_beat:
     profiles: ["scheduler"]
     build:
@@ -412,10 +437,25 @@ services:
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
       ELASTICSEARCH_HOST: http://elasticsearch:9200
+      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      GEMINI_SCRAPING_API_KEY: ${GEMINI_SCRAPING_API_KEY:-}
+      GEMINI_SCRAPING_MODEL: ${GEMINI_SCRAPING_MODEL:-gemini-3.5-preview}
+      GEMINI_SCRAPING_TIMEOUT: ${GEMINI_SCRAPING_TIMEOUT:-30}
+      GEMINI_SCRAPING_MAX_RETRIES: ${GEMINI_SCRAPING_MAX_RETRIES:-2}
+      GEMINI_SCRAPING_MAX_RPM: ${GEMINI_SCRAPING_MAX_RPM:-10}
+      SCRAPING_LLM_PRIMARY_PROVIDER: ${SCRAPING_LLM_PRIMARY_PROVIDER:-gemini}
+      SCRAPING_LLM_FALLBACK_PROVIDER: ${SCRAPING_LLM_FALLBACK_PROVIDER:-groq}
+      SCRAPING_LLM_MODE: ${SCRAPING_LLM_MODE:-primary_with_fallback}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      SCRAPING_TAVILY_API_KEY: ${SCRAPING_TAVILY_API_KEY:-}
       SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
       SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
     volumes:

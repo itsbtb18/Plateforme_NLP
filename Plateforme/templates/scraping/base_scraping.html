@@ -506,31 +506,14 @@
 
     <nav class="sp-nav">
       <div class="sp-nav-group">
-        <p class="sp-nav-title">{% trans "Web Scraping" %}</p>
-        {% for nav_category in scraping_nav_categories %}
-        <a
-          class="sp-link sp-link-category {% if scraping_current_category == nav_category.key %}active{% endif %}"
-          href="{% url 'scraping:category_dashboard' nav_category.key %}"
-        >
-          <span class="sp-link-main">
-            <i class="sp-link-icon fas fa-layer-group"></i>
-            <span class="sp-link-label">{{ nav_category.label }}</span>
-          </span>
-        </a>
-        {% endfor %}
-      </div>
-
-      <div class="sp-nav-separator"></div>
-
-      <div class="sp-nav-group">
-        <a class="sp-link {% if scraping_active_page == 'dashboard' %}active{% endif %}" href="{% url 'scraping:category_dashboard' scraping_current_category %}">
+        <a class="sp-link {% if scraping_active_page == 'dashboard' %}active{% endif %}" href="{% url 'scraping:dashboard' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-house"></i>
-            <span class="sp-link-label">{% trans "Dashboard" %}</span>
+            <span class="sp-link-label">{% trans "Hub" %}</span>
           </span>
         </a>
 
-        <a class="sp-link {% if scraping_active_page == 'results' %}active{% endif %}" href="{% url 'scraping:category_results' scraping_current_category %}">
+        <a class="sp-link {% if scraping_active_page == 'results' %}active{% endif %}" href="{% url 'scraping:results' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-clipboard-list"></i>
             <span class="sp-link-label">{% trans "Pending Queue" %}</span>
@@ -538,21 +521,21 @@
           <span class="sp-pill">{{ scraping_pending_count|default:0 }}</span>
         </a>
 
-        <a class="sp-link {% if scraping_active_page == 'analytics' %}active{% endif %}" href="{% url 'scraping:category_analytics' scraping_current_category %}">
+        <a class="sp-link {% if scraping_active_page == 'analytics' %}active{% endif %}" href="{% url 'scraping:analytics' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-chart-column"></i>
             <span class="sp-link-label">{% trans "Analytics" %}</span>
           </span>
         </a>
 
-        <a class="sp-link {% if scraping_active_page == 'sources' %}active{% endif %}" href="{% url 'scraping:category_sources' scraping_current_category %}">
+        <a class="sp-link {% if scraping_active_page == 'sources' %}active{% endif %}" href="{% url 'scraping:sources' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-link"></i>
             <span class="sp-link-label">{% trans "Sources" %}</span>
           </span>
         </a>
 
-        <a class="sp-link {% if scraping_active_page == 'settings' %}active{% endif %}" href="{% url 'scraping:category_settings' scraping_current_category %}">
+        <a class="sp-link {% if scraping_active_page == 'settings' %}active{% endif %}" href="{% url 'scraping:settings' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-gear"></i>
             <span class="sp-link-label">{% trans "Settings" %}</span>
@@ -584,7 +567,7 @@
               <span>{{ crumb.label }}</span>
             {% endif %}
             {% if not forloop.last %}
-              <span class="sp-breadcrumb-sep">â€º</span>
+              <span class="sp-breadcrumb-sep">&gt;</span>
             {% endif %}
           {% endfor %}
         </nav>
@@ -608,10 +591,10 @@
               {% for notif in scraping_notifications %}
               <article class="sp-notif-item">
                 <p class="sp-notif-message">
-                  {% if notif.notification_type == 'run_complete' %}âœ…
-                  {% elif notif.notification_type == 'run_failed' %}âŒ
-                  {% elif notif.notification_type == 'source_failing' %}âš ï¸
-                  {% else %}â„¹ï¸{% endif %}
+                  {% if notif.notification_type == 'run_complete' %}<i class="fas fa-circle-check"></i>
+                  {% elif notif.notification_type == 'run_failed' %}<i class="fas fa-circle-xmark"></i>
+                  {% elif notif.notification_type == 'source_failing' %}<i class="fas fa-triangle-exclamation"></i>
+                  {% else %}<i class="fas fa-circle-info"></i>{% endif %}
                   {{ notif.message }}
                 </p>
                 <p class="sp-notif-meta">

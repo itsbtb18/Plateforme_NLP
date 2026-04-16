@@ -435,68 +435,160 @@ class CourseListView(LoginAndVerifiedRequiredMixin, ListView):
 
 
 class ArticleListView(LoginAndVerifiedRequiredMixin, ListView):
-    model = Article
-    template_name = "resources/article_list.html"
+    """Unified view for Articles, Theses, and Memoirs"""
+    model = Document
+    template_name = "resources/article.html"
     context_object_name = "articles"
-    paginate_by = 10
+    paginate_by = 12
 
     def get_queryset(self):
-        # STRICT: Public articles list only shows approved content.
-        if self.request.user.is_staff:
-            return Article.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES)
-        return exclude_hidden_users(
-            Article.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
+        # Filter by document type and approval status
+        queryset = exclude_hidden_users(
+            Document.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
             self.request.user,
             ("author",),
         )
+        
+        # Filter by type (article, thesis, memoir)
+        doc_type = self.request.GET.get("type", "").strip()
+        if doc_type in ["article", "thesis", "memoir"]:
+            queryset = queryset.filter(document_type=doc_type)
+        
+        # Search filter
+        search_query = self.request.GET.get("q", "").strip()
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query)
+                | Q(description__icontains=search_query)
+                | Q(title_ar__icontains=search_query)
+                | Q(title_en__icontains=search_query)
+                | Q(keywords__icontains=search_query)
+                | Q(author__first_name__icontains=search_query)
+                | Q(author__last_name__icontains=search_query)
+            ).distinct()
+        
+        # Handle sorting
+        sort_by = self.request.GET.get("sort", "newest")
+        if sort_by == "oldest":
+            queryset = queryset.order_by("creation_date")
+        elif sort_by == "popular":
+            queryset = queryset.order_by("-views_count")
+        else:  # default: newest
+            queryset = queryset.order_by("-creation_date")
+        
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["total_count"] = self.get_queryset().count()
+        context["search_query"] = self.request.GET.get("q", "")
+        context["current_type"] = self.request.GET.get("type", "")
+        context["current_sort"] = self.request.GET.get("sort", "newest")
+        context["page"] = "articles"
         return context
 
 
 class ThesisListView(LoginAndVerifiedRequiredMixin, ListView):
-    model = Thesis
-    template_name = "resources/thesis_list.html"
-    context_object_name = "theses"
-    paginate_by = 10
+    """View for Theses - uses unified articles template"""
+    model = Document
+    template_name = "resources/article.html"
+    context_object_name = "articles"
+    paginate_by = 12
 
     def get_queryset(self):
-        # STRICT: Public theses list only shows approved content.
-        if self.request.user.is_staff:
-            return Thesis.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES)
-        return exclude_hidden_users(
-            Thesis.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
+        # Filter by thesis document type and approval status
+        queryset = exclude_hidden_users(
+            Document.objects.filter(
+                document_type="thesis",
+                approval_status__in=VISIBLE_APPROVAL_STATUSES
+            ),
             self.request.user,
             ("author",),
         )
+        
+        # Search filter
+        search_query = self.request.GET.get("q", "").strip()
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query)
+                | Q(description__icontains=search_query)
+                | Q(title_ar__icontains=search_query)
+                | Q(title_en__icontains=search_query)
+                | Q(keywords__icontains=search_query)
+                | Q(author__first_name__icontains=search_query)
+                | Q(author__last_name__icontains=search_query)
+            ).distinct()
+        
+        # Handle sorting
+        sort_by = self.request.GET.get("sort", "newest")
+        if sort_by == "oldest":
+            queryset = queryset.order_by("creation_date")
+        elif sort_by == "popular":
+            queryset = queryset.order_by("-views_count")
+        else:  # default: newest
+            queryset = queryset.order_by("-creation_date")
+        
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["total_count"] = self.get_queryset().count()
+        context["search_query"] = self.request.GET.get("q", "")
+        context["current_type"] = "thesis"
+        context["current_sort"] = self.request.GET.get("sort", "newest")
+        context["page"] = "articles"
         return context
 
 
 class MemoirListView(LoginAndVerifiedRequiredMixin, ListView):
-    model = Memoir
-    template_name = "resources/memoir_list.html"
-    context_object_name = "memoirs"
-    paginate_by = 10
+    """View for Memoirs - uses unified articles template"""
+    model = Document
+    template_name = "resources/article.html"
+    context_object_name = "articles"
+    paginate_by = 12
 
     def get_queryset(self):
-        # STRICT: Public memoirs list only shows approved content.
-        if self.request.user.is_staff:
-            return Memoir.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES)
-        return exclude_hidden_users(
-            Memoir.objects.filter(approval_status__in=VISIBLE_APPROVAL_STATUSES),
+        # Filter by memoir document type and approval status
+        queryset = exclude_hidden_users(
+            Document.objects.filter(
+                document_type="memoir",
+                approval_status__in=VISIBLE_APPROVAL_STATUSES
+            ),
             self.request.user,
             ("author",),
         )
+        
+        # Search filter
+        search_query = self.request.GET.get("q", "").strip()
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query)
+                | Q(description__icontains=search_query)
+                | Q(title_ar__icontains=search_query)
+                | Q(title_en__icontains=search_query)
+                | Q(keywords__icontains=search_query)
+                | Q(author__first_name__icontains=search_query)
+                | Q(author__last_name__icontains=search_query)
+            ).distinct()
+        
+        # Handle sorting
+        sort_by = self.request.GET.get("sort", "newest")
+        if sort_by == "oldest":
+            queryset = queryset.order_by("creation_date")
+        elif sort_by == "popular":
+            queryset = queryset.order_by("-views_count")
+        else:  # default: newest
+            queryset = queryset.order_by("-creation_date")
+        
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["total_count"] = self.get_queryset().count()
+        context["search_query"] = self.request.GET.get("q", "")
+        context["current_type"] = "memoir"
+        context["current_sort"] = self.request.GET.get("sort", "newest")
+        context["page"] = "articles"
         return context
 
 
@@ -1187,9 +1279,23 @@ class ResourceDeleteView(
 
 
 class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
-    template_name = "resources/resource_form.html"
     form_class = ResourceForm
     success_url = reverse_lazy("resources:list")
+
+    def get_template_names(self):
+        """Return different templates based on resource type"""
+        resource_type = (
+            self.request.POST.get('resource_type') or 
+            self.request.GET.get('type') or 
+            'article'  # Default to article for /articles/add/
+        )
+        
+        # Use article creation form for articles, theses, and memoirs
+        if resource_type in ['article', 'thesis', 'memoir']:
+            return ["resources/article_create_form.html"]
+        
+        # Use generic form for other resource types
+        return ["resources/resource_form.html"]
 
     def post(self, request, *args, **kwargs):
         import logging
@@ -1214,6 +1320,12 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
         kwargs = super().get_form_kwargs()
         kwargs["user"] = self.request.user
         return kwargs
+
+    def get_initial(self):
+        """Set default resource type to article"""
+        initial = super().get_initial()
+        initial['resource_type'] = 'article'
+        return initial
 
     def form_valid(self, form):
         import logging

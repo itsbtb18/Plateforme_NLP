@@ -964,12 +964,12 @@
 
   <section class="src-toolbar" aria-label="{% trans 'Source filters' %}">
     <div class="src-chips" id="categoryFilterChips">
-      <button type="button" class="src-chip active" data-category="all">
+      <button type="button" class="src-chip {% if sources_default_category == 'all' %}active{% endif %}" data-category="all">
         <span>{% trans "All categories" %}</span>
         <span class="src-chip-count" id="allCategoryCount">{{ sources_rows|length }}</span>
       </button>
       {% for option in category_options %}
-      <button type="button" class="src-chip" data-category="{{ option.key }}">
+      <button type="button" class="src-chip {% if sources_default_category == option.key %}active{% endif %}" data-category="{{ option.key }}">
         <span>
           {% if option.key == 'events' %}{% trans "Events" %}
           {% elif option.key == 'tools' %}{% trans "Tools" %}
@@ -1493,7 +1493,7 @@
   const sourceMap = new Map();
   sourcesRows.forEach((row) => sourceMap.set(String(row.id), row));
 
-  let activeCategory = "all";
+  let activeCategory = "{{ sources_default_category|default:'all'|escapejs }}" || "all";
 
   init();
 

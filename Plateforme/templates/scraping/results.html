@@ -299,7 +299,7 @@
 
     <div class="pq-meta-row">
       <article class="pq-kpi">
-        <p class="pq-kpi-label">{% trans "Items filtrés" %}</p>
+        <p class="pq-kpi-label">{% trans "Filtered items" %}</p>
         <p class="pq-kpi-value">{{ filtered_total|default:0 }}</p>
       </article>
       <article class="pq-kpi">
@@ -317,13 +317,13 @@
       <input type="hidden" name="category" value="{{ category_key|default:scraping_current_category }}">
       <div class="pq-field">
         <label for="pqQuery">{% trans "Recherche" %}</label>
-        <input id="pqQuery" type="text" name="q" value="{{ search_query|default:'' }}" placeholder="{% trans 'Titre, source, contenu...' %}">
+        <input id="pqQuery" type="text" name="q" value="{{ search_query|default:'' }}" placeholder="{% trans 'Title, source, content...' %}">
       </div>
 
       <div class="pq-field">
         <label for="pqSource">{% trans "Source" %}</label>
         <select id="pqSource" name="source">
-          <option value="any">{% trans "Toutes les sources" %}</option>
+          <option value="any">{% trans "All sources" %}</option>
           {% for source in source_options %}
           <option value="{{ source }}" {% if current_filters.source == source %}selected{% endif %}>{{ source }}</option>
           {% endfor %}
@@ -367,7 +367,7 @@
               {% if row.confidence_score != None %}
                 <span class="pq-confidence {% if row.confidence_score >= 80 %}high{% elif row.confidence_score < 50 %}low{% else %}mid{% endif %}">
                   <i class="fas fa-signal"></i>
-                  {{ row.confidence_score|floatformat:0 }}%
+                    {{ row.confidence_score|stringformat:".1f" }}%
                 </span>
               {% else %}
                 <span class="pq-confidence mid">—</span>
@@ -408,7 +408,7 @@
           {% empty %}
           <tr>
             <td colspan="6">
-              <p class="pq-empty">{% trans "Aucun élément en attente pour cette catégorie." %}</p>
+              <p class="pq-empty">{% trans "No pending items for this category." %}</p>
             </td>
           </tr>
           {% endfor %}

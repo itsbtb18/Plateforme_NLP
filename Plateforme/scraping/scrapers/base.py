@@ -945,7 +945,36 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
         is_duplicate, reason, score = checker(item_data)
         if is_duplicate:
             self._record_duplicate_skip(category, item_data, reason, match_score=score)
-        return is_duplicate, reason, score
+            return is_duplicate, reason, score
+
+        # Semantic fallback is intentionally centralized here so categories that
+        # do not implement their own semantic checks still benefit from it.
+        normalized_category = (category or "").strip().lower()
+        title = item_data.get("title_en") or item_data.get("title") or ""
+        if normalized_category == "news" and title:
+            try:
+                from scraping.embeddings import find_semantic_duplicate
+
+                semantic_match = find_semantic_duplicate(
+                    title,
+                    normalized_category,
+                    threshold=0.88,
+                )
+                if semantic_match is not None:
+                    self._set_duplicate_match(semantic_match)
+                    reason = f"{normalized_category} semantic fallback"
+                    score = 0.88
+                    self._record_duplicate_skip(
+                        category,
+                        item_data,
+                        reason,
+                        match_score=score,
+                    )
+                    return True, reason, score
+            except Exception:
+                logger.debug("semantic_dedup_fallback_check_failed", exc_info=True)
+
+        return False, "", 0.0
 
     def is_duplicate(self, title, category, model_class):
         del model_class
