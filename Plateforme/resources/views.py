@@ -1279,9 +1279,23 @@ class ResourceDeleteView(
 
 
 class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
-    template_name = "resources/resource_form.html"
     form_class = ResourceForm
     success_url = reverse_lazy("resources:list")
+
+    def get_template_names(self):
+        """Return different templates based on resource type"""
+        resource_type = (
+            self.request.POST.get('resource_type') or 
+            self.request.GET.get('type') or 
+            'article'  # Default to article for /articles/add/
+        )
+        
+        # Use article creation form for articles, theses, and memoirs
+        if resource_type in ['article', 'thesis', 'memoir']:
+            return ["resources/article_create_form.html"]
+        
+        # Use generic form for other resource types
+        return ["resources/resource_form.html"]
 
     def post(self, request, *args, **kwargs):
         import logging
@@ -1306,6 +1320,12 @@ class ResourceCreateView(LoginAndVerifiedRequiredMixin, FormView):
         kwargs = super().get_form_kwargs()
         kwargs["user"] = self.request.user
         return kwargs
+
+    def get_initial(self):
+        """Set default resource type to article"""
+        initial = super().get_initial()
+        initial['resource_type'] = 'article'
+        return initial
 
     def form_valid(self, form):
         import logging
