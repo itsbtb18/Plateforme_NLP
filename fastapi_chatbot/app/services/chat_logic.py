@@ -15,8 +15,8 @@ SessionService and DocumentService respectively.
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.llm import get_groq_client
-from app.services.llm.client import GroqClient
+from app.services.llm import get_llm_client
+from app.services.llm.client import GroqClient, get_chat_provider_label
 from app.services.retrieval import (
     search_legal_documents,
     search_user_documents,
@@ -111,7 +111,8 @@ class ChatLogic:
     """
 
     def __init__(self):
-        self.groq = get_groq_client()  # LLM (isolated)
+        self.groq = get_llm_client()  # LLM (provider-aware)
+        self.llm_source = get_chat_provider_label()
         self.classifier = get_query_classifier()  # Step 1-2
         self.router = get_query_router()  # Step 3
         self.sessions = get_session_service()  # PostgreSQL session ops
@@ -434,6 +435,7 @@ class ChatLogic:
             user_country=request.user_country,
             user_city=request.user_city,
             user_email=getattr(request, "user_email", None),
+            mode=_active_mode,
         )
 
         # Step 4: Build context from routing result
@@ -549,7 +551,7 @@ class ChatLogic:
             )
             # If RAG returned a fallback (e.g. rate-limit), retry without
             # context so the conversation is never blocked.
-            if GroqClient.is_fallback(answer):
+            if self.groq.is_fallback(answer):
                 logger.warning(
                     "RAG answer was fallback — retrying via quick_answer "
                     "(source=%s)", source,
@@ -558,9 +560,9 @@ class ChatLogic:
                     request.question, language,
                     username=getattr(request, "user_name", None),
                 )
-                source = "groq"
+                source = self.llm_source
             if source == "none":
-                source = "groq"
+                source = self.llm_source
         else:
             logger.info(
                 "Direct LLM (no retrieval): skip=%s context_empty=%s",
@@ -568,7 +570,7 @@ class ChatLogic:
                 not context,
             )
             answer = await self.groq.quick_answer(request.question, language, username=getattr(request, "user_name", None))
-            source = "groq"
+            source = self.llm_source
 
         # ── Phase 6: Faithfulness verification ────────────────────────
         # Only enforce safe substitution for legal answers. Applying the
@@ -578,7 +580,7 @@ class ChatLogic:
             classification.intent == "legal_query"
             or source == "legal_documents"
         )
-        if source != "groq" and context and _enforce_legal_faithfulness:
+        if source != self.llm_source and context and _enforce_legal_faithfulness:
             is_faithful = await verify_faithfulness(
                 answer, context, language, intent=classification.intent,
             )
@@ -587,8 +589,8 @@ class ChatLogic:
                     "Faithfulness check failed — substituting safe fallback"
                 )
                 answer = get_faithfulness_fallback(language)
-                source = "groq"  # Mark as LLM-generated fallback
-        elif source != "groq" and context:
+                source = self.llm_source  # Mark as LLM-generated fallback
+        elif source != self.llm_source and context:
             logger.debug(
                 "Skipping legal-safe faithfulness substitution for non-legal "
                 "response (intent=%s, source=%s)",
@@ -863,6 +865,7 @@ class ChatLogic:
                     user_city=request.user_city,
                     user_email=getattr(request, "user_email", None),
                     on_exa_fallback=_on_exa,
+                    mode=_active_mode,
                 )
                 await q.put({"routing": r})
             except Exception as e:
@@ -928,9 +931,9 @@ class ChatLogic:
             ):
                 answer += chunk
                 yield {"delta": chunk}
-            if GroqClient.is_fallback(answer):
+            if self.groq.is_fallback(answer):
                 answer = ""
-                source = "groq"
+                source = self.llm_source
                 async for chunk in self.groq.quick_answer_stream(
                     request.question, language,
                     username=getattr(request, "user_name", None),
@@ -938,9 +941,9 @@ class ChatLogic:
                     answer += chunk
                     yield {"delta": chunk}
             if source == "none":
-                source = "groq"
+                source = self.llm_source
         else:
-            source = "groq"
+            source = self.llm_source
             async for chunk in self.groq.quick_answer_stream(
                 request.question, language,
                 username=getattr(request, "user_name", None),
@@ -1083,7 +1086,7 @@ class ChatLogic:
         answer = await self.groq.quick_answer(question, lang)
         return ChatResponse(
             answer=answer,
-            source="groq",
+            source=self.llm_source,
             session_id="quick_query",
             lang=lang,
         )
@@ -1165,7 +1168,7 @@ class ChatLogic:
                 "No user-doc chunks found — falling back to quick_answer"
             )
             answer = await self.groq.quick_answer(question, language)
-            source = "groq"
+            source = self.llm_source
         else:
             context = self._build_context(docs)
             chat_history = await self.sessions.get_recent_messages(session_id, db)
@@ -1179,12 +1182,12 @@ class ChatLogic:
                 source_type="user_document",
             )
             # If RAG returned a fallback, retry without context
-            if GroqClient.is_fallback(answer):
+            if self.groq.is_fallback(answer):
                 logger.warning(
                     "User-doc RAG fallback — retrying via quick_answer"
                 )
                 answer = await self.groq.quick_answer(question, language)
-                source = "groq"
+                source = self.llm_source
             else:
                 source = "user_document"
 
@@ -1286,16 +1289,16 @@ class ChatLogic:
         except Exception:
             logger.error("Entity explain generation failed", exc_info=True)
 
-        if not answer or GroqClient.is_fallback(answer):
+        if not answer or self.groq.is_fallback(answer):
             quick = ""
             try:
                 quick = await self.groq.quick_answer(question, lang)
             except Exception:
                 logger.error("Entity explain quick fallback failed", exc_info=True)
 
-            if quick and not GroqClient.is_fallback(quick):
+            if quick and not self.groq.is_fallback(quick):
                 answer = quick
-                source = "groq"
+                source = self.llm_source
             else:
                 answer = build_entity_explain_fallback_answer(request, lang)
                 source = "platform"

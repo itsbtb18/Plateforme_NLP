@@ -32,6 +32,24 @@ class Settings(BaseSettings):
     GROQ_INTERNAL_API_KEY: str = ""
     GROQ_INTERNAL_MODEL: str = "llama-3.1-8b-instant"
 
+    # Gemini API — Chatbot (User-facing)
+    GENAI_API_KEY: str = ""
+    GENAI_MODEL: str = "gemini-2.0-flash"
+
+    # Gemini API — Internal (Classification, Rewriting, Faithfulness)
+    GENAI_INTERNAL_API_KEY: str = ""
+    GENAI_INTERNAL_MODEL: str = "gemini-2.0-flash"
+
+    # Backward-compatible aliases (if older envs use GEMINI_* names)
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = ""
+    GEMINI_INTERNAL_API_KEY: str = ""
+    GEMINI_INTERNAL_MODEL: str = ""
+
+    # Provider selectors (chat vs internal workflows)
+    LLM_PROVIDER_CHAT: str = "gemini"
+    LLM_PROVIDER_INTERNAL: str = "gemini"
+
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
@@ -43,7 +61,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
     API_HOST: str = "0.0.0.0"
-    API_PORT: int = 8001
+    API_PORT: int = 8000
 
     # Vector Search
     TOP_K_RESULTS: int = 5
