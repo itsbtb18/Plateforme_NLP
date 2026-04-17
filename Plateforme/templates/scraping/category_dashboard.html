@@ -201,13 +201,22 @@
 
   <aside class="cat-panel cat-run-box">
     <h2 class="cat-panel-title">{% trans "Run Control" %}</h2>
-    <button type="button" class="cat-run-btn">
+    <form id="runScraperCsrfForm" style="display:none;" aria-hidden="true">
+      {% csrf_token %}
+    </form>
+    <button
+      type="button"
+      class="cat-run-btn"
+      id="runScraperButton"
+      data-run-url="{% url 'scraping:run_scraper' category_key|default:scraping_current_category %}"
+      data-status-url-template="{% url 'scraping:run_scraper_status' '00000000-0000-0000-0000-000000000000' %}"
+    >
       {% trans "Run Scraper" %}
     </button>
-    <div class="cat-run-status">
+    <div class="cat-run-status" id="runScraperStatusBox">
       <strong>{% trans "Last run" %}</strong>
-      <span>{{ last_run_status|default:_('No run yet') }}</span>
-      <span>{{ last_run_time|default:'' }}</span>
+      <span id="runStatusText">{{ last_run_status|default:_('No run yet') }}</span>
+      <span id="runStatusTime">{{ last_run_time|default:'' }}</span>
     </div>
   </aside>
 </section>
@@ -241,4 +250,128 @@
     </tbody>
   </table>
 </section>
+
+<script>
+(function () {
+  const runButton = document.getElementById("runScraperButton");
+  const runStatusText = document.getElementById("runStatusText");
+  const runStatusTime = document.getElementById("runStatusTime");
+
+  if (!runButton) {
+    return;
+  }
+
+  function getCsrfToken() {
+    const templateToken = "{{ csrf_token }}";
+    if (templateToken && templateToken !== "NOTPROVIDED") {
+      return templateToken;
+    }
+
+    const hiddenInput = document.querySelector("[name=csrfmiddlewaretoken]");
+    if (hiddenInput && hiddenInput.value) {
+      return hiddenInput.value;
+    }
+
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function setRunButtonState(isBusy) {
+    runButton.disabled = isBusy;
+    runButton.style.opacity = isBusy ? "0.75" : "1";
+    runButton.style.cursor = isBusy ? "not-allowed" : "pointer";
+    runButton.textContent = isBusy
+      ? "{% trans 'Starting...' %}"
+      : "{% trans 'Run Scraper' %}";
+  }
+
+  function buildStatusUrl(runId) {
+    const template = runButton.dataset.statusUrlTemplate || "";
+    return template.replace("00000000-0000-0000-0000-000000000000", runId);
+  }
+
+  async function pollRunStatus(runId) {
+    const statusUrl = buildStatusUrl(runId);
+
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      const response = await fetch(statusUrl, {
+        method: "GET",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        credentials: "same-origin",
+      });
+
+      if (!response.ok) {
+        throw new Error("status_poll_failed");
+      }
+
+      const payload = await response.json();
+      const state = String(payload.status || "running").toUpperCase();
+      const progressCurrent = Number(payload.progress_current || payload.current || 0);
+      const progressTotal = Number(payload.progress_total || payload.total || 0);
+
+      if (runStatusText) {
+        if (progressTotal > 0) {
+          runStatusText.textContent = `${state} (${progressCurrent}/${progressTotal})`;
+        } else {
+          runStatusText.textContent = state;
+        }
+      }
+
+      if (state === "COMPLETED" || state === "FAILED") {
+        window.location.reload();
+        return;
+      }
+    }
+  }
+
+  runButton.addEventListener("click", async function () {
+    const runUrl = runButton.dataset.runUrl || "";
+    if (!runUrl) {
+      return;
+    }
+
+    setRunButtonState(true);
+    if (runStatusText) {
+      runStatusText.textContent = "{% trans 'Starting run...' %}";
+    }
+    if (runStatusTime) {
+      runStatusTime.textContent = "";
+    }
+
+    try {
+      const response = await fetch(runUrl, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCsrfToken(),
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        credentials: "same-origin",
+      });
+
+      if (!response.ok) {
+        throw new Error(`run_start_failed_${response.status}`);
+      }
+
+      const payload = await response.json();
+      const runId = payload.run_id;
+
+      if (runStatusText) {
+        runStatusText.textContent = "{% trans 'RUNNING' %}";
+      }
+
+      if (runId) {
+        await pollRunStatus(runId);
+      } else {
+        window.location.reload();
+      }
+    } catch (_error) {
+      if (runStatusText) {
+        runStatusText.textContent = "{% trans 'FAILED TO START' %}";
+      }
+      setRunButtonState(false);
+    }
+  });
+})();
+</script>
 {% endblock %}
