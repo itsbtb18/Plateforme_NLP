@@ -337,24 +337,56 @@ class QueryClassifier:
         # LLM zero-shot classification
         try:
             from app.services.llm import get_internal_llm_client
-            from app.services.llm.prompts import CLASSIFICATION_PROMPT, VALID_INTENTS
+            from app.services.llm.prompts import VALID_INTENTS
 
             client = get_internal_llm_client()
-            prompt = CLASSIFICATION_PROMPT.format(query=q)
-
-            messages = [
-                {"role": "system", "content": "You are an intent classifier. Respond with only the intent name."},
-                {"role": "user", "content": prompt},
-            ]
-
-            response = await client.chat_completion(
-                messages, temperature=0.0, max_tokens=20,
+            labels = ", ".join(sorted(VALID_INTENTS))
+            prompt = (
+                "Classify this query into exactly one intent label. "
+                "Return only the label, no explanation.\n"
+                f"Allowed labels: {labels}\n"
+                f"Query: {q}\n"
+                "Label:"
             )
 
-            # Parse the intent from LLM response
-            intent = response.strip().lower().replace('"', '').replace("'", "").replace(".", "")
-            # Handle cases where LLM returns the intent with underscores or spaces
-            intent = intent.replace(" ", "_")
+            response = await client.chat_completion(
+                [{"role": "user", "content": prompt}],
+                temperature=0.0,
+                max_tokens=16,
+            )
+
+            raw = (response or "").strip().lower()
+            intent = (
+                raw.replace('"', "")
+                .replace("'", "")
+                .replace("`", "")
+                .replace("-", "_")
+                .replace(" ", "_")
+                .replace(".", "")
+                .strip("_")
+            )
+
+            alias_map = {
+                "conceptual": "conceptual_question",
+                "concept": "conceptual_question",
+                "general": "general_knowledge",
+                "knowledge": "general_knowledge",
+                "platform": "platform_query",
+                "metadata": "metadata_query",
+                "document": "document_query",
+                "legal": "legal_query",
+                "bug": "bug_query",
+                "user": "user_query",
+            }
+            intent = alias_map.get(intent, intent)
+
+            if intent not in VALID_INTENTS:
+                # Accept outputs like "intent: conceptual_question".
+                intent_scan = re.sub(r"[^a-z_]", " ", raw).replace(" ", "_")
+                for valid_intent in VALID_INTENTS:
+                    if valid_intent in intent_scan:
+                        intent = valid_intent
+                        break
 
             if intent in VALID_INTENTS:
                 logger.info(

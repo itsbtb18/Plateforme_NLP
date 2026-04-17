@@ -39,6 +39,7 @@ class GroqClient:
         """
         self.api_key = api_key or settings.GROQ_API_KEY
         self.model = model_name or settings.GROQ_MODEL
+        self.last_provider = "groq"
         
         if not self.api_key:
             logger.warning("GROQ_API_KEY is not set. LLM features will fail.")
@@ -143,6 +144,7 @@ class GroqClient:
                 content = response.choices[0].message.content
                 if not content:
                     return self._fallback_message("en")
+                self.last_provider = "groq"
                 return content
             except RateLimitError as e:
                 last_exc = e
@@ -517,6 +519,7 @@ class GeminiClient:
         self.api_key = api_key or ""
         self.model = model_name
         self.fallback_client = fallback_client
+        self.last_provider = "gemini"
         if not self.api_key:
             logger.warning("GENAI API key is missing. Gemini calls will fallback when possible.")
         logger.info("Gemini client initialised – model: %s", self.model)
@@ -556,6 +559,15 @@ class GeminiClient:
     def _fallback_message(language: str) -> str:
         return GroqClient._fallback_message(language)
 
+    @staticmethod
+    def is_fallback(text: str) -> bool:
+        """Return True if *text* is one of the fallback messages.
+
+        Keep parity with GroqClient so chat logic can call client.is_fallback()
+        regardless of provider.
+        """
+        return GroqClient.is_fallback(text)
+
     async def chat_completion(
         self,
         messages: List[ChatCompletionMessageParam],
@@ -579,17 +591,39 @@ class GeminiClient:
                     max_output_tokens=max_tokens,
                 )
                 resp = model.generate_content(prompt, generation_config=cfg)
-                text = (getattr(resp, "text", "") or "").strip()
+                # google.generativeai may raise ValueError on resp.text even when
+                # candidates exist. Extract text defensively to avoid false fallback.
+                text = ""
+                try:
+                    text = (getattr(resp, "text", "") or "").strip()
+                except ValueError:
+                    text = ""
+
+                if not text:
+                    for cand in (getattr(resp, "candidates", None) or []):
+                        content = getattr(cand, "content", None)
+                        parts = getattr(content, "parts", None) or []
+                        chunks = [
+                            (getattr(part, "text", "") or "").strip()
+                            for part in parts
+                            if (getattr(part, "text", "") or "").strip()
+                        ]
+                        if chunks:
+                            text = "\n".join(chunks).strip()
+                            break
+
                 return text
 
             text = await asyncio.to_thread(_sync_call)
             if text:
+                self.last_provider = "gemini"
                 return text
             raise RuntimeError("Gemini returned empty response")
 
         except Exception as e:
             logger.warning("Gemini completion failed: %s", type(e).__name__)
             if self.fallback_client is not None:
+                self.last_provider = "groq"
                 return await self.fallback_client.chat_completion(
                     messages,
                     temperature=temperature,
