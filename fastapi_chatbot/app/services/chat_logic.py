@@ -118,6 +118,12 @@ class ChatLogic:
         self.sessions = get_session_service()  # PostgreSQL session ops
         self.lang_service = get_language_service()
 
+    def _current_generation_provider(self) -> str:
+        provider = getattr(self.groq, "last_provider", None)
+        if isinstance(provider, str) and provider.strip():
+            return provider.strip().lower()
+        return self.llm_source
+
     # ------------------------------------------------------------------
     # Conversation handler (full RAG pipeline)
     # ------------------------------------------------------------------
@@ -628,7 +634,9 @@ class ChatLogic:
             source=source,
             session_id=request.session_id,
             lang=language,
+            generation_provider=self._current_generation_provider(),
             retrieved_docs=self._to_schema(routing.retrieved_docs),
+            web_results=self._to_web_results(routing.retrieved_docs, source),
             platform_results=show_cards or None,
         )
 
@@ -985,7 +993,9 @@ class ChatLogic:
             "source": source,
             "session_id": request.session_id,
             "lang": language,
+            "generation_provider": self._current_generation_provider(),
             "retrieved_docs": [d.model_dump() if hasattr(d, "model_dump") else d for d in (retrieved_schema or [])],
+            "web_results": self._to_web_results(routing.retrieved_docs, source),
             "platform_results": show_cards,
         }
 
@@ -1077,6 +1087,7 @@ class ChatLogic:
                         source=routing.primary_source,
                         session_id="quick_query",
                         lang=lang,
+                        generation_provider=self._current_generation_provider(),
                         retrieved_docs=self._to_schema(routing.retrieved_docs)
                     )
             except Exception as e:
@@ -1089,6 +1100,7 @@ class ChatLogic:
             source=self.llm_source,
             session_id="quick_query",
             lang=lang,
+            generation_provider=self._current_generation_provider(),
         )
 
     # ------------------------------------------------------------------
@@ -1132,6 +1144,7 @@ class ChatLogic:
             source="pdf",
             session_id=session_id,
             lang=language,
+            generation_provider=self._current_generation_provider(),
         )
 
     # ------------------------------------------------------------------
@@ -1209,6 +1222,7 @@ class ChatLogic:
             source=source,
             session_id=session_id,
             lang=language,
+            generation_provider=self._current_generation_provider(),
             retrieved_docs=self._to_schema(docs),
         )
 
@@ -1316,6 +1330,7 @@ class ChatLogic:
             source=source,
             session_id=request.session_id,
             lang=lang,
+            generation_provider=self._current_generation_provider(),
         )
 
     # ------------------------------------------------------------------
@@ -1367,6 +1382,7 @@ class ChatLogic:
             source=source,
             session_id="legal_query",
             lang=lang,
+            generation_provider=(self._current_generation_provider() if docs else None),
             retrieved_docs=self._to_schema(docs),
         )
 
@@ -1718,14 +1734,41 @@ class ChatLogic:
         all_docs = list(docs or [])
         results = []
         for d in all_docs[:5]:
+            raw_url = d.get("url")
+            meta = d.get("metadata") if isinstance(d.get("metadata"), dict) else {}
+            meta_url = meta.get("url") if isinstance(meta, dict) else None
+            url = str(raw_url or meta_url or "").strip() or None
             results.append(RetrievedDoc(
                 id=d.get("id", 0),
                 title=d.get("title", "N/A"),
                 content=d.get("content", "")[:200] + "...",
                 source=d.get("source", "unknown"),
                 similarity=d.get("similarity", 0.0),
+                url=url,
             ))
         return results
+
+    @staticmethod
+    def _to_web_results(docs: List[Dict], source: str) -> Optional[List[Dict[str, Any]]]:
+        if not docs:
+            return None
+        if not (isinstance(source, str) and (source == "web" or source.startswith("web_"))):
+            return None
+
+        results: List[Dict[str, Any]] = []
+        for d in list(docs or [])[:8]:
+            url = str(d.get("url", "")).strip()
+            if not url:
+                continue
+            results.append(
+                {
+                    "url": url,
+                    "title": str(d.get("title", "")).strip()[:500],
+                    "content": str(d.get("content", "")).strip()[:2000],
+                    "score": d.get("similarity", 0.0),
+                }
+            )
+        return results or None
 
 
 # Singleton

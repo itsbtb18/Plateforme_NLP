@@ -545,7 +545,8 @@ class QueryRouter:
         q = (question or "").strip().lower()
         return bool(
             re.search(
-                r"^(?:who\s+is|what\s+is|tell\s+me\s+about|explain\s+what\s+is|"
+                r"^(?:who\s+is|what\s+is|tell\s+me\s+(?:about|how|what)|"
+                r"explain(?:\s+to\s+me)?\s+(?:what\s+is|how|who|why)|"
                 r"من\s+هو|ما\s+هو|c'?est\s+quoi|qui\s+est)\b",
                 q,
             )

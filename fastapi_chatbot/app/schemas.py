@@ -138,6 +138,7 @@ class RetrievedDoc(BaseModel):
     content: str
     source: str
     similarity: float
+    url: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -147,7 +148,9 @@ class ChatResponse(BaseModel):
     source: str
     session_id: str
     lang: Optional[str] = None
+    generation_provider: Optional[str] = None
     retrieved_docs: Optional[List[RetrievedDoc]] = None
+    web_results: Optional[List[Dict[str, Any]]] = None
     platform_results: Optional[List[Dict[str, Any]]] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
