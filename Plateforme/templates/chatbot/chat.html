@@ -511,6 +511,7 @@ html[dir="rtl"] .sources-row{padding-left:0;padding-right:36px}
 .source-pill .source-name{
     overflow:hidden;text-overflow:ellipsis;max-width:220px;display:inline-block;
 }
+.source-pill-link-icon{font-size:.64rem;color:var(--hub-text-muted);opacity:.9}
 .source-pill:nth-child(2){animation-delay:.04s}
 .source-pill:nth-child(3){animation-delay:.08s}
 @keyframes pillIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
@@ -524,6 +525,8 @@ html[dir="rtl"] .sources-row{padding-left:0;padding-right:36px}
 .source-dot.web_tavily{background:var(--src-web)}
 .source-dot.web_exa{background:var(--src-web)}
 .source-dot.web{background:var(--src-web)}
+.source-dot.provider-gemini{background:#f59e0b}
+.source-dot.provider-groq{background:#8b5cf6}
 .source-dot.default{background:var(--hub-text-muted)}
 .source-name{font-weight:600;color:var(--hub-text-primary);font-size:.73rem}
 .source-score{color:var(--hub-text-muted);font-weight:500;font-size:.68rem}
@@ -1013,6 +1016,7 @@ html[dir="rtl"] .search-mode-option .smo-text{align-items:flex-end;text-align:ri
 .web-results-grid{
     display:grid;gap:10px;margin-top:16px;
     grid-template-columns:1fr;
+    min-width:0;
 }
 .web-result-card{
     display:flex;flex-direction:column;gap:8px;
@@ -1020,6 +1024,9 @@ html[dir="rtl"] .search-mode-option .smo-text{align-items:flex-end;text-align:ri
     border-radius:var(--radius-md);padding:14px 16px;
     transition:all var(--transition-base);cursor:pointer;
     text-decoration:none;color:inherit;
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
     animation:cardSlideIn .6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .web-result-card:nth-child(1){animation-delay:.05s}
@@ -1045,10 +1052,14 @@ html[dir="rtl"] .search-mode-option .smo-text{align-items:flex-end;text-align:ri
 .web-result-card .wrc-domain{
     font-size:.72rem;color:var(--hub-text-muted);font-weight:500;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    min-width:0;
+    max-width:100%;
 }
 .web-result-card .wrc-title{
     font-size:.88rem;font-weight:600;color:var(--hub-text-primary);
     line-height:1.4;
+    overflow-wrap:anywhere;
+    word-break:break-word;
 }
 .web-result-card .wrc-snippet{
     font-size:.8rem;color:var(--hub-text-secondary);line-height:1.5;
@@ -1057,6 +1068,8 @@ html[dir="rtl"] .search-mode-option .smo-text{align-items:flex-end;text-align:ri
     line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow:hidden;
+    overflow-wrap:anywhere;
+    word-break:break-word;
 }
 .web-result-card .wrc-footer{
     display:flex;align-items:center;justify-content:space-between;
@@ -1464,6 +1477,7 @@ body.light-mode .code-block-header{
         let webSearchActive  = false;
         let chatbotMode      = sessionStorage.getItem('chatbotMode') || 'normal';
         let typingSpeedMult  = 1;
+        const EXA_STATUS_MIN_VISIBLE_MS = 350;
         let hasHydratedInitialSession = false;
         let shouldAutoScroll = true;
         let autoFollowLocked = false;
@@ -1811,7 +1825,7 @@ body.light-mode .code-block-header{
                             if(m.content&&m.content.indexOf('Document uploaded')===0) return;
                             addSystem(m.content,'system',false);
                         }
-                        else addAnswer(m.content,m.source,m.language,null,null,false,m.message_id,m.is_pinned);
+                        else addAnswer(m.content,m.source,m.language,null,null,false,m.message_id,m.is_pinned,null,null);
                     });
                     scrollBottom();
                 }
@@ -2136,7 +2150,7 @@ body.light-mode .code-block-header{
                         thinkEl.remove();
                         var askData=await askResp.json();
                         if(!askResp.ok) throw new Error(askData.error||'Ask failed');
-                        if(askData.answer) addAnswer(askData.answer,askData.source,askData.lang,askData.retrieved_docs||null,askData.platform_results||null,true);
+                        if(askData.answer) addAnswer(askData.answer,askData.source,askData.lang,askData.retrieved_docs||null,askData.platform_results||null,true,null,null,askData.web_results||null,askData.generation_provider||null);
                         else addSystem('\u2705 '+fileNames.length+' {% trans "document(s) uploaded successfully. Ask your questions!" %}','system');
                     } else {
                         thinkEl.remove();
@@ -2226,14 +2240,14 @@ body.light-mode .code-block-header{
                                     }
                                     /* First delta: remove thinking, create answer block */
                                     if(obj.delta && !streamState){
-                                        await ensureExaStateVisible(1800);
+                                        await ensureExaStateVisible(EXA_STATUS_MIN_VISIBLE_MS);
                                         if(thinkEl.parentNode) thinkEl.remove();
                                         streamState=addAnswerStreamingStart();
                                         currentStreamState=streamState;
                                     }
                                     if(obj.delta && streamState) updateStreamingAnswer(streamState,obj.delta);
                                     if(obj.done){
-                                        await ensureExaStateVisible(1800);
+                                        await ensureExaStateVisible(EXA_STATUS_MIN_VISIBLE_MS);
                                         if(exaSearchEl && exaSearchEl.parentNode){
                                             if(exaSearchEl && exaSearchEl.parentNode) exaSearchEl.remove();
                                         }
@@ -2263,14 +2277,14 @@ body.light-mode .code-block-header{
                                     markExaSearchingState();
                                 }
                                 if(obj.delta && !streamState){
-                                    await ensureExaStateVisible(1800);
+                                    await ensureExaStateVisible(EXA_STATUS_MIN_VISIBLE_MS);
                                     if(thinkEl.parentNode) thinkEl.remove();
                                     streamState=addAnswerStreamingStart();
                                     currentStreamState=streamState;
                                 }
                                 if(obj.delta && streamState) updateStreamingAnswer(streamState,obj.delta);
                                 if(obj.done){
-                                    await ensureExaStateVisible(1800);
+                                    await ensureExaStateVisible(EXA_STATUS_MIN_VISIBLE_MS);
                                     if(exaSearchEl && exaSearchEl.parentNode){
                                         if(exaSearchEl && exaSearchEl.parentNode) exaSearchEl.remove();
                                     }
@@ -2419,9 +2433,25 @@ body.light-mode .code-block-header{
             return typeof source==='string' && (source==='web' || source.indexOf('web_')===0);
         }
 
+        function providerDisplayLabel(provider){
+            var p=(provider||'').toString().trim().toLowerCase();
+            if(p==='gemini') return 'Gemini';
+            if(p==='groq') return 'Groq';
+            return provider||'';
+        }
+
         function shouldShowSourcePills(source,webResults){
             if(webResults && webResults.length>0) return false;
             return true;
+        }
+
+        function sourcePillHtml(s){
+            var inner='<div class="source-dot '+s.cls+'"></div><span class="source-name">'+esc(s.label)+'</span>'+(s.sim?'<span class="source-score">'+s.sim+'</span>':'');
+            var u=(s.url||'').toString().trim();
+            if(/^https?:\/\//i.test(u)){
+                return '<a class="source-pill" href="'+esc(u)+'" target="_blank" rel="noopener" title="'+esc(s.label)+'"><span class="source-pill-link-icon"><i class="fas fa-external-link-alt"></i></span>'+inner+'</a>';
+            }
+            return '<div class="source-pill" title="'+esc(s.label)+'">'+inner+'</div>';
         }
 
         function buildWebResultCards(results){
@@ -2467,7 +2497,7 @@ body.light-mode .code-block-header{
                 if(state.typingId){clearTimeout(state.typingId);state.typingId=null}
                 if(data.lang==='ar') state.block.setAttribute('dir','rtl');
                 var extracted=extractCitations(data.answer||state.accumulated||'');
-                var srcs=buildSources(data.source,data.retrieved_docs,data.platform_results);
+                var srcs=buildSources(data.source,data.retrieved_docs,data.platform_results,data.generation_provider);
                 state.bodyEl.innerHTML=renderMd(extracted.body);
                 /* Feature 5: Apply syntax highlighting to final render */
                 highlightCodeBlocks(state.block);
@@ -2478,7 +2508,7 @@ body.light-mode .code-block-header{
                 }
                 if(shouldShowSourcePills(data.source,data.web_results) && srcs.length>0){
                     var srcDiv=document.createElement('div');srcDiv.className='sources-row';
-                    var sourceHtml=srcs.map(function(s){return '<div class="source-pill" title="'+esc(s.label)+'"><div class="source-dot '+s.cls+'"></div><span class="source-name">'+esc(s.label)+'</span>'+(s.sim?'<span class="source-score">'+s.sim+'</span>':'')+'</div>';}).join('');
+                    var sourceHtml=srcs.map(function(s){return sourcePillHtml(s);}).join('');
                     if(isWebSource(data.source)){
                         sourceHtml='<div class="source-pill" title="Live Web (Exa)"><div class="source-dot web_exa"></div><span class="source-name">Live Web (Exa)</span></div>'+sourceHtml;
                     }
@@ -2573,13 +2603,15 @@ body.light-mode .code-block-header{
             if(state.displayedLen>=state.accumulated.length&&state.scheduleTick){state.scheduleTick();return}
         }
 
-        function addAnswer(text,source,lang,docs,platResults,animate,messageId,isPinned){
+        function addAnswer(text,source,lang,docs,platResults,animate,messageId,isPinned,webResults,generationProvider){
+            if(webResults===undefined) webResults=null;
+            if(generationProvider===undefined) generationProvider=null;
             var block=document.createElement('div');block.className='answer-block';
             if(messageId) block.setAttribute('data-message-id',messageId);
             if(isPinned) block.classList.add('is-pinned-msg');
             if(lang==='ar') block.setAttribute('dir','rtl');
             var html='';
-            var srcs=buildSources(source,docs,platResults);
+            var srcs=buildSources(source,docs,platResults,generationProvider);
 
             /* Extract inline citations from LLM text */
             var extracted=extractCitations(text);
@@ -2598,15 +2630,13 @@ body.light-mode .code-block-header{
             }
 
             /* Source pills row (retrieved docs) between header and body */
-            if(shouldShowSourcePills(source,null) && srcs.length>0){
+            if(shouldShowSourcePills(source,webResults) && srcs.length>0){
                 html+='<div class="sources-row">';
                 if(isWebSource(source)){
                     html+='<div class="source-pill" title="Live Web (Exa)"><div class="source-dot web_exa"></div><span class="source-name">Live Web (Exa)</span></div>';
                 }
                 srcs.forEach(function(s){
-                    html+='<div class="source-pill" title="'+esc(s.label)+'"><div class="source-dot '+s.cls+'"></div>'
-                        +'<span class="source-name">'+esc(s.label)+'</span>'
-                        +(s.sim?'<span class="source-score">'+s.sim+'</span>':'')+'</div>';
+                    html+=sourcePillHtml(s);
                 });
                 html+='</div>';
             }
@@ -2616,6 +2646,7 @@ body.light-mode .code-block-header{
             else html+=renderMd(cleanText);
             html+='</div>';
 
+            if(webResults&&webResults.length>0) html+=buildWebResultCards(webResults);
             if(platResults&&platResults.length>0) html+=buildCards(platResults);
 
             /* Feature 4: Pin button on answer */
@@ -2634,7 +2665,7 @@ body.light-mode .code-block-header{
             scrollBottom();
         }
 
-        function buildSources(source,docs,plat){
+        function buildSources(source,docs,plat,generationProvider){
             var map={
                 'platform_docs':{cls:'platform',label:'Platform Docs'},
                 'nlp_knowledge':{cls:'platform',label:'NLP Knowledge'},
@@ -2648,6 +2679,14 @@ body.light-mode .code-block-header{
                 'web':{cls:'web',label:'Live Web'},
             };
             var out=[];
+            var provider=(generationProvider||'').toString().trim().toLowerCase();
+            if(provider){
+                out.push({
+                    cls:provider==='gemini'?'provider-gemini':provider==='groq'?'provider-groq':'default',
+                    label:'Model: '+providerDisplayLabel(provider),
+                    sim:null
+                });
+            }
             if(docs&&docs.length>0){
                 /* Deduplicate by filename — keep best similarity per unique file */
                 var seen={};
@@ -2656,15 +2695,17 @@ body.light-mode .code-block-header{
                     var lbl=d.title||m.label;
                     var key=lbl+'|'+m.cls;
                     var sim=d.similarity||0;
+                    var rawUrl=(d.url||'').toString().trim();
+                    var candidateUrl=/^https?:\/\//i.test(rawUrl)?rawUrl:'';
                     if(!seen[key]||sim>seen[key].sim){
-                        seen[key]={cls:m.cls,label:lbl,sim:sim,source:d.source};
+                        seen[key]={cls:m.cls,label:lbl,sim:sim,source:d.source,url:candidateUrl};
                     }
                 });
                 Object.keys(seen).forEach(function(k){
                     var s=seen[k];
                     /* Hide raw similarity % for user documents — not meaningful */
                     var simLabel=(s.source!=='user_document'&&s.sim)?Math.round(s.sim*100)+'%':null;
-                    out.push({cls:s.cls,label:s.label,sim:simLabel});
+                    out.push({cls:s.cls,label:s.label,sim:simLabel,url:s.url||null});
                 });
             }
             if(out.length===0&&source&&source!=='none'&&source!=='error'&&source!=='system'&&!isWebSource(source)){var m=map[source]||{cls:'default',label:source};out.push({cls:m.cls,label:m.label,sim:null})}
@@ -2903,7 +2944,7 @@ body.light-mode .code-block-header{
                 var data=await resp.json();
                 if(!resp.ok) throw new Error(data.error||'Error '+resp.status);
                 if(data.session_id){currentSessionId=data.session_id;persistCurrentSessionId();}
-                if(data.answer) addAnswer(data.answer,data.source,data.lang,null,null,false);
+                if(data.answer) addAnswer(data.answer,data.source,data.lang,null,null,false,null,null,data.web_results||null,data.generation_provider||null);
                 loadSessions();
             }catch(e){thinkEl.remove();console.error('AutoExplain:',e);addSystem(e.message,'error')}
             finally{setLoading(false)}
@@ -2964,7 +3005,7 @@ body.light-mode .code-block-header{
                 if(data.session_id){currentSessionId=data.session_id;persistCurrentSessionId();}
                 if(data.document_id) activeDocumentId=data.document_id;
                 hasDocuments=true;
-                if(data.answer) addAnswer(data.answer,data.source,data.lang,data.retrieved_docs||null,null,true);
+                if(data.answer) addAnswer(data.answer,data.source,data.lang,data.retrieved_docs||null,null,true,null,null,data.web_results||null,data.generation_provider||null);
                 else if(data.document_status==='processing') addSystem("{% trans 'Document is still processing. Please ask again shortly.' %}",'system');
                 loadSessions();
             }catch(e){thinkEl.remove();console.error('AutoAnalyse:',e);addSystem(e.message,'error')}
