@@ -27,6 +27,25 @@ def _authorize(api_key: str | None) -> None:
         raise HTTPException(status_code=401, detail="Invalid TS service API key")
 
 
+def _service_error_to_http(exc: Exception) -> None:
+    message = str(exc or "").strip() or "Translation/Summarization provider failed"
+    lowered = message.lower()
+
+    if "429" in lowered or "rate limit" in lowered or "too many requests" in lowered:
+        raise HTTPException(
+            status_code=429,
+            detail="AI provider rate limit reached. Please wait a moment and retry.",
+        )
+
+    if "api key" in lowered or "unauthorized" in lowered or "forbidden" in lowered:
+        raise HTTPException(
+            status_code=502,
+            detail="AI provider authentication failed. Check provider API keys.",
+        )
+
+    raise HTTPException(status_code=502, detail=message)
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {
@@ -39,11 +58,14 @@ async def health() -> dict[str, str]:
 @app.post("/translate", response_model=TaskResponse)
 async def translate(req: TranslateRequest, x_ts_api_key: str | None = Header(default=None)) -> TaskResponse:
     _authorize(x_ts_api_key)
-    output, provider_used, fallback_used = await svc.translate(
-        text=req.text,
-        source_language=req.source_language,
-        target_language=req.target_language,
-    )
+    try:
+        output, provider_used, fallback_used = await svc.translate(
+            text=req.text,
+            source_language=req.source_language,
+            target_language=req.target_language,
+        )
+    except Exception as exc:
+        _service_error_to_http(exc)
     return TaskResponse(
         task="translation",
         output=output,
@@ -55,12 +77,15 @@ async def translate(req: TranslateRequest, x_ts_api_key: str | None = Header(def
 @app.post("/summarize", response_model=TaskResponse)
 async def summarize(req: SummarizeRequest, x_ts_api_key: str | None = Header(default=None)) -> TaskResponse:
     _authorize(x_ts_api_key)
-    output, provider_used, fallback_used = await svc.summarize(
-        text=req.text,
-        language=req.language,
-        style=req.style,
-        max_words=req.max_words,
-    )
+    try:
+        output, provider_used, fallback_used = await svc.summarize(
+            text=req.text,
+            language=req.language,
+            style=req.style,
+            max_words=req.max_words,
+        )
+    except Exception as exc:
+        _service_error_to_http(exc)
     return TaskResponse(
         task="summarization",
         output=output,

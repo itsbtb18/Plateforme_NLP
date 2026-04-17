@@ -9,16 +9,19 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse, Http404
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.db import models
 from django.urls import reverse
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+import logging
+import os
 from accounts.blocking import exclude_hidden_users
 from django.core.paginator import Paginator
 from pages.moderation import approve_object
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def is_admin(user):
@@ -688,3 +691,95 @@ def admin_feed_delete(request, post_id):
     post = get_object_or_404(Post, id=post_id)
     post.delete()
     return redirect("pages:admin_feed")
+
+
+@login_required
+@require_GET
+@login_and_verified_required
+def convert_post_to_text(request, post_id):
+    """
+    API endpoint: extract raw text from a feed post attached file.
+    Supports PDF (with OCR fallback), DOCX, and plain text formats.
+    """
+    # Match visibility rules used by post_detail.
+    base_qs = exclude_hidden_users(Post.objects.all(), request.user, ("author",))
+    if request.user.is_staff or request.user.is_superuser:
+        post = get_object_or_404(base_qs, id=post_id)
+    else:
+        post = get_object_or_404(base_qs.filter(approval_status="approved"), id=post_id)
+
+    if not post.file:
+        return JsonResponse(
+            {"success": False, "error": _("This post has no attached file.")},
+            status=400,
+        )
+
+    file_path = post.file.path
+    if not os.path.isfile(file_path):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": _("The file could not be found on the server."),
+            },
+            status=404,
+        )
+
+    filename = os.path.basename(file_path)
+    ext = os.path.splitext(filename)[1].lower()
+
+    try:
+        # Reuse robust extractors from resources module to keep parity.
+        from resources.views import (
+            _extract_text_from_docx,
+            _extract_text_from_pdf,
+            _extract_text_from_txt,
+        )
+
+        extraction_meta: dict[str, int | float | bool] = {}
+        if ext == ".pdf":
+            text, extraction_meta = _extract_text_from_pdf(file_path)
+        elif ext in (".docx", ".doc"):
+            text = _extract_text_from_docx(file_path)
+        elif ext in (".txt", ".md", ".csv", ".json", ".xml", ".log"):
+            text = _extract_text_from_txt(file_path)
+        else:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": _("Unsupported file format: %(ext)s") % {"ext": ext},
+                },
+                status=400,
+            )
+
+        if not text or not text.strip():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": _(
+                        "No text could be extracted from this document. It may be empty or contain only images without recognisable text."
+                    ),
+                },
+                status=200,
+            )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "text": text,
+                "filename": filename,
+                "char_count": len(text),
+                "word_count": len(text.split()),
+                **extraction_meta,
+            }
+        )
+
+    except Exception as e:
+        logger.exception("Text extraction failed for post %s", post_id)
+        return JsonResponse(
+            {
+                "success": False,
+                "error": _("An error occurred while processing the document: %(err)s")
+                % {"err": str(e)},
+            },
+            status=500,
+        )

@@ -1,5 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.forms import inlineformset_factory
 from .models import Event, Speaker
 from django.utils.translation import gettext_lazy as _, get_language
@@ -85,6 +86,7 @@ class EventForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
         instance = kwargs.get('instance', None)
 
         if instance:
@@ -109,10 +111,14 @@ class EventForm(forms.ModelForm):
 
         # Add explicit "Other" choice to organizer list.
         organizer_field = self.fields.get('organizer')
-        if organizer_field is not None and hasattr(organizer_field, "queryset"):
-            organizer_qs = organizer_field.queryset
+        if organizer_field is not None:
+            organizer_qs = self._get_visible_organizers_queryset()
             organizer_choices = [(str(obj.pk), str(obj)) for obj in organizer_qs]
-            organizer_choices.append((self.OTHER_ORGANIZER_VALUE, _("Other")))
+
+            has_real_other = organizer_qs.filter(type='Other').exists()
+            if not has_real_other:
+                organizer_choices.append((self.OTHER_ORGANIZER_VALUE, _("Other")))
+
             self.fields['organizer'] = forms.ChoiceField(
                 choices=organizer_choices,
                 required=True,
@@ -123,6 +129,21 @@ class EventForm(forms.ModelForm):
                 self.initial['organizer'] = str(instance.organizer_id)
 
         self._setup_bilingual_labels()
+
+    def _get_visible_organizers_queryset(self):
+        """Return organizers visible to the current user with a safe fallback."""
+        base_qs = Institution.objects.order_by('name')
+
+        if self.user and not getattr(self.user, 'is_staff', False):
+            visible_qs = base_qs.filter(
+                Q(approval_status='approved') | Q(created_by=self.user)
+            )
+        else:
+            visible_qs = base_qs
+
+        if visible_qs.exists():
+            return visible_qs
+        return base_qs
     
     def _setup_bilingual_labels(self):
         """Set context-aware labels for bilingual fields."""

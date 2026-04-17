@@ -45,6 +45,9 @@
 .feed-file-link:hover{background:rgba(124,58,237,.16);border-color:rgba(167,139,250,.5);color:#f5f3ff}
 .feed-file-link i{font-size:.9rem;flex-shrink:0}
 .feed-file-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.feed-file-actions{display:flex;flex-direction:column;gap:.55rem;margin-top:.6rem}
+.feed-file-action-btn{display:flex;align-items:center;justify-content:center;gap:.45rem;padding:.55rem .7rem;border:1px solid rgba(167,139,250,.34);border-radius:10px;background:rgba(124,58,237,.12);color:#ede9fe;text-decoration:none;font-size:.78rem;font-weight:800;cursor:pointer;transition:all .2s ease}
+.feed-file-action-btn:hover{background:rgba(124,58,237,.22);border-color:rgba(167,139,250,.55);color:#fff}
 .feed-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
 .feed-link:hover{background:rgba(255,255,255,.04)}
 .feed-actions{display:flex;align-items:center;justify-content:space-around;padding:1rem .85rem;border-top:1px solid rgba(167,139,250,.16);gap:.5rem}
@@ -127,10 +130,18 @@
         <div class="feed-body">
           <p class="feed-excerpt">{{ post.content|truncatechars:150 }}</p>
           {% if post.file %}
-          <a class="feed-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
-            <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
-            <span class="feed-file-name">{{ post.file.name|cut:'posts/files/' }}</span>
-          </a>
+          <div class="feed-file-actions">
+            <a class="feed-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+              <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+              <span class="feed-file-name">{{ post.file.name|cut:'posts/files/' }}</span>
+            </a>
+            <button type="button"
+                    class="feed-file-action-btn"
+                    onclick="openDocumentViewer('{{ post.file.url|escapejs }}', null, '{{ post.id }}', '{{ post.get_localized_title|default:post.content|truncatechars:100|escapejs }}', '{% url 'feed:convert-post-to-text' post.id %}')">
+              <i class="bi bi-eye"></i>
+              <span>{% trans "View Document" %}</span>
+            </button>
+          </div>
           {% endif %}
           <div class="feed-info">
             <div class="feed-info-row"><i class="bi bi-person"></i><span>{{ post.author.get_full_name_display }}</span></div>
@@ -180,6 +191,8 @@
     {% endif %}
   </div>
 </div>
+
+{% include "components/document_viewer_modal.html" %}
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

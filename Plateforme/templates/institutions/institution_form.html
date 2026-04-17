@@ -377,36 +377,6 @@ html[dir="rtl"] .ifo-select {
     font-weight: 700;
 }
 
-.ifo-specialty-search {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--ifo-subtle);
-    border-radius: var(--ifo-radius-sm);
-    font-size: 0.85rem;
-    max-width: 180px;
-}
-
-.ifo-specialty-search i {
-    color: var(--ifo-text-muted);
-    font-size: 0.9rem;
-}
-
-.ifo-specialty-search input {
-    border: none;
-    background: transparent;
-    outline: none;
-    font-size: 0.85rem;
-    width: 100%;
-    color: var(--ifo-text);
-}
-
-.ifo-specialty-search input::placeholder {
-    color: var(--ifo-text-muted);
-}
-
 .ifo-specialty-tags {
     display: flex;
     flex-wrap: wrap;
@@ -970,10 +940,6 @@ html[dir="rtl"] .ifo-select {
                                     <i class="bi bi-bookmark-check"></i>
                                     <span><strong id="selectedCount">0</strong> {% translate "selected" %}</span>
                                 </span>
-                                <div class="ifo-specialty-search">
-                                    <i class="bi bi-search"></i>
-                                    <input type="text" id="specialtySearch" placeholder="{% translate 'Search...' %}">
-                                </div>
                             </div>
                             <div class="ifo-specialty-tags" id="specialtyTags">
                                 {% for specialty in form.fields.specialties.queryset %}
@@ -1156,8 +1122,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Specialty tags functionality
     const specialtyCheckboxes = document.querySelectorAll('.ifo-specialty-tag input[type="checkbox"]');
     const selectedCountEl = document.getElementById('selectedCount');
-    const specialtySearch = document.getElementById('specialtySearch');
-    const specialtyTags = document.querySelectorAll('.ifo-specialty-tag');
     
     // Update count on change
     function updateSelectedCount() {
@@ -1174,22 +1138,6 @@ document.addEventListener('DOMContentLoaded', function() {
     specialtyCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', updateSelectedCount);
     });
-    
-    // Search/filter functionality
-    if (specialtySearch) {
-        specialtySearch.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            
-            specialtyTags.forEach(tag => {
-                const name = tag.dataset.name || '';
-                if (query === '' || name.includes(query)) {
-                    tag.classList.remove('hidden');
-                } else {
-                    tag.classList.add('hidden');
-                }
-            });
-        });
-    }
 });
 </script>
 {% endblock %}

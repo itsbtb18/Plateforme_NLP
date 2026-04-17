@@ -109,6 +109,8 @@ class EventListView(LoginAndVerifiedRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['search_form'] = EventSearchForm(self.request.GET or None)
         context['page'] = 'events'
+        context['is_create_mode'] = True
+        context['is_update_mode'] = False
         return context
 
 
@@ -207,6 +209,11 @@ class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
             )
         context['page'] = 'events'
         return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
     
     def _save_bilingual_fields(self, instance):
         """Save bilingual fields from POST data to the model instance."""
@@ -320,9 +327,16 @@ class EventUpdateView(LoginAndVerifiedRequiredMixin, UserPassesTestMixin, Update
                 prefix="speakers",
             )
         context['page'] = 'events'
+        context['is_create_mode'] = False
+        context['is_update_mode'] = True
         context['review_mode'] = self.request.GET.get('review') == '1' and self.request.user.is_staff
         context['is_pending'] = self.object.approval_status == 'pending'
         return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
     
     def test_func(self):
         event = self.get_object()

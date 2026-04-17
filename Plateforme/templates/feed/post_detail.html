@@ -250,6 +250,35 @@ html[dir="rtl"] body {
     max-width: 100%;
 }
 
+.pd-file-actions {
+    margin-top: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.pd-view-doc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.62rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid rgba(167, 139, 250, 0.34);
+    background: rgba(124, 58, 237, 0.13);
+    color: #ede9fe;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pd-view-doc-btn:hover {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: rgba(167, 139, 250, 0.5);
+    color: #f5f3ff;
+}
+
 .pd-file-link:hover {
     color: #f5f3ff;
     border-color: rgba(167, 139, 250, 0.48);
@@ -923,10 +952,18 @@ html[dir="rtl"] .pd-card-body {
                     {% endif %}
 
                     {% if post.file %}
-                    <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
-                        <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
-                        <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
-                    </a>
+                    <div class="pd-file-actions">
+                        <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+                            <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+                            <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
+                        </a>
+                        <button type="button"
+                                class="pd-view-doc-btn"
+                                onclick="openDocumentViewer('{{ post.file.url|escapejs }}', null, '{{ post.id }}', '{{ post.get_localized_title|default:post.content|truncatechars:100|escapejs }}', '{% url 'feed:convert-post-to-text' post.id %}')">
+                            <i class="bi bi-eye"></i>
+                            <span>{% trans "View Document" %}</span>
+                        </button>
+                    </div>
                     {% endif %}
                 </div>
                 {% else %}
@@ -936,10 +973,18 @@ html[dir="rtl"] .pd-card-body {
                 <img src="{{ post.image.url }}" alt="{% trans 'Post image' %}" class="pd-image">
                 {% endif %}
                 {% if post.file %}
-                <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
-                    <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
-                    <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
-                </a>
+                <div class="pd-file-actions">
+                    <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+                        <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+                        <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
+                    </a>
+                    <button type="button"
+                            class="pd-view-doc-btn"
+                            onclick="openDocumentViewer('{{ post.file.url|escapejs }}', null, '{{ post.id }}', '{{ post.get_localized_title|default:post.content|truncatechars:100|escapejs }}', '{% url 'feed:convert-post-to-text' post.id %}')">
+                        <i class="bi bi-eye"></i>
+                        <span>{% trans "View Document" %}</span>
+                    </button>
+                </div>
                 {% endif %}
                 {% endif %}
             </div>
@@ -1143,6 +1188,7 @@ html[dir="rtl"] .pd-card-body {
         
     </div>
 </div>
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}
 
 {% block extra_scripts %}

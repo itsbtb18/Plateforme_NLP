@@ -198,6 +198,21 @@
   .op-note{padding:.75rem .85rem;border-radius:16px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.18);color:#e9d5ff;font-size:.84rem;line-height:1.6}
   .op-toast{position:fixed;right:1rem;bottom:1rem;padding:.8rem .95rem;border-radius:14px;background:#12182a;border:1px solid rgba(255,255,255,.14);color:#eef2ff;box-shadow:0 18px 36px rgba(2,6,23,.4);opacity:0;transform:translateY(10px);pointer-events:none;transition:.18s;z-index:1700}
   .op-toast.show{opacity:1;transform:translateY(0)}
+  #opPostBackdrop{padding:0;align-items:stretch;justify-content:stretch;background:rgba(4,8,18,.82);backdrop-filter:blur(10px)}
+  #opPostBackdrop .op-modal{width:100vw;max-width:none;height:100vh;max-height:100vh;border-radius:0;border-left:none;border-right:none;display:flex;flex-direction:column;overflow:hidden}
+  #opPostBackdrop .op-post-hero{border-radius:0;padding:1.7rem 1.7rem 2.1rem}
+  #opPostBackdrop .op-form-shell{flex:1;overflow:auto;padding:1.25rem clamp(.8rem,3vw,2rem) 1.6rem}
+  #opPostBackdrop .op-steps-bar{display:none}
+  #opPostBackdrop .op-form-grid{display:block;min-height:100%}
+  #opPostBackdrop .op-section{max-width:1320px;margin:.75rem auto 0;min-height:calc(100vh - 190px)}
+  #opPostBackdrop .op-section-head .op-step{display:none}
+  #opPostBackdrop .op-modal-head{position:sticky;top:0;z-index:5}
+  #opPostBackdrop .op-post-hero{padding:.9rem 1.25rem 1.15rem}
+  #opPostBackdrop .op-post-icon{width:50px;height:50px;margin:0 auto .7rem}
+  #opPostBackdrop .op-post-breadcrumb{margin:0 0 .55rem}
+  #opPostBackdrop .op-modal-title{font-size:1.45rem;margin:0 0 .25rem}
+  #opPostBackdrop .op-modal-sub{font-size:.95rem;line-height:1.45;max-width:80ch}
+  #opPostBackdrop .op-col-4{grid-column:span 6}
   @media(max-width:1000px){.op-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}.op-wrap{width:min(100%,calc(100% - 1rem))}.op-visual{margin-left:0}.op-visual-stats{margin-left:0}}
   @media(max-width:760px){.op-wrap{width:calc(100% - .5rem)}.op-fields{grid-template-columns:1fr}.op-col-12,.op-col-6,.op-col-4{grid-column:auto}.op-toolbar,.op-toolbar-group,.op-actions{width:100%;flex-wrap:wrap}.op-search,.op-toolbar .op-select,.op-actions .op-select,.op-actions .op-btn,.op-select,.op-btn{width:100%;min-width:0}.op-top h2,.op-hero-action-slot{justify-self:stretch;text-align:right}.op-backdrop{padding:calc(var(--site-header-height, 80px) + 1rem) .55rem 1rem}.op-modal{max-height:calc(100vh - var(--site-header-height, 80px) - 2rem)}.op-visual{grid-template-columns:1fr 1fr;grid-template-rows:auto}.op-visual-center{display:none}.op-chip-1,.op-chip-2,.op-chip-3,.op-chip-4{grid-column:auto;grid-row:auto}.op-chip::after{display:none}.op-post-breadcrumb{flex-wrap:wrap}.op-steps-bar{flex-wrap:wrap;border-radius:12px}.op-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem;flex-direction:column;text-align:center}.op-hero h1{font-size:1.5rem}.op-hero p{font-size:.9rem}.op-visual-stats{text-align:center;align-items:center}.pub-stat-number{font-size:2rem}.pub-stat-label{font-size:.85rem}}
   @media(max-width:480px){.pub-filter-grid{grid-template-columns:1fr}.pub-input-wrapper{grid-column:1/-1}.pub-btn{grid-column:auto;width:100%;padding:.75rem 1rem;font-size:.8rem}.pub-filter-card{padding:1rem;margin-bottom:1rem}.op-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.op-hero h1{font-size:1.5rem}.op-hero p{font-size:.9rem}.pub-stat-number{font-size:1.4rem}.pub-stat-label{font-size:.55rem;margin-top:.25rem}}
@@ -323,75 +338,44 @@
     <form id="opPostForm" class="op-form-shell" novalidate>
       {% csrf_token %}
       <div class="op-form-grid">
-        <div style="display:grid;gap:1rem">
-          <section class="op-section">
-            <div class="op-section-head">
-              <div class="op-section-title">
-                <div class="op-section-icon blue"><i class="bi bi-briefcase"></i></div>
-                <div>
-                  <h3 data-i18n="sectionBasics">1. Essentials</h3>
-                  <p data-i18n="sectionBasicsHint">Provide bilingual titles, choose the opportunity type, and select the hosting institution.</p>
-                </div>
-              </div>
-              <span class="op-step">01</span>
-            </div>
-            <div class="op-section-body">
-              <div class="op-fields">
-                <div class="op-field op-col-6"><label for="opTitleEn"><span data-i18n="fieldTitleEn">Title (English)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="title_en"><input id="opTitleEn" name="title_en" class="op-input" required></div><p class="op-help" data-i18n="fieldTitleEnHint">This title is shown on English screens.</p><div class="op-feedback" data-feedback="title_en"></div></div>
-                <div class="op-field op-col-6"><label for="opTitleAr"><span data-i18n="fieldTitleAr">Title (Arabic)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="title_ar"><input id="opTitleAr" name="title_ar" class="op-input" dir="rtl" required></div><p class="op-help" data-i18n="fieldTitleArHint">This title is shown on Arabic screens.</p><div class="op-feedback" data-feedback="title_ar"></div></div>
-                <div class="op-field op-col-4"><label for="opTypeSelect"><span data-i18n="fieldType">Type</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="type"><select id="opTypeSelect" name="type" class="op-select" required></select></div><p class="op-help" data-i18n="fieldTypeHint">Choose the opportunity category.</p></div>
-                <div class="op-field op-col-4"><label for="opInstitution"><span data-i18n="fieldInstitution">Institution</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="institution"><select id="opInstitution" name="institution" class="op-select" required></select></div><p class="op-help" data-i18n="fieldInstitutionHint">Only Algerian institutions are listed here, plus an Other option.</p><div class="op-feedback" data-feedback="institution"></div></div>
-                <div class="op-field op-col-4"><label for="opLocation"><span data-i18n="fieldLocation">Location</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="location"><input id="opLocation" name="location" class="op-input" required></div><p class="op-help" data-i18n="fieldLocationHint">Auto-filled from the selected institution when available.</p><div class="op-feedback" data-feedback="location"></div></div>
-                <div class="op-field op-col-6" id="opOtherOrgEnWrap" hidden><label for="opOrgEn"><span data-i18n="fieldOrgEn">Organization name (English)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="organization_en"><input id="opOrgEn" name="organization_en" class="op-input"></div><div class="op-feedback" data-feedback="organization_en"></div></div>
-                <div class="op-field op-col-6" id="opOtherOrgArWrap" hidden><label for="opOrgAr"><span data-i18n="fieldOrgAr">Organization name (Arabic)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="organization_ar"><input id="opOrgAr" name="organization_ar" class="op-input" dir="rtl"></div><div class="op-feedback" data-feedback="organization_ar"></div></div>
-              </div>
-            </div>
-          </section>
-          <section class="op-section">
-            <div class="op-section-head">
-              <div class="op-section-title">
-                <div class="op-section-icon purple"><i class="bi bi-card-checklist"></i></div>
-                <div>
-                  <h3 data-i18n="sectionDetails">2. Position details</h3>
-                  <p data-i18n="sectionDetailsHint">Complete the editorial metadata used on the public opportunities page.</p>
-                </div>
-              </div>
-              <span class="op-step">02</span>
-            </div>
-            <div class="op-section-body">
-              <div class="op-fields">
-                <div class="op-field op-col-4"><label for="opModeSelect"><span data-i18n="fieldMode">Mode</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="mode"><select id="opModeSelect" name="mode" class="op-select" required></select></div></div>
-                <div class="op-field op-col-4"><label for="opLevelSelect"><span data-i18n="fieldLevel">Level</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="level"><select id="opLevelSelect" name="level" class="op-select" required></select></div></div>
-                <div class="op-field op-col-4"><label for="opDeadline"><span data-i18n="fieldDeadline">Deadline</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="deadline"><input id="opDeadline" name="deadline" type="date" class="op-input" required></div><div class="op-feedback" data-feedback="deadline"></div></div>
-                <div class="op-field op-col-12"><label for="opDescription"><span data-i18n="fieldDescription">Description</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="description"><textarea id="opDescription" name="description" class="op-textarea" required></textarea></div><p class="op-help" data-i18n="fieldDescriptionHint">Summarize responsibilities, expected profile, and the publication context.</p><div class="op-feedback" data-feedback="description"></div></div>
-                <div class="op-field op-col-12"><label><span data-i18n="fieldSkills">Skills</span> <span class="op-req">*</span></label><div id="opSkillChoices" class="op-skills-grid"></div><div id="opCustomSkillsWrap" class="op-custom-skills"><input id="opCustomSkillInput" class="op-input" type="text"><button id="opAddCustomSkill" class="op-btn" type="button" data-i18n="addSkill">Add skill</button></div><div id="opCustomSkillList" class="op-custom-list"></div><p class="op-help" data-i18n="fieldSkillsHint">Choose from common NLP skills. If you pick Other, you can type custom skills manually.</p><div class="op-feedback" data-feedback="skills"></div></div>
-                <div class="op-field op-col-12"><label for="opContact"><span data-i18n="fieldContact">Contact link or email</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="contact"><input id="opContact" name="contact" class="op-input" required></div><p class="op-help" data-i18n="fieldContactHint">Use a URL or an email address for applications.</p><div class="op-feedback" data-feedback="contact"></div></div>
-              </div>
-            </div>
-          </section>
-        </div>
-        <aside style="display:grid;gap:1rem">
-          <section class="op-section">
-            <div class="op-section-head">
+        <section class="op-section">
+          <div class="op-section-head">
+            <div class="op-section-title">
+              <div class="op-section-icon blue"><i class="bi bi-briefcase"></i></div>
               <div>
-                <h3 data-i18n="sectionReview">3. Review & publish</h3>
-                <p data-i18n="sectionReviewHint">Check the live summary before sending the opportunity for moderation.</p>
+                <h3 data-i18n="postModalTitle">Publish a new opportunity</h3>
+                <p data-i18n="postModalSubtitle">Use the same polished editorial workflow as the other core pages. Titles in Arabic and English are required.</p>
               </div>
-              <span class="op-step">03</span>
             </div>
-            <div class="op-section-body">
-              <div id="opErrorSummary" class="op-errors" aria-live="polite" tabindex="-1"><h4 data-i18n="validationErrors">Ongoing validation errors</h4><ul></ul></div>
-              <div class="op-summary">
-                <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumTitle">Displayed title</span><div class="op-summary-value" data-summary="title">Not set</div></div>
-                <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumInstitution">Institution</span><div class="op-summary-value" data-summary="institution">Not set</div></div>
-                <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumType">Type</span><div class="op-summary-value" data-summary="type">Not set</div></div>
-                <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumSkills">Skills</span><div class="op-summary-value" data-summary="skills">No skills selected</div></div>
-              </div>
-              <div class="op-note" data-i18n="moderationNotice">Your opportunity will be reviewed before it is publicly displayed.</div>
-              <div class="op-modal-actions"><button type="button" class="op-btn" id="opCancelPost" data-i18n="cancel">Cancel</button><button type="submit" class="op-btn primary" data-i18n="submitOffer">Submit opportunity</button></div>
+          </div>
+          <div class="op-section-body">
+            <div class="op-fields">
+              <div class="op-field op-col-6"><label for="opTitleEn"><span data-i18n="fieldTitleEn">Title (English)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="title_en"><input id="opTitleEn" name="title_en" class="op-input" required></div><p class="op-help" data-i18n="fieldTitleEnHint">This title is shown on English screens.</p><div class="op-feedback" data-feedback="title_en"></div></div>
+              <div class="op-field op-col-6"><label for="opTitleAr"><span data-i18n="fieldTitleAr">Title (Arabic)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="title_ar"><input id="opTitleAr" name="title_ar" class="op-input" dir="rtl" required></div><p class="op-help" data-i18n="fieldTitleArHint">This title is shown on Arabic screens.</p><div class="op-feedback" data-feedback="title_ar"></div></div>
+              <div class="op-field op-col-4"><label for="opTypeSelect"><span data-i18n="fieldType">Type</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="type"><select id="opTypeSelect" name="type" class="op-select" required></select></div><p class="op-help" data-i18n="fieldTypeHint">Choose the opportunity category.</p></div>
+              <div class="op-field op-col-4"><label for="opInstitution"><span data-i18n="fieldInstitution">Institution</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="institution"><select id="opInstitution" name="institution" class="op-select" required></select></div><p class="op-help" data-i18n="fieldInstitutionHint">Only Algerian institutions are listed here, plus an Other option.</p><div class="op-feedback" data-feedback="institution"></div></div>
+              <div class="op-field op-col-4"><label for="opLocation"><span data-i18n="fieldLocation">Location</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="location"><input id="opLocation" name="location" class="op-input" required></div><p class="op-help" data-i18n="fieldLocationHint">Auto-filled from the selected institution when available.</p><div class="op-feedback" data-feedback="location"></div></div>
+              <div class="op-field op-col-6" id="opOtherOrgEnWrap" hidden><label for="opOrgEn"><span data-i18n="fieldOrgEn">Organization name (English)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="organization_en"><input id="opOrgEn" name="organization_en" class="op-input"></div><div class="op-feedback" data-feedback="organization_en"></div></div>
+              <div class="op-field op-col-6" id="opOtherOrgArWrap" hidden><label for="opOrgAr"><span data-i18n="fieldOrgAr">Organization name (Arabic)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="organization_ar"><input id="opOrgAr" name="organization_ar" class="op-input" dir="rtl"></div><div class="op-feedback" data-feedback="organization_ar"></div></div>
+              <div class="op-field op-col-4"><label for="opModeSelect"><span data-i18n="fieldMode">Mode</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="mode"><select id="opModeSelect" name="mode" class="op-select" required></select></div></div>
+              <div class="op-field op-col-4"><label for="opLevelSelect"><span data-i18n="fieldLevel">Level</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="level"><select id="opLevelSelect" name="level" class="op-select" required></select></div></div>
+              <div class="op-field op-col-4"><label for="opDeadline"><span data-i18n="fieldDeadline">Deadline</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="deadline"><input id="opDeadline" name="deadline" type="date" class="op-input" required></div><div class="op-feedback" data-feedback="deadline"></div></div>
+              <div class="op-field op-col-12"><label for="opDescription"><span data-i18n="fieldDescription">Description</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="description"><textarea id="opDescription" name="description" class="op-textarea" required></textarea></div><p class="op-help" data-i18n="fieldDescriptionHint">Summarize responsibilities, expected profile, and the publication context.</p><div class="op-feedback" data-feedback="description"></div></div>
+              <div class="op-field op-col-12"><label><span data-i18n="fieldSkills">Skills</span> <span class="op-req">*</span></label><div id="opSkillChoices" class="op-skills-grid"></div><div id="opCustomSkillsWrap" class="op-custom-skills"><input id="opCustomSkillInput" class="op-input" type="text"><button id="opAddCustomSkill" class="op-btn" type="button" data-i18n="addSkill">Add skill</button></div><div id="opCustomSkillList" class="op-custom-list"></div><p class="op-help" data-i18n="fieldSkillsHint">Choose from common NLP skills. If you pick Other, you can type custom skills manually.</p><div class="op-feedback" data-feedback="skills"></div></div>
+              <div class="op-field op-col-12"><label for="opContact"><span data-i18n="fieldContact">Contact link or email</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="contact"><input id="opContact" name="contact" class="op-input" required></div><p class="op-help" data-i18n="fieldContactHint">Use a URL or an email address for applications.</p><div class="op-feedback" data-feedback="contact"></div></div>
             </div>
-          </section>
-        </aside>
+
+            <div id="opErrorSummary" class="op-errors" aria-live="polite" tabindex="-1"><h4 data-i18n="validationErrors">Ongoing validation errors</h4><ul></ul></div>
+            <div class="op-summary">
+              <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumTitle">Displayed title</span><div class="op-summary-value" data-summary="title">Not set</div></div>
+              <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumInstitution">Institution</span><div class="op-summary-value" data-summary="institution">Not set</div></div>
+              <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumType">Type</span><div class="op-summary-value" data-summary="type">Not set</div></div>
+              <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumSkills">Skills</span><div class="op-summary-value" data-summary="skills">No skills selected</div></div>
+            </div>
+            <div class="op-note" data-i18n="moderationNotice">Your opportunity will be reviewed before it is publicly displayed.</div>
+            <div class="op-modal-actions"><button type="button" class="op-btn" id="opCancelPost" data-i18n="cancel">Cancel</button><button type="submit" class="op-btn primary" data-i18n="submitOffer">Submit opportunity</button></div>
+          </div>
+        </section>
       </div>
     </form>
   </article>

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import re
+from typing import Awaitable, Callable
 
 from app.config import get_settings
 from app.providers.gemini_provider import GeminiProvider
@@ -36,23 +38,30 @@ class TranslationSummarizationService:
             provider = self.providers[name]
             try:
                 translated_chunks: list[str] = []
-                for chunk in chunks:
-                    translated = await provider.translate(
-                        text=chunk,
-                        source_language=source_language,
-                        target_language=target_language,
+                for i, chunk in enumerate(chunks):
+                    translated = await self._call_with_rate_limit_retry(
+                        provider_name=name,
+                        op=lambda c=chunk: provider.translate(
+                            text=c,
+                            source_language=source_language,
+                            target_language=target_language,
+                        ),
                     )
                     translated = self._post_process_translation(translated)
                     if self._looks_like_summary(source_text=chunk, translated_text=translated):
                         raise RuntimeError("provider output looks summarized/compressed, not full translation")
                     translated_chunks.append(translated)
 
+                    if i < len(chunks) - 1 and self.settings.TS_INTER_CHUNK_DELAY_SECONDS > 0:
+                        await asyncio.sleep(self.settings.TS_INTER_CHUNK_DELAY_SECONDS)
+
                 output = self._merge_chunks(translated_chunks)
                 if self._looks_like_summary(source_text=text, translated_text=output):
                     raise RuntimeError("provider output looks summarized/compressed, not full translation")
                 return output, name, idx > 0
             except Exception as exc:
-                errors.append(f"{name}: {exc}")
+                safe_error = self._sanitize_error_message(str(exc))
+                errors.append(f"{name}: {safe_error}")
                 continue
         raise RuntimeError("All providers failed: " + " | ".join(errors))
 
@@ -72,25 +81,34 @@ class TranslationSummarizationService:
 
                     section_chunks = self._split_into_chunks(section_body, max_chars=2800)
                     chunk_summaries: list[str] = []
-                    for chunk in section_chunks:
+                    for i, chunk in enumerate(section_chunks):
                         words = len(chunk.split())
                         section_target_words = self._estimate_section_summary_words(words, max_words)
-                        chunk_summary = await provider.summarize(
-                            text=chunk,
-                            language=language,
-                            style=f"section::{style}",
-                            max_words=section_target_words,
+                        chunk_summary = await self._call_with_rate_limit_retry(
+                            provider_name=name,
+                            op=lambda c=chunk, w=section_target_words: provider.summarize(
+                                text=c,
+                                language=language,
+                                style=f"section::{style}",
+                                max_words=w,
+                            ),
                         )
                         chunk_summaries.append(self._post_process_summary(chunk_summary))
+
+                        if i < len(section_chunks) - 1 and self.settings.TS_INTER_CHUNK_DELAY_SECONDS > 0:
+                            await asyncio.sleep(self.settings.TS_INTER_CHUNK_DELAY_SECONDS)
 
                     if len(chunk_summaries) > 1:
                         merged_for_section = "\n\n".join(chunk_summaries)
                         final_words = self._estimate_section_summary_words(len(section_body.split()), max_words)
-                        section_summary = await provider.summarize(
-                            text=merged_for_section,
-                            language=language,
-                            style=f"section-final::{style}",
-                            max_words=final_words,
+                        section_summary = await self._call_with_rate_limit_retry(
+                            provider_name=name,
+                            op=lambda m=merged_for_section, w=final_words: provider.summarize(
+                                text=m,
+                                language=language,
+                                style=f"section-final::{style}",
+                                max_words=w,
+                            ),
                         )
                         section_summary = self._post_process_summary(section_summary)
                     else:
@@ -107,9 +125,73 @@ class TranslationSummarizationService:
                 output = self._render_structured_summary(summarized_sections)
                 return output, name, idx > 0
             except Exception as exc:
-                errors.append(f"{name}: {exc}")
+                safe_error = self._sanitize_error_message(str(exc))
+                errors.append(f"{name}: {safe_error}")
                 continue
         raise RuntimeError("All providers failed: " + " | ".join(errors))
+
+    @staticmethod
+    def _sanitize_error_message(message: str) -> str:
+        text = str(message or "")
+        # Remove credential-like query params that may appear in upstream URLs.
+        text = re.sub(r"([?&](?:key|api_key|token)=)[^&\s]+", r"\1***", text, flags=re.IGNORECASE)
+        return text
+
+    async def _call_with_rate_limit_retry(self, *, provider_name: str, op: Callable[[], Awaitable[str]]) -> str:
+        max_retries = max(0, int(self.settings.TS_RATE_LIMIT_MAX_RETRIES))
+        base_delay = max(0.1, float(self.settings.TS_RATE_LIMIT_BASE_DELAY_SECONDS))
+        max_wait = max(base_delay, float(self.settings.TS_RATE_LIMIT_MAX_WAIT_SECONDS))
+
+        last_exc: Exception | None = None
+        for attempt in range(max_retries + 1):
+            try:
+                return await op()
+            except Exception as exc:
+                last_exc = exc
+                if not self._is_rate_limit_error(exc):
+                    raise
+
+                if attempt >= max_retries:
+                    break
+
+                # Prefer provider-advised wait, fallback to exponential backoff.
+                advised_wait = self._extract_retry_after_seconds(str(exc))
+                backoff_wait = base_delay * (2 ** attempt)
+                wait_seconds = advised_wait if advised_wait is not None else backoff_wait
+                wait_seconds = max(base_delay, min(wait_seconds, max_wait))
+                await asyncio.sleep(wait_seconds)
+
+        message = self._sanitize_error_message(str(last_exc)) if last_exc else "rate limit"
+        raise RuntimeError(f"Rate limit persisted for provider {provider_name}: {message}")
+
+    @staticmethod
+    def _is_rate_limit_error(exc: Exception) -> bool:
+        msg = str(exc or "").lower()
+        return (
+            "rate limit" in msg
+            or "too many requests" in msg
+            or "429" in msg
+            or "rate_limit_exceeded" in msg
+        )
+
+    @staticmethod
+    def _extract_retry_after_seconds(message: str) -> float | None:
+        text = str(message or "")
+
+        # Examples:
+        # - "Please try again in 2.24s"
+        # - "Please try again in 14m30.912s"
+        mix = re.search(r"try again in\s*(?:(\d+)m)?\s*(\d+(?:\.\d+)?)s", text, flags=re.IGNORECASE)
+        if mix:
+            mins = float(mix.group(1) or 0)
+            secs = float(mix.group(2) or 0)
+            return (mins * 60.0) + secs
+
+        sec_only = re.search(r"retry after\s*(\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
+        if sec_only:
+            return float(sec_only.group(1))
+
+        return None
 
     @staticmethod
     def _looks_like_summary(*, source_text: str, translated_text: str) -> bool:

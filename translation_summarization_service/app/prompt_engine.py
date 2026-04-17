@@ -1,9 +1,13 @@
 class PromptEngine:
     @staticmethod
+    def _inject_text_chunk(prompt_template: str, text: str) -> str:
+        return str(prompt_template).replace("{TEXT_CHUNK}", text or "")
+
+    @staticmethod
     def translation_prompt(*, text: str, source_language: str, target_language: str) -> str:
         source = (source_language or "").strip() or "auto"
         target = (target_language or "").strip() or "auto"
-        return (
+        prompt_template = (
             "You are a STRICT full-document translation engine for technical and academic text.\\n"
             f"Translate from {source} to {target}.\\n"
             "Critical rules (mandatory):\\n"
@@ -19,8 +23,9 @@ class PromptEngine:
             "- Return ONLY the translated text.\\n"
             "- No intro, no outro, no title, no 'summary'.\\n"
             "- If an element should not be translated (e.g., code/identifier), keep it exactly as-is.\\n\\n"
-            f"Source text:\\n{text}"
+            "Source text:\\n{TEXT_CHUNK}"
         )
+        return PromptEngine._inject_text_chunk(prompt_template, text)
 
     @staticmethod
     def summarization_prompt(*, text: str, language: str, style: str, max_words: int | None) -> str:
@@ -29,7 +34,7 @@ class PromptEngine:
         max_words_str = str(max_words) if max_words is not None else "auto"
 
         if summary_style.startswith("section::") or summary_style.startswith("section-final::"):
-            return (
+            prompt_template = (
                 "You are a professional section summarizer.\n"
                 f"Write the output in language={output_language}. style={summary_style}. max_words={max_words_str}.\n"
                 "Mandatory rules:\n"
@@ -43,10 +48,11 @@ class PromptEngine:
                 "- Return ONLY one clean summary paragraph (or 2 short paragraphs max).\n"
                 "- No headings, no bullets, no metadata, no prefatory phrases.\n"
                 "- No markdown.\n\n"
-                f"Section content:\n{text}"
+                "Section content:\n{TEXT_CHUNK}"
             )
+            return PromptEngine._inject_text_chunk(prompt_template, text)
 
-        return (
+        prompt_template = (
             "You are an advanced professional summarization engine.\\n"
             f"Summarize in language={output_language}. style={summary_style}. max_words={max_words_str}.\\n"
             "Quality requirements (mandatory):\\n"
@@ -76,5 +82,6 @@ class PromptEngine:
             "- Respect max_words when provided.\\n"
             "- If max_words is auto, choose a balanced length proportionate to source size.\\n"
             "- Return only the final formatted summary.\\n\\n"
-            f"Source text:\\n{text}"
+            "Source text:\\n{TEXT_CHUNK}"
         )
+        return PromptEngine._inject_text_chunk(prompt_template, text)

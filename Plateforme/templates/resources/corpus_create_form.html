@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static i18n %}
+{% get_current_language as CURRENT_LANGUAGE %}
 
 {% block title %}{% trans "Create Corpus" %} - {% trans "Academic Platform" %}{% endblock %}
 
@@ -23,6 +24,9 @@
     --text-muted: #9ca3af;
     --danger: #ef4444;
     --radius: 12px;
+    --input-border-dark-violet: rgba(76, 29, 149, 0.88);
+    --input-border-dark-violet-soft: rgba(76, 29, 149, 0.72);
+    --input-focus-ring: rgba(109, 40, 217, 0.32);
 }
 
 body {
@@ -194,11 +198,17 @@ html[dir="rtl"] body {
 .form-group textarea {
     width: 100%;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(167, 139, 250, 0.22);
+    border: 1px solid var(--input-border-dark-violet);
     border-radius: 9px;
     color: var(--text-main);
     padding: 0.62rem 0.75rem;
     font-size: 0.92rem;
+}
+
+.form-group input:hover,
+.form-group select:hover,
+.form-group textarea:hover {
+    border-color: var(--input-border-dark-violet-soft);
 }
 
 .form-group textarea {
@@ -210,8 +220,13 @@ html[dir="rtl"] body {
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2);
+    border-color: #6d28d9;
+    box-shadow: 0 0 0 2px var(--input-focus-ring);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: rgba(255, 255, 255, 0.58);
 }
 
 .form-group .helptext,
@@ -222,7 +237,7 @@ html[dir="rtl"] body {
 }
 
 .file-upload-shell {
-    border: 1px solid rgba(167, 139, 250, 0.24);
+    border: 1px solid var(--input-border-dark-violet);
     border-radius: 11px;
     background: rgba(255, 255, 255, 0.03);
     padding: 0.75rem;
@@ -230,13 +245,13 @@ html[dir="rtl"] body {
 }
 
 .file-upload-shell:hover {
-    border-color: rgba(167, 139, 250, 0.45);
+    border-color: var(--input-border-dark-violet-soft);
     background: rgba(255, 255, 255, 0.05);
 }
 
 .file-upload-shell.focused {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.22);
+    border-color: #6d28d9;
+    box-shadow: 0 0 0 2px var(--input-focus-ring);
 }
 
 .file-input-native {
@@ -398,17 +413,17 @@ html[dir="rtl"] .form-actions {
     <div class="corpus-shell">
         <header class="page-head">
             <ul class="breadcrumbs">
-                <li><a href="{% url 'resources:list' %}">{% trans "Resources" %}</a></li>
+                <li><a href="{% url 'resources:list' %}">{% if CURRENT_LANGUAGE == 'ar' %}الموارد{% else %}{% trans "Resources" %}{% endif %}</a></li>
                 <li><i class="bi bi-chevron-right" aria-hidden="true"></i></li>
-                <li><a href="{% url 'resources:corpus_list' %}">{% trans "Corpora" %}</a></li>
+                <li><a href="{% url 'resources:corpus_list' %}">{% if CURRENT_LANGUAGE == 'ar' %}المدونات{% else %}{% trans "Corpora" %}{% endif %}</a></li>
                 <li><i class="bi bi-chevron-right" aria-hidden="true"></i></li>
-                <li>{% trans "Create" %}</li>
+                <li>{% if CURRENT_LANGUAGE == 'ar' %}إنشاء{% else %}{% trans "Create" %}{% endif %}</li>
             </ul>
             <div class="hero-icon">
                 <i class="bi bi-collection"></i>
             </div>
-            <h1>{% trans "Create Corpus" %}</h1>
-            <p>{% trans "Add a corpus with bilingual metadata and optional source file." %}</p>
+            <h1>{% if CURRENT_LANGUAGE == 'ar' %}إنشاء المدونة{% else %}{% trans "Create Corpus" %}{% endif %}</h1>
+            <p>{% if CURRENT_LANGUAGE == 'ar' %}أضف مدونة ببيانات وصفية ثنائية اللغة مع ملف مصدر اختياري.{% else %}{% trans "Add a corpus with bilingual metadata and optional source file." %}{% endif %}</p>
         </header>
 
         <form method="post" enctype="multipart/form-data" class="form-card" novalidate>
@@ -425,28 +440,28 @@ html[dir="rtl"] .form-actions {
 
             <div class="review-note">
                 <i class="bi bi-shield-check" aria-hidden="true"></i>
-                {% trans "All new corpora are submitted for moderation before they become public." %}
+                {% if CURRENT_LANGUAGE == 'ar' %}جميع المدونات الجديدة تُرسل للمراجعة قبل أن تصبح عامة.{% else %}{% trans "All new corpora are submitted for moderation before they become public." %}{% endif %}
             </div>
 
             <section class="section">
                 <div class="section-title">
                     <i class="bi bi-type"></i>
                     <div>
-                        <h2>{% trans "Title and Description" %}</h2>
-                        <small>{% trans "Provide at least one language version for title and description." %}</small>
+                        <h2>{% if CURRENT_LANGUAGE == 'ar' %}العنوان والوصف{% else %}{% trans "Title and Description" %}{% endif %}</h2>
+                        <small>{% if CURRENT_LANGUAGE == 'ar' %}قدّم نسخة لغوية واحدة على الأقل للعنوان والوصف.{% else %}{% trans "Provide at least one language version for title and description." %}{% endif %}</small>
                     </div>
                 </div>
 
                 <div class="field-row">
                     <div class="form-group">
-                        <label for="{{ form.title_en.id_for_label }}">{% trans "Title (English)" %}</label>
+                        <label for="{{ form.title_en.id_for_label }}">{% if CURRENT_LANGUAGE == 'ar' %}العنوان (بالإنجليزية){% else %}{% trans "Title (English)" %}{% endif %}</label>
                         {{ form.title_en }}
                         {% if form.title_en.errors %}
                         <div class="error-box">{{ form.title_en.errors|striptags }}</div>
                         {% endif %}
                     </div>
                     <div class="form-group">
-                        <label for="{{ form.title_ar.id_for_label }}">{% trans "Title (Arabic)" %}</label>
+                        <label for="{{ form.title_ar.id_for_label }}">{% if CURRENT_LANGUAGE == 'ar' %}العنوان (بالعربية){% else %}{% trans "Title (Arabic)" %}{% endif %}</label>
                         {{ form.title_ar }}
                         {% if form.title_ar.errors %}
                         <div class="error-box">{{ form.title_ar.errors|striptags }}</div>
@@ -456,14 +471,14 @@ html[dir="rtl"] .form-actions {
 
                 <div class="field-row">
                     <div class="form-group">
-                        <label for="{{ form.description_en.id_for_label }}">{% trans "Description (English)" %}</label>
+                        <label for="{{ form.description_en.id_for_label }}">{% if CURRENT_LANGUAGE == 'ar' %}الوصف (بالإنجليزية){% else %}{% trans "Description (English)" %}{% endif %}</label>
                         {{ form.description_en }}
                         {% if form.description_en.errors %}
                         <div class="error-box">{{ form.description_en.errors|striptags }}</div>
                         {% endif %}
                     </div>
                     <div class="form-group">
-                        <label for="{{ form.description_ar.id_for_label }}">{% trans "Description (Arabic)" %}</label>
+                        <label for="{{ form.description_ar.id_for_label }}">{% if CURRENT_LANGUAGE == 'ar' %}الوصف (بالعربية){% else %}{% trans "Description (Arabic)" %}{% endif %}</label>
                         {{ form.description_ar }}
                         {% if form.description_ar.errors %}
                         <div class="error-box">{{ form.description_ar.errors|striptags }}</div>
@@ -476,21 +491,21 @@ html[dir="rtl"] .form-actions {
                 <div class="section-title">
                     <i class="bi bi-sliders"></i>
                     <div>
-                        <h2>{% trans "Corpus Metadata" %}</h2>
-                        <small>{% trans "Set the corpus domain, language and discoverability details." %}</small>
+                        <h2>{% if CURRENT_LANGUAGE == 'ar' %}بيانات المدونة{% else %}{% trans "Corpus Metadata" %}{% endif %}</h2>
+                        <small>{% if CURRENT_LANGUAGE == 'ar' %}حدّد مجال المدونة واللغة وتفاصيل الإتاحة.{% else %}{% trans "Set the corpus domain, language and discoverability details." %}{% endif %}</small>
                     </div>
                 </div>
 
                 <div class="field-row">
                     <div class="form-group">
-                        <label for="{{ form.corpus_field.id_for_label }}">{% trans "Field of Study" %} <span class="required">*</span></label>
+                        <label for="{{ form.corpus_field.id_for_label }}">{% if CURRENT_LANGUAGE == 'ar' %}المجال الدراسي{% else %}{% trans "Field of Study" %}{% endif %} <span class="required">*</span></label>
                         {{ form.corpus_field }}
                         {% if form.corpus_field.errors %}
                         <div class="error-box">{{ form.corpus_field.errors|striptags }}</div>
                         {% endif %}
                     </div>
                     <div class="form-group">
-                        <label for="{{ form.language.id_for_label }}">{% trans "Language" %} <span class="required">*</span></label>
+                        <label for="{{ form.language.id_for_label }}">{% if CURRENT_LANGUAGE == 'ar' %}اللغة{% else %}{% trans "Language" %}{% endif %} <span class="required">*</span></label>
                         {{ form.language }}
                         {% if form.language.errors %}
                         <div class="error-box">{{ form.language.errors|striptags }}</div>
@@ -500,7 +515,7 @@ html[dir="rtl"] .form-actions {
 
                 <div class="field-row">
                     <div class="form-group">
-                        <label for="{{ form.keywords.id_for_label }}">{% trans "Keywords" %}</label>
+                        <label for="{{ form.keywords.id_for_label }}">{% if CURRENT_LANGUAGE == 'ar' %}الكلمات المفتاحية{% else %}{% trans "Keywords" %}{% endif %}</label>
                         {{ form.keywords }}
                         {% if form.keywords.help_text %}
                         <div class="form-text">{{ form.keywords.help_text }}</div>
@@ -510,7 +525,7 @@ html[dir="rtl"] .form-actions {
                         {% endif %}
                     </div>
                     <div class="form-group">
-                        <label for="{{ form.access_link.id_for_label }}">{% trans "Access Link" %}</label>
+                        <label for="{{ form.access_link.id_for_label }}">{% if CURRENT_LANGUAGE == 'ar' %}رابط الوصول{% else %}{% trans "Access Link" %}{% endif %}</label>
                         {{ form.access_link }}
                         {% if form.access_link.errors %}
                         <div class="error-box">{{ form.access_link.errors|striptags }}</div>
@@ -523,25 +538,25 @@ html[dir="rtl"] .form-actions {
                 <div class="section-title">
                     <i class="bi bi-file-earmark-arrow-up"></i>
                     <div>
-                        <h2>{% trans "File Upload" %}</h2>
-                        <small>{% trans "Attach a source file if you want to store the corpus document directly." %}</small>
+                        <h2>{% if CURRENT_LANGUAGE == 'ar' %}رفع الملف{% else %}{% trans "File Upload" %}{% endif %}</h2>
+                        <small>{% if CURRENT_LANGUAGE == 'ar' %}أرفق ملفًا مصدريًا إذا أردت حفظ وثيقة المدونة مباشرة.{% else %}{% trans "Attach a source file if you want to store the corpus document directly." %}{% endif %}</small>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="{{ form.uploaded_file.id_for_label }}">{% trans "Corpus File" %}</label>
+                    <label for="{{ form.uploaded_file.id_for_label }}">{% if CURRENT_LANGUAGE == 'ar' %}ملف المدونة{% else %}{% trans "Corpus File" %}{% endif %}</label>
                     <div class="file-upload-shell" id="corpusFileShell">
                         {{ form.uploaded_file }}
                         <div class="file-upload-row">
                             <label class="file-upload-btn" for="{{ form.uploaded_file.id_for_label }}">
                                 <i class="bi bi-upload"></i>
-                                {% trans "Choose file" %}
+                                {% if CURRENT_LANGUAGE == 'ar' %}اختر ملفًا{% else %}{% trans "Choose file" %}{% endif %}
                             </label>
-                            <span id="corpusFileName" class="file-upload-name empty">{% trans "No file selected" %}</span>
+                            <span id="corpusFileName" class="file-upload-name empty">{% if CURRENT_LANGUAGE == 'ar' %}لم يتم اختيار ملف{% else %}{% trans "No file selected" %}{% endif %}</span>
                         </div>
                         <div class="file-upload-meta">
                             <i class="bi bi-info-circle"></i>
-                            {% trans "Upload any file type (max 50MB)" %}
+                            {% if CURRENT_LANGUAGE == 'ar' %}ارفع أي نوع ملف (الحد الأقصى 50MB){% else %}{% trans "Upload any file type (max 50MB)" %}{% endif %}
                         </div>
                     </div>
                     {% if form.uploaded_file.help_text %}
@@ -556,11 +571,11 @@ html[dir="rtl"] .form-actions {
             <div class="form-actions">
                 <a class="btn-link-muted" href="{% url 'resources:corpus_list' %}">
                     <i class="bi bi-arrow-left"></i>
-                    {% trans "Cancel" %}
+                    {% if CURRENT_LANGUAGE == 'ar' %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}
                 </a>
                 <button type="submit" class="btn-primary-violet">
                     <i class="bi bi-check2-circle"></i>
-                    {% trans "Create Corpus" %}
+                    {% if CURRENT_LANGUAGE == 'ar' %}إنشاء المدونة{% else %}{% trans "Create Corpus" %}{% endif %}
                 </button>
             </div>
         </form>
@@ -583,7 +598,7 @@ html[dir="rtl"] .form-actions {
             fileName.textContent = file.name;
             fileName.classList.remove("empty");
         } else {
-            fileName.textContent = "{% trans 'No file selected' %}";
+            fileName.textContent = "{% if CURRENT_LANGUAGE == 'ar' %}لم يتم اختيار ملف{% else %}{% trans 'No file selected' %}{% endif %}";
             fileName.classList.add("empty");
         }
     };
