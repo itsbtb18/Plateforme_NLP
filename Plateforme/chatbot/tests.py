@@ -393,7 +393,7 @@ class ChatbotFeatureUpgradeTests(TestCase):
 
         # 5. Syntax Highlighting
         self.assertIn("highlight.min.js", content)
-        self.assertIn("vs2015.min.css", content)
+        self.assertIn("atom-one-dark.min.css", content)
         self.assertIn("highlightCodeBlocks", content)
 
     def test_toggle_pin_endpoint_works(self):
