@@ -640,6 +640,18 @@ def ask_bot(request):
                     source=response_data.get("source", "bot"),
                     language=response_data.get("lang", "en"),
                 )
+            if isinstance(response_data.get("web_results"), list) and response_data.get("web_results"):
+                source_urls = [
+                    r.get("url")
+                    for r in response_data.get("web_results", [])
+                    if isinstance(r, dict) and r.get("url")
+                ]
+                save_web_results(
+                    session_id,
+                    response_data.get("web_results") or [],
+                    source_urls,
+                    language=response_data.get("lang", "en"),
+                )
 
             # Auto-title session on first message
             _auto_title_session(session_id, question)
@@ -1573,6 +1585,18 @@ def ask_bot_stream(request):
                     "bot",
                     full_answer.strip(),
                     source=(done_payload or {}).get("source", "bot"),
+                    language=(done_payload or {}).get("lang", "en"),
+                )
+            if done_payload and isinstance(done_payload.get("web_results"), list) and done_payload.get("web_results"):
+                source_urls = [
+                    r.get("url")
+                    for r in done_payload.get("web_results", [])
+                    if isinstance(r, dict) and r.get("url")
+                ]
+                save_web_results(
+                    session_id,
+                    done_payload.get("web_results") or [],
+                    source_urls,
                     language=(done_payload or {}).get("lang", "en"),
                 )
         except requests.exceptions.RequestException as e:
