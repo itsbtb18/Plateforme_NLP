@@ -172,6 +172,8 @@ class ScrapingSource(models.Model):
     )
     schedule_interval_hours = models.IntegerField(default=24)
     schedule_updated_at = models.DateTimeField(null=True, blank=True)
+    mutation_count = models.IntegerField(default=0)
+    last_mutated_at = models.DateTimeField(null=True, blank=True)
     validation_status = models.CharField(
         max_length=10,
         choices=[
@@ -267,6 +269,13 @@ class DiscoveredURL(models.Model):
         max_length=20,
         choices=DISCOVERY_METHOD_CHOICES,
         default="heuristic",
+    )
+    source_reason = models.CharField(
+        _("Source Reason"),
+        max_length=80,
+        blank=True,
+        default="",
+        db_index=True,
     )
     keywords_hit = models.JSONField(_("Keywords Hit"), default=list, blank=True)
     priority_score = models.IntegerField(_("Priority Score"), default=0, db_index=True)

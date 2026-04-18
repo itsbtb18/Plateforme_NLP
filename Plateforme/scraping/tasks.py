@@ -5,7 +5,9 @@ Provides background execution of scrapers so the admin dashboard
 returns immediately while scraping runs asynchronously.
 """
 
+import json
 import logging
+import re
 import time
 import traceback
 from collections import Counter
@@ -20,6 +22,7 @@ from django.utils import timezone
 
 from .constants import SCRAPING_CELERY_QUEUE
 from .dead_letter import record_dead_letter
+from .extractors.core.llm_validation import GroqLLMClient
 from .metrics import (
     scrape_duration_seconds,
     scrape_items_total,
@@ -44,6 +47,347 @@ SUPPORTED_SCRAPER_CATEGORIES = (
     "laws",
 )
 SUPPORTED_SCRAPER_CATEGORY_SET = set(SUPPORTED_SCRAPER_CATEGORIES)
+
+QUICK_SCRAPE_CATEGORY_AR = {
+    "events": "فعاليات",
+    "tools": "أدوات",
+    "corpus": "مجموعات بيانات",
+    "courses": "دورات",
+    "opportunities": "فرص",
+    "news": "أخبار",
+}
+
+
+def _build_quick_scrape_queries(category: str) -> list[str]:
+    current_year = timezone.now().year
+    category_label_ar = QUICK_SCRAPE_CATEGORY_AR.get(category, category)
+    return [
+        f"latest {category} NLP Arabic MENA {current_year}",
+        f"new Arabic NLP {category} announcement site:.edu OR site:.org",
+        f"مستجدات {category_label_ar} معالجة اللغة العربية {current_year}",
+        f"open source Arabic NLP {category} release {current_year}",
+        f"best {category} NLP Arabic research paper {current_year}",
+        f"Arabic language {category} tool dataset model {current_year}",
+    ]
+
+
+def _mark_item_quick_pending(item_data: dict | None) -> None:
+    if not isinstance(item_data, dict):
+        return
+
+    item_data["scrape_status"] = "PENDING_REVIEW"
+    item_data["approval_status"] = "pending"
+
+    existing_notes = str(item_data.get("validation_notes") or "").strip()
+    marker = "source_mode=quick_scrape"
+    if marker not in existing_notes:
+        item_data["validation_notes"] = (
+            f"{existing_notes}; {marker}" if existing_notes else marker
+        )
+
+
+def _item_confidence_ratio(item_data: dict | None) -> float:
+    if not isinstance(item_data, dict):
+        return 1.0
+
+    raw_ratio = item_data.get("extraction_confidence")
+    try:
+        if raw_ratio is not None:
+            return max(0.0, min(float(raw_ratio), 1.0))
+    except (TypeError, ValueError):
+        pass
+
+    raw_score = item_data.get("confidence_score")
+    try:
+        if raw_score is not None:
+            score = float(raw_score)
+            if score > 1.0:
+                score = score / 100.0
+            return max(0.0, min(score, 1.0))
+    except (TypeError, ValueError):
+        pass
+
+    return 1.0
+
+
+def _run_quick_mode_scraper(scraper, category: str) -> dict[str, Any]:
+    from scraping.network.search_client import TavilySearchClient
+
+    quick_queries = _build_quick_scrape_queries(category)
+    original_get_queries = scraper.get_active_search_queries
+    original_passes = scraper.passes_min_confidence_to_save
+    original_min_conf = float(getattr(scraper, "MIN_CONFIDENCE_TO_SAVE", 0.35) or 0.35)
+
+    search_method_name = f"search_{category}"
+    original_search_method = getattr(TavilySearchClient, search_method_name, None)
+
+    def _quick_get_active_search_queries(_category: str | None = None) -> list[str]:
+        return list(quick_queries)
+
+    def _quick_passes(item_data: dict | None) -> bool:
+        keep_item = True
+        try:
+            keep_item = bool(original_passes(item_data))
+        except Exception:
+            keep_item = True
+
+        confidence_ratio = _item_confidence_ratio(item_data)
+        if confidence_ratio < 0.20:
+            return False
+
+        _mark_item_quick_pending(item_data)
+        return keep_item
+
+    async def _quick_search(self, query: str, max_results: int | None = None):
+        _ = max_results
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 10,
+                "include_answer": True,
+                "include_raw_content": True,
+                "topic": "general",
+            },
+            max_results=10,
+        )
+
+    try:
+        scraper.MIN_CONFIDENCE_TO_SAVE = 0.20
+        scraper.get_active_search_queries = _quick_get_active_search_queries
+        scraper.passes_min_confidence_to_save = _quick_passes
+        if callable(original_search_method):
+            setattr(TavilySearchClient, search_method_name, _quick_search)
+
+        summary = scraper.run()
+        return summary if isinstance(summary, dict) else {}
+    finally:
+        scraper.MIN_CONFIDENCE_TO_SAVE = original_min_conf
+        scraper.get_active_search_queries = original_get_queries
+        scraper.passes_min_confidence_to_save = original_passes
+        if callable(original_search_method):
+            setattr(TavilySearchClient, search_method_name, original_search_method)
+
+
+@shared_task(
+    bind=True,
+    name="scraping.tasks.run_quick_scrape_task",
+    queue=SCRAPING_CELERY_QUEUE,
+)
+def run_quick_scrape_task(
+    self,
+    category: str,
+    run_id: str | None = None,
+    user_id: int | None = None,
+) -> dict[str, Any]:
+    """Run a broad-discovery quick scrape with relaxed ingestion filters."""
+    from .models import ScrapingRun
+
+    category = str(category or "").strip().lower()
+    if category not in SUPPORTED_SCRAPER_CATEGORY_SET:
+        raise ValueError(
+            "Unsupported category: "
+            f"{category}. Supported categories: "
+            f"{', '.join(SUPPORTED_SCRAPER_CATEGORIES)}"
+        )
+
+    triggered_by = None
+    if user_id:
+        from django.contrib.auth import get_user_model
+
+        user_model = get_user_model()
+        triggered_by = user_model.objects.filter(pk=user_id).first()
+
+    run = None
+    if run_id:
+        run = ScrapingRun.objects.filter(id=run_id).first()
+    if run is None:
+        run = ScrapingRun.objects.create(
+            category=category,
+            status="running",
+            triggered_by=triggered_by,
+            current_source="quick_scrape",
+            current_step="Quick scrape: preparing broad discovery",
+            current_message="Quick scrape started",
+        )
+
+    run.task_id = self.request.id
+    run.status = "running"
+    run.current_source = "quick_scrape"
+    run.current_step = "Quick scrape: broad web discovery"
+    run.current_message = "Quick scrape running"
+    run.progress_current = 0
+    run.progress_total = 6
+    run.save(
+        update_fields=[
+            "task_id",
+            "status",
+            "current_source",
+            "current_step",
+            "current_message",
+            "progress_current",
+            "progress_total",
+        ]
+    )
+
+    push_scraping_progress(
+        str(run.id),
+        status="running",
+        step="discovery",
+        progress_current=0,
+        progress_total=6,
+        items_scraped=0,
+        items_failed=0,
+        current_source="quick_scrape",
+        current_item="",
+        current_step="Quick scrape: broad web discovery",
+        message="Quick scrape started",
+    )
+
+    started_at = time.monotonic()
+    try:
+        scraper = get_scraper(category)
+        if hasattr(scraper, "bind_progress_run"):
+            scraper.bind_progress_run(run)
+
+        summary = _run_quick_mode_scraper(scraper, category)
+
+        run.items_found = int(summary.get("items_found", 0) or 0)
+        run.items_created = int(summary.get("items_created", 0) or 0)
+        run.items_updated = int(summary.get("items_updated", 0) or 0)
+        run.items_skipped = int(summary.get("items_skipped", 0) or 0)
+        run.items_failed = int(run.items_skipped or 0)
+        result_errors = summary.get("errors", [])
+        if not isinstance(result_errors, list):
+            result_errors = [str(result_errors)] if result_errors else []
+        run.errors = "\n".join(str(err) for err in result_errors if err)
+        run.status = "completed"
+        run.current_source = "quick_scrape"
+        run.current_step = "Quick scrape completed"
+        run.current_message = (
+            f"Quick Run Complete: {int(run.items_created or 0)} Created, "
+            f"{int(run.items_updated or 0)} Updated, "
+            f"{int(run.items_skipped or 0)} Skipped"
+        )
+        run.progress_current = max(6, int(run.progress_current or 0))
+        run.progress_total = max(6, int(run.progress_total or 0))
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "items_found",
+                "items_created",
+                "items_updated",
+                "items_skipped",
+                "items_failed",
+                "errors",
+                "status",
+                "current_source",
+                "current_step",
+                "current_message",
+                "progress_current",
+                "progress_total",
+                "completed_at",
+            ]
+        )
+
+        scrape_runs_total.labels(category=category, status="success").inc()
+        scrape_duration_seconds.labels(category=category).observe(
+            time.monotonic() - started_at
+        )
+        update_scrape_queue_lag_metrics(force=True)
+
+        push_scraping_progress(
+            str(run.id),
+            status="completed",
+            step="saving",
+            progress_current=int(run.progress_current or 0),
+            progress_total=int(run.progress_total or 0),
+            items_scraped=int(run.items_created or 0),
+            items_failed=int(run.items_failed or run.items_skipped or 0),
+            current_source="quick_scrape",
+            current_item="",
+            current_step=run.current_step,
+            message=run.current_message,
+        )
+
+        _create_scraping_notification(
+            notification_type="run_complete",
+            category=category,
+            run=run,
+            message=run.current_message,
+            metadata={
+                "run_id": str(run.id),
+                "mode": "quick_scrape",
+                "items_found": int(run.items_found or 0),
+                "items_created": int(run.items_created or 0),
+                "items_updated": int(run.items_updated or 0),
+                "items_skipped": int(run.items_skipped or 0),
+            },
+        )
+
+        return {
+            "status": "success",
+            "run_id": str(run.id),
+            "mode": "quick_scrape",
+            "items_found": int(run.items_found or 0),
+            "items_created": int(run.items_created or 0),
+            "items_updated": int(run.items_updated or 0),
+            "items_skipped": int(run.items_skipped or 0),
+            "items_failed": int(run.items_failed or 0),
+            "errors": result_errors,
+            "results": summary.get("results", []),
+            "message": run.current_message,
+        }
+    except Exception as exc:
+        run.status = "failed"
+        run.errors = str(exc)
+        run.current_source = "quick_scrape"
+        run.current_step = str(exc)[:100]
+        run.current_message = str(exc)[:255]
+        run.items_failed = int(run.items_skipped or 0) + 1
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "status",
+                "errors",
+                "current_source",
+                "current_step",
+                "current_message",
+                "items_failed",
+                "completed_at",
+            ]
+        )
+
+        push_scraping_progress(
+            str(run.id),
+            status="failed",
+            step="saving",
+            progress_current=int(run.progress_current or 0),
+            progress_total=int(run.progress_total or 0),
+            items_scraped=int(run.items_created or 0),
+            items_failed=int(run.items_failed or run.items_skipped or 0),
+            current_source="quick_scrape",
+            current_item=run.current_item,
+            current_step=run.current_step,
+            message=str(exc),
+        )
+
+        _create_scraping_notification(
+            notification_type="run_failed",
+            category=category,
+            run=run,
+            message=(
+                f"[{_category_display_label(category)}] Quick run #{str(run.id)[:8]} "
+                f"failed: {type(exc).__name__}."
+            ),
+            metadata={
+                "run_id": str(run.id),
+                "mode": "quick_scrape",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            },
+        )
+        raise
 
 
 def _category_display_label(category: str) -> str:
@@ -161,6 +505,223 @@ def _sync_source_fail_fast_state(category: str, scraper, run_id: str = "") -> No
 
 def _source_failure_threshold() -> int:
     return max(1, int(getattr(settings, "SCRAPING_SOURCE_FAILURE_THRESHOLD", 3) or 3))
+
+
+def _parse_mutation_payload(raw_text: str) -> tuple[list[str], list[str]]:
+    """Parse mutation LLM output into (new_queries, related_urls)."""
+    text = str(raw_text or "").strip()
+    if not text:
+        return [], []
+
+    payload: dict[str, Any] = {}
+    try:
+        loaded = json.loads(text)
+        if isinstance(loaded, dict):
+            payload = loaded
+    except (TypeError, json.JSONDecodeError):
+        pass
+
+    if not payload:
+        json_match = re.search(r"\{[\s\S]*\}", text)
+        if json_match:
+            try:
+                loaded = json.loads(json_match.group(0))
+                if isinstance(loaded, dict):
+                    payload = loaded
+            except (TypeError, json.JSONDecodeError):
+                payload = {}
+
+    def _clean_list(values) -> list[str]:
+        if not isinstance(values, list):
+            return []
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for item in values:
+            candidate = str(item or "").strip()
+            if not candidate:
+                continue
+            key = candidate.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            cleaned.append(candidate)
+        return cleaned
+
+    return _clean_list(payload.get("new_queries")), _clean_list(
+        payload.get("related_urls")
+    )
+
+
+def _current_source_queries(source) -> list[str]:
+    """Return current source-level queries from scrape_config or category prompts."""
+    from .models import SearchQuery
+
+    scrape_config = dict(getattr(source, "scrape_config", {}) or {})
+    for key in ("queries", "search_queries", "prompts", "ai_prompts"):
+        values = scrape_config.get(key)
+        if isinstance(values, list):
+            cleaned = [str(v).strip() for v in values if str(v or "").strip()]
+            if cleaned:
+                return cleaned
+
+    fallback_queries = list(
+        SearchQuery.objects.filter(category=source.category, is_active=True)
+        .order_by("id")
+        .values_list("query_text", flat=True)[:10]
+    )
+    if fallback_queries:
+        return [str(v).strip() for v in fallback_queries if str(v or "").strip()]
+
+    year = timezone.now().year
+    return [f"{source.category} Arabic NLP MENA {year}"]
+
+
+def _source_needs_mutation(source) -> bool:
+    """True when last 3 runs for this source produced no created/updated items."""
+    from .models import ScrapingRun
+
+    runs = list(
+        ScrapingRun.objects.filter(source=source)
+        .order_by("-started_at")
+        .only("items_created", "items_updated")[:3]
+    )
+    if len(runs) < 3:
+        return False
+
+    return all(
+        int(getattr(run, "items_created", 0) or 0) == 0
+        and int(getattr(run, "items_updated", 0) or 0) == 0
+        for run in runs
+    )
+
+
+def _maybe_schedule_source_mutation(source) -> None:
+    """Downgrade exhausted sources and dispatch the mutation task."""
+    if source is None:
+        return
+    if not _source_needs_mutation(source):
+        return
+
+    if str(getattr(source, "schedule_tier", "") or "") != "dormant":
+        source.schedule_tier = "dormant"
+        source.save(update_fields=["schedule_tier"])
+
+    mutate_source_queries.delay(str(source.id))
+
+
+@shared_task(
+    bind=True,
+    name="scraping.tasks.mutate_source_queries",
+    queue=SCRAPING_CELERY_QUEUE,
+)
+def mutate_source_queries(self, source_id: str) -> dict[str, Any]:
+    """Mutate exhausted source query angles using Groq and store discovered related URLs."""
+    from .models import DiscoveredURL, ScrapingSource
+
+    source = ScrapingSource.objects.filter(id=source_id).first()
+    if source is None:
+        return {"status": "error", "message": "Source not found"}
+
+    current_queries = _current_source_queries(source)
+    current_year = timezone.now().year
+    system_prompt = (
+        "You are an expert NLP web researcher. A web scraping source has stopped "
+        "producing new results. Generate alternative search angles to find new "
+        "content from this source or related sources."
+    )
+    user_prompt = f"""Source name: {source.name}
+Source URL: {source.url}
+Category: {source.category}
+Current queries that are exhausted: {json.dumps(current_queries, ensure_ascii=False)}
+
+Generate 5 alternative search query variants that:
+1. Use synonyms and related terminology
+2. Target sub-pages, archives, or related sections of this domain
+3. Include time-based variants (current year, upcoming, recent)
+4. Use different language (if queries were English, add Arabic variants)
+5. Target related sister sites or mirror sources in the same domain
+
+Return ONLY JSON: {{"new_queries": [...], "related_urls": [...]}}
+"""
+
+    llm_text = ""
+    try:
+        llm_client = GroqLLMClient(timeout=10, max_retries=1)
+        llm_text = llm_client._chat_with_groq(system_prompt, user_prompt) or ""
+    except Exception as exc:
+        logger.warning(
+            "source_mutation_llm_failed",
+            extra={
+                "source_id": str(source.id),
+                "source_name": source.name,
+                "error": str(exc),
+            },
+            exc_info=False,
+        )
+        return {"status": "error", "message": "LLM call failed"}
+
+    new_queries, related_urls = _parse_mutation_payload(llm_text)
+    if not new_queries and not related_urls:
+        return {"status": "error", "message": "Mutation response could not be parsed"}
+
+    scrape_config = dict(source.scrape_config or {})
+    if new_queries:
+        scrape_config["queries"] = new_queries
+
+    created_related_urls = 0
+    updated_related_urls = 0
+    for raw_url in related_urls:
+        url = str(raw_url or "").strip()
+        if not url or not url.startswith(("http://", "https://")):
+            continue
+
+        defaults = {
+            "category": source.category,
+            "status": "pending",
+            "source_page_url": source.url or source.base_url or "",
+            "section_label": "mutation_engine",
+            "discovery_method": "heuristic",
+            "source_reason": "mutation_engine",
+            "priority_score": 30,
+            "is_processed": False,
+        }
+        row, created = DiscoveredURL.objects.update_or_create(
+            url=url, defaults=defaults
+        )
+        if created:
+            created_related_urls += 1
+        else:
+            updated_related_urls += 1
+
+    source.scrape_config = scrape_config
+    source.consecutive_failures = 0
+    source.schedule_tier = "low"
+    source.last_mutated_at = timezone.now()
+    source.mutation_count = int(getattr(source, "mutation_count", 0) or 0) + 1
+    source.save(
+        update_fields=[
+            "scrape_config",
+            "consecutive_failures",
+            "schedule_tier",
+            "last_mutated_at",
+            "mutation_count",
+        ]
+    )
+
+    logger.info(
+        "Source %s mutated: %s new queries generated.",
+        source.name,
+        len(new_queries),
+    )
+
+    return {
+        "status": "success",
+        "source_id": str(source.id),
+        "new_queries": new_queries,
+        "related_urls_created": created_related_urls,
+        "related_urls_updated": updated_related_urls,
+        "current_year": current_year,
+    }
 
 
 def push_scraping_progress(
@@ -675,6 +1236,8 @@ def run_scraper_task(
                 ]
             )
 
+            _maybe_schedule_source_mutation(source)
+
             _create_scraping_notification(
                 notification_type="run_complete",
                 category=category,
@@ -741,6 +1304,7 @@ def run_scraper_task(
                     "error": str(exc),
                 },
             )
+            _maybe_schedule_source_mutation(source)
             raise
 
     if not category:
@@ -933,6 +1497,9 @@ def run_scraper_task(
         run.status = "failed" if run_failed else "completed"
         run.completed_at = timezone.now()
         run.save()
+
+        if getattr(run, "source_id", None):
+            _maybe_schedule_source_mutation(run.source)
 
         scrape_runs_total.labels(
             category=category,

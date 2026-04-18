@@ -42,6 +42,25 @@ class ValidationStatusFilter(admin.SimpleListFilter):
         return queryset
 
 
+class MutatedSourcesFilter(admin.SimpleListFilter):
+    title = _("Mutated sources")
+    parameter_name = "mutated_sources"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("mutated", _("Mutated at least once")),
+            ("not_mutated", _("Never mutated")),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == "mutated":
+            return queryset.filter(mutation_count__gt=0)
+        if value == "not_mutated":
+            return queryset.filter(mutation_count=0)
+        return queryset
+
+
 @admin.register(ScrapingSource)
 class ScrapingSourceAdmin(admin.ModelAdmin):
     actions = ("auto_discover_selectors",)
@@ -52,6 +71,8 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
         "is_active",
         "schedule_tier",
         "schedule_interval_hours",
+        "mutation_count",
+        "last_mutated_at",
         "items_per_day_display",
         "use_rss",
         "use_llm_extraction",
@@ -69,6 +90,7 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
         "use_rss",
         "use_llm_extraction",
         ValidationStatusFilter,
+        MutatedSourcesFilter,
     )
     search_fields = ("name", "base_url")
     readonly_fields = (
@@ -78,6 +100,8 @@ class ScrapingSourceAdmin(admin.ModelAdmin):
         "last_run_status",
         "last_run_error",
         "last_run_items_created",
+        "mutation_count",
+        "last_mutated_at",
         "last_validated_at",
         "pretty_validation_detail",
         "manual_validate_button",

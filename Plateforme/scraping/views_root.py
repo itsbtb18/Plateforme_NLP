@@ -41,6 +41,7 @@ from events.models import Event
 from feed.models import Post
 from resources.models import Course, NLPTool
 
+from scraping.extractors.core.llm_validation import GroqLLMClient
 from scraping.intelligence import detect_trends
 from scraping.scrapers.custom_scraper import CustomDomainScraper
 from scraping.validators.content_validator import ContentValidator
@@ -57,7 +58,12 @@ from .models import (
     SearchQuery,
 )
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
-from .tasks import push_scraping_progress, run_scraper_task, validate_source_async
+from .tasks import (
+    push_scraping_progress,
+    run_quick_scrape_task,
+    run_scraper_task,
+    validate_source_async,
+)
 from .translation import ArabicTranslator
 
 try:
@@ -1019,6 +1025,11 @@ def _build_recent_runs_rows(category: str, limit: int = 10):
             {
                 "run_id": str(run.id),
                 "status": run.status,
+                "run_mode": (
+                    "quick"
+                    if str(run.current_source or "").strip().lower() == "quick_scrape"
+                    else "standard"
+                ),
                 "started_at": run.started_at.isoformat() if run.started_at else None,
                 "duration_seconds": run.duration,
                 "items_saved": int(run.items_created or 0),
@@ -1488,6 +1499,11 @@ def scraping_dashboard_by_category(request, category: str):
             "items_updated": int(run.items_updated or 0),
             "items_skipped": int(run.items_skipped or 0),
             "status": str(run.status or "-").upper(),
+            "run_mode": (
+                "quick"
+                if str(run.current_source or "").strip().lower() == "quick_scrape"
+                else "standard"
+            ),
         }
         for run in recent_runs
     ]
@@ -4218,6 +4234,121 @@ def run_scraper(request, category):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def run_quick_scrape(request, category):
+    """AJAX endpoint: dispatch quick broad-discovery scrape to Celery."""
+    _log_scraping_action(request)
+
+    if not _check_rate_limit(
+        request,
+        scope="quick_run_trigger",
+        max_calls=20,
+        period=3600,
+    ):
+        return JsonResponse(
+            {"error": "Too many quick scrape requests. Max 20 per hour."},
+            status=429,
+            headers={"Retry-After": "3600"},
+        )
+
+    staff_error = _require_staff(request)
+    if staff_error:
+        return staff_error
+
+    if category not in CATEGORY_META:
+        return JsonResponse(
+            {"status": "error", "message": f"Unknown category: {category}"},
+            status=400,
+        )
+
+    run = ScrapingRun.objects.create(
+        category=category,
+        status="running",
+        items_updated=0,
+        triggered_by=request.user,
+        current_source="quick_scrape",
+        current_step="Quick scrape: broad web discovery",
+        current_message="Quick scrape started",
+        progress_total=6,
+    )
+
+    try:
+        async_result = run_quick_scrape_task.delay(
+            category,
+            run_id=str(run.pk),
+            user_id=request.user.pk,
+        )
+        run.task_id = async_result.id
+        run.save(update_fields=["task_id"])
+
+        return JsonResponse(
+            {
+                "status": "started",
+                "run_id": str(run.pk),
+                "task_id": async_result.id,
+                "mode": "quick_scrape",
+                "message": "Quick scrape dispatched to background worker.",
+            }
+        )
+    except Exception as celery_exc:
+        logger.warning(
+            "Quick scrape celery dispatch failed (%s); running synchronously",
+            celery_exc,
+        )
+
+    try:
+        result = run_quick_scrape_task.apply(
+            kwargs={
+                "category": category,
+                "run_id": str(run.pk),
+                "user_id": request.user.pk,
+            }
+        ).get()
+        return JsonResponse(
+            {
+                "status": "success",
+                "run_id": str(run.pk),
+                "mode": "quick_scrape",
+                "items_found": int(result.get("items_found", 0) or 0),
+                "items_created": int(result.get("items_created", 0) or 0),
+                "items_updated": int(result.get("items_updated", 0) or 0),
+                "items_skipped": int(result.get("items_skipped", 0) or 0),
+                "errors": result.get("errors", []),
+                "results": result.get("results", []),
+                "duration": run.duration,
+                "message": result.get("message") or "Quick scrape completed.",
+            }
+        )
+    except Exception as exc:
+        run.status = "failed"
+        run.errors = str(exc)
+        run.current_source = "quick_scrape"
+        run.current_step = str(exc)[:100]
+        run.current_message = str(exc)[:255]
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "status",
+                "errors",
+                "current_source",
+                "current_step",
+                "current_message",
+                "completed_at",
+            ]
+        )
+        return JsonResponse(
+            {
+                "status": "error",
+                "mode": "quick_scrape",
+                "message": str(exc),
+            },
+            status=500,
+        )
+
+
+@login_required
+@user_passes_test(is_admin)
 @require_GET
 @rate_limit(max_calls=120, period_seconds=60, scope="polling")
 def category_stats(request, category):
@@ -4300,6 +4431,124 @@ def quick_stats(request):
     """Return compact quick stats payload used by the dashboard sidebar."""
     _log_scraping_action(request)
     return JsonResponse(_collect_quick_stats_payload())
+
+
+def _parse_prompt_suggestions(raw_text: str) -> list[str]:
+    """Parse LLM output into a JSON array of non-empty prompt strings."""
+    text = str(raw_text or "").strip()
+    if not text:
+        return []
+
+    candidates: list = []
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            candidates = parsed
+    except (TypeError, json.JSONDecodeError):
+        pass
+
+    if not candidates:
+        array_match = re.search(r"\[[\s\S]*\]", text)
+        if array_match:
+            try:
+                parsed = json.loads(array_match.group(0))
+                if isinstance(parsed, list):
+                    candidates = parsed
+            except (TypeError, json.JSONDecodeError):
+                candidates = []
+
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for item in candidates:
+        prompt = str(item or "").strip()
+        if not prompt:
+            continue
+        key = prompt.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(prompt)
+    return cleaned
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=8, period_seconds=60, scope="action")
+def generate_search_prompts(request):
+    """Generate high-yield search prompts for one scraping category using Groq."""
+    _log_scraping_action(request)
+    try:
+        payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except (TypeError, json.JSONDecodeError):
+        payload = request.POST
+
+    category = str(payload.get("category") or "").strip().lower()
+    supported_categories = {
+        "events",
+        "tools",
+        "corpus",
+        "courses",
+        "opportunities",
+        "news",
+    }
+    if category not in supported_categories:
+        return JsonResponse({"error": "Unknown category"}, status=400)
+
+    existing_prompts = list(
+        SearchQuery.objects.filter(category=category, is_active=True)
+        .order_by("id")
+        .values_list("query_text", flat=True)
+    )
+    current_year = timezone.now().year
+    existing_prompts_list = json.dumps(existing_prompts, ensure_ascii=False)
+
+    system_prompt = (
+        "You are an expert NLP data curator specializing in Arabic and MENA "
+        "region NLP research. Generate highly effective web search queries "
+        "designed to discover maximum new content for a scraping pipeline. "
+        "Each query must be distinct, specific, and target sources not "
+        "commonly indexed."
+    )
+    user_prompt = f"""Generate 8 diverse, high-yield search queries for the category: {category}
+
+Rules:
+- Each query must be unique and target a different angle (geographic, temporal, linguistic, institutional, event-type)
+- Mix English and Arabic queries (at least 2 Arabic queries)
+- Include site-specific modifiers for at least 2 queries (site:.edu, site:.ac.*, site:.org, site:github.com, site:huggingface.co)
+- Include current year ({current_year}) or next year ({current_year + 1}) in time-sensitive queries
+- Target MENA, Maghreb, Gulf region institutions explicitly in at least 1 query
+- Do NOT repeat any of these already-used prompts: {existing_prompts_list}
+
+Return ONLY a JSON array of strings. No explanation. No markdown. Example:
+["query one", "query two", ...]
+
+Category-specific guidance:
+- events: conferences, workshops, shared tasks, challenges, symposiums, seminars, hackathons
+- tools: GitHub repos, HuggingFace models, APIs, tokenizers, libraries, datasets tools
+- corpus: datasets, annotated corpora, speech corpora, text collections, benchmarks
+- courses: MOOCs, university courses, bootcamps, certifications, training programs
+- opportunities: PhD positions, postdocs, research internships, NLP job openings, grants
+- news: research papers, arXiv preprints, tech news, government AI initiatives, lab announcements
+"""
+
+    try:
+        llm_client = GroqLLMClient(timeout=10, max_retries=1)
+        llm_text = llm_client._chat_with_groq(system_prompt, user_prompt)
+    except Exception as exc:
+        logger.warning(
+            "generate_search_prompts_call_failed",
+            extra={"category": category, "error": str(exc)},
+            exc_info=False,
+        )
+        return JsonResponse({"error": "LLM call failed"}, status=502)
+
+    prompts = _parse_prompt_suggestions(llm_text)
+    if not prompts:
+        return JsonResponse({"error": "Could not parse prompts"}, status=502)
+
+    return JsonResponse({"prompts": prompts[:8]})
 
 
 @login_required
