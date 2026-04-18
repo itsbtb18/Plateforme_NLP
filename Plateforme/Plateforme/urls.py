@@ -11,6 +11,7 @@ from django.conf.urls.i18n import i18n_patterns
 from django.utils.translation import gettext_lazy as _
 from django.http import JsonResponse
 from django.views.static import serve
+from django.views.generic.base import RedirectView
 from django.urls import re_path
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,10 @@ admin.site.index_title = _("Welcome to the Administration Dashboard")
 # URLs without language prefix
 urlpatterns = [
     path("healthz/", health_check, name="health_check"),
+    path(
+        "favicon.ico",
+        RedirectView.as_view(url="/static/images/navbarlogo.png", permanent=False),
+    ),
     path("i18n/", include("django.conf.urls.i18n")),
 ]
 

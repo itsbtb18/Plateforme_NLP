@@ -94,9 +94,14 @@ html[dir="rtl"] body {
 
 /* ===== MINIMAL PAGE HEADER (Simplified Hero) ===== */
 .page-hero {
-    margin-bottom: 0.25rem;
+    margin-bottom: 1rem;
     text-align: center;
-    padding-top: 0.35rem;
+    padding: 1.1rem 1.2rem;
+    border: 1px solid rgba(167, 139, 250, 0.18);
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
+    box-shadow: 0 10px 28px rgba(2, 6, 23, 0.26);
+    backdrop-filter: blur(8px);
 }
 
 .page-hero::before {
@@ -141,18 +146,34 @@ html[dir="rtl"] body {
 
 /* Hero Icon */
 .hero-icon {
-    width: 60px;
-    height: 60px;
+    width: 52px;
+    height: 52px;
     border-radius: 14px;
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 1.75rem;
+    margin: 0;
+    font-size: 1.45rem;
     color: white;
     box-shadow: 0 4px 15px rgba(167, 139, 250, 0.25);
     transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.hero-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+}
+
+.hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    align-items: center;
+    text-align: center;
 }
 
 .hero-icon:hover {
@@ -164,8 +185,9 @@ html[dir="rtl"] body {
     font-size: 2rem;
     font-weight: 700;
     color: white;
-    margin: 0 0 0.5rem;
+    margin: 0;
     letter-spacing: -0.02em;
+    text-align: center;
 }
 
 .page-hero p {
@@ -173,6 +195,7 @@ html[dir="rtl"] body {
     font-size: 0.9rem;
     margin: 0;
     font-weight: 400;
+    text-align: center;
 }
 
 /* Steps bar */
@@ -186,8 +209,12 @@ html[dir="rtl"] .form-group input,
 html[dir="rtl"] .form-group textarea,
 html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
 html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; text-align: right; }
-html[dir="rtl"] .page-hero { text-align: right; }
-html[dir="rtl"] .page-hero .breadcrumb { justify-content: flex-end; }
+html[dir="rtl"] .page-hero { text-align: center; }
+html[dir="rtl"] .hero-main { flex-direction: row-reverse; align-items: center; justify-content: center; gap: 0.75rem; }
+html[dir="rtl"] .hero-text { align-items: center; text-align: center; }
+html[dir="rtl"] .hero-text h1,
+html[dir="rtl"] .hero-text p { text-align: center; }
+html[dir="rtl"] .page-hero .breadcrumb { justify-content: center; }
 html[dir="rtl"] .upload-btns { flex-direction: row-reverse; }
 html[dir="rtl"] .file-chip { flex-direction: row-reverse; }
 html[dir="rtl"] .form-footer { flex-direction: row-reverse; }
@@ -600,18 +627,40 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
 @media (max-width: 1080px) {
     .page-hero {
         text-align: center;
-        margin-bottom: 0.75rem;
-        padding-top: 0;
+        margin-bottom: 0.85rem;
+        padding: 0.9rem 0.95rem;
     }
 
     .breadcrumb {
         justify-content: center;
     }
 
+    .hero-main {
+        justify-content: center;
+        gap: 0.75rem;
+    }
+
+    .hero-icon {
+        width: 46px;
+        height: 46px;
+        font-size: 1.2rem;
+    }
+
+    .page-hero h1 {
+        font-size: 1.72rem;
+    }
+
     html[dir="rtl"] .page-hero,
     html[dir="rtl"] .page-hero .breadcrumb {
-        text-align: right;
-        justify-content: flex-end;
+        text-align: center;
+        justify-content: center;
+    }
+
+    html[dir="rtl"] .hero-main {
+        flex-direction: row-reverse;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
     }
 }
 </style>
@@ -630,14 +679,15 @@ html[dir="rtl"] .btn { flex-direction: row-reverse; }
             <span class="current">{% if post %}{% trans "Edit Post" %}{% else %}{% trans "Create Post" %}{% endif %}</span>
         </nav>
 
-        <!-- Icon -->
-        <div class="hero-icon">
-            <i class="bi bi-pencil-square"></i>
+        <div class="hero-main">
+            <div class="hero-icon">
+                <i class="bi bi-pencil-square"></i>
+            </div>
+            <div class="hero-text">
+                <h1>{% if post %}{% trans "Edit Post" %}{% else %}{% trans "Create Post" %}{% endif %}</h1>
+                <p>{% if post %}{% trans "Update your research note, file, or community update" %}{% else %}{% trans "Share your research, datasets, or updates with the Arabic NLP community" %}{% endif %}</p>
+            </div>
         </div>
-
-        <!-- Title -->
-        <h1>{% if post %}{% trans "Edit Post" %}{% else %}{% trans "Create Post" %}{% endif %}</h1>
-        <p>{% if post %}{% trans "Update your research note, file, or community update" %}{% else %}{% trans "Share your research, datasets, or updates with the Arabic NLP community" %}{% endif %}</p>
 
         <!-- Steps bar (decorative) -->
         <div class="steps-bar">
