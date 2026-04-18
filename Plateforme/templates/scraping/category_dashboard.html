@@ -64,14 +64,154 @@
     gap: 0.55rem;
   }
 
+  .cat-prompts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .cat-prompts-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-action-btn {
+    border: 1px solid #dbe3f0;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    color: #1d4ed8;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.48rem 0.8rem;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+
+  .cat-action-btn:hover {
+    transform: translateY(-1px);
+    background: #eff6ff;
+    box-shadow: 0 8px 16px rgba(29, 78, 216, 0.12);
+  }
+
+  .cat-action-btn--primary {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    border-color: transparent;
+    color: #ffffff;
+  }
+
+  .cat-action-btn--primary:hover {
+    background: linear-gradient(135deg, #1e40af, #1d4ed8);
+  }
+
+  .cat-prompt-composer {
+    display: none;
+    gap: 0.7rem;
+    margin-bottom: 0.85rem;
+    padding: 0.9rem;
+    border: 1px solid #dbe3f0;
+    border-radius: 0.9rem;
+    background: linear-gradient(180deg, #fbfdff, #f8fafc);
+  }
+
+  .cat-prompt-composer.is-open {
+    display: grid;
+  }
+
+  .cat-prompt-composer-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.6rem;
+    align-items: start;
+  }
+
+  .cat-prompt-input {
+    width: 100%;
+    min-height: 3.25rem;
+    resize: vertical;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    font: inherit;
+    color: #0f172a;
+    background: #ffffff;
+  }
+
+  .cat-prompt-input:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.2);
+    border-color: #2563eb;
+  }
+
+  .cat-prompt-help {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.74rem;
+  }
+
   .cat-prompt-pill {
+    position: relative;
     border: 1px solid #e5e7eb;
     border-radius: 999px;
     background: #f8fafc;
     color: #334155;
     font-size: 0.78rem;
     font-weight: 600;
-    padding: 0.42rem 0.7rem;
+    padding: 0.42rem 2rem 0.42rem 0.8rem;
+    line-height: 1.4;
+  }
+
+  .cat-prompt-pill-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .cat-prompt-delete {
+    position: absolute;
+    top: 50%;
+    right: 0.45rem;
+    transform: translateY(-50%);
+    width: 1.35rem;
+    height: 1.35rem;
+    border: none;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  }
+
+  .cat-prompt-delete:hover {
+    background: #fecaca;
+    color: #991b1b;
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  .cat-prompt-empty {
+    border: 1px dashed #dbe3f0;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+    padding: 0.8rem 0.9rem;
+    color: #64748b;
+    font-size: 0.78rem;
+  }
+
+  .cat-prompt-feedback {
+    min-height: 1rem;
+    color: #475569;
+    font-size: 0.76rem;
+    font-weight: 600;
   }
 
   .cat-run-box {
@@ -189,34 +329,70 @@
 
 <section class="cat-split" aria-label="{% trans 'Dashboard middle layout' %}">
   <article class="cat-panel">
-    <h2 class="cat-panel-title">{% trans "AI Prompts" %}</h2>
+    <div class="cat-prompts-header">
+      <h2 class="cat-panel-title" style="margin-bottom: 0;">{% trans "AI Prompts" %}</h2>
+      <div class="cat-prompts-actions">
+        <button type="button" class="cat-action-btn cat-action-btn--primary" id="catPromptAddBtn">
+          + {% trans "Add prompt" %}
+        </button>
+      </div>
+    </div>
+
+    <form class="cat-prompt-composer" id="catPromptComposer" data-add-url="{% url 'scraping:add_prompt_api' %}" data-category="{{ category_key }}">
+      {% csrf_token %}
+      <div class="cat-prompt-composer-row">
+        <textarea
+          class="cat-prompt-input"
+          id="catPromptInput"
+          name="query_text"
+          maxlength="500"
+          rows="2"
+          placeholder="{% trans 'Type a new prompt, then add it to this category.' %}"
+        ></textarea>
+        <button type="submit" class="cat-action-btn cat-action-btn--primary" id="catPromptSubmitBtn">
+          {% trans "Save" %}
+        </button>
+      </div>
+      <p class="cat-prompt-help">{% trans "Prompts are saved for this category and become available to the scraper immediately." %}</p>
+      <p class="cat-prompt-feedback" id="catPromptFeedback"></p>
+    </form>
+
     <div class="cat-prompts-list">
       {% for prompt in ai_prompts %}
-      <div class="cat-prompt-pill">{{ prompt }}</div>
+      <div class="cat-prompt-pill" data-prompt-id="{{ prompt.id }}" data-prompt-text="{{ prompt.query_text|escape }}">
+        <span class="cat-prompt-pill-text">{{ prompt.query_text }}</span>
+        <button
+          type="button"
+          class="cat-prompt-delete"
+          data-delete-url="{% url 'scraping:delete_prompt_api' prompt.id %}"
+          data-prompt-id="{{ prompt.id }}"
+          aria-label="{% trans 'Delete prompt' %}"
+          title="{% trans 'Delete prompt' %}"
+        >
+          ×
+        </button>
+      </div>
       {% empty %}
-      <div class="cat-prompt-pill">{% trans "No prompts configured for this category." %}</div>
+      <div class="cat-prompt-empty" data-empty-prompts>{% trans "No prompts configured for this category." %}</div>
       {% endfor %}
     </div>
   </article>
 
   <aside class="cat-panel cat-run-box">
     <h2 class="cat-panel-title">{% trans "Run Control" %}</h2>
-    <form id="runScraperCsrfForm" style="display:none;" aria-hidden="true">
-      {% csrf_token %}
-    </form>
     <button
       type="button"
       class="cat-run-btn"
-      id="runScraperButton"
+      id="catRunScraperBtn"
       data-run-url="{% url 'scraping:run_scraper' category_key|default:scraping_current_category %}"
       data-status-url-template="{% url 'scraping:run_scraper_status' '00000000-0000-0000-0000-000000000000' %}"
     >
       {% trans "Run Scraper" %}
     </button>
-    <div class="cat-run-status" id="runScraperStatusBox">
+    <div class="cat-run-status">
       <strong>{% trans "Last run" %}</strong>
-      <span id="runStatusText">{{ last_run_status|default:_('No run yet') }}</span>
-      <span id="runStatusTime">{{ last_run_time|default:'' }}</span>
+      <span id="catRunStatusLabel">{{ last_run_status|default:_('No run yet') }}</span>
+      <span id="catRunStatusTime">{{ last_run_time|default:'' }}</span>
     </div>
   </aside>
 </section>
@@ -252,126 +428,303 @@
 </section>
 
 <script>
-(function () {
-  const runButton = document.getElementById("runScraperButton");
-  const runStatusText = document.getElementById("runStatusText");
-  const runStatusTime = document.getElementById("runStatusTime");
+  (function () {
+    const composer = document.getElementById('catPromptComposer');
+    const addButton = document.getElementById('catPromptAddBtn');
+    const input = document.getElementById('catPromptInput');
+    const submitButton = document.getElementById('catPromptSubmitBtn');
+    const feedback = document.getElementById('catPromptFeedback');
+    const promptsList = document.querySelector('.cat-prompts-list');
+    const runButton = document.getElementById('catRunScraperBtn');
+    const runStatusLabel = document.getElementById('catRunStatusLabel');
+    const runStatusTime = document.getElementById('catRunStatusTime');
+    const runUrl = runButton?.dataset?.runUrl || '';
+    const runStatusTemplate = runButton?.dataset?.statusUrlTemplate || '';
+    const categoryKey = composer?.dataset?.category || '';
+    const addUrl = composer?.dataset?.addUrl || '';
+    const runStatusPlaceholder = '00000000-0000-0000-0000-000000000000';
+    let runPollTimer = null;
 
-  if (!runButton) {
-    return;
-  }
-
-  function getCsrfToken() {
-    const templateToken = "{{ csrf_token }}";
-    if (templateToken && templateToken !== "NOTPROVIDED") {
-      return templateToken;
-    }
-
-    const hiddenInput = document.querySelector("[name=csrfmiddlewaretoken]");
-    if (hiddenInput && hiddenInput.value) {
-      return hiddenInput.value;
-    }
-
-    const match = document.cookie.match(/csrftoken=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : "";
-  }
-
-  function setRunButtonState(isBusy) {
-    runButton.disabled = isBusy;
-    runButton.style.opacity = isBusy ? "0.75" : "1";
-    runButton.style.cursor = isBusy ? "not-allowed" : "pointer";
-    runButton.textContent = isBusy
-      ? "{% trans 'Starting...' %}"
-      : "{% trans 'Run Scraper' %}";
-  }
-
-  function buildStatusUrl(runId) {
-    const template = runButton.dataset.statusUrlTemplate || "";
-    return template.replace("00000000-0000-0000-0000-000000000000", runId);
-  }
-
-  async function pollRunStatus(runId) {
-    const statusUrl = buildStatusUrl(runId);
-
-    while (true) {
-      await new Promise((resolve) => setTimeout(resolve, 2500));
-      const response = await fetch(statusUrl, {
-        method: "GET",
-        headers: { "X-Requested-With": "XMLHttpRequest" },
-        credentials: "same-origin",
-      });
-
-      if (!response.ok) {
-        throw new Error("status_poll_failed");
-      }
-
-      const payload = await response.json();
-      const state = String(payload.status || "running").toUpperCase();
-      const progressCurrent = Number(payload.progress_current || payload.current || 0);
-      const progressTotal = Number(payload.progress_total || payload.total || 0);
-
-      if (runStatusText) {
-        if (progressTotal > 0) {
-          runStatusText.textContent = `${state} (${progressCurrent}/${progressTotal})`;
-        } else {
-          runStatusText.textContent = state;
-        }
-      }
-
-      if (state === "COMPLETED" || state === "FAILED") {
-        window.location.reload();
-        return;
-      }
-    }
-  }
-
-  runButton.addEventListener("click", async function () {
-    const runUrl = runButton.dataset.runUrl || "";
-    if (!runUrl) {
+    if (!composer || !addButton || !input || !submitButton || !promptsList || !addUrl) {
       return;
     }
 
-    setRunButtonState(true);
-    if (runStatusText) {
-      runStatusText.textContent = "{% trans 'Starting run...' %}";
-    }
-    if (runStatusTime) {
-      runStatusTime.textContent = "";
+    function readCsrfToken() {
+      const inputToken = composer.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+      if (inputToken) {
+        return inputToken;
+      }
+      return (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || '';
     }
 
-    try {
-      const response = await fetch(runUrl, {
-        method: "POST",
+    function setFeedback(message, isError = false) {
+      if (!feedback) {
+        return;
+      }
+      feedback.textContent = message || '';
+      feedback.style.color = isError ? '#b91c1c' : '#475569';
+    }
+
+    function openComposer() {
+      composer.classList.add('is-open');
+      input.focus();
+    }
+
+    function closeComposer() {
+      composer.classList.remove('is-open');
+      input.value = '';
+      setFeedback('');
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function removeEmptyStateIfNeeded() {
+      const empty = promptsList.querySelector('[data-empty-prompts]');
+      if (empty) {
+        empty.remove();
+      }
+    }
+
+    function ensureEmptyStateIfNeeded() {
+      const promptItems = promptsList.querySelectorAll('[data-prompt-id]');
+      if (promptItems.length > 0) {
+        return;
+      }
+      const empty = document.createElement('div');
+      empty.className = 'cat-prompt-empty';
+      empty.setAttribute('data-empty-prompts', 'true');
+      empty.textContent = '{% trans "No prompts configured for this category." %}';
+      promptsList.appendChild(empty);
+    }
+
+    function createPromptNode(prompt) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cat-prompt-pill';
+      wrapper.dataset.promptId = prompt.id;
+      wrapper.dataset.promptText = prompt.query_text;
+      wrapper.innerHTML = `
+        <span class="cat-prompt-pill-text">${escapeHtml(prompt.query_text)}</span>
+        <button
+          type="button"
+          class="cat-prompt-delete"
+          data-delete-url="${prompt.delete_url}"
+          data-prompt-id="${prompt.id}"
+          aria-label="{% trans 'Delete prompt' %}"
+          title="{% trans 'Delete prompt' %}"
+        >
+          ×
+        </button>
+      `;
+      return wrapper;
+    }
+
+    async function postJson(url, payload) {
+      const csrfToken = readCsrfToken();
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
         headers: {
-          "X-CSRFToken": getCsrfToken(),
-          "X-Requested-With": "XMLHttpRequest",
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest',
         },
-        credentials: "same-origin",
+        body: JSON.stringify(payload),
       });
 
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(`run_start_failed_${response.status}`);
+        const message = data.error || data.message || '{% trans "Request failed." %}';
+        throw new Error(message);
       }
-
-      const payload = await response.json();
-      const runId = payload.run_id;
-
-      if (runStatusText) {
-        runStatusText.textContent = "{% trans 'RUNNING' %}";
-      }
-
-      if (runId) {
-        await pollRunStatus(runId);
-      } else {
-        window.location.reload();
-      }
-    } catch (_error) {
-      if (runStatusText) {
-        runStatusText.textContent = "{% trans 'FAILED TO START' %}";
-      }
-      setRunButtonState(false);
+      return data;
     }
-  });
-})();
+
+    function setRunStatus(message, isError = false) {
+      if (!runStatusLabel) {
+        return;
+      }
+      runStatusLabel.textContent = message || '';
+      runStatusLabel.style.color = isError ? '#b91c1c' : '#334155';
+    }
+
+    function stopRunPolling() {
+      if (runPollTimer) {
+        clearInterval(runPollTimer);
+        runPollTimer = null;
+      }
+    }
+
+    async function pollRunStatus(runId) {
+      if (!runStatusTemplate || !runId) {
+        return;
+      }
+
+      const statusUrl = runStatusTemplate.replace(runStatusPlaceholder, String(runId));
+      try {
+        const response = await fetch(statusUrl, {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.error || data.message || '{% trans "Unable to check run status." %}');
+        }
+
+        const status = String(data.status || '').toLowerCase();
+        if (status === 'running' || status === 'pending' || status === 'started') {
+          const progress = data.total ? ` (${data.current || 0}/${data.total || 0})` : '';
+          const currentMessage = data.current_message || data.message || '{% trans "Scraper is running..." %}';
+          setRunStatus(`${currentMessage}${progress}`);
+          return;
+        }
+
+        stopRunPolling();
+        runButton.disabled = false;
+
+        if (status === 'completed') {
+          setRunStatus(`{% trans "Completed" %}: ${data.items_created || 0} {% trans "items" %}`);
+          if (runStatusTime) {
+            runStatusTime.textContent = new Date().toLocaleString();
+          }
+          setTimeout(() => window.location.reload(), 900);
+          return;
+        }
+
+        if (status === 'failed') {
+          const failureMessage = data.message || (Array.isArray(data.errors) ? data.errors.join(' | ') : '');
+          setRunStatus(failureMessage || '{% trans "Run failed." %}', true);
+          return;
+        }
+
+        setRunStatus(status ? status.toUpperCase() : '{% trans "Unknown status." %}', status !== 'ok');
+      } catch (error) {
+        stopRunPolling();
+        runButton.disabled = false;
+        setRunStatus(error.message || '{% trans "Unable to poll run status." %}', true);
+      }
+    }
+
+    addButton.addEventListener('click', () => {
+      if (composer.classList.contains('is-open')) {
+        closeComposer();
+      } else {
+        openComposer();
+      }
+    });
+
+    composer.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const queryText = input.value.trim();
+      if (!queryText) {
+        setFeedback('{% trans "Please enter a prompt first." %}', true);
+        input.focus();
+        return;
+      }
+
+      submitButton.disabled = true;
+      addButton.disabled = true;
+      setFeedback('{% trans "Saving..." %}');
+
+      try {
+        const data = await postJson(addUrl, {
+          category: categoryKey,
+          query_text: queryText,
+          is_active: true,
+        });
+
+        removeEmptyStateIfNeeded();
+        promptsList.prepend(createPromptNode({
+          id: data.id,
+          query_text: data.query_text,
+          delete_url: `{% url 'scraping:delete_prompt_api' 0 %}`.replace('/0/', `/${data.id}/`),
+        }));
+
+        setFeedback(data.created ? '{% trans "Prompt added." %}' : '{% trans "Prompt updated." %}');
+        closeComposer();
+        ensureEmptyStateIfNeeded();
+      } catch (error) {
+        setFeedback(error.message || '{% trans "Unable to save prompt." %}', true);
+      } finally {
+        submitButton.disabled = false;
+        addButton.disabled = false;
+      }
+    });
+
+    promptsList.addEventListener('click', async (event) => {
+      const deleteButton = event.target.closest('.cat-prompt-delete');
+      if (!deleteButton) {
+        return;
+      }
+
+      const promptId = deleteButton.dataset.promptId;
+      const deleteUrl = deleteButton.dataset.deleteUrl;
+      const promptNode = deleteButton.closest('[data-prompt-id]');
+
+      if (!promptId || !deleteUrl || !promptNode) {
+        return;
+      }
+
+      deleteButton.disabled = true;
+      try {
+        await postJson(deleteUrl, {});
+        promptNode.remove();
+        ensureEmptyStateIfNeeded();
+        setFeedback('{% trans "Prompt removed." %}');
+      } catch (error) {
+        setFeedback(error.message || '{% trans "Unable to delete prompt." %}', true);
+        deleteButton.disabled = false;
+      }
+    });
+
+    if (runButton && runUrl) {
+      runButton.addEventListener('click', async () => {
+        runButton.disabled = true;
+        stopRunPolling();
+        setRunStatus('{% trans "Starting scraper..." %}');
+
+        try {
+          const data = await postJson(runUrl, {});
+          const status = String(data.status || '').toLowerCase();
+          const runId = data.run_id;
+
+          if (status === 'started' && runId) {
+            setRunStatus('{% trans "Scraper dispatched. Running in background..." %}');
+            runPollTimer = setInterval(() => {
+              pollRunStatus(runId);
+            }, 2000);
+            pollRunStatus(runId);
+            return;
+          }
+
+          if (status === 'success') {
+            setRunStatus(`{% trans "Completed" %}: ${data.items_created || 0} {% trans "items" %}`);
+            if (runStatusTime) {
+              runStatusTime.textContent = new Date().toLocaleString();
+            }
+            runButton.disabled = false;
+            setTimeout(() => window.location.reload(), 900);
+            return;
+          }
+
+          const failureMessage = data.message || (Array.isArray(data.errors) ? data.errors.join(' | ') : '');
+          setRunStatus(failureMessage || '{% trans "Unable to start scraper." %}', true);
+          runButton.disabled = false;
+        } catch (error) {
+          setRunStatus(error.message || '{% trans "Unable to start scraper." %}', true);
+          runButton.disabled = false;
+        }
+      });
+    }
+  })();
 </script>
 {% endblock %}

@@ -1475,7 +1475,7 @@ def scraping_dashboard_by_category(request, category: str):
     ai_prompts = list(
         SearchQuery.objects.filter(category=category_key, is_active=True)
         .order_by("id")
-        .values_list("query_text", flat=True)[:6]
+        .values("id", "query_text", "is_active")[:6]
     )
 
     recent_runs = ScrapingRun.objects.filter(category=category_key).order_by(
@@ -4442,6 +4442,34 @@ def toggle_prompt_api(request, query_id):
             "category": query_obj.category,
             "query_text": query_obj.query_text,
             "is_active": bool(query_obj.is_active),
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=60, period_seconds=60, scope="action")
+def delete_prompt_api(request, query_id):
+    """Soft-delete one prompt by marking it inactive."""
+    _log_scraping_action(request)
+
+    query_obj = SearchQuery.objects.filter(id=query_id).first()
+    if query_obj is None:
+        return JsonResponse({"error": "Prompt not found"}, status=404)
+
+    if query_obj.is_active:
+        query_obj.is_active = False
+        query_obj.save(update_fields=["is_active"])
+
+    return JsonResponse(
+        {
+            "id": str(query_obj.id),
+            "category": query_obj.category,
+            "query_text": query_obj.query_text,
+            "is_active": False,
+            "deleted": True,
         }
     )
 

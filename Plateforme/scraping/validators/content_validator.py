@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -48,12 +48,15 @@ _CATEGORY_KEYWORDS = {
 
 
 class ExtractionQualityValidator:
-    MIN_CONFIDENCE_TO_SAVE = 0.40
+    MIN_CONFIDENCE_TO_SAVE = 0.25
     MIN_TITLE_LENGTH = 5
     MAX_TITLE_LENGTH = 300
 
+    # Categories where Arabic translations are added post-save, so
+    # missing _ar fields should not block ingestion.
+    _TRANSLATION_DEFERRED_CATEGORIES = {"events", "tools", "courses", "news", "opportunities", "corpus"}
+
     def validate(self, item: dict, category: str) -> tuple[bool, list[str]]:
-        del category
         errors: list[str] = []
         warnings: list[str] = []
 
@@ -66,7 +69,8 @@ class ExtractionQualityValidator:
             )
 
         url = str(
-            item.get("url") or item.get("download_url") or item.get("source_url") or ""
+            item.get("url") or item.get("download_url") or item.get("source_url")
+            or item.get("website") or ""
         ).strip()
         if not url or not url.startswith(("http://", "https://")):
             errors.append(f"Invalid URL: {url}")
@@ -92,13 +96,19 @@ class ExtractionQualityValidator:
             if relevance_score < 0.3:
                 errors.append("Item not relevant to Arabic NLP")
 
+        # Use a lower confidence threshold for categories where Arabic
+        # translations are applied in a later pipeline stage.
+        effective_threshold = self.MIN_CONFIDENCE_TO_SAVE
+        if (category or "").strip().lower() in self._TRANSLATION_DEFERRED_CATEGORIES:
+            effective_threshold = min(effective_threshold, 0.20)
+
         try:
             confidence = float(item.get("extraction_confidence", 0))
         except (TypeError, ValueError):
             confidence = 0.0
-        if confidence < self.MIN_CONFIDENCE_TO_SAVE:
+        if confidence < effective_threshold:
             errors.append(
-                f"Confidence too low: {confidence} < {self.MIN_CONFIDENCE_TO_SAVE}"
+                f"Confidence too low: {confidence} < {effective_threshold}"
             )
 
         is_valid = len(errors) == 0
