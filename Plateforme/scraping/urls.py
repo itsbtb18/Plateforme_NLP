@@ -137,6 +137,11 @@ urlpatterns = [
         name="toggle_prompt_api",
     ),
     path(
+        "api/prompts/<int:query_id>/delete/",
+        views.delete_prompt_api,
+        name="delete_prompt_api",
+    ),
+    path(
         "api/translate-field/",
         views.translate_field_api,
         name="translate_field_api",

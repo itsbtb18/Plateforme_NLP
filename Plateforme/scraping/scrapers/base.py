@@ -1,4 +1,4 @@
-﻿"""Core scraper orchestration without legacy HTTP parsing dependencies."""
+"""Core scraper orchestration without legacy HTTP parsing dependencies."""
 
 from __future__ import annotations
 
@@ -244,7 +244,10 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             is_valid, quality_messages = validator.validate(payload, self.category)
             if not is_valid:
                 logger.info(
-                    "candidate_rejected_quality_validation",
+                    "candidate_rejected_quality_validation: %s (confidence=%.3f) reasons=%s",
+                    self._item_display_name(item_data),
+                    confidence,
+                    quality_messages,
                     extra={
                         "category": self.category,
                         "source_name": self.name,
