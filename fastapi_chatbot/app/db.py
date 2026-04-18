@@ -43,6 +43,9 @@ async def init_db():
     been added after the table was first created (safe with IF NOT EXISTS).
     """
     try:
+        # Import models so SQLAlchemy metadata is fully populated before create_all.
+        import app.models  # noqa: F401
+
         async with engine.begin() as conn:
             # Create all tables
             await conn.run_sync(Base.metadata.create_all)

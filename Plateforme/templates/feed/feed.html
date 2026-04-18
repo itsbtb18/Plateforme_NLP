@@ -41,6 +41,13 @@
 .feed-info{display:flex;flex-direction:column;gap:.45rem;margin-top:.5rem;font-size:.8rem}
 .feed-info-row{display:flex;align-items:center;gap:.4rem;color:#cbd5e1}
 .feed-info-row i{color:#a78bfa;font-size:.85rem;width:14px;text-align:center}
+.feed-file-link{display:flex;align-items:center;gap:.45rem;margin-top:.6rem;padding:.5rem .65rem;border:1px solid rgba(167,139,250,.28);border-radius:10px;background:rgba(124,58,237,.08);color:#ddd6fe;text-decoration:none;font-size:.78rem;font-weight:700;min-width:0}
+.feed-file-link:hover{background:rgba(124,58,237,.16);border-color:rgba(167,139,250,.5);color:#f5f3ff}
+.feed-file-link i{font-size:.9rem;flex-shrink:0}
+.feed-file-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.feed-file-actions{display:flex;flex-direction:column;gap:.55rem;margin-top:.6rem}
+.feed-file-action-btn{display:flex;align-items:center;justify-content:center;gap:.45rem;padding:.55rem .7rem;border:1px solid rgba(167,139,250,.34);border-radius:10px;background:rgba(124,58,237,.12);color:#ede9fe;text-decoration:none;font-size:.78rem;font-weight:800;cursor:pointer;transition:all .2s ease}
+.feed-file-action-btn:hover{background:rgba(124,58,237,.22);border-color:rgba(167,139,250,.55);color:#fff}
 .feed-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
 .feed-link:hover{background:rgba(255,255,255,.04)}
 .feed-actions{display:flex;align-items:center;justify-content:space-around;padding:1rem .85rem;border-top:1px solid rgba(167,139,250,.16);gap:.5rem}
@@ -53,6 +60,12 @@
 .feed-card-tools{display:flex;justify-content:flex-end;padding:0 .85rem 1rem}
 .feed-card-tools .card-action-icon{border-color:rgba(167,139,250,.2);color:#9ca3af}
 .feed-card-tools .card-action-icon:hover{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.4);color:#a78bfa;box-shadow:0 4px 12px rgba(167,139,250,.18)}
+.feed-open-details-bar{display:flex;align-items:center;justify-content:center;gap:.45rem;padding:.8rem .9rem;border-top:1px solid rgba(167,139,250,.24);color:#ddd6fe;text-decoration:none;font-weight:800;font-size:.88rem;letter-spacing:.01em;background:rgba(91,33,182,.12);transition:all .2s ease}
+.feed-open-details-bar i{font-size:.95rem;transition:transform .2s ease}
+.feed-open-details-bar:hover{background:rgba(91,33,182,.22);color:#f5f3ff}
+.feed-open-details-bar:hover i{transform:translateX(-2px)}
+html[dir="rtl"] .feed-open-details-bar{flex-direction:row-reverse}
+html[dir="rtl"] .feed-open-details-bar:hover i{transform:translateX(2px)}
 .feed-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .feed-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
 .feed-empty-inner{position:relative;z-index:1}
@@ -122,6 +135,14 @@
         </div>
         <div class="feed-body">
           <p class="feed-excerpt">{{ post.content|truncatechars:150 }}</p>
+          {% if post.file %}
+          <div class="feed-file-actions">
+            <a class="feed-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+              <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+              <span class="feed-file-name">{{ post.file.name|cut:'posts/files/' }}</span>
+            </a>
+          </div>
+          {% endif %}
           <div class="feed-info">
             <div class="feed-info-row"><i class="bi bi-person"></i><span>{{ post.author.get_full_name_display }}</span></div>
             <div class="feed-info-row"><i class="bi bi-chat-dots"></i><span>{{ post.comments.count }} {% if LANGUAGE_CODE|slice:":2" == "ar" %}تعليق{% else %}comments{% endif %}</span></div>
@@ -137,17 +158,13 @@
             <i class="bi bi-chat-left"></i>
             <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعليق{% else %}Comment{% endif %}</span>
           </a>
-          <a href="{% url 'feed:post_detail' post.slug %}" class="feed-action-btn" title="{% if LANGUAGE_CODE|slice:":2" == "ar" %}عرض التفاصيل{% else %}View details{% endif %}">
-            <i class="bi bi-eye"></i>
-            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}التفاصيل{% else %}View{% endif %}</span>
-          </a>
         </div>
         <div class="feed-card-tools">
           {% include "includes/card_top_actions.html" with content_type="post" object_id=post.id title=post.title|default:post.content|truncatechars:100 description=post.content|striptags|truncatewords:40 category='post' author=post.author.get_full_name_display url=post.get_absolute_url|default:'' %}
         </div>
-        <a class="feed-link" href="{% url 'feed:post_detail' post.slug %}">
-          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}View details{% endif %}</span>
-          <i class="bi bi-arrow-right"></i>
+        <a href="{% url 'feed:post_detail' post.slug %}" class="feed-open-details-bar" title="{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}Open details{% endif %}">
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}Open details{% endif %}</span>
+          <i class="bi {% if LANGUAGE_CODE|slice:":2" == "ar" %}bi-arrow-left{% else %}bi-arrow-right{% endif %}"></i>
         </a>
       </article>
       {% endfor %}
@@ -170,6 +187,8 @@
     {% endif %}
   </div>
 </div>
+
+{% include "components/document_viewer_modal.html" %}
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

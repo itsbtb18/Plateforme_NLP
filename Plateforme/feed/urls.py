@@ -5,6 +5,7 @@ app_name = 'feed'
 
 urlpatterns = [
     path('', views.qa_home, name='qa_list'),
+    path('api/convert-to-text/<uuid:post_id>/', views.convert_post_to_text, name='convert-post-to-text'),
     path('ask/', views.ask_question, name='ask_question'),
     path('question/<int:pk>/', views.question_detail, name='question_detail'),
     path('search/', views.search_questions, name='search'),

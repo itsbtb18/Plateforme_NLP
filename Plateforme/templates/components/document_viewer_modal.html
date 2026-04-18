@@ -3,6 +3,8 @@
     Premium Document Viewer Modal Component for NLP Platform
     Features: PDF/DOCX viewing, zoom, translate, convert to text, chatbot integration
 {% endcomment %}
+{% firstof object.pk project.pk event.pk resource.pk tool.pk course.pk article.pk memoir.pk thesis.pk as doc_resource_id %}
+{% firstof object.title project.title event.title resource.title tool.title course.title article.title memoir.title thesis.title as doc_resource_title %}
 
 <!-- Premium Document Viewer Modal -->
 <div id="documentViewerModal" 
@@ -10,9 +12,10 @@
      role="dialog" 
      aria-modal="true" 
      aria-labelledby="docViewerTitle"
-     data-resource-id="{{ object.pk }}"
-     data-resource-title="{{ object.title|default:'' }}"
-     data-convert-url="{% url 'resources:convert-to-text' object.pk %}"
+    data-resource-id="{{ doc_resource_id|default:'' }}"
+    data-resource-title="{{ doc_resource_title|default:'' }}"
+    data-convert-url="{% if doc_resource_id %}{% url 'resources:convert-to-text' doc_resource_id %}{% endif %}"
+    data-ts-base="/ts-ai"
      style="display: none;">
     
     <!-- Animated Backdrop -->
@@ -235,7 +238,7 @@
                     </button>
                     
                     <!-- Summarize Document -->
-                    <button id="summarizeDocBtn" class="docviewer-nlp-btn docviewer-nlp-btn-featured" title="{% trans 'Generate an AI summary of this document' %}">
+                    <button id="summarizeDocBtn" class="docviewer-nlp-btn docviewer-nlp-btn-featured" title="{% trans 'Generate an AI summary of this document' %}" data-document-id="{{ doc_resource_id|default:'' }}">
                         <div class="docviewer-nlp-btn-icon docviewer-nlp-btn-icon-summarize">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -258,7 +261,7 @@
                     </button>
                     
                     <!-- Translate Document -->
-                    <button id="translateDocBtn" class="docviewer-nlp-btn docviewer-nlp-btn-featured" title="{% trans 'Translate document to another language' %}">
+                    <button id="translateDocBtn" class="docviewer-nlp-btn docviewer-nlp-btn-featured" title="{% trans 'Translate document to another language' %}" data-document-id="{{ doc_resource_id|default:'' }}">
                         <div class="docviewer-nlp-btn-icon docviewer-nlp-btn-icon-translate">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 8l6 6"/>
@@ -303,6 +306,8 @@
                         <div class="docviewer-nlp-btn-badge">AI</div>
                     </button>
                 </div>
+
+                <div id="docviewerAiStatus" class="docviewer-ai-status" style="display:none;"></div>
                 
                 <!-- Keyboard Shortcuts -->
                 <div class="docviewer-sidebar-footer">
@@ -395,6 +400,87 @@
                         {% trans "Download .txt" %}
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Translation Language Pair Overlay -->
+    <div id="translationPairOverlay" class="ctt-overlay" style="display:none;">
+        <div class="ctt-modal tlp-modal">
+            <div class="ctt-header">
+                <div class="ctt-header-left">
+                    <svg class="ctt-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 8h14"/>
+                        <path d="M5 12h6"/>
+                        <path d="M5 16h10"/>
+                        <path d="M17 10l2 2-2 2"/>
+                    </svg>
+                    <h3 class="ctt-title">{% trans "Choose translation language pair" %}</h3>
+                </div>
+                <button id="closeTranslationPairOverlay" class="ctt-close-btn" title="{% trans 'Close' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="tlp-body">
+                <label for="translationPairSelect" class="tlp-label">{% trans "Language pair" %}</label>
+                <select id="translationPairSelect" class="tlp-select"></select>
+                <div class="tlp-actions">
+                    <button type="button" id="cancelTranslationPairBtn" class="ctt-btn ctt-btn-secondary">{% trans "Cancel" %}</button>
+                    <button type="button" id="confirmTranslationPairBtn" class="ctt-btn ctt-btn-primary">{% trans "Start Translation" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Translation/Summarization Result Overlay -->
+    <div id="aiResultOverlay" class="ctt-overlay" style="display:none;">
+        <div class="ctt-modal ai-result-modal">
+            <div class="ctt-header ai-result-header">
+                <div class="ctt-header-left">
+                    <svg class="ctt-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 7h16"/>
+                        <path d="M4 12h16"/>
+                        <path d="M4 17h10"/>
+                    </svg>
+                    <h3 id="aiResultTitle" class="ctt-title">{% trans "AI Result" %}</h3>
+                </div>
+                <button id="closeAiResultOverlay" class="ctt-close-btn" title="{% trans 'Close' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="ctt-meta" id="aiResultMeta"></div>
+            <div class="ai-result-content-wrap">
+                <pre id="aiResultContent" class="ai-result-content" dir="auto"></pre>
+            </div>
+
+            <div class="ctt-actions ai-result-actions">
+                <div class="ai-result-download-group">
+                    <label for="aiResultFormatSelect" class="ai-result-format-label">{% trans "Format" %}</label>
+                    <select id="aiResultFormatSelect" class="ai-result-format-select">
+                        <option value="pdf">PDF</option>
+                        <option value="doc">WORD</option>
+                        <option value="txt">TXT</option>
+                        <option value="md">MD</option>
+                        <option value="json">JSON</option>
+                    </select>
+                    <button id="downloadAiResultBtn" class="ctt-btn ctt-btn-secondary">
+                        {% trans "Download" %}
+                    </button>
+                </div>
+                <button id="copyAiResultBtn" class="ctt-btn ctt-btn-primary">
+                    {% trans "Copy" %}
+                </button>
+                <button id="closeAiResultBtn" class="ctt-btn ctt-btn-secondary">
+                    {% trans "Close operation" %}
+                </button>
             </div>
         </div>
     </div>
@@ -1677,10 +1763,260 @@ html[dir="rtl"] .docviewer-exit-btn {
     border-color: #cbd5e1;
 }
 
+.tlp-modal {
+    max-width: 520px;
+    background: linear-gradient(160deg, #18122b 0%, #21153a 55%, #2a1b4d 100%);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    box-shadow: 0 24px 56px rgba(5, 4, 16, 0.55);
+}
+
+.tlp-modal .ctt-header {
+    background: linear-gradient(145deg, rgba(167, 139, 250, 0.14), rgba(96, 165, 250, 0.08));
+    border-bottom: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+.tlp-modal .ctt-title {
+    color: #f3f1ff;
+}
+
+.tlp-modal .ctt-header-icon {
+    color: #c4b5fd;
+}
+
+.tlp-modal .ctt-close-btn {
+    color: #cbd5ff;
+}
+
+.tlp-modal .ctt-close-btn:hover {
+    background: rgba(167, 139, 250, 0.18);
+    color: #ffffff;
+}
+
+.tlp-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px 16px;
+    background: rgba(15, 10, 30, 0.35);
+}
+
+.tlp-label {
+    font-size: 0.82rem;
+    color: #c4b5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+
+.tlp-select {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(167, 139, 250, 0.55);
+    background: linear-gradient(140deg, #24193f, #2f1f52);
+    color: #f8fafc;
+    padding: 11px 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    outline: none;
+}
+
+.tlp-select:focus {
+    border-color: rgba(196, 181, 253, 0.95);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.24);
+}
+
+.tlp-select option {
+    background: #24193f;
+    color: #f8fafc;
+}
+
+.tlp-select option:checked {
+    background: #6d28d9;
+    color: #ffffff;
+}
+
+.tlp-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.tlp-actions .ctt-btn-secondary {
+    background: rgba(255, 255, 255, 0.07);
+    color: #e5e7eb;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.tlp-actions .ctt-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(167, 139, 250, 0.6);
+}
+
+.tlp-actions .ctt-btn-primary {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: #fff;
+}
+
+.tlp-actions .ctt-btn-primary:hover {
+    background: linear-gradient(135deg, #9f7aea 0%, #8b5cf6 100%);
+}
+
+@media (max-width: 560px) {
+    .tlp-actions {
+        flex-direction: column-reverse;
+    }
+
+    .tlp-actions .ctt-btn {
+        width: 100%;
+    }
+}
+
 /* RTL support */
 html[dir="rtl"] .ctt-header { flex-direction: row-reverse; }
 html[dir="rtl"] .ctt-header-left { flex-direction: row-reverse; }
 html[dir="rtl"] .ctt-actions { flex-direction: row-reverse; }
+
+.docviewer-ai-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.docviewer-ai-action-btn {
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    background: rgba(15, 23, 42, 0.45);
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.docviewer-ai-action-btn:hover {
+    border-color: rgba(96, 165, 250, 0.7);
+    background: rgba(30, 41, 59, 0.65);
+}
+
+.ai-result-modal {
+    width: min(94vw, 1220px);
+    max-width: none;
+    height: min(84vh, 900px);
+    background: linear-gradient(165deg, #130c24 0%, #1b1233 48%, #261645 100%);
+    border: 1px solid rgba(167, 139, 250, 0.42);
+    box-shadow: 0 30px 70px rgba(26, 10, 46, 0.55);
+}
+
+.ai-result-header {
+    background: linear-gradient(145deg, rgba(124, 58, 237, 0.3), rgba(76, 29, 149, 0.2));
+    border-bottom: 1px solid rgba(167, 139, 250, 0.4);
+}
+
+.ai-result-header .ctt-title,
+.ai-result-header .ctt-header-icon,
+.ai-result-header .ctt-close-btn {
+    color: #e2e8f0;
+}
+
+.ai-result-content-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background: rgba(10, 6, 22, 0.65);
+}
+
+.ai-result-content {
+    margin: 0;
+    padding: 24px 28px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #ede9fe;
+    line-height: 1.75;
+    font-family: 'Consolas', 'Courier New', 'Noto Naskh Arabic', monospace;
+    font-size: 14.5px;
+}
+
+.ai-result-actions {
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    border-top: 1px solid rgba(167, 139, 250, 0.28);
+    background: rgba(18, 10, 34, 0.8);
+}
+
+.ai-result-download-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.ai-result-format-label {
+    font-size: 12px;
+    color: #c4b5fd;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.ai-result-format-select {
+    border-radius: 9px;
+    border: 1px solid rgba(167, 139, 250, 0.45);
+    background: rgba(38, 22, 69, 0.95);
+    color: #ede9fe;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+}
+
+.ai-result-format-select:focus {
+    border-color: rgba(196, 181, 253, 0.95);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.2);
+}
+
+.ai-result-format-select option {
+    background: #261645;
+    color: #ede9fe;
+}
+
+.ai-result-actions .ctt-btn {
+    border: 1px solid rgba(167, 139, 250, 0.55);
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    color: #f5f3ff;
+    padding: 8px 14px;
+}
+
+.ai-result-actions .ctt-btn:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    border-color: rgba(196, 181, 253, 0.8);
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+@media (max-width: 768px) {
+    .ai-result-modal {
+        width: 100%;
+        height: 92vh;
+    }
+
+    .ai-result-content-wrap {
+        max-height: none;
+    }
+
+    .ai-result-actions {
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .ai-result-download-group {
+        width: auto;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+}
 
 </style>
 
@@ -1695,6 +2031,9 @@ if (typeof pdfjsLib !== 'undefined') {
 <!-- docx-preview Library -->
 <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.20/dist/docx-preview.min.js"></script>
 
+<!-- jsPDF Library -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
 <!-- Premium Document Viewer Script -->
 <script>
 (function() {
@@ -1705,12 +2044,77 @@ if (typeof pdfjsLib !== 'undefined') {
         backdrop: null,
         currentUrl: null,
         currentType: null,
+        currentText: null,
+        languageSampleText: null,
         pdfDoc: null,
         currentPage: 1,
         totalPages: 1,
         scale: 1,
         baseScale: 1,
         isOpen: false,
+        aiPollTimer: null,
+        aiRequestController: null,
+        activeAiJob: null,
+        lastAiResult: null,
+        translationPairResolver: null,
+        currentTranslationPairs: [],
+
+        isArabicUi() {
+            return String(document.documentElement?.lang || '').toLowerCase().startsWith('ar');
+        },
+
+        t(key, fallback = '') {
+            if (!this.isArabicUi()) return fallback;
+
+            const ar = {
+                choose_translation_language_pair: 'اختر زوج لغات الترجمة',
+                language_pair: 'زوج اللغات',
+                cancel: 'إلغاء',
+                start_translation: 'بدء الترجمة',
+                close_operation: 'إغلاق العملية',
+                operation_closed: 'تم إغلاق العملية',
+                tracking_stopped: 'تم إيقاف تتبع التلخيص/الترجمة.',
+                preparing: 'جارٍ التحضير...',
+                processing: 'جارٍ المعالجة...',
+                ai_processing: 'معالجة الذكاء الاصطناعي',
+                preparing_document_text: 'جارٍ تجهيز نص المستند...',
+                generating_output: 'جارٍ إنشاء المخرجات...',
+                processing_part: 'جارٍ معالجة الجزء',
+                generating_final_summary: 'جارٍ إنشاء الملخص النهائي...',
+                ai_error: 'خطأ في الذكاء الاصطناعي',
+                invalid_language_choice: 'اختيار لغة غير صالح. يرجى اختيار خيار صحيح.',
+                no_document_text: 'لا يوجد نص متاح في المستند. تعذر استخراج النص من هذا الملف.',
+                unable_generate_parts: 'تعذر إنشاء ناتج من الأجزاء المعالجة.',
+                unable_process: 'تعذر معالجة الطلب.',
+                service_unreachable: 'تعذر الوصول إلى خدمة الترجمة/التلخيص. تحقق من مسار /ts-ai في nginx وحالة الشبكة ثم أعد المحاولة.',
+                rate_limit_reached: 'تم بلوغ حد مزود الذكاء الاصطناعي مؤقتا. يرجى الانتظار قليلا ثم إعادة المحاولة.',
+                ai_result: 'نتيجة الذكاء الاصطناعي',
+                generated_in_page: 'تم الإنشاء دون مغادرة الصفحة الحالية.',
+                job_label: 'المهمة',
+                copy: 'نسخ',
+                copied: 'تم النسخ!',
+                translation: 'ترجمة',
+                summarization: 'تلخيص',
+                translation_completed: 'اكتملت الترجمة في الصفحة الحالية.',
+                summary_generated: 'تم إنشاء الملخص في الصفحة الحالية.',
+            };
+
+            return ar[key] || fallback;
+        },
+
+        applyRuntimeTranslations() {
+            const pairTitle = document.querySelector('#translationPairOverlay .ctt-title');
+            const pairLabel = document.querySelector('label[for="translationPairSelect"]');
+            const cancelPairBtn = document.getElementById('cancelTranslationPairBtn');
+            const confirmPairBtn = document.getElementById('confirmTranslationPairBtn');
+            const closeAiBtn = document.getElementById('closeAiResultBtn');
+
+            if (pairTitle) pairTitle.textContent = this.t('choose_translation_language_pair', pairTitle.textContent || '');
+            if (pairLabel) pairLabel.textContent = this.t('language_pair', pairLabel.textContent || '');
+            if (cancelPairBtn) cancelPairBtn.textContent = this.t('cancel', cancelPairBtn.textContent || '');
+            if (confirmPairBtn) confirmPairBtn.textContent = this.t('start_translation', confirmPairBtn.textContent || '');
+            if (closeAiBtn) closeAiBtn.textContent = this.t('close_operation', closeAiBtn.textContent || '');
+        },
         
         init() {
             this.modal = document.getElementById('documentViewerModal');
@@ -1719,6 +2123,7 @@ if (typeof pdfjsLib !== 'undefined') {
             if (!this.modal) return;
             
             this.bindEvents();
+            this.applyRuntimeTranslations();
         },
         
         bindEvents() {
@@ -1738,8 +2143,8 @@ if (typeof pdfjsLib !== 'undefined') {
             
             // NLP buttons (placeholder actions)
             document.getElementById('convertToTextBtn')?.addEventListener('click', () => this.convertToText());
-            document.getElementById('summarizeDocBtn')?.addEventListener('click', () => this.summarizeDoc());
-            document.getElementById('translateDocBtn')?.addEventListener('click', () => this.translateDoc());
+            document.getElementById('summarizeDocBtn')?.addEventListener('click', (event) => this.summarizeDoc(event.currentTarget));
+            document.getElementById('translateDocBtn')?.addEventListener('click', (event) => this.translateDoc(event.currentTarget));
             document.getElementById('askChatbotBtn')?.addEventListener('click', () => this.askChatbot());
 
             // Convert-to-text overlay close
@@ -1747,17 +2152,48 @@ if (typeof pdfjsLib !== 'undefined') {
             document.getElementById('convertTextOverlay')?.addEventListener('click', (e) => {
                 if (e.target.id === 'convertTextOverlay') this.closeConvertOverlay();
             });
+
+            // Translation language modal
+            document.getElementById('closeTranslationPairOverlay')?.addEventListener('click', () => this.closeTranslationPairOverlay(null));
+            document.getElementById('cancelTranslationPairBtn')?.addEventListener('click', () => this.closeTranslationPairOverlay(null));
+            document.getElementById('confirmTranslationPairBtn')?.addEventListener('click', () => this.confirmTranslationPairSelection());
+            document.getElementById('translationPairOverlay')?.addEventListener('click', (e) => {
+                if (e.target.id === 'translationPairOverlay') this.closeTranslationPairOverlay(null);
+            });
+
+            // AI result overlay
+            document.getElementById('closeAiResultOverlay')?.addEventListener('click', () => this.closeAiOperationResult());
+            document.getElementById('closeAiResultBtn')?.addEventListener('click', () => this.closeAiOperationResult());
+            document.getElementById('copyAiResultBtn')?.addEventListener('click', () => this.copyAiResult());
+            document.getElementById('downloadAiResultBtn')?.addEventListener('click', () => this.downloadAiResult());
+            document.getElementById('aiResultOverlay')?.addEventListener('click', (e) => {
+                if (e.target.id === 'aiResultOverlay') this.closeAiOperationResult();
+            });
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => this.handleKeyboard(e));
         },
         
-        open(url, fileType = null) {
+        open(url, fileType = null, resourceId = null, resourceTitle = null, convertUrl = null) {
             if (!url || !this.modal) return;
             
             this.currentUrl = url;
             this.currentType = fileType || this.getFileType(url);
+            this.currentText = null;
+            this.languageSampleText = null;
             this.isOpen = true;
+
+            if (resourceId) {
+                this.modal.dataset.resourceId = resourceId;
+            }
+            if (resourceTitle) {
+                this.modal.dataset.resourceTitle = resourceTitle;
+            }
+            if (convertUrl) {
+                this.modal.dataset.convertUrl = convertUrl;
+            } else if (resourceId) {
+                this.modal.dataset.convertUrl = `/resources/api/convert-to-text/${encodeURIComponent(resourceId)}/`;
+            }
             
             // Reset state
             this.scale = 1;
@@ -1805,7 +2241,862 @@ if (typeof pdfjsLib !== 'undefined') {
             document.getElementById('docxContainer').innerHTML = '';
             document.getElementById('imageViewer').src = '';
             document.getElementById('textViewer').textContent = '';
+            this.cancelAiOperation(false);
+            this.closeTranslationPairOverlay(null);
+            this.closeAiResultOverlay();
+            const statusBox = document.getElementById('docviewerAiStatus');
+            if (statusBox) {
+                statusBox.style.display = 'none';
+                statusBox.innerHTML = '';
+            }
+            this.lastAiResult = null;
             this.pdfDoc = null;
+            this.currentText = null;
+            this.languageSampleText = null;
+        },
+
+        closeAiOperationResult() {
+            this.lastAiResult = null;
+            this.closeAiResultOverlay();
+            const box = document.getElementById('docviewerAiStatus');
+            if (box) {
+                box.style.display = 'none';
+                box.innerHTML = '';
+            }
+        },
+
+        openAiResultOverlay() {
+            if (!this.lastAiResult) return;
+
+            const overlay = document.getElementById('aiResultOverlay');
+            const titleEl = document.getElementById('aiResultTitle');
+            const metaEl = document.getElementById('aiResultMeta');
+            const contentEl = document.getElementById('aiResultContent');
+            if (!overlay || !titleEl || !metaEl || !contentEl) return;
+
+            titleEl.textContent = this.lastAiResult.title || this.t('ai_result', '{% trans "AI Result" %}');
+            metaEl.textContent = this.lastAiResult.meta || this.t('generated_in_page', '{% trans "Generated without leaving the current page." %}');
+            contentEl.textContent = this.lastAiResult.output || '';
+            const copyBtn = document.getElementById('copyAiResultBtn');
+            if (copyBtn) {
+                copyBtn.textContent = this.t('copy', '{% trans "Copy" %}');
+            }
+            overlay.style.display = 'flex';
+        },
+
+        closeAiResultOverlay() {
+            const overlay = document.getElementById('aiResultOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        },
+
+        async copyAiResult() {
+            if (!this.lastAiResult?.output) return;
+            const copyBtn = document.getElementById('copyAiResultBtn');
+            try {
+                await navigator.clipboard.writeText(this.lastAiResult.output);
+                if (copyBtn) {
+                    copyBtn.textContent = this.t('copied', '{% trans "Copied!" %}');
+                    setTimeout(() => {
+                        copyBtn.textContent = this.t('copy', '{% trans "Copy" %}');
+                    }, 1400);
+                }
+            } catch (err) {
+                console.warn('Copy AI result failed:', err);
+            }
+        },
+
+        buildAiResultDownloadContent(format) {
+            const output = String(this.lastAiResult?.output || '');
+            const task = String(this.lastAiResult?.task || 'result');
+            const title = String(this.lastAiResult?.title || 'AI Result');
+            const meta = String(this.lastAiResult?.meta || '');
+
+            const escapeHtml = (value) => String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+            if (format === 'doc') {
+                const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head><body style="font-family:Segoe UI,Arial,sans-serif;line-height:1.6;color:#111;"><h2>${escapeHtml(title)}</h2><p><strong>Meta:</strong> ${escapeHtml(meta)}</p><pre style="white-space:pre-wrap;font-family:Consolas,monospace;">${escapeHtml(output)}</pre></body></html>`;
+                return {
+                    ext: 'doc',
+                    mime: 'application/msword;charset=utf-8',
+                    body: html,
+                };
+            }
+
+            if (format === 'md') {
+                return {
+                    ext: 'md',
+                    mime: 'text/markdown;charset=utf-8',
+                    body: `# ${title}\n\n- Task: ${task}\n- Meta: ${meta}\n\n## Output\n\n${output}\n`,
+                };
+            }
+
+            if (format === 'json') {
+                return {
+                    ext: 'json',
+                    mime: 'application/json;charset=utf-8',
+                    body: JSON.stringify({
+                        task,
+                        title,
+                        meta,
+                        output,
+                        exported_at: new Date().toISOString(),
+                    }, null, 2),
+                };
+            }
+
+            return {
+                ext: 'txt',
+                mime: 'text/plain;charset=utf-8',
+                body: `${title}\n${meta}\n\n${output}`,
+            };
+        },
+
+        downloadAiResultPdf(fileName) {
+            const content = `${String(this.lastAiResult?.title || 'AI Result')}\n${String(this.lastAiResult?.meta || '')}\n\n${String(this.lastAiResult?.output || '')}`;
+            const jsPdfNs = window.jspdf;
+            if (!jsPdfNs || !jsPdfNs.jsPDF) {
+                throw new Error('PDF library is not available');
+            }
+
+            const doc = new jsPdfNs.jsPDF({ unit: 'pt', format: 'a4' });
+            const margin = 44;
+            const pageWidth = doc.internal.pageSize.getWidth() - (margin * 2);
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const lines = doc.splitTextToSize(content, pageWidth);
+
+            let y = 56;
+            doc.setFont('courier', 'normal');
+            doc.setFontSize(11);
+            for (const line of lines) {
+                if (y > pageHeight - 48) {
+                    doc.addPage();
+                    y = 56;
+                }
+                doc.text(String(line), margin, y);
+                y += 15;
+            }
+
+            doc.save(fileName);
+        },
+
+        downloadAiResult() {
+            if (!this.lastAiResult?.output) return;
+
+            const select = document.getElementById('aiResultFormatSelect');
+            const format = String(select?.value || 'pdf').toLowerCase();
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const task = String(this.lastAiResult.task || 'result').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
+
+            if (format === 'pdf') {
+                const fileName = `ai-${task}-${timestamp}.pdf`;
+                this.downloadAiResultPdf(fileName);
+                return;
+            }
+
+            const payload = this.buildAiResultDownloadContent(format);
+            const fileName = `ai-${task}-${timestamp}.${payload.ext}`;
+            const blob = new Blob([payload.body], { type: payload.mime });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        },
+
+        cancelAiOperation(showStatus = true) {
+            if (this.aiPollTimer) {
+                clearInterval(this.aiPollTimer);
+                this.aiPollTimer = null;
+            }
+
+            if (this.aiRequestController) {
+                this.aiRequestController.abort();
+                this.aiRequestController = null;
+            }
+
+            const buttonId = this.activeAiJob?.buttonId || null;
+            if (buttonId) {
+                this.setNlpButtonLoading(buttonId, false);
+            }
+
+            const stoppedJobId = this.activeAiJob?.jobId || '';
+            this.activeAiJob = null;
+
+            if (showStatus) {
+                this.showAiStatus(
+                    'info',
+                    this.t('operation_closed', '{% trans "Operation closed" %}'),
+                    this.t('tracking_stopped', '{% trans "Summarization/translation tracking stopped." %}'),
+                    { jobId: stoppedJobId }
+                );
+            }
+        },
+
+        getCurrentFileUri() {
+            if (!this.currentUrl) return null;
+            try {
+                return new URL(this.currentUrl, window.location.origin).href;
+            } catch {
+                return this.currentUrl;
+            }
+        },
+
+        getAiBaseUrl() {
+            const base = this.modal?.dataset?.tsBase || '/ts-ai';
+            let normalized = base.endsWith('/') ? base.slice(0, -1) : base;
+
+            if (normalized.startsWith('http') && normalized.endsWith('/')) {
+                normalized = normalized.slice(0, -1);
+            }
+
+            // When accessing Django directly on localhost:8888, /ts-ai may not be proxied.
+            // Route browser calls to the host-published standalone service port.
+            const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+            const isDirectDjangoPort = window.location.port && !['80', '443', '8000'].includes(window.location.port);
+            if (normalized.startsWith('/') && isLocalHost && isDirectDjangoPort) {
+                return 'http://localhost:8010';
+            }
+
+            return normalized;
+        },
+
+        getAiBaseCandidates() {
+            const primary = this.getAiBaseUrl();
+            const candidates = [primary];
+
+            // Same-origin proxy path via nginx (works when site is on port 80/443).
+            candidates.push('/ts-ai');
+
+            // Host-level nginx fallback when page is served from a non-standard port.
+            const sameHostProxy = `${window.location.protocol}//${window.location.hostname}/ts-ai`;
+            candidates.push(sameHostProxy);
+
+            // Direct standalone service fallback for local Docker setup.
+            // Avoid mixed-content failures when the page is served via HTTPS.
+            const isHttpsPage = window.location.protocol === 'https:';
+            const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+            if (!isHttpsPage || isLocalHost) {
+                candidates.push('http://localhost:8010');
+            }
+
+            // Also try same host on port 8010 for LAN/domain-based local setups.
+            // Skip on HTTPS to prevent mixed-content blocking.
+            if (!isHttpsPage) {
+                const sameHostDirect = `http://${window.location.hostname}:8010`;
+                candidates.push(sameHostDirect);
+            }
+
+            // De-duplicate while preserving order.
+            return [...new Set(candidates.filter(Boolean).map((u) => u.replace(/\/$/, '')))];
+        },
+
+        async fetchAiWithFallback(path, options = {}) {
+            const bases = this.getAiBaseCandidates();
+            let lastError = null;
+            let lastHttpFailure = null;
+
+            for (const base of bases) {
+                const url = `${base}${path}`;
+                try {
+                    console.log('DocViewer AI trying URL:', url);
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        const status = Number(response.status || 0);
+                        const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                        const isHtmlLike = contentType.includes('text/html');
+                        const looksLikeWrongRoute =
+                            status === 404 ||
+                            status === 405 ||
+                            (status >= 500 && isHtmlLike) ||
+                            (status >= 400 && isHtmlLike);
+
+                        if (looksLikeWrongRoute) {
+                            lastHttpFailure = { response, base, url };
+                            continue;
+                        }
+
+                        // Validation/auth/task errors from the actual AI service are returned immediately.
+                        return { response, base, url };
+                    }
+                    this.lastWorkingAiBase = base;
+                    return { response, base, url };
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+
+            if (lastHttpFailure) {
+                return lastHttpFailure;
+            }
+
+            if (lastError) {
+                throw lastError;
+            }
+
+            throw lastError || new Error('Unable to reach AI service');
+        },
+
+        setNlpButtonLoading(buttonId, loading, loadingText) {
+            const btn = document.getElementById(buttonId);
+            if (!btn) return;
+            btn.disabled = loading;
+            btn.style.opacity = loading ? '0.7' : '1';
+            const desc = btn.querySelector('.docviewer-nlp-btn-desc');
+            if (!desc) return;
+            if (loading) {
+                btn.dataset.originalDesc = desc.textContent;
+                desc.textContent = loadingText;
+            } else if (btn.dataset.originalDesc) {
+                desc.textContent = btn.dataset.originalDesc;
+            }
+        },
+
+        escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        },
+
+        getTranslationLanguagePairs() {
+            const ar = this.isArabicUi();
+            return [
+                { source: 'fr', target: 'ar', label: ar ? 'فرنسي -> عربي' : 'French -> Arabic' },
+                { source: 'fr', target: 'en', label: ar ? 'فرنسي -> إنجليزي' : 'French -> English' },
+                { source: 'en', target: 'ar', label: ar ? 'إنجليزي -> عربي' : 'English -> Arabic' },
+                { source: 'en', target: 'fr', label: ar ? 'إنجليزي -> فرنسي' : 'English -> French' },
+                { source: 'ar', target: 'en', label: ar ? 'عربي -> إنجليزي' : 'Arabic -> English' },
+                { source: 'ar', target: 'fr', label: ar ? 'عربي -> فرنسي' : 'Arabic -> French' },
+            ];
+        },
+
+        normalizeLangCode(lang) {
+            const value = String(lang || '').trim().toLowerCase();
+            if (!value) return '';
+            if (value.startsWith('ar')) return 'ar';
+            if (value.startsWith('fr')) return 'fr';
+            if (value.startsWith('en')) return 'en';
+            return '';
+        },
+
+        async ensureLanguageSampleForDetection() {
+            const fullText = String(this.currentText || '').trim();
+            if (fullText) {
+                this.languageSampleText = fullText.slice(0, 6000);
+                return;
+            }
+
+            if (String(this.languageSampleText || '').trim()) {
+                return;
+            }
+
+            if (this.currentType === 'pdf' && this.pdfDoc) {
+                try {
+                    const maxPages = Math.min(2, this.pdfDoc.numPages || 0);
+                    const parts = [];
+                    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+                        const page = await this.pdfDoc.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        const pageText = (textContent.items || [])
+                            .map((item) => (item && typeof item.str === 'string') ? item.str : '')
+                            .join(' ')
+                            .trim();
+                        if (pageText) {
+                            parts.push(pageText);
+                        }
+                    }
+                    if (parts.length) {
+                        this.languageSampleText = parts.join('\n\n');
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('DocViewer language sample extraction failed for PDF:', err);
+                }
+            }
+
+            if (this.currentType === 'docx') {
+                const docxContainer = document.getElementById('docxContainer');
+                const docxText = String(docxContainer?.innerText || '').trim();
+                if (docxText) {
+                    this.languageSampleText = docxText.slice(0, 6000);
+                }
+            }
+        },
+
+        async ensureDocumentTextForAi() {
+            const existing = String(this.currentText || '').trim();
+            if (existing) {
+                return existing;
+            }
+
+            // Fall back to backend conversion endpoint for robust extraction.
+            const apiUrl = this.modal?.dataset?.convertUrl || '';
+            if (!apiUrl) {
+                return '';
+            }
+
+            try {
+                const resp = await fetch(apiUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin'
+                });
+                const data = await resp.json();
+                if (resp.ok && data?.success && String(data.text || '').trim()) {
+                    this.currentText = String(data.text || '').trim();
+                    return this.currentText;
+                }
+            } catch (err) {
+                console.warn('DocViewer ensureDocumentTextForAi failed:', err);
+            }
+
+            return '';
+        },
+
+        detectDocumentLanguage() {
+            const explicit = this.normalizeLangCode(this.modal?.dataset?.resourceLanguage || '');
+            if (explicit) return explicit;
+
+            const sample = String(this.currentText || this.languageSampleText || '').slice(0, 4000);
+            if (sample) {
+                if (/[\u0600-\u06FF]/.test(sample)) {
+                    return 'ar';
+                }
+
+                const lower = sample.toLowerCase();
+                const frenchHints = [' le ', ' la ', ' les ', ' des ', ' est ', ' une ', ' que ', ' dans ', ' pour '];
+                const englishHints = [' the ', ' and ', ' with ', ' this ', ' that ', ' for ', ' from ', ' are '];
+                const frenchScore = frenchHints.reduce((acc, token) => acc + (lower.includes(token) ? 1 : 0), 0);
+                const englishScore = englishHints.reduce((acc, token) => acc + (lower.includes(token) ? 1 : 0), 0);
+
+                if (frenchScore > englishScore) return 'fr';
+                if (englishScore > frenchScore) return 'en';
+            }
+
+            // Do not infer document language from UI language.
+            // If we have no text evidence, return unknown and let caller keep all pairs.
+            return '';
+        },
+
+        getAvailableTranslationPairs() {
+            const sourceLang = this.detectDocumentLanguage();
+            const all = this.getTranslationLanguagePairs();
+            if (!sourceLang) {
+                return all;
+            }
+            const filtered = all.filter((pair) => pair.source === sourceLang);
+            return filtered.length ? filtered : all;
+        },
+
+        getDefaultTranslationPairIndex() {
+            const source = this.detectDocumentLanguage();
+            if (source === 'fr') return 0;
+            if (source === 'en') return 2;
+            if (source === 'ar') return 4;
+            return 0;
+        },
+
+        async askTranslationPair() {
+            // Try to gather a language sample first so default pair matches document language.
+            try {
+                await this.ensureLanguageSampleForDetection();
+            } catch (err) {
+                console.warn('DocViewer language sampling failed:', err);
+            }
+            const pairs = this.getAvailableTranslationPairs();
+            const defaultIndex = this.getDefaultTranslationPairIndex();
+            const overlay = document.getElementById('translationPairOverlay');
+            const select = document.getElementById('translationPairSelect');
+            if (!overlay || !select) {
+                return Promise.resolve(null);
+            }
+
+            this.currentTranslationPairs = pairs;
+
+            select.innerHTML = pairs
+                .map((pair, index) => `<option value="${index}">${this.escapeHtml(pair.label)}</option>`)
+                .join('');
+            const safeIndex = Math.max(0, Math.min(defaultIndex, pairs.length - 1));
+            select.value = String(safeIndex);
+            overlay.style.display = 'flex';
+
+            return new Promise((resolve) => {
+                this.translationPairResolver = resolve;
+                setTimeout(() => select.focus(), 0);
+            });
+        },
+
+        closeTranslationPairOverlay(selectedPair = null) {
+            const overlay = document.getElementById('translationPairOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+
+            this.currentTranslationPairs = [];
+
+            if (this.translationPairResolver) {
+                this.translationPairResolver(selectedPair);
+                this.translationPairResolver = null;
+            }
+        },
+
+        confirmTranslationPairSelection() {
+            const pairs = this.currentTranslationPairs?.length ? this.currentTranslationPairs : this.getAvailableTranslationPairs();
+            const select = document.getElementById('translationPairSelect');
+            if (!select) {
+                this.closeTranslationPairOverlay(null);
+                return;
+            }
+
+            const idx = Number.parseInt(select.value, 10);
+            if (!Number.isInteger(idx) || idx < 0 || idx >= pairs.length) {
+                this.showAiStatus(
+                    'error',
+                    this.t('ai_error', '{% trans "AI Error" %}'),
+                    this.t('invalid_language_choice', '{% trans "Invalid language choice. Please select a valid option." %}')
+                );
+                return;
+            }
+
+            this.closeTranslationPairOverlay(pairs[idx]);
+        },
+
+        showAiStatus(kind, title, message, meta = {}) {
+            const box = document.getElementById('docviewerAiStatus');
+            if (!box) return;
+
+            const safeTitle = this.escapeHtml(title);
+            const safeMessage = this.escapeHtml(message);
+            const safeJobId = this.escapeHtml(meta.jobId || '');
+            const safeOutput = this.escapeHtml(meta.output || '');
+            const showActions = Boolean(meta.canCloseOperation);
+
+            box.style.display = 'block';
+            box.innerHTML = `
+                <div style="font-weight:700;margin-bottom:6px;">${safeTitle}</div>
+                <div style="font-size:0.9rem;line-height:1.35;">${safeMessage}</div>
+                ${meta.jobId ? `<div style="margin-top:8px;font-size:0.78rem;opacity:0.8;">${this.escapeHtml(this.t('job_label', 'Job'))}: ${safeJobId}</div>` : ''}
+                ${meta.output ? `<pre style="margin-top:10px;white-space:pre-wrap;background:rgba(255,255,255,0.07);padding:10px;border-radius:10px;max-height:180px;overflow:auto;">${safeOutput}</pre>` : ''}
+                ${showActions ? `
+                    <div class="docviewer-ai-actions">
+                        ${meta.canCloseOperation ? `
+                            <button type="button" class="docviewer-ai-action-btn" id="docviewerCloseOperationBtn">
+                                ${this.escapeHtml(this.t('close_operation', '{% trans "Close operation" %}'))}
+                            </button>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            `;
+            box.style.border = kind === 'error' ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid rgba(99, 102, 241, 0.35)';
+            box.style.background = kind === 'error' ? 'rgba(127, 29, 29, 0.22)' : 'rgba(30, 41, 59, 0.28)';
+            box.style.padding = '12px';
+            box.style.borderRadius = '12px';
+            box.style.marginTop = '12px';
+
+            if (meta.canCloseOperation) {
+                const closeBtn = box.querySelector('#docviewerCloseOperationBtn');
+                closeBtn?.addEventListener('click', () => this.closeAiOperationResult());
+            }
+
+        },
+
+        getDocumentIdFromButton(buttonId) {
+            const button = document.getElementById(buttonId);
+            const buttonIdValue = button?.dataset?.documentId || '';
+            const modalIdValue = this.modal?.dataset?.resourceId || '';
+            const currentIdValue = this.currentResourceId || '';
+            const resolved = buttonIdValue || modalIdValue || currentIdValue;
+            console.log('DocViewer document_id:', resolved);
+            return resolved;
+        },
+
+        isInvalidAiInputText(text) {
+            const raw = (text === null || text === undefined) ? '' : String(text);
+            const trimmed = raw.trim();
+
+            if (!trimmed || trimmed.length < 20) {
+                return true;
+            }
+
+            // Guard against unresolved placeholders and template markers.
+            const placeholderPatterns = [
+                /\{\{[^}]*\}\}/,
+                /\{TEXT_CHUNK\}/i,
+                /<<[^>]*>>/,
+                /\[(?:TEXT|EXTRAIT|PLACEHOLDER|PASTE\s+HERE|INSERT\s+HERE)\]/i,
+            ];
+
+            return placeholderPatterns.some((pattern) => pattern.test(trimmed));
+        },
+
+        splitTextForAi(text, maxSize = 2000) {
+            const source = String(text || '').trim();
+            if (!source) return [];
+            if (source.length <= maxSize) return [source];
+
+            // Preserve paragraph boundaries when possible to keep chunk coherence.
+            const paragraphs = source.split(/\n\s*\n/);
+            const chunks = [];
+            let current = '';
+
+            const pushCurrent = () => {
+                const trimmed = current.trim();
+                if (trimmed) chunks.push(trimmed);
+                current = '';
+            };
+
+            for (const paragraph of paragraphs) {
+                const cleanParagraph = String(paragraph || '').trim();
+                if (!cleanParagraph) continue;
+
+                // If a paragraph itself is larger than max, split it in fixed slices.
+                if (cleanParagraph.length > maxSize) {
+                    pushCurrent();
+                    for (let i = 0; i < cleanParagraph.length; i += maxSize) {
+                        const part = cleanParagraph.slice(i, i + maxSize).trim();
+                        if (part) chunks.push(part);
+                    }
+                    continue;
+                }
+
+                const candidate = current ? `${current}\n\n${cleanParagraph}` : cleanParagraph;
+                if (candidate.length <= maxSize) {
+                    current = candidate;
+                } else {
+                    pushCurrent();
+                    current = cleanParagraph;
+                }
+            }
+
+            pushCurrent();
+            return chunks;
+        },
+
+        async submitAiRequest(endpoint, payload) {
+            const maxRateLimitRetries = 4;
+            const baseRetryDelayMs = 1500;
+            const maxClientRetryDelayMs = 20000;
+
+            for (let attempt = 0; attempt <= maxRateLimitRetries; attempt++) {
+                const submitResult = await this.fetchAiWithFallback(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    signal: this.aiRequestController?.signal,
+                    body: JSON.stringify(payload),
+                });
+                const response = submitResult.response;
+                const responseText = await response.text();
+                let responseJson = {};
+                try {
+                    responseJson = responseText ? JSON.parse(responseText) : {};
+                } catch {
+                    responseJson = {};
+                }
+
+                if (response.ok) {
+                    return String(responseJson.output || '').trim();
+                }
+
+                const isRateLimited = response.status === 429;
+                if (isRateLimited && attempt < maxRateLimitRetries) {
+                    const detailMessage = String(responseJson.detail || responseText || '');
+                    const retryAfterMatch = detailMessage.match(/(?:retry after|try again in|waiting)\s*(\d+(?:\.\d+)?)/i);
+                    const hintedRetryMs = retryAfterMatch ? Math.round(parseFloat(retryAfterMatch[1]) * 1000) : 0;
+                    const retryDelayMs = Math.min(
+                        maxClientRetryDelayMs,
+                        Math.max(baseRetryDelayMs * (2 ** attempt), hintedRetryMs || 0)
+                    );
+                    this.showAiStatus(
+                        'info',
+                        this.t('ai_processing', '{% trans "AI Processing" %}'),
+                        `${this.t('ai_processing', '{% trans "AI Processing" %}')}: ${Math.round(retryDelayMs / 1000)}s...`,
+                        { canCloseOperation: true }
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+                    continue;
+                }
+
+                const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                const looksLikeHtml = contentType.includes('text/html') || /<!doctype html|<html/i.test(responseText || '');
+                const msg = looksLikeHtml
+                    ? '{% trans "AI service endpoint was not found on this route. Please use nginx proxy or ensure the standalone service is reachable on port 8010." %}'
+                    : (responseJson.detail || responseText || '{% trans "Request failed." %}');
+                throw new Error(msg);
+            }
+
+            throw new Error(this.t('unable_process', '{% trans "Unable to process request." %}'));
+        },
+
+        async startAiJob(task, buttonElement = null, options = {}) {
+            const buttonId = task === 'translation' ? 'translateDocBtn' : 'summarizeDocBtn';
+            const isTranslation = task === 'translation';
+
+            this.closeAiResultOverlay();
+            this.lastAiResult = null;
+
+            this.cancelAiOperation(false);
+            this.activeAiJob = {
+                task,
+                buttonId,
+                jobId: '',
+            };
+            this.aiRequestController = new AbortController();
+            this.setNlpButtonLoading(buttonId, true, this.t('preparing', '{% trans "Preparing..." %}'));
+            this.showAiStatus(
+                'info',
+                this.t('ai_processing', '{% trans "AI Processing" %}'),
+                this.t('preparing_document_text', '{% trans "Preparing document text..." %}'),
+                { canCloseOperation: true }
+            );
+
+            try {
+                const textForAi = await this.ensureDocumentTextForAi();
+                const finalPrompt = String(textForAi || '').trim();
+                const endpoint = isTranslation ? '/translate' : '/summarize';
+                const detectedLang = this.detectDocumentLanguage() || 'en';
+                // Keep translation request duration predictable (similar to summarize)
+                // by chunking client-side instead of waiting one long backend response.
+                const chunkSize = isTranslation ? 2200 : 2600;
+                const chunks = this.splitTextForAi(finalPrompt, chunkSize);
+
+                if (!finalPrompt || this.isInvalidAiInputText(finalPrompt)) {
+                    this.activeAiJob = null;
+                    this.aiRequestController = null;
+                    this.setNlpButtonLoading(buttonId, false);
+                    console.error('INVALID INPUT DETECTED');
+                    this.showAiStatus(
+                        'error',
+                        this.t('ai_error', '{% trans "AI Error" %}'),
+                        this.t('no_document_text', '{% trans "No document text available. Unable to extract text from this file." %}')
+                    );
+                    return;
+                }
+
+                console.log('FINAL TEXT:');
+                console.log(finalPrompt);
+                console.log('LENGTH:', finalPrompt?.length);
+                console.log('CHUNKS:', chunks.length);
+
+                this.setNlpButtonLoading(buttonId, true, this.t('processing', '{% trans "Processing..." %}'));
+                this.showAiStatus(
+                    'info',
+                    this.t('ai_processing', '{% trans "AI Processing" %}'),
+                    this.t('generating_output', '{% trans "Generating output..." %}'),
+                    { canCloseOperation: true }
+                );
+
+                const chunkOutputs = [];
+                for (let i = 0; i < chunks.length; i++) {
+                    const chunk = chunks[i];
+                    const progress = `${i + 1}/${chunks.length}`;
+                    this.showAiStatus(
+                        'info',
+                        this.t('ai_processing', '{% trans "AI Processing" %}'),
+                        `${this.t('processing_part', '{% trans "Processing part" %}')} ${progress}...`,
+                        { canCloseOperation: true }
+                    );
+
+                    const payload = isTranslation
+                        ? {
+                            text: chunk,
+                            source_language: options.sourceLanguage || detectedLang,
+                            target_language: options.targetLanguage || 'en',
+                        }
+                        : {
+                            text: chunk,
+                            language: detectedLang,
+                            style: 'professional',
+                            max_words: 180,
+                        };
+
+                    const partOutput = await this.submitAiRequest(endpoint, payload);
+                    if (partOutput) {
+                        chunkOutputs.push(partOutput);
+                    }
+                }
+
+                let output = '';
+                if (isTranslation) {
+                    output = chunkOutputs.join('\n\n');
+                } else {
+                    // Build a final synthesis from chunk-level summaries.
+                    const combinedSummary = chunkOutputs.join('\n\n');
+                    if (chunks.length > 1 && combinedSummary) {
+                        this.showAiStatus(
+                            'info',
+                            this.t('ai_processing', '{% trans "AI Processing" %}'),
+                            this.t('generating_final_summary', '{% trans "Generating final summary..." %}'),
+                            { canCloseOperation: true }
+                        );
+                        output = await this.submitAiRequest('/summarize', {
+                            text: combinedSummary,
+                            language: detectedLang,
+                            style: 'professional',
+                            max_words: 420,
+                        });
+                    } else {
+                        output = combinedSummary;
+                    }
+                }
+
+                if (!output) {
+                    throw new Error(this.t('unable_generate_parts', '{% trans "Unable to generate output from processed parts." %}'));
+                }
+
+                this.setNlpButtonLoading(buttonId, false);
+                this.aiRequestController = null;
+                this.activeAiJob = null;
+                this.lastAiResult = {
+                    task: isTranslation ? 'translation' : 'summarization',
+                    title: isTranslation
+                        ? this.t('translation', '{% trans "Translation" %}')
+                        : this.t('summarization', '{% trans "Summarization" %}'),
+                    meta: isTranslation
+                        ? this.t('translation_completed', '{% trans "Translation completed in current page." %}')
+                        : this.t('summary_generated', '{% trans "Summary generated in current page." %}'),
+                    output,
+                };
+                this.openAiResultOverlay();
+
+                const statusBox = document.getElementById('docviewerAiStatus');
+                if (statusBox) {
+                    statusBox.style.display = 'none';
+                    statusBox.innerHTML = '';
+                }
+            } catch (err) {
+                if (err?.name === 'AbortError') {
+                    return;
+                }
+                this.aiRequestController = null;
+                this.activeAiJob = null;
+                this.setNlpButtonLoading(buttonId, false);
+                const isNetworkFetchError = Boolean(
+                    err && (
+                        err.name === 'TypeError' ||
+                        String(err.message || '').toLowerCase().includes('failed to fetch')
+                    )
+                );
+                const rawErrorMessage = String(err?.message || '');
+                const loweredErrorMessage = rawErrorMessage.toLowerCase();
+                const isRateLimited = loweredErrorMessage.includes('rate limit') || loweredErrorMessage.includes('too many requests') || loweredErrorMessage.includes('429');
+                const message = isNetworkFetchError
+                    ? this.t('service_unreachable', '{% trans "Translation/Summarization service is unreachable. Please verify the /ts-ai nginx route and network connectivity, then retry." %}')
+                    : (isRateLimited
+                        ? this.t('rate_limit_reached', '{% trans "AI provider rate limit reached. Please wait a moment and retry." %}')
+                        : (rawErrorMessage || this.t('unable_process', '{% trans "Unable to process request." %}')));
+                this.showAiStatus('error', this.t('ai_error', '{% trans "AI Error" %}'), message);
+            }
         },
         
         hideAllContainers() {
@@ -1939,6 +3230,7 @@ if (typeof pdfjsLib !== 'undefined') {
             const response = await fetch(this.currentUrl);
             const text = await response.text();
             
+            this.currentText = text;
             document.getElementById('textViewer').textContent = text;
             this.hideLoading();
             document.getElementById('textContainer').style.display = 'block';
@@ -2087,6 +3379,8 @@ if (typeof pdfjsLib !== 'undefined') {
             .then(data => {
                 spinner.style.display = 'none';
                 if (data.success) {
+                    this.currentText = String(data.text || '').trim();
+                    this.languageSampleText = this.currentText.slice(0, 6000);
                     textArea.value = data.text;
                     metaInfo.textContent = data.filename
                         + '  •  ' + (data.word_count || 0).toLocaleString() + ' {% trans "words" %}'
@@ -2127,12 +3421,20 @@ if (typeof pdfjsLib !== 'undefined') {
             document.getElementById('convertTextOverlay').style.display = 'none';
         },
         
-        summarizeDoc() {
-            alert('{% trans "AI Summarization feature coming soon! This will generate an intelligent summary of the document." %}');
+        summarizeDoc(buttonElement) {
+            this.startAiJob('summarization', buttonElement);
         },
         
-        translateDoc() {
-            alert('{% trans "AI Translation feature coming soon! This will translate the document between Arabic and English." %}');
+        async translateDoc(buttonElement) {
+            const selection = await this.askTranslationPair();
+            if (selection === null) {
+                return;
+            }
+
+            this.startAiJob('translation', buttonElement, {
+                sourceLanguage: selection.source,
+                targetLanguage: selection.target,
+            });
         },
         
         askChatbot() {
@@ -2159,7 +3461,7 @@ if (typeof pdfjsLib !== 'undefined') {
     }
     
     // Global function for opening viewer
-    window.openDocumentViewer = (url, type) => DocViewer.open(url, type);
+    window.openDocumentViewer = (url, type, resourceId, resourceTitle, convertUrl) => DocViewer.open(url, type, resourceId, resourceTitle, convertUrl);
     window.DocViewer = DocViewer;
     
 })();

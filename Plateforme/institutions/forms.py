@@ -332,12 +332,65 @@ class InstitutionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self._ensure_default_countries()
+        self._ensure_default_specialties()
+
+        self.fields['country'].queryset = Country.objects.all().order_by('name_en')
+        self.fields['specialties'].queryset = Specialty.objects.all().order_by('name_en')
+
         # Get conditional labels based on current language
         labels = get_institution_bilingual_labels()
         self.fields['name_ar'].label = labels['name_ar']
         self.fields['name_en'].label = labels['name_en']
         self.fields['description_ar'].label = labels['description_ar']
         self.fields['description_en'].label = labels['description_en']
+
+    def _ensure_default_countries(self):
+        """Ensure create form always has a usable country list."""
+        defaults = [
+            {'code': 'DZ', 'name_en': 'Algeria', 'name_ar': 'الجزائر'},
+            {'code': 'MA', 'name_en': 'Morocco', 'name_ar': 'المغرب'},
+            {'code': 'TN', 'name_en': 'Tunisia', 'name_ar': 'تونس'},
+            {'code': 'EG', 'name_en': 'Egypt', 'name_ar': 'مصر'},
+            {'code': 'SA', 'name_en': 'Saudi Arabia', 'name_ar': 'المملكة العربية السعودية'},
+            {'code': 'AE', 'name_en': 'United Arab Emirates', 'name_ar': 'الإمارات العربية المتحدة'},
+            {'code': 'QA', 'name_en': 'Qatar', 'name_ar': 'قطر'},
+            {'code': 'JO', 'name_en': 'Jordan', 'name_ar': 'الأردن'},
+            {'code': 'LB', 'name_en': 'Lebanon', 'name_ar': 'لبنان'},
+            {'code': 'US', 'name_en': 'United States', 'name_ar': 'الولايات المتحدة'},
+            {'code': 'GB', 'name_en': 'United Kingdom', 'name_ar': 'المملكة المتحدة'},
+            {'code': 'FR', 'name_en': 'France', 'name_ar': 'فرنسا'},
+            {'code': 'DE', 'name_en': 'Germany', 'name_ar': 'ألمانيا'},
+            {'code': 'CA', 'name_en': 'Canada', 'name_ar': 'كندا'},
+        ]
+
+        for item in defaults:
+            Country.objects.get_or_create(
+                code=item['code'],
+                defaults={'name_en': item['name_en'], 'name_ar': item['name_ar']},
+            )
+
+    def _ensure_default_specialties(self):
+        """Ensure create form always has specialty choices when DB is empty."""
+        defaults = [
+            ('NLP', 'Natural Language Processing', 'معالجة اللغة الطبيعية'),
+            ('LLM', 'Large Language Models', 'النماذج اللغوية الكبيرة'),
+            ('ASR', 'Automatic Speech Recognition', 'التعرف التلقائي على الكلام'),
+            ('NMT', 'Machine Translation', 'الترجمة الآلية'),
+            ('NER', 'Named Entity Recognition', 'استخراج الكيانات المسماة'),
+            ('IR', 'Information Retrieval', 'استرجاع المعلومات'),
+            ('OCR', 'Optical Character Recognition', 'التعرف الضوئي على الحروف'),
+            ('RAG', 'Retrieval-Augmented Generation', 'التوليد المعزز بالاسترجاع'),
+            ('MLOPS', 'MLOps', 'هندسة تشغيل نماذج التعلم الآلي'),
+            ('CV', 'Computer Vision', 'الرؤية الحاسوبية'),
+        ]
+
+        for code, name_en, name_ar in defaults:
+            Specialty.objects.get_or_create(
+                code=code,
+                defaults={'name_en': name_en, 'name_ar': name_ar},
+            )
 
     def clean(self):
         """

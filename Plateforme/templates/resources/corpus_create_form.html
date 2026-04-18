@@ -1,1262 +1,804 @@
-﻿{% extends "base.html" %}
-{% load static crispy_forms_tags i18n %}
+{% extends "base.html" %}
+{% load static i18n %}
+{% get_current_language as CURRENT_LANGUAGE %}
 
-{% block title %}
-{% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "Create New Corpus" %}{% endif %} - {% trans "Resources" %}
-{% endblock %}
+{% block title %}{% trans "Create Corpus" %} - {% trans "Academic Platform" %}{% endblock %}
 
 {% block extra_styles %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
-/* ===== CSS VARIABLES - Modern Dark Theme ===== */
 :root {
-    --primary-color: #a78bfa;
-    --primary-dark: #8b5cf6;
-    --accent-color: #7c3aed;
-    --accent-pink: #ec4899;
-    --accent-cyan: #06b6d4;
-    --bg-dark: #0f1419;
-    --bg-darker: #0a0e14;
-    --bg-card: rgba(167, 139, 250, 0.05);
-    --bg-card-hover: rgba(167, 139, 250, 0.08);
-    --text-primary: #ffffff;
-    --text-secondary: #d1d5db;
+    --primary: #a78bfa;
+    --primary-strong: #8b5cf6;
+    --accent: #7c3aed;
+    --bg-main: #0f1419;
+    --bg-gradient: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    --surface: rgba(167, 139, 250, 0.04);
+    --surface-hover: rgba(167, 139, 250, 0.08);
+    --border: rgba(167, 139, 250, 0.18);
+    --text-main: #ffffff;
     --text-muted: #9ca3af;
-    --border-color: rgba(167, 139, 250, 0.2);
-    --border-light: rgba(167, 139, 250, 0.1);
-    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
-    /* Legacy variables for compatibility */
-    --primary-accent: #8B5CF6;
-    --primary-hover: #7C3AED;
-    --primary-purple: #7C3AED;
-    --surface-white: #18142b;
-    --surface-bg: #0A0B18;
-    --border-subtle: rgba(167, 139, 250, 0.16);
-    --border-focus: #8B5CF6;
-    --text-primary-legacy: #F8FAFC;
-    --text-secondary-legacy: #CBD5E1;
-    --text-muted-legacy: #94A3B8;
-    --radius: 8px;
-    --success: #059669;
-    --success-light: #ECFDF5;
-    --danger: #DC2626;
-    --teal: #0D9488;
-}
-
-* {
-    box-sizing: border-box;
+    --danger: #ef4444;
+    --radius: 12px;
+    --input-border-dark-violet: rgba(76, 29, 149, 0.88);
+    --input-border-dark-violet-soft: rgba(76, 29, 149, 0.72);
+    --input-focus-ring: rgba(109, 40, 217, 0.32);
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
-    background-attachment: fixed;
-    color: var(--text-primary);
+    background: var(--bg-main);
+    color: var(--text-main);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 html[dir="rtl"] body {
-    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: "Tajawal", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* ===== PAGE LAYOUT ===== */
-.corpus-form-page {
+.corpus-page {
     min-height: calc(100vh - 100px);
-    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
-    background-attachment: fixed;
-    padding: 1rem;
+    background: var(--bg-gradient);
+    padding: 2.75rem 1rem 3.5rem;
     position: relative;
     overflow-x: hidden;
 }
 
-.corpus-form-page::before {
-    content: '';
+.corpus-page::before {
+    content: "";
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        radial-gradient(circle at 20% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 85% 85%, rgba(124, 58, 237, 0.06) 0%, transparent 45%);
+    inset: 0;
     pointer-events: none;
-    z-index: 0;
+    background:
+        radial-gradient(circle at 18% 26%, rgba(167, 139, 250, 0.1) 0%, transparent 38%),
+        radial-gradient(circle at 85% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 44%);
 }
 
-.form-container {
-    max-width: 900px;
+.corpus-shell {
+    max-width: 920px;
     margin: 0 auto;
     position: relative;
     z-index: 1;
 }
 
-/* ===== MINIMAL PAGE HEADER (Simplified Hero) ===== */
-.page-hero {
-    margin-bottom: 2.5rem;
+.page-head {
     text-align: center;
+    margin-bottom: 2rem;
 }
 
-.page-hero::before {
-    display: none;
-}
-
-/* Breadcrumb */
-.breadcrumb {
+.breadcrumbs {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    font-size: 0.85rem;
-    color: rgba(255,255,255,0.5);
-    list-style: none;
-    padding: 0;
-    margin-left: 0;
     flex-wrap: wrap;
+    margin: 0 0 1.25rem;
+    padding: 0;
+    list-style: none;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
 }
 
-.breadcrumb a {
-    color: var(--primary-color);
+.breadcrumbs a {
+    color: var(--primary);
     text-decoration: none;
-    transition: color 0.2s ease;
     font-weight: 500;
 }
 
-.breadcrumb a:hover { 
-    color: var(--accent-cyan);
+.breadcrumbs a:hover {
+    color: #d8b4fe;
 }
 
-.breadcrumb .separator { 
-    color: rgba(255,255,255,0.3); 
-    font-size: 0.7rem;
-}
-
-.breadcrumb .current { 
-    color: rgba(255,255,255,0.8); 
-    font-weight: 600;
-}
-
-/* Hero Icon */
-.hero-icon-wrap {
-    width: 60px;
-    height: 60px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+.hero-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 0.9rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 1.75rem;
+    font-size: 1.8rem;
     color: white;
-    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.25);
-    transition: all 0.3s ease;
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.28);
 }
 
-.hero-icon-wrap::after {
-    display: none;
-}
-
-.hero-icon-wrap:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
-}
-
-.page-hero h1 {
+.page-head h1 {
+    margin: 0 0 0.45rem;
     font-size: 2rem;
     font-weight: 700;
-    color: white;
-    margin: 0 0 0.5rem;
     letter-spacing: -0.02em;
+    font-family: "Space Grotesk", "Inter", sans-serif;
 }
 
-.page-hero p {
-    color: rgba(255,255,255,0.6);
-    font-size: 0.9rem;
+.page-head p {
     margin: 0;
-    font-weight: 400;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.95rem;
 }
 
-/* Steps bar */
-.steps-bar {
-    display: none;
-}
-
-/* RTL Support */
-html[dir="rtl"] .form-group label { text-align: right; }
-html[dir="rtl"] .form-group input,
-html[dir="rtl"] .form-group textarea,
-html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
-html[dir="rtl"] .translation-toggle { flex-direction: row-reverse; }
-html[dir="rtl"] .translation-toggle-content { flex-direction: row-reverse; }
-html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; text-align: right; }
-html[dir="rtl"] .icon-file-preview { flex-direction: row-reverse; text-align: right; }
-html[dir="rtl"] .page-hero { text-align: right; }
-html[dir="rtl"] .page-hero .breadcrumb { justify-content: flex-end; }
-
-/* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
-.card {
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.03) 0%, rgba(124, 58, 237, 0.01) 100%);
-    border: 1px solid rgba(167, 139, 250, 0.12);
-    border-radius: 14px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+.form-card {
+    background: linear-gradient(145deg, rgba(40, 20, 78, 0.58), rgba(20, 12, 44, 0.9));
+    border: 1px solid rgba(124, 58, 237, 0.45);
+    border-radius: 16px;
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.22);
     overflow: hidden;
-    backdrop-filter: blur(8px);
-    transition: all 0.3s ease;
-    margin-bottom: 1.5rem;
 }
 
-.card:hover {
-    /* Minimal hover effect */
+.section {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(124, 58, 237, 0.28);
+    background: linear-gradient(180deg, rgba(36, 20, 70, 0.42), rgba(20, 12, 45, 0.42));
 }
 
-.card-header {
-    padding: 1.25rem;
-    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
-    background: transparent;
+.section:last-child {
+    border-bottom: 0;
+}
+
+.section-title {
     display: flex;
+    gap: 0.7rem;
     align-items: center;
-    gap: 0.75rem;
+    margin: 0 0 1.15rem;
 }
 
-.card-header-icon {
-    width: 40px;
-    height: 40px;
+.section-title i {
+    width: 36px;
+    height: 36px;
     border-radius: 10px;
-    display: flex;
+    background: rgba(167, 139, 250, 0.14);
+    color: var(--primary);
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
-    flex-shrink: 0;
 }
 
-.card-header-icon.blue { background: rgba(59, 130, 246, 0.1); color: #60A5FA; }
-.card-header-icon.purple { background: rgba(167, 139, 250, 0.1); color: #A78BFA; }
-.card-header-icon.teal { background: rgba(13, 148, 136, 0.1); color: #0D9488; }
-.card-header-icon.gray { background: rgba(71, 85, 105, 0.1); color: #94A3B8; }
-
-.card-header-text h2 {
+.section-title h2 {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
-    color: var(--text-primary);
 }
 
-.card-header-text p {
-    margin: 0.25rem 0 0;
-    font-size: 0.8rem;
+.section-title small {
+    display: block;
     color: var(--text-muted);
+    font-size: 0.8rem;
 }
 
-.card-body {
-    padding: 1.5rem;
+.field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
 }
 
-/* ===== FORM FIELDS ===== */
-.form-group { margin-bottom: 1.5rem; }
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
 
 .form-group label {
     display: block;
-    font-size: 0.9rem;
+    margin-bottom: 0.45rem;
+    font-size: 0.88rem;
     font-weight: 500;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
+    color: var(--text-main);
 }
 
-.form-group label .required { color: #ef4444; margin-left: 0.125rem; }
+.form-group .required {
+    color: var(--danger);
+}
 
-.form-group input[type="text"],
-.form-group input[type="url"],
-.form-group input[type="number"],
-.form-group textarea,
-.form-group select {
+.form-group input,
+.form-group select,
+.form-group textarea {
     width: 100%;
-    padding: 0.625rem 0.75rem;
-    font-size: 0.9rem;
-    border: 1px solid rgba(167, 139, 250, 0.12);
-    border-radius: 8px;
-    background: rgba(255,255,255,.05);
-    transition: all 0.2s ease;
-    color: var(--text-primary);
-    font-family: inherit;
+    background: rgba(25, 16, 50, 0.95);
+    border: 1px solid var(--input-border-dark-violet);
+    border-radius: 9px;
+    color: var(--text-main);
+    padding: 0.62rem 0.75rem;
+    font-size: 0.92rem;
+}
+
+.corpus-page .form-group input,
+.corpus-page .form-group select,
+.corpus-page .form-group textarea,
+.corpus-page .form-group .form-control {
+    background: rgba(25, 16, 50, 0.95) !important;
+    border-color: rgba(91, 33, 182, 0.95) !important;
+    color: #f8fafc !important;
+}
+
+.form-group input:hover,
+.form-group select:hover,
+.form-group textarea:hover {
+    border-color: var(--input-border-dark-violet-soft);
+}
+
+.form-group textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #6d28d9;
+    box-shadow: 0 0 0 2px var(--input-focus-ring);
 }
 
 .form-group input::placeholder,
 .form-group textarea::placeholder {
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.58);
 }
 
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: #a78bfa;
-    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.1);
-    background: rgba(255,255,255,.08);
-}
-
-.form-group input:hover,
-.form-group textarea:hover,
-.form-group select:hover { 
-    border-color: rgba(167, 139, 250, 0.18);
-}
-
-.form-group textarea {
-    min-height: 110px;
-    resize: vertical;
-    line-height: 1.5;
-}
-
+.form-group .helptext,
 .form-text {
-    display: block;
-    margin-top: 0.375rem;
-    font-size: 0.8125rem;
+    margin-top: 0.35rem;
     color: var(--text-muted);
+    font-size: 0.8rem;
 }
 
-/* Input with leading icon */
-.input-with-icon {
-    position: relative;
-}
-
-.input-with-icon .input-icon {
-    position: absolute;
-    left: 0.875rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 1rem;
-    pointer-events: none;
-}
-
-.input-with-icon input {
-    padding-left: 2.5rem;
-}
-
-html[dir="rtl"] .input-with-icon .input-icon { left: auto; right: 0.875rem; }
-html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 2.5rem; }
-
-/* URL validation */
-.url-valid { border-color: var(--success) !important; }
-.url-invalid { border-color: var(--danger) !important; }
-
-.url-feedback {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    margin-top: 0.375rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-}
-
-.url-feedback.valid { color: var(--success); }
-.url-feedback.invalid { color: var(--danger); }
-
-/* ===== CHAR COUNTER ===== */
-.char-counter-wrap { display: flex; justify-content: flex-end; margin-top: 0.375rem; }
-
-.char-counter {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    padding: 0.25rem 0.5rem;
-    background: rgba(167, 139, 250, 0.1);
-    border-radius: 6px;
-    border: 1px solid var(--border-light);
-}
-
-.char-counter.warn { 
-    color: #f97316; 
-    background: rgba(249, 115, 22, 0.1);
-    border-color: #f97316;
-}
-
-.char-counter.danger { 
-    color: var(--danger);
-    background: rgba(239, 68, 68, 0.1);
-    border-color: #DC2626;
-}
-
-/* Field Grid for Side-by-Side Inputs */
-.field-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-}
-
-@media (max-width: 768px) {
-    .field-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* Form Grid */
-.form-grid {
-    display: block;
-}
-
-/* Page Header */
-.page-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.page-header h1 {
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 0.25rem 0;
-    letter-spacing: -0.025em;
-}
-
-.page-header p {
-    color: var(--text-secondary);
-    font-size: 0.9375rem;
-    margin: 0;
-    font-weight: 400;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 640px) {
-    .page-hero h1 { font-size: 1.875rem; }
-    .page-hero { padding: 2rem 0; }
-    .form-container { padding: 0 1rem; }
-}
-.translation-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    background: linear-gradient(135deg, rgba(13, 148, 136, 0.12) 0%, rgba(13, 148, 136, 0.08) 100%);
-    border-radius: 10px;
-    margin-bottom: 1.5rem;
-    border: 1px solid rgba(13, 148, 136, 0.18);
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.translation-toggle:hover {
-    background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(13, 148, 136, 0.1) 100%);
-    border-color: rgba(13, 148, 136, 0.25);
-}
-
-.translation-toggle-content {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.translation-toggle-content i { 
-    font-size: 1.5rem; 
-    color: #0D9488;
-}
-
-.translation-toggle-content h4 {
-    margin: 0 0 0.125rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.translation-toggle-content p {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--text-muted);
-}
-
-.toggle-switch {
-    position: relative;
-    width: 48px;
-    height: 26px;
-    flex-shrink: 0;
-}
-
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-
-.toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    inset: 0;
-    background: rgba(255,255,255,.2);
-    border-radius: 999px;
-    transition: all 0.2s ease;
-}
-
-.toggle-slider::before {
-    position: absolute;
-    content: "";
-    height: 20px;
-    width: 20px;
-    left: 3px;
-    bottom: 3px;
-    background: rgba(255,255,255,.9);
-    border-radius: 50%;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-}
-
-.toggle-switch input:checked + .toggle-slider { background: var(--teal); }
-.toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
-
-/* Conditional fields - Arabic Content */
-.arabic-fields { display: none; }
-.arabic-fields.visible {
-    display: block;
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-/* Arabic section divider */
-.lang-divider {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 1.5rem 0 1.25rem;
-}
-
-.lang-divider-line { flex: 1; height: 1px; background: var(--border-light); }
-
-.lang-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.lang-badge.en { background: var(--primary-color); color: white; }
-.lang-badge.ar { background: #0D9488; color: white; }
-
-/* ===== ICON UPLOAD ZONE ===== */
-.icon-upload-zone {
-    border: 1.5px dashed rgba(167, 139, 250, 0.15);
-    border-radius: 8px;
-    padding: 1.5rem 1.25rem;
+.file-upload-shell {
+    border: 1px dashed rgba(167, 139, 250, 0.28);
+    border-radius: 14px;
+    background: radial-gradient(circle at 50% 0%, rgba(167, 139, 250, 0.08), rgba(255, 255, 255, 0.02));
+    padding: 1.4rem 1.1rem 1.1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     text-align: center;
-    transition: all 0.25s ease;
-    cursor: pointer;
-    background: rgba(167, 139, 250, 0.02);
-    position: relative;
 }
 
-.icon-upload-zone:hover {
-    border-color: rgba(167, 139, 250, 0.25);
-    background: rgba(167, 139, 250, 0.05);
+.file-upload-shell:hover {
+    border-color: rgba(167, 139, 250, 0.45);
+    background: radial-gradient(circle at 50% 0%, rgba(167, 139, 250, 0.14), rgba(255, 255, 255, 0.04));
 }
 
-.icon-upload-zone.drag-over {
-    border-color: #a78bfa;
-    border-style: solid;
-    background: rgba(167, 139, 250, 0.08);
-    transform: scale(1.01);
+.file-upload-shell.focused {
+    border-color: #6d28d9;
+    box-shadow: 0 0 0 2px var(--input-focus-ring);
 }
 
-.icon-upload-zone.has-file {
-    border-color: #10b981;
-    border-style: solid;
-    background: rgba(16, 185, 129, 0.05);
+.file-upload-shell.dragover {
+    border-color: #8b5cf6;
+    background: radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.2), rgba(255, 255, 255, 0.05));
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
 }
 
-.icon-upload-zone input[type="file"] {
+.file-input-native {
     position: absolute;
-    left: -9999px;
     width: 1px;
     height: 1px;
     opacity: 0;
     pointer-events: none;
 }
 
-.icon-preview-circle {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+.file-upload-row {
     display: flex;
     align-items: center;
+    gap: 0.65rem;
     justify-content: center;
-    font-size: 2rem;
-    color: white;
-    margin: 0 auto 1rem;
-    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
-    overflow: hidden;
-    transition: all 0.3s ease;
-}
-
-.icon-preview-circle img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: none;
-}
-
-.icon-upload-zone.has-file .icon-preview-circle {
-    box-shadow: 0 0 0 4px var(--success), 0 6px 20px rgba(16, 185, 129, 0.3);
-}
-
-.icon-upload-zone.has-file .icon-preview-circle i { display: none; }
-.icon-upload-zone.has-file .icon-preview-circle img { display: block; }
-
-.icon-upload-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.25rem;
-}
-
-.icon-upload-sub {
-    font-size: 0.8125rem;
-    color: var(--text-muted);
-    margin-bottom: 0.875rem;
-}
-
-.icon-upload-formats {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-top: 0.5rem;
-}
-
-.icon-file-preview {
-    display: none;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: rgba(167, 139, 250, 0.08);
-    border-radius: 10px;
-    margin-top: 1rem;
-    border: 1px solid var(--border-light);
-    text-align: left;
-}
-
-.icon-file-preview.visible { display: flex; }
-
-.icon-file-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--success);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    flex-shrink: 0;
-}
-
-.icon-file-info { flex: 1; min-width: 0; }
-.icon-file-name { 
-    font-size: 0.875rem; 
-    font-weight: 500; 
-    color: var(--text-primary); 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
-}
-.icon-file-size { 
-    font-size: 0.8125rem; 
-    color: var(--text-muted); 
-}
-
-.icon-file-remove {
-    padding: 0.375rem;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.15s;
-}
-
-.icon-file-remove:hover { 
-    background: rgba(239, 68, 68, 0.1); 
-    color: var(--danger); 
-}
-
-/* ===== KEYWORDS INPUT - CLEAN TAGS ===== */
-.keywords-container {
-    border: 1px solid var(--border-light);
-    border-radius: 10px;
-    padding: 0.5rem;
-    min-height: 48px;
-    display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    align-items: center;
-    background: rgba(255,255,255,.05);
-    transition: all 0.15s ease;
 }
 
-.keywords-container:focus-within {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15);
-}
-
-.keyword-pill {
+.file-upload-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    padding: 0.35rem 0.75rem;
-    background: var(--primary-color);
-    color: white;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    border-radius: 6px;
-}
-
-.keyword-pill .remove-keyword {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.keyword-pill .remove-keyword:hover {
-    background: rgba(255, 255, 255, 0.35);
-}
-
-.keyword-input {
-    flex: 1;
-    min-width: 140px;
-    border: none;
-    outline: none;
-    font-size: 0.875rem;
-    padding: 0.35rem;
-    background: transparent;
-    color: var(--text-primary);
-}
-
-/* ===== SUBMIT BUTTONS ===== */
-.btn-submit-wrapper {
-    margin-top: 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1.5rem;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(124, 58, 237, 0.02) 100%);
-    border-top: 1px solid rgba(167, 139, 250, 0.1);
-}
-
-.btn-submit {
-    width: 100%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
-    color: white;
-    font-weight: 600;
-    font-size: 0.9rem;
-    border: none;
+    gap: 0.45rem;
+    padding: 0.55rem 0.95rem;
     border-radius: 8px;
+    border: 1px solid rgba(167, 139, 250, 0.5);
+    color: #f3e8ff;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.65), rgba(91, 33, 182, 0.8));
+    font-size: 0.86rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.25s ease;
-    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.25);
+    white-space: nowrap;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.btn-submit:hover {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
-    transform: translateY(-1px);
-}
-
-.btn-submit:active { 
-    transform: translateY(0) scale(0.98); 
-}
-
-.btn-submit:disabled { 
-    opacity: 0.5; 
-    cursor: not-allowed; 
-    transform: none; 
-}
-
-.btn-submit .spinner {
-    display: none;
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
+.upload-hero-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 0.85rem;
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-.btn-submit.loading .spinner { display: block; }
-.btn-submit.loading .btn-text { display: none; }
-.btn-submit.loading .btn-icon { display: none; }
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.btn-cancel {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: #fff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: rgba(255,255,255,.05);
-    color: var(--text-secondary);
-    font-weight: 500;
-    font-size: 0.9rem;
-    border: 1px solid rgba(167, 139, 250, 0.12);
-    border-radius: 8px;
-    text-decoration: none;
-    transition: all 0.25s ease;
-    width: 100%;
+    font-size: 1.7rem;
+    box-shadow: 0 10px 24px rgba(124, 58, 237, 0.34);
 }
 
-.btn-cancel:hover {
-    border-color: rgba(167, 139, 250, 0.2);
-    color: var(--primary-color);
-    background: rgba(167, 139, 250, 0.06);
+.upload-headline {
+    margin: 0 0 0.25rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.96);
 }
 
-/* ===== ERROR ALERT ===== */
-.alert {
-    padding: 1rem 1.25rem;
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
+.upload-subline {
+    margin: 0 0 1rem;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.88rem;
+}
+
+.file-upload-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(124, 58, 237, 0.25);
+}
+
+.file-upload-name {
+    display: block;
+    min-width: 0;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.85rem;
+}
+
+.file-upload-name.empty {
+    color: var(--text-muted);
+}
+
+.file-upload-meta {
+    margin-top: 0.55rem;
     display: flex;
-    gap: 1rem;
-    align-items: flex-start;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
 }
 
-.alert-error {
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    color: #FCA5A5;
+html[dir="rtl"] .file-upload-row {
+    flex-direction: row-reverse;
 }
 
-.alert-icon { 
-    font-size: 1.25rem; 
-    flex-shrink: 0; 
-    margin-top: 0.125rem;
-    color: #DC2626;
+.error-box {
+    margin: 0.6rem 0 0;
+    padding: 0.45rem 0.6rem;
+    border-radius: 7px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(127, 29, 29, 0.25);
+    color: #fecaca;
+    font-size: 0.82rem;
 }
 
-.alert-content h4 {
-    margin: 0 0 0.5rem;
-    font-size: 0.95rem;
+.global-errors {
+    margin: 1.25rem 1.5rem 0;
+    padding: 0.85rem 0.95rem;
+    border-radius: 10px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(127, 29, 29, 0.22);
+    color: #fecaca;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.7rem;
+    padding: 1.25rem 1.5rem 1.5rem;
+    border-top: 1px solid rgba(167, 139, 250, 0.12);
+    background: rgba(10, 14, 20, 0.45);
+}
+
+.btn-link-muted,
+.btn-primary-violet {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.62rem 1rem;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    text-decoration: none;
     font-weight: 600;
-    color: #FCA5A5;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.alert-content ul { 
-    margin: 0; 
-    padding-left: 1.25rem; 
-    font-size: 0.875rem; 
+.btn-link-muted {
+    background: transparent;
+    color: #d1d5db;
+    border-color: rgba(209, 213, 219, 0.25);
 }
 
-.alert-content li { margin-bottom: 0.25rem; }
+.btn-link-muted:hover {
+    color: white;
+    border-color: rgba(209, 213, 219, 0.4);
+}
 
+.btn-primary-violet {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.08);
+}
 
+.btn-primary-violet:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(124, 58, 237, 0.35);
+}
+
+.review-note {
+    margin: 0 1.5rem 1rem;
+    padding: 0.85rem 0.95rem;
+    border-radius: 10px;
+    background: rgba(49, 26, 96, 0.72);
+    border: 1px solid rgba(124, 58, 237, 0.5);
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 0.88rem;
+}
+
+.section-title i,
+.hero-icon {
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
+}
+
+html[dir="rtl"] .section-title,
+html[dir="rtl"] .form-group label,
+html[dir="rtl"] .form-text,
+html[dir="rtl"] .review-note {
+    text-align: right;
+}
+
+@media (max-width: 768px) {
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .btn-link-muted,
+    .btn-primary-violet {
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+html[dir="rtl"] .form-actions {
+    justify-content: flex-start;
+}
 </style>
 {% endblock %}
 
 {% block content %}
-
-<!-- ===== DARK HERO HEADER ===== -->
-<!-- ===== FORM BODY ===== -->
-<div class="corpus-form-page">
-    <div class="page-hero">
-        <!-- Breadcrumb -->
-        <ol class="breadcrumb">
-            <li><a href="{% url 'resources:corpus_list' %}">{% trans "Resources" %}</a></li>
-            <li><span class="separator"><i class="bi bi-chevron-left"></i></span></li>
-            <li class="current">{% if object %}{% trans "Edit Corpus" %}{% else %}{% trans "New Corpus" %}{% endif %}</li>
-        </ol>
-
-        <!-- Icon -->
-        <div class="hero-icon-wrap">
-            <i class="bi bi-book"></i>
-        </div>
-
-        <!-- Title -->
-        <h1>{% if object %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل المدونة{% else %}{% trans "Edit Corpus" %}{% endif %}{% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة مدونة جديدة{% else %}{% trans "Add New Corpus" %}{% endif %}{% endif %}</h1>
-        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}شارك مدونتك مع مجتمع البحث في المنصة{% else %}{% trans "Share your corpus with the research community" %}{% endif %}</p>
-
-        <!-- Steps bar (decorative) -->
-        <div class="steps-bar">
-            <div class="step-item active">
-                <span class="step-number">1</span>
-                {% trans "Basic Information" %}
+<div class="corpus-page">
+    <div class="corpus-shell">
+        <header class="page-head">
+            <ul class="breadcrumbs">
+                <li><a href="{% url 'resources:list' %}">{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}الموارد{% else %}{% trans "Resources" %}{% endif %}</a></li>
+                <li><i class="bi bi-chevron-right" aria-hidden="true"></i></li>
+                <li><a href="{% url 'resources:corpus_list' %}">{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}المدونات{% else %}{% trans "Corpora" %}{% endif %}</a></li>
+                <li><i class="bi bi-chevron-right" aria-hidden="true"></i></li>
+                <li>{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}إنشاء{% else %}{% trans "Create" %}{% endif %}</li>
+            </ul>
+            <div class="hero-icon">
+                <i class="bi bi-collection"></i>
             </div>
-            <div class="step-item">
-                <span class="step-number">2</span>
-                {% trans "Details" %}
-            </div>
-            <div class="step-item">
-                <span class="step-number">3</span>
-                {% trans "Review" %}
-            </div>
-        </div>
-    </div>
+            <h1>{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}إنشاء المدونة{% else %}{% trans "Create Corpus" %}{% endif %}</h1>
+            <p>{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}أضف مدونة ببيانات وصفية ثنائية اللغة مع ملف مصدر اختياري.{% else %}{% trans "Add a corpus with bilingual metadata and optional source file." %}{% endif %}</p>
+        </header>
 
-    <div class="form-container">
-
-        <form method="post" enctype="multipart/form-data" id="corpus-form" novalidate>
+        <form method="post" enctype="multipart/form-data" class="form-card" novalidate>
             {% csrf_token %}
             <input type="hidden" name="resource_type" value="corpus">
 
-            <!-- Errors -->
-            {% if form.errors or form.non_field_errors %}
-            <div class="alert alert-error" role="alert">
-                <div class="alert-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
-                <div class="alert-content">
-                    <h4>{% trans "Please correct the following errors:" %}</h4>
-                    {% if form.non_field_errors %}
-                        <ul>{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.errors %}
-                        <ul>
-                        {% for field, errors in form.errors.items %}
-                            {% if field != '__all__' %}
-                                {% for error in errors %}
-                                    <li><strong>{{ field }}:</strong> {{ error }}</li>
-                                {% endfor %}
-                            {% endif %}
-                        {% endfor %}
-                        </ul>
-                    {% endif %}
-                </div>
+            {% if form.non_field_errors %}
+            <div class="global-errors">
+                {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
             </div>
             {% endif %}
 
-            <!-- ===== CARD 1: CORPUS IDENTITY ===== -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-header-icon blue"><i class="bi bi-book"></i></div>
-                    <div class="card-header-text">
-                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}هوية المدونة{% else %}{% trans "Corpus Identity" %}{% endif %}</h2>
-                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الاسم، المجال، اللغة، والوصف{% else %}{% trans "Name, field of study, language and description" %}{% endif %}</p>
-                    </div>
-                </div>
-                <div class="card-body">
-
-                    <!-- Title English -->
-                    <div class="form-group">
-                        <label for="id_title_en">{% trans "Title (English)" %} <span class="required">*</span></label>
-                        {{ form.title_en }}
-                    </div>
-
-                    <!-- Language & Field Row -->
-                    <div class="field-row">
-                        <div class="form-group">
-                            <label for="id_language">{% trans "Language" %} <span class="required">*</span></label>
-                            {{ form.language }}
-                        </div>
-                        <div class="form-group">
-                            <label for="id_corpus_field">{% trans "Field of Study" %} <span class="required">*</span></label>
-                            {{ form.corpus_field }}
-                        </div>
-                    </div>
-
-                    <!-- Description English -->
-                    <div class="form-group">
-                        <label for="id_description_en">{% trans "Description (English)" %}</label>
-                        {{ form.description_en }}
-                        <div class="char-counter-wrap">
-                            <span class="char-counter" id="en-counter">0 / 2000</span>
-                        </div>
-                    </div>
-
-                    <!-- Keywords -->
-                    <div class="form-group">
-                        <label for="id_keywords">{% trans "Keywords" %}</label>
-                        {{ form.keywords }}
-                        <span class="form-text">{% trans "Comma-separated keywords to help users discover your corpus" %}</span>
-                    </div>
-
-                </div>
+            <div class="review-note">
+                <i class="bi bi-shield-check" aria-hidden="true"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}جميع المدونات الجديدة تُرسل للمراجعة قبل أن تصبح عامة.{% else %}{% trans "All new corpora are submitted for moderation before they become public." %}{% endif %}
             </div>
 
-            <!-- ===== CARD 2: CORPUS FILE ===== -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-header-icon purple"><i class="bi bi-cloud-arrow-up"></i></div>
-                    <div class="card-header-text">
-                        <h2>{% trans "Corpus File" %}</h2>
-                        <p>{% trans "Upload your corpus data file (max 50MB)" %}</p>
+            <section class="section">
+                <div class="section-title">
+                    <i class="bi bi-type"></i>
+                    <div>
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}العنوان والوصف{% else %}{% trans "Title and Description" %}{% endif %}</h2>
+                        <small>{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}قدّم نسخة لغوية واحدة على الأقل للعنوان والوصف.{% else %}{% trans "Provide at least one language version for title and description." %}{% endif %}</small>
                     </div>
                 </div>
-                <div class="card-body">
 
-                    <!-- Upload File -->
+                <div class="field-row">
                     <div class="form-group">
-                        <label for="file-input">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رفع الملف{% else %}{% trans "Upload Document" %}{% endif %}</label>
-                        <div class="icon-upload-zone" id="icon-upload-zone">
-                            <div class="icon-preview-circle" id="icon-preview-circle">
-                                <i class="bi bi-cloud-arrow-up"></i>
-                            </div>
-                            <div class="icon-upload-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسحب ملف المدونة وأفلته هنا{% else %}{% trans "Drag & drop your corpus file" %}{% endif %}</div>
-                            <div class="icon-upload-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أو اضغط للاختيار{% else %}{% trans "or click to browse" %}{% endif %}</div>
-                            <div class="icon-upload-formats">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كل أنواع الملفات · الحد الأقصى 50MB{% else %}All file types · 50MB max{% endif %}</div>
-                            <input type="file" id="icon-input" name="uploaded_file" accept="*/*" aria-label="{% trans 'Choose file' %}">
-                        </div>
-                        <div class="icon-file-preview" id="icon-file-preview">
-                            <div class="icon-file-icon"><i class="bi bi-file-earmark-check"></i></div>
-                            <div class="icon-file-info">
-                                <div class="icon-file-name" id="icon-file-name">filename.txt</div>
-                                <div class="icon-file-size" id="icon-file-size">0 KB</div>
-                            </div>
-                            <button type="button" class="icon-file-remove" id="icon-file-remove">
-                                <i class="bi bi-x-lg"></i>
+                        <label for="{{ form.title_en.id_for_label }}">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}العنوان (بالإنجليزية){% else %}{% trans "Title (English)" %}{% endif %}</label>
+                        {{ form.title_en }}
+                        {% if form.title_en.errors %}
+                        <div class="error-box">{{ form.title_en.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.title_ar.id_for_label }}">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}العنوان (بالعربية){% else %}{% trans "Title (Arabic)" %}{% endif %}</label>
+                        {{ form.title_ar }}
+                        {% if form.title_ar.errors %}
+                        <div class="error-box">{{ form.title_ar.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="form-group">
+                        <label for="{{ form.description_en.id_for_label }}">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}الوصف (بالإنجليزية){% else %}{% trans "Description (English)" %}{% endif %}</label>
+                        {{ form.description_en }}
+                        {% if form.description_en.errors %}
+                        <div class="error-box">{{ form.description_en.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.description_ar.id_for_label }}">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}الوصف (بالعربية){% else %}{% trans "Description (Arabic)" %}{% endif %}</label>
+                        {{ form.description_ar }}
+                        {% if form.description_ar.errors %}
+                        <div class="error-box">{{ form.description_ar.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-title">
+                    <i class="bi bi-sliders"></i>
+                    <div>
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}بيانات المدونة{% else %}{% trans "Corpus Metadata" %}{% endif %}</h2>
+                        <small>{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}حدّد مجال المدونة واللغة وتفاصيل الإتاحة.{% else %}{% trans "Set the corpus domain, language and discoverability details." %}{% endif %}</small>
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="form-group">
+                        <label for="{{ form.corpus_field.id_for_label }}">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}المجال الدراسي{% else %}{% trans "Field of Study" %}{% endif %} <span class="required">*</span></label>
+                        {{ form.corpus_field }}
+                        {% if form.corpus_field.errors %}
+                        <div class="error-box">{{ form.corpus_field.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.language.id_for_label }}">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}اللغة{% else %}{% trans "Language" %}{% endif %} <span class="required">*</span></label>
+                        {{ form.language }}
+                        {% if form.language.errors %}
+                        <div class="error-box">{{ form.language.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="form-group">
+                        <label for="{{ form.keywords.id_for_label }}">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}الكلمات المفتاحية{% else %}{% trans "Keywords" %}{% endif %}</label>
+                        {{ form.keywords }}
+                        {% if form.keywords.help_text %}
+                        <div class="form-text">{{ form.keywords.help_text }}</div>
+                        {% endif %}
+                        {% if form.keywords.errors %}
+                        <div class="error-box">{{ form.keywords.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.access_link.id_for_label }}">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}رابط الوصول{% else %}{% trans "Access Link" %}{% endif %}</label>
+                        {{ form.access_link }}
+                        {% if form.access_link.errors %}
+                        <div class="error-box">{{ form.access_link.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-title">
+                    <i class="bi bi-file-earmark-arrow-up"></i>
+                    <div>
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}رفع الملف{% else %}{% trans "File Upload" %}{% endif %}</h2>
+                        <small>{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}أرفق ملفًا مصدريًا إذا أردت حفظ وثيقة المدونة مباشرة.{% else %}{% trans "Attach a source file if you want to store the corpus document directly." %}{% endif %}</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.uploaded_file.id_for_label }}">{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}ملف المدونة{% else %}{% trans "Corpus File" %}{% endif %}</label>
+                    <div class="file-upload-shell" id="corpusFileShell">
+                        {{ form.uploaded_file }}
+                        <div class="upload-hero-icon" aria-hidden="true"><i class="bi bi-cloud-arrow-up"></i></div>
+                        <p class="upload-headline">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}أسقط الملف هنا أو انقر للرفع{% else %}{% trans "Drop file here or click to upload" %}{% endif %}</p>
+                        <p class="upload-subline">{% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}يدعم كل أنواع الملفات (الحد الأقصى 50MB){% else %}{% trans "Supports all file types (max 50MB)" %}{% endif %}</p>
+                        <div class="file-upload-row">
+                            <button type="button" class="file-upload-btn" id="corpusImageBtn">
+                                <i class="bi bi-image"></i>
+                                {% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}إضافة صورة{% else %}{% trans "Add image" %}{% endif %}
+                            </button>
+                            <button type="button" class="file-upload-btn" id="corpusFileBtn">
+                                <i class="bi bi-paperclip"></i>
+                                {% if CURRENT_LANGUAGE|slice:":2" == 'ar' %}إرفاق ملف{% else %}{% trans "Attach file" %}{% endif %}
                             </button>
                         </div>
-                    </div>
-
-                    <!-- Access Link -->
-                    <div class="form-group">
-                        <label for="id_access_link">{% trans "Access Link" %}</label>
-                        <div class="input-with-icon">
-                            <i class="bi bi-link-45deg input-icon"></i>
-                            {{ form.access_link }}
+                        <span id="corpusFileName" class="file-upload-name empty">{% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}لم يتم اختيار ملف{% else %}{% trans "No file selected" %}{% endif %}</span>
+                        <div class="file-upload-meta">
+                            <i class="bi bi-info-circle"></i>
+                            {% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}ارفع أي نوع ملف (الحد الأقصى 50MB){% else %}{% trans "Upload any file type (max 50MB)" %}{% endif %}
                         </div>
-                        <div id="access-feedback"></div>
-                        <span class="form-text">{% trans "External URL where the corpus can be accessed (optional)" %}</span>
                     </div>
-
+                    {% if form.uploaded_file.help_text %}
+                    <div class="form-text">
+                        {% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}
+                        ارفع أي نوع ملف (الحد الأقصى 50MB)
+                        {% else %}
+                        {{ form.uploaded_file.help_text }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if form.uploaded_file.errors %}
+                    <div class="error-box">{{ form.uploaded_file.errors|striptags }}</div>
+                    {% endif %}
                 </div>
+            </section>
+
+            <div class="form-actions">
+                <a class="btn-link-muted" href="{% url 'resources:corpus_list' %}">
+                    <i class="bi bi-arrow-left"></i>
+                    {% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}
+                </a>
+                <button type="submit" class="btn-primary-violet">
+                    <i class="bi bi-check2-circle"></i>
+                    {% if request.LANGUAGE_CODE|slice:":2" == 'ar' %}إنشاء المدونة{% else %}{% trans "Create Corpus" %}{% endif %}
+                </button>
             </div>
-
-            <!-- ===== CARD 3: MULTILINGUAL CONTENT ===== -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-header-icon teal"><i class="bi bi-translate"></i></div>
-                    <div class="card-header-text">
-                        <h2>{% trans "Multilingual Content" %}</h2>
-                        <p>{% trans "Add Arabic translations for your corpus information" %}</p>
-                    </div>
-                </div>
-                <div class="card-body">
-
-                    <!-- Arabic Translation Toggle -->
-                    <div class="translation-toggle">
-                        <div class="translation-toggle-content">
-                            <i class="bi bi-globe2"></i>
-                            <div>
-                                <h4>{% trans "Arabic Translation" %}</h4>
-                                <p>{% trans "Enable to add Arabic title & description" %}</p>
-                            </div>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="arabic-toggle">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-
-                    <!-- Arabic fields (conditional) -->
-                    <div class="arabic-fields" id="arabic-fields">
-                        <div class="lang-divider">
-                            <span class="lang-badge ar">AR</span>
-                            <div class="lang-divider-line"></div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="id_title_ar">{% trans "Title (Arabic)" %}</label>
-                            {{ form.title_ar }}
-                        </div>
-
-                        <div class="form-group">
-                            <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
-                            {{ form.description_ar }}
-                            <div class="char-counter-wrap">
-                                <span class="char-counter" id="ar-counter">0 / 2000</span>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Submit inside card footer -->
-                <div class="btn-submit-wrapper">
-                    <button type="submit" class="btn-submit" id="submit-btn">
-                        <span class="spinner"></span>
-                        <i class="bi bi-check2 btn-icon"></i>
-                        <span class="btn-text">
-                            {% if object %}{% trans "Update Corpus" %}{% else %}{% trans "Submit Corpus" %}{% endif %}
-                        </span>
-                    </button>
-                    <a href="{% url 'resources:corpus_list' %}" class="btn-cancel">
-                        <i class="bi bi-x"></i>
-                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}
-                    </a>
-                </div>
-            </div>
-
         </form>
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function () {
+    const isArabicPage = "{{ request.LANGUAGE_CODE|slice:':2' }}" === "ar" || document.documentElement.dir === "rtl";
+    const fileInput = document.getElementById("{{ form.uploaded_file.id_for_label }}");
+    const fileShell = document.getElementById("corpusFileShell");
+    const fileName = document.getElementById("corpusFileName");
+    const attachBtn = document.getElementById("corpusFileBtn");
+    const imageBtn = document.getElementById("corpusImageBtn");
 
-    // ===== Arabic Toggle =====
-    const arabicToggle = document.getElementById('arabic-toggle');
-    const arabicFields = document.getElementById('arabic-fields');
+    if (isArabicPage) {
+        const titleEn = document.querySelector('input[name="title_en"]');
+        const titleAr = document.querySelector('input[name="title_ar"]');
+        const descEn = document.querySelector('textarea[name="description_en"]');
+        const descAr = document.querySelector('textarea[name="description_ar"]');
+        const keywords = document.querySelector('input[name="keywords"]');
+        const accessLink = document.querySelector('input[name="access_link"]');
 
-    if (arabicToggle && arabicFields) {
-        arabicToggle.addEventListener('change', function() {
-            arabicFields.classList.toggle('visible', this.checked);
-        });
-    }
+        if (titleEn) titleEn.placeholder = "أدخل العنوان بالإنجليزية";
+        if (titleAr) titleAr.placeholder = "أدخل العنوان بالعربية";
+        if (descEn) descEn.placeholder = "أدخل الوصف بالإنجليزية";
+        if (descAr) descAr.placeholder = "أدخل الوصف بالعربية";
+        if (keywords) keywords.placeholder = "أدخل الكلمات المفتاحية";
+        if (accessLink) accessLink.placeholder = "أدخل رابط الوصول";
 
-    // ===== FILE UPLOAD - VERSION CORRIGÉE =====
-    (function initIconUpload() {
-        const iconZone = document.getElementById('icon-upload-zone');
-        const iconInput = document.getElementById('icon-input');
-        const iconPreviewCircle = document.getElementById('icon-preview-circle');
-        const iconFilePreview = document.getElementById('icon-file-preview');
-        const iconFileName = document.getElementById('icon-file-name');
-        const iconFileSize = document.getElementById('icon-file-size');
-        const iconFileRemove = document.getElementById('icon-file-remove');
-
-        if (!iconZone || !iconInput) return;
-        
-        // Évite la double initialisation
-        if (iconZone._iconUploadInitialized) return;
-        iconZone._iconUploadInitialized = true;
-
-        // Fonction pour formater la taille du fichier
-        function formatSize(bytes) {
-            if (!bytes || bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        // Fonction pour afficher le fichier sélectionné
-        function showIcon(file) {
-            if (!file) return;
-            
-            iconFileName.textContent = file.name;
-            iconFileSize.textContent = formatSize(file.size);
-            iconZone.classList.add('has-file');
-            iconFilePreview.classList.add('visible');
-        }
-
-        // Fonction pour effacer le fichier
-        function clearIcon() {
-            iconInput.value = '';
-            iconZone.classList.remove('has-file', 'drag-over');
-            iconFilePreview.classList.remove('visible');
-        }
-
-        // ===== DRAG & DROP =====
-        iconZone.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            iconZone.classList.add('drag-over');
-        });
-
-        iconZone.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            iconZone.classList.remove('drag-over');
-        });
-
-        iconZone.addEventListener('drop', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            iconZone.classList.remove('drag-over');
-
-            const file = e.dataTransfer.files[0];
-            if (file) {
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                iconInput.files = dataTransfer.files;
-                showIcon(file);
+        document.querySelectorAll('.form-text, .helptext').forEach((el) => {
+            const txt = (el.textContent || '').trim();
+            if (!txt) return;
+            if (/comma|separate|keywords/i.test(txt)) {
+                el.textContent = "افصل الكلمات المفتاحية بفواصل.";
+            }
+            if (/http|https|url|link/i.test(txt)) {
+                el.textContent = "أدخل رابطًا صحيحًا يبدأ بـ http:// أو https://";
             }
         });
 
-        // Gérer le clic sur la zone d'upload
-        iconZone.addEventListener('click', function(e) {
-            // Don't open dialog if clicking the remove button
-            if (e.target.closest('.icon-file-remove')) {
-                return;
-            }
-            
-            iconInput.click();
-        });
+        // Safety net: convert any remaining known English UI fragments to Arabic on this page.
+        const replacementMap = [
+            ["Add a corpus with bilingual metadata and optional source file.", "أضف مدونة ببيانات وصفية ثنائية اللغة مع ملف مصدر اختياري."],
+            ["All new corpora are submitted for moderation before they become public.", "جميع المدونات الجديدة تُرسل للمراجعة قبل أن تصبح عامة."],
+            ["Title and Description", "العنوان والوصف"],
+            ["Provide at least one language version for title and description.", "قدّم نسخة لغوية واحدة على الأقل للعنوان والوصف."],
+            ["Corpus Metadata", "بيانات المدونة"],
+            ["Set the corpus domain, language and discoverability details.", "حدّد مجال المدونة واللغة وتفاصيل الإتاحة."],
+            ["File Upload", "رفع الملف"],
+            ["Attach a source file if you want to store the corpus document directly.", "أرفق ملفًا مصدريًا إذا أردت حفظ وثيقة المدونة مباشرة."],
+            ["Field of Study", "المجال الدراسي"],
+            ["Language", "اللغة"],
+            ["Keywords", "الكلمات المفتاحية"],
+            ["Access Link", "رابط الوصول"],
+            ["Drop file here or click to upload", "أسقط الملف هنا أو انقر للرفع"],
+            ["Supports all file types (max 50MB)", "يدعم كل أنواع الملفات (الحد الأقصى 50MB)"],
+            ["Add image", "إضافة صورة"],
+            ["Attach file", "إرفاق ملف"],
+            ["No file selected", "لم يتم اختيار ملف"],
+            ["Create Corpus", "إنشاء المدونة"],
+            ["Cancel", "إلغاء"],
+            ["Resources", "الموارد"],
+            ["Corpora", "المدونات"],
+            ["Create", "إنشاء"]
+        ];
 
-        iconInput.addEventListener('change', function() {
-            if (this.files.length) {
-                showIcon(this.files[0]);
-            }
-        });
-
-        // Gérer le bouton de suppression
-        if (iconFileRemove) {
-            iconFileRemove.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                clearIcon();
+        const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+        const textNodes = [];
+        while (walk.nextNode()) textNodes.push(walk.currentNode);
+        textNodes.forEach((node) => {
+            const original = node.nodeValue;
+            if (!original || !original.trim()) return;
+            let updated = original;
+            replacementMap.forEach(([en, ar]) => {
+                if (updated.includes(en)) {
+                    updated = updated.replaceAll(en, ar);
+                }
             });
-        }
-
-    })();
-
-    // ===== URL Validation =====
-    function validateUrl(inputEl, feedbackEl) {
-        const val = inputEl.value.trim();
-        const pattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$/;
-
-        inputEl.classList.remove('url-valid', 'url-invalid');
-        if (feedbackEl) feedbackEl.innerHTML = '';
-
-        if (!val) return;
-
-        if (pattern.test(val)) {
-            inputEl.classList.add('url-valid');
-            if (feedbackEl) {
-                feedbackEl.innerHTML = '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> Valid URL</span>';
+            if (updated !== original) {
+                node.nodeValue = updated;
             }
+        });
+    }
+
+    if (!fileInput || !fileName || !fileShell) return;
+
+    fileInput.classList.add("file-input-native");
+
+    const updateFileName = () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (file && file.name) {
+            fileName.textContent = file.name;
+            fileName.classList.remove("empty");
         } else {
-            inputEl.classList.add('url-invalid');
-            if (feedbackEl) {
-                feedbackEl.innerHTML = '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> Please enter a valid URL (https://...)</span>';
-            }
+            fileName.textContent = "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}لم يتم اختيار ملف{% else %}{% trans 'No file selected' %}{% endif %}";
+            fileName.classList.add("empty");
         }
-    }
+    };
 
-    const accessInput = document.getElementById('id_access_link');
-    const accessFeedback = document.getElementById('access-feedback');
+    fileInput.addEventListener("change", updateFileName);
+    fileInput.addEventListener("focus", () => fileShell.classList.add("focused"));
+    fileInput.addEventListener("blur", () => fileShell.classList.remove("focused"));
 
-    if (accessInput) accessInput.addEventListener('input', function() { validateUrl(accessInput, accessFeedback); });
-    if (accessInput && accessInput.value) validateUrl(accessInput, accessFeedback);
-
-    // ===== Character Counters =====
-    function setupCounter(textareaId, counterId, max) {
-        const ta = document.getElementById(textareaId);
-        const ct = document.getElementById(counterId);
-        if (!ta || !ct) return;
-
-        function update() {
-            const len = ta.value.length;
-            const pct = (len / max) * 100;
-            ct.textContent = len + ' / ' + max;
-            ct.classList.remove('warn', 'danger');
-            if (pct >= 90) ct.classList.add('danger');
-            else if (pct >= 75) ct.classList.add('warn');
+    const openChooser = (acceptValue) => {
+        if (acceptValue) {
+            fileInput.setAttribute("accept", acceptValue);
+        } else {
+            fileInput.setAttribute("accept", "*/*");
         }
+        fileInput.click();
+    };
 
-        ta.addEventListener('input', update);
-        update();
-    }
+    attachBtn?.addEventListener("click", () => openChooser("*/*"));
+    imageBtn?.addEventListener("click", () => openChooser("image/*"));
 
-    setupCounter('id_description_en', 'en-counter', 2000);
-    setupCounter('id_description_ar', 'ar-counter', 2000);
+    fileShell.addEventListener("click", (e) => {
+        const target = e.target;
+        if (target.closest("button")) return;
+        openChooser("*/*");
+    });
 
-});
+    ["dragenter", "dragover"].forEach((eventName) => {
+        fileShell.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileShell.classList.add("dragover");
+        });
+    });
+
+    ["dragleave", "dragend", "drop"].forEach((eventName) => {
+        fileShell.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileShell.classList.remove("dragover");
+        });
+    });
+
+    fileShell.addEventListener("drop", (e) => {
+        const files = e.dataTransfer?.files;
+        if (!files || !files.length) return;
+        fileInput.files = files;
+        updateFileName();
+    });
+
+    updateFileName();
+})();
 </script>
 {% endblock %}

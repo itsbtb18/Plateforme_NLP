@@ -115,6 +115,11 @@ html[dir="rtl"] body {
     transform: translateY(-2px);
 }
 
+.pd-card.pd-share-open,
+.pd-card.pd-share-open:hover {
+    transform: none !important;
+}
+
 .pd-card-accent {
     height: 4px;
     width: 100%;
@@ -234,6 +239,64 @@ html[dir="rtl"] body {
     border: 1px solid var(--border-light);
 }
 
+.pd-file-link {
+    margin-top: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgba(167, 139, 250, 0.28);
+    background: rgba(124, 58, 237, 0.1);
+    color: #ddd6fe;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 700;
+    max-width: 100%;
+}
+
+.pd-file-actions {
+    margin-top: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.pd-view-doc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.62rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid rgba(167, 139, 250, 0.34);
+    background: rgba(124, 58, 237, 0.13);
+    color: #ede9fe;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pd-view-doc-btn:hover {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: rgba(167, 139, 250, 0.5);
+    color: #f5f3ff;
+}
+
+.pd-file-link:hover {
+    color: #f5f3ff;
+    border-color: rgba(167, 139, 250, 0.48);
+    background: rgba(124, 58, 237, 0.18);
+}
+
+.pd-file-link-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
 .pd-stats {
     display: flex;
     gap: 1.5rem;
@@ -319,6 +382,8 @@ html[dir="rtl"] body {
 
 .pd-share-menu {
     position: fixed;
+    left: 50%;
+    top: 50%;
     min-width: 240px;
     background: linear-gradient(135deg, rgba(26,26,46,.95), rgba(26,26,46,.98));
     border: 1.5px solid rgba(167,139,250,.2);
@@ -329,7 +394,7 @@ html[dir="rtl"] body {
     -webkit-backdrop-filter: blur(20px);
     opacity: 0;
     visibility: hidden;
-    transform: scale(.95);
+    transform: translate(-50%, -50%) scale(.95);
     transition: all .3s ease;
     z-index: 9999;
 }
@@ -337,7 +402,7 @@ html[dir="rtl"] body {
 .pd-share-dropdown.open .pd-share-menu {
     opacity: 1;
     visibility: visible;
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
 }
 
 .pd-share-menu {
@@ -416,7 +481,7 @@ html[dir="rtl"] body {
 
 html[dir="rtl"] .pd-share-menu {
     inset-inline-start: auto;
-    inset-inline-end: calc(100% + 8px);
+    inset-inline-end: auto;
 }
 
 /* Comments Section */
@@ -892,12 +957,41 @@ html[dir="rtl"] .pd-card-body {
                         </a>
                     </div>
                     {% endif %}
+
+                    {% if post.file %}
+                    <div class="pd-file-actions">
+                        <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+                            <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+                            <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
+                        </a>
+                        <button type="button"
+                                class="pd-view-doc-btn"
+                                onclick="openDocumentViewer('{{ post.file.url|escapejs }}', null, '{{ post.id }}', '{{ post.get_localized_title|default:post.content|truncatechars:100|escapejs }}', '{% url 'feed:convert-post-to-text' post.id %}')">
+                            <i class="bi bi-eye"></i>
+                            <span>{% trans "View Document" %}</span>
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
                 {% else %}
                 <!-- Fallback to regular post content -->
                 <p class="pd-content">{{ post.content }}</p>
                 {% if post.image %}
                 <img src="{{ post.image.url }}" alt="{% trans 'Post image' %}" class="pd-image">
+                {% endif %}
+                {% if post.file %}
+                <div class="pd-file-actions">
+                    <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+                        <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+                        <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
+                    </a>
+                    <button type="button"
+                            class="pd-view-doc-btn"
+                            onclick="openDocumentViewer('{{ post.file.url|escapejs }}', null, '{{ post.id }}', '{{ post.get_localized_title|default:post.content|truncatechars:100|escapejs }}', '{% url 'feed:convert-post-to-text' post.id %}')">
+                        <i class="bi bi-eye"></i>
+                        <span>{% trans "View Document" %}</span>
+                    </button>
+                </div>
                 {% endif %}
                 {% endif %}
             </div>
@@ -1101,6 +1195,7 @@ html[dir="rtl"] .pd-card-body {
         
     </div>
 </div>
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}
 
 {% block extra_scripts %}
@@ -1121,8 +1216,22 @@ function getPostDetailUrl() {
 window.togglePostShareMenu = function(btn) {
     const menu = document.querySelector('#shareDropdown .pd-share-menu');
     const shareDropdown = document.getElementById('shareDropdown');
+    const card = btn?.closest('.pd-card');
     
-    if (!menu || !shareDropdown) return;
+    if (!menu || !shareDropdown) {
+        const url = getPostDetailUrl();
+        const title = btn?.dataset?.postTitle || document.title;
+        if (navigator.share) {
+            navigator.share({ title, url }).catch(() => {});
+            return;
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('{% trans "Link copied to clipboard!" %}');
+            });
+        }
+        return;
+    }
     
     const wasOpen = shareDropdown.classList.contains('open');
     
@@ -1130,26 +1239,20 @@ window.togglePostShareMenu = function(btn) {
     document.querySelectorAll('.pd-share-dropdown.open').forEach(d => {
         if (d !== shareDropdown) d.classList.remove('open');
     });
+    document.querySelectorAll('.pd-card.pd-share-open').forEach(c => c.classList.remove('pd-share-open'));
     
     if (!wasOpen) {
-        // Position menu to the right of the button
-        const btnRect = btn.getBoundingClientRect();
-        const isRTL = document.documentElement.dir === 'rtl';
-        
-        if (isRTL) {
-            // For RTL, position to the left of button
-            menu.style.right = (window.innerWidth - btnRect.left) + 'px';
-            menu.style.left = 'auto';
-        } else {
-            // For LTR, position to the right of button
-            menu.style.left = (btnRect.right + 8) + 'px';
-            menu.style.right = 'auto';
-        }
-        menu.style.top = btnRect.top + 'px';
-        
+        if (card) card.classList.add('pd-share-open');
+        // Keep the share frame fixed at exact viewport center.
         shareDropdown.classList.add('open');
+        menu.style.left = '50%';
+        menu.style.top = '50%';
+        menu.style.right = 'auto';
+        menu.style.insetInlineStart = 'auto';
+        menu.style.insetInlineEnd = 'auto';
     } else {
         shareDropdown.classList.remove('open');
+        if (card) card.classList.remove('pd-share-open');
     }
 };
 
@@ -1352,6 +1455,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (shareBtn && shareDropdown && !e.target.closest('#shareBtn') && !e.target.closest('#shareDropdown')) {
             shareDropdown.classList.remove('open');
+            document.querySelectorAll('.pd-card.pd-share-open').forEach(c => c.classList.remove('pd-share-open'));
         }
     });
 });

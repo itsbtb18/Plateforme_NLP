@@ -3,7 +3,7 @@ services:
   # Keep PG image compatible with existing on-disk data.
   db:
     profiles: ["scraping", "full"]
-    image: ankane/pgvector:latest
+    image: pgvector/pgvector:pg16
     container_name: nlp_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
@@ -16,7 +16,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} && psql -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} -tAc \"SELECT NOT pg_is_in_recovery();\" | grep -q t"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -134,6 +134,8 @@ services:
 
       # FastAPI Chatbot
       FASTAPI_URL: http://fastapi:8000
+      FASTAPI_BROWSER_URL: /ai
+      FASTAPI_LOCAL_BROWSER_URL: ${FASTAPI_LOCAL_BROWSER_URL:-http://localhost:8000}
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
 
       # Chatbot Settings
@@ -259,6 +261,34 @@ services:
       - nlp_network
     restart: unless-stopped
 
+  # Standalone Translation/Summarization Service
+  translation_summarization:
+    profiles: ["full"]
+    build:
+      context: ./translation_summarization_service
+      dockerfile: Dockerfile
+    container_name: nlp_translation_summarization
+    environment:
+      TS_SERVICE_API_KEY: ${TS_SERVICE_API_KEY:-}
+      TS_PRIMARY_PROVIDER: ${TS_PRIMARY_PROVIDER:-gemini}
+      TS_FALLBACK_PROVIDER: ${TS_FALLBACK_PROVIDER:-groq}
+      TS_GEMINI_API_KEY: ${TS_GEMINI_API_KEY:-}
+      TS_GEMINI_MODEL: ${TS_GEMINI_MODEL:-gemini-2.0-flash}
+      TS_GROQ_API_KEY: ${TS_GROQ_API_KEY:-}
+      TS_GROQ_TRANSLATION_MODEL: ${TS_GROQ_TRANSLATION_MODEL:-llama-3.3-70b-versatile}
+      TS_GROQ_SUMMARIZATION_MODEL: ${TS_GROQ_SUMMARIZATION_MODEL:-llama-3.3-70b-versatile}
+    ports:
+      - "${TS_SERVICE_PORT:-8010}:8010"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
   # Celery Worker for background document processing
   celery_worker:
     profiles: ["full"]
@@ -309,7 +339,7 @@ services:
     volumes:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
-    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion -l info --concurrency=1
+    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion,translation,summarization,postprocess,quality -l info --concurrency=1
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping --timeout 10 || exit 1"]
       interval: 30s

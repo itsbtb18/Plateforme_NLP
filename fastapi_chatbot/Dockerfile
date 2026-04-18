@@ -12,7 +12,8 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir --timeout 180 --retries 10 --upgrade pip && \
     pip install --no-cache-dir --timeout 300 --retries 5 --index-url https://download.pytorch.org/whl/cpu torch torchvision && \
-    pip install --no-cache-dir --index-url https://pypi.org/simple --timeout 180 --retries 5 -r requirements.txt
+    pip install --no-cache-dir --index-url https://pypi.org/simple --timeout 180 --retries 5 -r requirements.txt && \
+    pip install --no-cache-dir --index-url https://pypi.org/simple --timeout 120 --retries 5 prometheus-client
 
 COPY . .
 

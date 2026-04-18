@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Float, Boolean,
-    ARRAY, ForeignKey, Index,
+    ARRAY, ForeignKey, Index, JSON,
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -162,4 +162,40 @@ class ChatMessage(Base):
 
     __table_args__ = (
         Index("idx_chat_messages_session", "session_id", "created_at"),
+    )
+
+
+class AIJob(Base):
+    """Asynchronous AI jobs for translation and summarization."""
+
+    __tablename__ = "ai_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(String(64), unique=True, index=True, nullable=False)
+    owner_id = Column(String(255), index=True, nullable=False)
+    job_type = Column(String(32), index=True, nullable=False)  # translation|summarization
+    status = Column(String(32), index=True, nullable=False, default="queued")
+    priority = Column(Integer, nullable=False, default=5)
+    queue_name = Column(String(64))
+    provider_name = Column(String(128))
+
+    input_payload = Column(JSON, nullable=False)
+    execution_metadata = Column(JSON)
+    quality_metrics = Column(JSON)
+
+    source_language = Column(String(8))
+    target_language = Column(String(8))
+    output_text = Column(Text)
+    output_uri = Column(Text)
+    error_message = Column(Text)
+    progress = Column(Float, default=0.0)
+
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index("idx_ai_jobs_owner_submitted", "owner_id", "submitted_at"),
+        Index("idx_ai_jobs_type_status", "job_type", "status"),
     )
