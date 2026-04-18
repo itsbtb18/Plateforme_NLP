@@ -10,6 +10,7 @@ from django.db.models import F
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_elasticsearch_dsl.registries import registry
 from institutions.models import Institution
@@ -104,6 +105,16 @@ class ResourceBase(models.Model):
         blank=True,
         verbose_name=_("Update Date"),
         help_text=_("Last time this resource was updated"),
+    )
+    last_scraped_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name=_("Last Scraped At"),
+    )
+    update_counter = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("Update Counter"),
     )
     language = models.CharField(
         max_length=10,
@@ -661,6 +672,64 @@ class Article(models.Model):
     class Meta:
         verbose_name = _("article")
         verbose_name_plural = _("Scientific Articles")
+
+
+class Law(models.Model):
+    class ApprovalStatus(models.TextChoices):
+        PENDING = "pending", _("Pending")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+
+    class ScrapeStatus(models.TextChoices):
+        PENDING_REVIEW = "PENDING_REVIEW", _("Pending review")
+        APPROVED = "APPROVED", _("Approved")
+        REJECTED = "REJECTED", _("Rejected")
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    law_title = models.CharField(max_length=300, blank=True, default="", db_index=True)
+    authority = models.CharField(max_length=255, blank=True, default="")
+    publication_date = models.DateField(null=True, blank=True, db_index=True)
+    legal_text = models.TextField(blank=True, default="")
+    category_tags = models.JSONField(default=list, blank=True)
+    source_url = models.URLField(blank=True, default="", db_index=True)
+    source_name = models.CharField(max_length=120, blank=True, default="")
+    confidence_score = models.FloatField(null=True, blank=True, db_index=True)
+    scrape_status = models.CharField(
+        max_length=20,
+        choices=ScrapeStatus.choices,
+        default=ScrapeStatus.PENDING_REVIEW,
+        db_index=True,
+    )
+    approval_status = models.CharField(
+        max_length=20,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.PENDING,
+        db_index=True,
+    )
+    validation_notes = models.TextField(blank=True, default="")
+    is_approved = models.BooleanField(default=False, db_index=True)
+    created_by = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name="laws_created",
+    )
+    last_scraped_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    update_counter = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("law")
+        verbose_name_plural = _("Laws")
+        ordering = ["-publication_date", "-last_scraped_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["law_title"], name="idx_law_title"),
+            models.Index(fields=["source_url"], name="idx_law_source_url"),
+            models.Index(fields=["publication_date"], name="idx_law_publication_date"),
+        ]
+
+    def __str__(self):
+        return self.law_title or str(self.pk)
 
 
 class NLPTool(ResourceBase):

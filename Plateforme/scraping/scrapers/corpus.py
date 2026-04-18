@@ -8,6 +8,7 @@ from typing import Any
 
 from asgiref.sync import async_to_sync
 from django.apps import apps as django_apps
+from django.db import transaction
 from django.utils import timezone
 
 from scraping.extractors.corpus.llm_corpus_extractor import LLMCorpusExtractor
@@ -193,12 +194,62 @@ class CorpusScraper(BaseScraper):
                 continue
 
             defaults = self._build_defaults(fields, normalized, author)
+            now = timezone.now()
 
             try:
-                obj, created = model.objects.update_or_create(
-                    **lookup,
-                    defaults=defaults,
-                )
+                with transaction.atomic():
+                    obj = model.objects.select_for_update().filter(**lookup).first()
+                    if obj is not None:
+                        if "last_scraped_at" in fields:
+                            defaults["last_scraped_at"] = now
+                        if "update_counter" in fields:
+                            defaults["update_counter"] = (
+                                int(getattr(obj, "update_counter", 0) or 0) + 1
+                            )
+                        if self._is_approved_record(obj):
+                            defaults = self._build_terminal_status_update_defaults(
+                                existing_obj=obj,
+                                incoming_defaults=defaults,
+                                metadata_fields={"last_scraped_at", "update_counter"},
+                            )
+                        for field_name, field_value in defaults.items():
+                            setattr(obj, field_name, field_value)
+                        obj.save()
+                        created = False
+                    else:
+                        semantic_queryset = self._recent_dedup_queryset(
+                            model.objects.only("id", "title", "title_en")
+                        )
+                        semantic_obj, semantic_score = self._find_semantic_title_match(
+                            semantic_queryset,
+                            normalized["dataset_name"],
+                            title_fields=("title_en", "title"),
+                        )
+                        if semantic_obj is not None:
+                            obj = semantic_obj
+                            defaults["last_scraped_at"] = now
+                            defaults["update_counter"] = (
+                                int(getattr(obj, "update_counter", 0) or 0) + 1
+                            )
+                            if self._is_approved_record(obj):
+                                defaults = self._build_terminal_status_update_defaults(
+                                    existing_obj=obj,
+                                    incoming_defaults=defaults,
+                                    metadata_fields={"last_scraped_at", "update_counter"},
+                                )
+                            for field_name, field_value in defaults.items():
+                                setattr(obj, field_name, field_value)
+                            obj.save()
+                            created = False
+                        else:
+                        if "last_scraped_at" in fields:
+                            defaults["last_scraped_at"] = now
+                        if "update_counter" in fields:
+                            defaults.setdefault("update_counter", 0)
+                        create_data = dict(defaults)
+                        create_data.update(lookup)
+                        obj = model.objects.create(**create_data)
+                        created = True
             except Exception as exc:
                 self._log_error(
                     "corpus_upsert_failed",
@@ -214,6 +265,7 @@ class CorpusScraper(BaseScraper):
                 self.items_created += 1
             else:
                 self.items_updated += 1
+            self._track_saved_item_status(normalized)
 
             self.results.append(
                 {
@@ -334,6 +386,20 @@ class CorpusScraper(BaseScraper):
             defaults["language"] = "ar"
         if "update_date" in fields:
             defaults["update_date"] = timezone.now()
+        if "approval_status" in fields:
+            defaults["approval_status"] = str(
+                item.get("approval_status") or "pending"
+            ).lower()
+        if "scrape_status" in fields:
+            defaults["scrape_status"] = str(
+                item.get("scrape_status") or "PENDING_REVIEW"
+            ).upper()
+        if "validation_notes" in fields:
+            defaults["validation_notes"] = str(item.get("validation_notes") or "")
+        if "confidence_score" in fields:
+            defaults["confidence_score"] = self._normalize_confidence(
+                item.get("confidence_score", item.get("extraction_confidence"))
+            )
         if "author" in fields and author is not None:
             defaults["author"] = author
         if "created_by" in fields and author is not None:
@@ -368,8 +434,10 @@ class CorpusScraper(BaseScraper):
     def _normalize_candidate(self, item: dict[str, Any]) -> dict[str, Any] | None:
         dataset_name = self._safe_text(item.get("dataset_name"))
         description_en = self._safe_text(item.get("description_en"))
-        if not dataset_name or not description_en:
+        if not dataset_name:
             return None
+        if not description_en:
+            description_en = "[NEEDS RESEARCH]"
 
         description_ar = self._safe_text(item.get("description_ar")) or None
 
@@ -402,16 +470,23 @@ class CorpusScraper(BaseScraper):
             "description_ar": description_ar[:5000] if description_ar else None,
             "language_variants": language_variants,
             "size_estimate": self._safe_text(item.get("size_estimate"))[:120] or None,
-            "download_url": self._safe_text(item.get("download_url"))[:500],
+            "download_url": (
+                self._safe_text(item.get("download_url"))
+                or self._safe_text(item.get("url"))
+                or self._safe_text(item.get("source_url"))
+                or self._safe_text(item.get("access_link"))
+                or "[NEEDS RESEARCH]"
+            )[:500],
             "paper_url": self._safe_text(item.get("paper_url"))[:500],
+            "confidence_score": self._normalize_confidence(
+                item.get("confidence_score", item.get("extraction_confidence"))
+            ),
             "translation_status": translation_status,
         }
 
     @staticmethod
     def _set_creation_flags(model, pk, fields: set[str]):
         updates: dict[str, Any] = {}
-        if "approval_status" in fields:
-            updates["approval_status"] = "pending"
         if "source" in fields:
             updates["source"] = "scrape"
         if "is_approved" in fields:
@@ -419,3 +494,15 @@ class CorpusScraper(BaseScraper):
 
         if updates:
             model.objects.filter(pk=pk).update(**updates)
+
+    @staticmethod
+    def _normalize_confidence(value) -> float | None:
+        try:
+            if value is None:
+                return None
+            numeric = float(value)
+            if numeric <= 1.0:
+                numeric *= 100.0
+            return max(0.0, min(100.0, numeric))
+        except (TypeError, ValueError):
+            return None

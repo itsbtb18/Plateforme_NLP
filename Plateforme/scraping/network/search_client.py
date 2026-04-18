@@ -110,13 +110,17 @@ class TavilySearchClient:
         for raw_item in results:
             if not isinstance(raw_item, dict):
                 continue
+            title = str(raw_item.get("title") or "").strip()
+            url = str(raw_item.get("url") or "").strip()
             content = str(raw_item.get("content") or "").strip()
-            if not content:
+            # Keep thin snippets (or even empty snippets) as long as URL+title exist.
+            # The LLM can still infer structure from title/url context.
+            if not content and not (title and url):
                 continue
             filtered.append(
                 {
-                    "title": str(raw_item.get("title") or "").strip(),
-                    "url": str(raw_item.get("url") or "").strip(),
+                    "title": title,
+                    "url": url,
                     "content": content,
                     "score": raw_item.get("score"),
                     "raw_content": raw_item.get("raw_content"),
@@ -274,6 +278,22 @@ class TavilySearchClient:
                     "dumps.wikimedia.org",
                     "paperswithcode.com/datasets",
                 ],
+            },
+            max_results=max_results,
+        )
+
+    async def search_laws(
+        self,
+        query: str,
+        max_results: int | None = None,
+    ) -> list[dict]:
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 10,
+                "include_answer": True,
+                "include_raw_content": True,
             },
             max_results=max_results,
         )

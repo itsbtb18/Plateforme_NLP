@@ -69,6 +69,8 @@ html[dir="rtl"] .evt-grid{justify-content:end}
 .evt-info{display:flex;flex-direction:column;gap:.45rem;margin-top:.5rem;font-size:.8rem}
 .evt-info-row{display:flex;align-items:center;gap:.4rem;color:#cbd5e1}
 .evt-info-row i{color:#a78bfa;font-size:.85rem;width:14px;text-align:center}
+.evt-activity-row{padding-top:.1rem;color:#ede9fe}
+.evt-activity-row strong{color:#fff}
 .evt-deadline-alert{display:flex;align-items:center;gap:.6rem;padding:.6rem .85rem;background:rgba(251,191,36,.1);border-top:1px solid rgba(251,191,36,.2);margin-top:auto}
 .evt-deadline-icon{width:28px;height:28px;background:#fbbf24;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0f1419;font-size:.8rem;flex-shrink:0}
 .evt-deadline-text{flex:1;min-width:0}
@@ -203,6 +205,15 @@ html[dir="rtl"] .evt-link{flex-direction:row-reverse}
               <i class="bi bi-calendar-range"></i>
               <span>{{ event.start_date|date:"M d, Y" }}</span>
             </div>
+            {% if event.last_scraped_at %}
+            <div class="evt-info-row evt-activity-row">
+              <i class="bi bi-arrow-repeat"></i>
+              <span>
+                <strong>{% translate "Activity" %}:</strong>
+                Updated {{ event.last_scraped_at|timesince }} ago · {{ event.update_count }} refresh{{ event.update_count|pluralize }}
+              </span>
+            </div>
+            {% endif %}
           </div>
         </div>
         {% if event.submission_deadline and event.days_until_deadline is not None %}

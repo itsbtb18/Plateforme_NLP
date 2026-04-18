@@ -8,6 +8,7 @@ from typing import Any
 
 from asgiref.sync import async_to_sync
 from django.apps import apps as django_apps
+from django.db import transaction
 from django.utils import timezone
 
 from scraping.extractors.opportunities.llm_opportunity_extractor import (
@@ -29,6 +30,7 @@ class OpportunityScraper(BaseScraper):
     name = "NLP Opportunities (Tavily + Groq)"
     category = "opportunities"
     API_CALL_DELAY_SECONDS = 2
+    STATUS_CONFIDENCE_DELTA = 15.0
 
     MODEL_CANDIDATES = (
         ("pages", "Opportunity"),
@@ -200,12 +202,89 @@ class OpportunityScraper(BaseScraper):
                 continue
 
             defaults = self._build_defaults(fields, normalized, author)
+            now = timezone.now()
 
             try:
-                obj, created = model.objects.update_or_create(
-                    **lookup,
-                    defaults=defaults,
-                )
+                with transaction.atomic():
+                    obj = model.objects.select_for_update().filter(**lookup).first()
+                    if obj is not None:
+                        if "last_scraped_at" in fields:
+                            defaults["last_scraped_at"] = now
+                        if "update_counter" in fields:
+                            defaults["update_counter"] = (
+                                int(getattr(obj, "update_counter", 0) or 0) + 1
+                            )
+                        existing_status = str(
+                            getattr(obj, "scrape_status", "") or ""
+                        ).upper()
+                        if self._is_terminal_review_status(existing_status):
+                            defaults = self._build_terminal_status_update_defaults(
+                                existing_obj=obj,
+                                incoming_defaults=defaults,
+                                metadata_fields={
+                                    "last_scraped_at",
+                                    "update_counter",
+                                    "update_date",
+                                },
+                            )
+                        elif (
+                            str(defaults.get("scrape_status") or "").upper()
+                            == "REJECTED"
+                        ):
+                            defaults["scrape_status"] = "REJECTED"
+                            defaults["validation_notes"] = self._append_validation_note(
+                                str(defaults.get("validation_notes") or ""),
+                                "Auto-marked REJECTED due to confidence_score below 50%.",
+                            )
+                        else:
+                            defaults["scrape_status"] = "PENDING_REVIEW"
+
+                        for field_name, field_value in defaults.items():
+                            setattr(obj, field_name, field_value)
+                        obj.save()
+                        created = False
+                    else:
+                        semantic_queryset = self._recent_dedup_queryset(
+                            model.objects.only("id", "title", "title_en")
+                        )
+                        semantic_obj, semantic_score = self._find_semantic_title_match(
+                            semantic_queryset,
+                            normalized["job_title"],
+                            title_fields=("title_en", "title"),
+                        )
+                        if semantic_obj is not None:
+                            obj = semantic_obj
+                            defaults["last_scraped_at"] = now
+                            defaults["update_counter"] = (
+                                int(getattr(obj, "update_counter", 0) or 0) + 1
+                            )
+                            existing_status = str(
+                                getattr(obj, "scrape_status", "") or ""
+                            ).upper()
+                            if self._is_terminal_review_status(existing_status):
+                                defaults = self._build_terminal_status_update_defaults(
+                                    existing_obj=obj,
+                                    incoming_defaults=defaults,
+                                    metadata_fields={
+                                        "last_scraped_at",
+                                        "update_counter",
+                                        "update_date",
+                                    },
+                                )
+                            for field_name, field_value in defaults.items():
+                                setattr(obj, field_name, field_value)
+                            obj.save()
+                            created = False
+                        else:
+                        defaults.setdefault("scrape_status", "PENDING_REVIEW")
+                        if "last_scraped_at" in fields:
+                            defaults["last_scraped_at"] = now
+                        if "update_counter" in fields:
+                            defaults.setdefault("update_counter", 0)
+                        create_data = dict(defaults)
+                        create_data.update(lookup)
+                        obj = model.objects.create(**create_data)
+                        created = True
             except Exception as exc:
                 self._log_error(
                     "opportunity_upsert_failed",
@@ -221,6 +300,7 @@ class OpportunityScraper(BaseScraper):
                 self.items_created += 1
             else:
                 self.items_updated += 1
+            self._track_saved_item_status(defaults)
 
             self.results.append(
                 {
@@ -346,6 +426,16 @@ class OpportunityScraper(BaseScraper):
             defaults["language"] = "en"
         if "update_date" in fields:
             defaults["update_date"] = timezone.now()
+        if "scrape_status" in fields:
+            defaults["scrape_status"] = str(
+                item.get("scrape_status") or "PENDING_REVIEW"
+            ).upper()
+        if "validation_notes" in fields:
+            defaults["validation_notes"] = str(item.get("validation_notes") or "")
+        if "confidence_score" in fields:
+            defaults["confidence_score"] = self._normalize_confidence(
+                item.get("confidence_score")
+            )
         if "author" in fields and author is not None:
             defaults["author"] = author
         if "created_by" in fields and author is not None:
@@ -382,8 +472,10 @@ class OpportunityScraper(BaseScraper):
         institution_name = self._safe_text(item.get("institution_name"))
         description = self._safe_text(item.get("description"))
 
-        if not job_title or not institution_name or not description:
+        if not job_title or not institution_name:
             return None
+        if not description:
+            description = "[NEEDS RESEARCH]"
 
         translation_status = infer_translation_status(
             raw_status=self._safe_text(item.get("translation_status")) or "pending",
@@ -400,8 +492,17 @@ class OpportunityScraper(BaseScraper):
             "opportunity_type": self._normalize_type(item.get("opportunity_type")),
             "deadline": self._normalize_date(item.get("deadline")),
             "location": self._safe_text(item.get("location"))[:255] or "Online",
-            "url": self._safe_text(item.get("url"))[:500],
+            "url": (
+                self._safe_text(item.get("url"))
+                or self._safe_text(item.get("source_url"))
+                or self._safe_text(item.get("access_link"))
+                or self._safe_text(item.get("application_url"))
+                or "[NEEDS RESEARCH]"
+            )[:500],
             "description": description[:5000],
+            "confidence_score": self._normalize_confidence(
+                item.get("confidence_score", item.get("extraction_confidence"))
+            ),
             "translation_status": translation_status,
         }
 
@@ -425,10 +526,45 @@ class OpportunityScraper(BaseScraper):
         return None
 
     @staticmethod
+    def _normalize_confidence(value) -> float | None:
+        try:
+            if value is None:
+                return None
+            numeric = float(value)
+            if numeric <= 1.0:
+                numeric *= 100.0
+            return max(0.0, min(100.0, numeric))
+        except (TypeError, ValueError):
+            return None
+
+    def _is_significantly_higher_confidence(
+        self,
+        incoming_confidence: float | None,
+        existing_confidence: float | None,
+    ) -> bool:
+        if incoming_confidence is None:
+            return False
+        if existing_confidence is None:
+            return True
+        return incoming_confidence >= (
+            existing_confidence + self.STATUS_CONFIDENCE_DELTA
+        )
+
+    @staticmethod
+    def _append_validation_note(existing: str, note: str) -> str:
+        existing = (existing or "").strip()
+        note = (note or "").strip()
+        if not note:
+            return existing
+        if not existing:
+            return note
+        if note in existing:
+            return existing
+        return f"{existing}\n{note}"
+
+    @staticmethod
     def _set_creation_flags(model, pk, fields: set[str]):
         updates: dict[str, Any] = {}
-        if "approval_status" in fields:
-            updates["approval_status"] = "pending"
         if "source" in fields:
             updates["source"] = "scrape"
         if "is_approved" in fields:

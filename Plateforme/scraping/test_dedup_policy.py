@@ -1,15 +1,18 @@
 # pyright: reportMissingImports=false
 
-from datetime import date
+from datetime import date, timedelta
+from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from events.models import Event
-from institutions.models import Country, Institution
 from feed.models import Post
+from institutions.models import Country, Institution
 from resources.models import Course, NLPTool
 
 from scraping.scrapers.base import BaseScraper
+from scraping.scrapers.events import EventScraper
 
 
 class DummyScraper(BaseScraper):
@@ -171,6 +174,279 @@ def test_events_dedup_rule_3_title_similarity(scraper, institution):
 
     assert is_dup is True
     assert "85%" in reason
+
+
+@pytest.mark.django_db
+def test_event_scrape_duplicate_updates_tracking_fields(institution, monkeypatch):
+    existing = Event.objects.create(
+        title="Tracking Event",
+        title_en="Tracking Event",
+        description="old desc",
+        description_en="old desc",
+        event_type="conference",
+        domains="nlp",
+        location="Algiers",
+        start_date=date(2026, 10, 10),
+        end_date=date(2026, 10, 11),
+        website="https://tracking.example.com",
+        organizer=institution,
+        contact_email="events@example.com",
+        created_by=institution.created_by,
+        last_scraped_at=timezone.now() - timedelta(hours=2),
+        update_count=0,
+    )
+
+    scraper_instance = EventScraper()
+    scraper_instance.name = "Test Event Scraper"
+    scraper_instance.source = SimpleNamespace(
+        name="Test Source",
+        category="events",
+        scrape_config={},
+    )
+
+    monkeypatch.setattr(
+        scraper_instance, "passes_min_confidence_to_save", lambda item: True
+    )
+    monkeypatch.setattr(
+        scraper_instance, "_passes_hard_event_rules", lambda item: (True, "")
+    )
+    monkeypatch.setattr(scraper_instance, "_ensure_event_fields", lambda item: item)
+    monkeypatch.setattr(
+        scraper_instance, "_resolve_organizer", lambda item: institution
+    )
+    monkeypatch.setattr(
+        scraper_instance, "get_system_user", lambda: institution.created_by
+    )
+
+    scraper_instance._save_event_candidate(
+        {
+            "title_en": "Tracking Event",
+            "description_en": "fresh desc",
+            "description": "fresh desc",
+            "event_type": "conference",
+            "domains": "nlp",
+            "location": "Algiers",
+            "start_date": "2026-10-10",
+            "end_date": "2026-10-11",
+            "website": "https://tracking.example.com",
+            "source_name": "Test Source",
+            "organizer": institution,
+            "contact_email": "events@example.com",
+        }
+    )
+
+    existing.refresh_from_db()
+
+    assert scraper_instance.items_created == 0
+    assert scraper_instance.items_updated == 1
+    assert existing.update_count == 1
+    assert existing.update_counter == 1
+    assert existing.last_scraped_at is not None
+
+
+@pytest.mark.django_db
+def test_event_scrape_preserves_approved_status_on_terminal_records(
+    institution,
+    monkeypatch,
+):
+    existing = Event.objects.create(
+        title="Approved Tracking Event",
+        title_en="Approved Tracking Event",
+        description="old desc",
+        description_en="old desc",
+        event_type="conference",
+        domains="nlp",
+        location="Algiers",
+        start_date=date(2026, 10, 10),
+        end_date=date(2026, 10, 11),
+        website="https://approved-tracking.example.com",
+        organizer=institution,
+        contact_email="events@example.com",
+        created_by=institution.created_by,
+        scrape_status="APPROVED",
+        confidence_score=0.70,
+    )
+
+    scraper_instance = EventScraper()
+    scraper_instance.name = "Test Event Scraper"
+    scraper_instance.source = SimpleNamespace(
+        name="Test Source",
+        category="events",
+        scrape_config={},
+    )
+
+    monkeypatch.setattr(
+        scraper_instance, "passes_min_confidence_to_save", lambda item: True
+    )
+    monkeypatch.setattr(
+        scraper_instance, "_passes_hard_event_rules", lambda item: (True, "")
+    )
+    monkeypatch.setattr(scraper_instance, "_ensure_event_fields", lambda item: item)
+    monkeypatch.setattr(
+        scraper_instance, "_resolve_organizer", lambda item: institution
+    )
+    monkeypatch.setattr(
+        scraper_instance, "get_system_user", lambda: institution.created_by
+    )
+
+    scraper_instance._save_event_candidate(
+        {
+            "title_en": "Approved Tracking Event",
+            "description_en": "fresh desc",
+            "description": "fresh desc",
+            "event_type": "conference",
+            "domains": "nlp",
+            "location": "Algiers",
+            "start_date": "2026-10-10",
+            "end_date": "2026-10-11",
+            "website": "https://approved-tracking.example.com",
+            "source_name": "Test Source",
+            "organizer": institution,
+            "contact_email": "events@example.com",
+            "extraction_confidence": 0.75,
+        }
+    )
+
+    existing.refresh_from_db()
+    assert existing.scrape_status == "APPROVED"
+
+
+@pytest.mark.django_db
+def test_event_scrape_rejected_status_can_return_to_pending_review(
+    institution,
+    monkeypatch,
+):
+    existing = Event.objects.create(
+        title="Rejected Tracking Event",
+        title_en="Rejected Tracking Event",
+        description="old desc",
+        description_en="old desc",
+        event_type="conference",
+        domains="nlp",
+        location="Algiers",
+        start_date=date(2026, 10, 10),
+        end_date=date(2026, 10, 11),
+        website="https://rejected-tracking.example.com",
+        organizer=institution,
+        contact_email="events@example.com",
+        created_by=institution.created_by,
+        scrape_status="REJECTED",
+        confidence_score=0.2,
+    )
+
+    scraper_instance = EventScraper()
+    scraper_instance.name = "Test Event Scraper"
+    scraper_instance.source = SimpleNamespace(
+        name="Test Source",
+        category="events",
+        scrape_config={},
+    )
+
+    monkeypatch.setattr(
+        scraper_instance, "passes_min_confidence_to_save", lambda item: True
+    )
+    monkeypatch.setattr(
+        scraper_instance, "_passes_hard_event_rules", lambda item: (True, "")
+    )
+    monkeypatch.setattr(scraper_instance, "_ensure_event_fields", lambda item: item)
+    monkeypatch.setattr(
+        scraper_instance, "_resolve_organizer", lambda item: institution
+    )
+    monkeypatch.setattr(
+        scraper_instance, "get_system_user", lambda: institution.created_by
+    )
+
+    scraper_instance._save_event_candidate(
+        {
+            "title_en": "Rejected Tracking Event",
+            "description_en": "fresh desc",
+            "description": "fresh desc",
+            "event_type": "conference",
+            "domains": "nlp",
+            "location": "Algiers",
+            "start_date": "2026-10-10",
+            "end_date": "2026-10-11",
+            "website": "https://rejected-tracking.example.com",
+            "source_name": "Test Source",
+            "organizer": institution,
+            "contact_email": "events@example.com",
+            "extraction_confidence": 0.95,
+        }
+    )
+
+    existing.refresh_from_db()
+    assert existing.scrape_status == "PENDING_REVIEW"
+
+
+def test_event_hard_rules_allow_last_12_months_window():
+    scraper_instance = EventScraper()
+    today = timezone.now().date()
+
+    common_payload = {
+        "title_en": "Arabic NLP Conference",
+        "description_en": "Conference on Arabic NLP and AI shared tasks.",
+        "website": "https://example.org/event",
+    }
+
+    valid_payload = {
+        **common_payload,
+        "start_date": today - timedelta(days=300),
+    }
+    is_valid, reason = scraper_instance._passes_hard_event_rules(valid_payload)
+    assert is_valid is True
+    assert reason == ""
+
+    too_old_payload = {
+        **common_payload,
+        "start_date": today - timedelta(days=380),
+    }
+    is_valid, reason = scraper_instance._passes_hard_event_rules(too_old_payload)
+    assert is_valid is False
+    assert reason == "event_too_old"
+
+
+@pytest.mark.django_db
+def test_event_scrape_sets_is_past_event_flag(institution, monkeypatch):
+    scraper_instance = EventScraper()
+    scraper_instance.name = "Test Event Scraper"
+    scraper_instance.source = SimpleNamespace(
+        name="Test Source",
+        category="events",
+        scrape_config={},
+    )
+
+    monkeypatch.setattr(
+        scraper_instance, "passes_min_confidence_to_save", lambda item: True
+    )
+    monkeypatch.setattr(
+        scraper_instance, "_resolve_organizer", lambda item: institution
+    )
+    monkeypatch.setattr(
+        scraper_instance, "get_system_user", lambda: institution.created_by
+    )
+
+    past_start = timezone.now().date() - timedelta(days=120)
+    scraper_instance._save_event_candidate(
+        {
+            "title_en": "Archived Arabic NLP Summit",
+            "description_en": "Conference on Arabic NLP.",
+            "description": "Conference on Arabic NLP.",
+            "event_type": "conference",
+            "domains": "nlp",
+            "location": "Algiers",
+            "start_date": past_start.isoformat(),
+            "end_date": past_start.isoformat(),
+            "website": "https://example.org/archived-event",
+            "source_name": "Test Source",
+            "contact_email": "events@example.com",
+        }
+    )
+
+    saved = Event.objects.get(
+        title_en="Archived Arabic NLP Summit",
+        start_date=past_start,
+    )
+    assert saved.is_past_event is True
 
 
 @pytest.mark.django_db
@@ -407,18 +683,14 @@ def test_news_rule_specific_negative_cases(scraper, user):
         source_url="https://news.example.com/paper",
     )
 
-    n1, _ = _check_dup(scraper,
-        "news", {"title_en": "x", "arxiv_id": "2601.99999"}
+    n1, _ = _check_dup(scraper, "news", {"title_en": "x", "arxiv_id": "2601.99999"})
+    n2, _ = _check_dup(scraper, "news", {"title_en": "x", "doi": "10.1000/other"})
+    n3, _ = _check_dup(
+        scraper,
+        "news",
+        {"title_en": "x", "source_url": "https://news.example.com/other"},
     )
-    n2, _ = _check_dup(scraper,
-        "news", {"title_en": "x", "doi": "10.1000/other"}
-    )
-    n3, _ = _check_dup(scraper,
-        "news", {"title_en": "x", "source_url": "https://news.example.com/other"}
-    )
-    n4, _ = _check_dup(scraper,
-        "news", {"title_en": "Different Headline Entirely"}
-    )
+    n4, _ = _check_dup(scraper, "news", {"title_en": "Different Headline Entirely"})
 
     assert n1 is False
     assert n2 is False
@@ -445,19 +717,23 @@ def test_courses_dedup_rules(scraper, user, institution):
         author=user,
     )
 
-    dup1, reason1 = _check_dup(scraper,
+    dup1, reason1 = _check_dup(
+        scraper,
         "courses",
         {"title_en": "x", "access_link": "https://courses.example.com/nlp"},
     )
-    dup2, reason2 = _check_dup(scraper,
+    dup2, reason2 = _check_dup(
+        scraper,
         "courses",
         {"title_en": "Intro to NLP", "instructor": "John Doe"},
     )
-    dup3, reason3 = _check_dup(scraper,
+    dup3, reason3 = _check_dup(
+        scraper,
         "courses",
         {"title_en": "Intro to NLP!"},
     )
-    neg, _ = _check_dup(scraper,
+    neg, _ = _check_dup(
+        scraper,
         "courses",
         {
             "title_en": "New Course",
@@ -491,16 +767,17 @@ def test_courses_rule_specific_negative_cases(scraper, user, institution):
         author=user,
     )
 
-    n1, _ = _check_dup(scraper,
+    n1, _ = _check_dup(
+        scraper,
         "courses",
         {"title_en": "x", "access_link": "https://courses.example.com/unique"},
     )
-    n2, _ = _check_dup(scraper,
-        "courses", {"title_en": "Arabic NLP Fundamentals", "instructor": "John Smith"}
+    n2, _ = _check_dup(
+        scraper,
+        "courses",
+        {"title_en": "Arabic NLP Fundamentals", "instructor": "John Smith"},
     )
-    n3, _ = _check_dup(scraper,
-        "courses", {"title_en": "Statistical Physics Intro"}
-    )
+    n3, _ = _check_dup(scraper, "courses", {"title_en": "Statistical Physics Intro"})
 
     assert n1 is False
     assert n2 is True
@@ -532,19 +809,23 @@ def test_institutions_dedup_rules(scraper, country, user):
         approval_status="approved",
     )
 
-    dup1, reason1 = _check_dup(scraper,
+    dup1, reason1 = _check_dup(
+        scraper,
         "institutions",
         {"name_en": "X", "ror_id": "https://ror.org/12345"},
     )
-    dup2, reason2 = _check_dup(scraper,
+    dup2, reason2 = _check_dup(
+        scraper,
         "institutions",
         {"name_en": "X", "website_url": "https://univ-test.dz"},
     )
-    dup3, reason3 = _check_dup(scraper,
+    dup3, reason3 = _check_dup(
+        scraper,
         "institutions",
         {"name_en": "University of Testin"},
     )
-    neg, _ = _check_dup(scraper,
+    neg, _ = _check_dup(
+        scraper,
         "institutions",
         {"name_en": "Independent Lab", "website_url": "https://independent.example"},
     )
@@ -580,15 +861,13 @@ def test_institutions_rule_specific_negative_cases(scraper, country, user):
         approval_status="approved",
     )
 
-    n1, _ = _check_dup(scraper,
-        "institutions", {"name_en": "X", "ror_id": "https://ror.org/other"}
+    n1, _ = _check_dup(
+        scraper, "institutions", {"name_en": "X", "ror_id": "https://ror.org/other"}
     )
-    n2, _ = _check_dup(scraper,
-        "institutions", {"name_en": "X", "website_url": "https://different.dz"}
+    n2, _ = _check_dup(
+        scraper, "institutions", {"name_en": "X", "website_url": "https://different.dz"}
     )
-    n3, _ = _check_dup(scraper,
-        "institutions", {"name_en": "Another Unique Lab"}
-    )
+    n3, _ = _check_dup(scraper, "institutions", {"name_en": "Another Unique Lab"})
 
     assert n1 is False
     assert n2 is False
@@ -613,7 +892,8 @@ def test_short_circuit_returns_first_match(scraper, institution):
         created_by=institution.created_by,
     )
 
-    is_dup, reason = _check_dup(scraper,
+    is_dup, reason = _check_dup(
+        scraper,
         "events",
         {
             "title_en": "Deep Arabic NLP Summit!",
@@ -662,7 +942,8 @@ def test_semantic_fallback_called_only_after_deterministic_fail(scraper, monkeyp
     )
     assert dup_tool is not None
 
-    dup, _ = _check_dup(scraper,
+    dup, _ = _check_dup(
+        scraper,
         "tools",
         {"title_en": "Something else", "access_link": "https://dedup.example/tool"},
     )
@@ -670,10 +951,10 @@ def test_semantic_fallback_called_only_after_deterministic_fail(scraper, monkeyp
     assert calls["count"] == 0
 
     # Deterministic miss (semantic call expected)
-    dup2, _ = _check_dup(scraper,
+    dup2, _ = _check_dup(
+        scraper,
         "tools",
         {"title_en": "Unique title", "access_link": "https://unique.example/tool"},
     )
     assert dup2 is False
     assert calls["count"] == 1
-

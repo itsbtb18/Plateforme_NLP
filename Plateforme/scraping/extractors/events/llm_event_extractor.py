@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 class LLMEventExtractor:
     """Extract structured event payloads from Tavily search results."""
 
+    NEEDS_RESEARCH_PLACEHOLDER = "[NEEDS RESEARCH]"
+
     MAX_PROMPT_RESULTS = 5
     MAX_TITLE_CHARS = 140
     MAX_URL_CHARS = 260
@@ -146,9 +148,7 @@ class LLMEventExtractor:
             try:
                 parsed = json.loads(fallback_json)
             except json.JSONDecodeError:
-                logger.info(
-                    "LLM event extraction fallback JSON parsing failed"
-                )
+                logger.info("LLM event extraction fallback JSON parsing failed")
                 return []
 
         event_items = parsed if isinstance(parsed, list) else []
@@ -212,7 +212,7 @@ Extract structured event information from web content.
 EXTRACTION RULES:
 1. Return ONLY valid JSON (no explanations, no markdown).
 2. Return a JSON array of event objects.
-3. If a field cannot be found with confidence, use null.
+3. If the provided text is a short snippet, use your internal knowledge or the URL context to extract as much as possible, or mark fields as [NEEDS RESEARCH] instead of returning null.
 4. Do NOT invent or guess dates, locations, or URLs.
 5. title_en and description_en must be in English.
 6. title_ar and description_ar MUST be real Arabic translations.
@@ -382,8 +382,15 @@ If no relevant events are found, return an empty JSON array: [].
         )
         event["source_name"] = self.SOURCE_NAME
 
-        if not event["title_en"] or not event["description_en"]:
+        if not event["title_en"]:
             return None
+
+        # Keep candidates from thin snippets by using an explicit placeholder
+        # instead of dropping the entire item.
+        if not event["description_en"]:
+            event["description_en"] = self.NEEDS_RESEARCH_PLACEHOLDER
+        if not event["description_ar"]:
+            event["description_ar"] = self.NEEDS_RESEARCH_PLACEHOLDER
 
         return event
 

@@ -6,7 +6,8 @@ from typing import Any
 # Import allauth LoginView
 from allauth.account.views import LoginView as AllauthLoginView
 from django.contrib import messages
-from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout
+from django.contrib.auth import authenticate, get_user_model, logout
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
@@ -17,11 +18,11 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.utils.translation import gettext as _
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
+from django.utils.translation import gettext as _
 from django.views import View
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, UpdateView
 from notifications.models import Notification
 from notifications.services import LocalizedValue, NotificationService
@@ -32,7 +33,7 @@ from .forms import CustomUserChangeForm, CustomUserCreationForm, ExperienceForm
 from .models import Experience, Follow, Friendship
 from .two_factor_email import send_otp_email
 from .two_factor_models import TwoFactorAuth
-from .two_factor_utils import generate_otp, send_otp, store_otp
+from .two_factor_utils import generate_otp, store_otp
 
 logger = logging.getLogger(__name__)
 
@@ -289,7 +290,9 @@ class LoginView(AllauthLoginView):
 
         # Ensure an explicit login call in this branch as requested.
         if user is not None and not self.request.user.is_authenticated:
-            auth_login(self.request, user, backend="django.contrib.auth.backends.ModelBackend")
+            auth_login(
+                self.request, user, backend="django.contrib.auth.backends.ModelBackend"
+            )
 
         if self.request.user.is_authenticated and getattr(
             self.request.user, "is_staff", False
@@ -379,7 +382,9 @@ class ProfileView(DetailView):
         context["followers_count"] = Follow.objects.filter(
             following=profile_user
         ).count()
-        context["following_count"] = Follow.objects.filter(follower=profile_user).count()
+        context["following_count"] = Follow.objects.filter(
+            follower=profile_user
+        ).count()
         context["is_following_profile"] = is_following_profile
 
         # Public resources are always visible (profile public view)
@@ -424,9 +429,12 @@ class ProfileView(DetailView):
         regs = EventRegistration.objects.filter(user=profile_user).select_related(
             "event"
         )
-        upcoming_events_qs = regs.filter(event__start_date__gte=today).order_by(
-            "event__start_date"
-        )
+        upcoming_events_qs = regs.filter(
+            event__start_date__gte=today,
+            event__is_past_event=False,
+            event__approval_status="approved",
+            event__scrape_status=Event.SCRAPE_STATUS_APPROVED,
+        ).order_by("event__start_date")
         past_events_qs = regs.filter(event__start_date__lt=today).order_by(
             "-event__start_date"
         )
@@ -453,10 +461,14 @@ class ProfileView(DetailView):
                 project__approval_status="approved"
             )
             event_registrations_qs = event_registrations_qs.filter(
-                event__approval_status="approved"
+                event__approval_status="approved",
+                event__scrape_status=Event.SCRAPE_STATUS_APPROVED,
+                event__is_past_event=False,
             )
             created_events_exp_qs = created_events_exp_qs.filter(
-                approval_status="approved"
+                approval_status="approved",
+                scrape_status=Event.SCRAPE_STATUS_APPROVED,
+                is_past_event=False,
             )
 
         experiences = []
@@ -518,7 +530,9 @@ class ProfileView(DetailView):
                     "subtitle": getattr(project.institution, "name", "") or "",
                     "role": _("Coordinator"),
                     "description": project.get_localized_description() or "",
-                    "url": reverse("projects:project_detail", kwargs={"pk": project.pk}),
+                    "url": reverse(
+                        "projects:project_detail", kwargs={"pk": project.pk}
+                    ),
                     "started_at": project.created_at,
                     "ended_at": None,
                     "sort_date": project.created_at.date(),
@@ -538,7 +552,9 @@ class ProfileView(DetailView):
                     "subtitle": getattr(project.institution, "name", "") or "",
                     "role": membership.role or _("Team Member"),
                     "description": project.get_localized_description() or "",
-                    "url": reverse("projects:project_detail", kwargs={"pk": project.pk}),
+                    "url": reverse(
+                        "projects:project_detail", kwargs={"pk": project.pk}
+                    ),
                     "started_at": membership.created_at,
                     "ended_at": None,
                     "sort_date": membership.created_at.date(),
@@ -849,20 +865,26 @@ def invitations_count_api(request: Any) -> Any:
     if request.method != "GET":
         return JsonResponse({"ok": False, "error": "Method not allowed"}, status=405)
 
-    follow_notifications_count = Notification.objects.filter(
-        recipient=request.user,
-        type__in=["FOLLOW_REQUEST", "MESSAGE"],
-        read=False,
-    ).filter(
-        Q(type="FOLLOW_REQUEST") | Q(message_en__icontains="started following you")
-    ).count()
+    follow_notifications_count = (
+        Notification.objects.filter(
+            recipient=request.user,
+            type__in=["FOLLOW_REQUEST", "MESSAGE"],
+            read=False,
+        )
+        .filter(
+            Q(type="FOLLOW_REQUEST") | Q(message_en__icontains="started following you")
+        )
+        .count()
+    )
 
     following_ids = Follow.objects.filter(follower=request.user).values_list(
         "following_id", flat=True
     )
-    pending_followers_count = Follow.objects.filter(following=request.user).exclude(
-        follower_id__in=following_ids
-    ).count()
+    pending_followers_count = (
+        Follow.objects.filter(following=request.user)
+        .exclude(follower_id__in=following_ids)
+        .count()
+    )
 
     return JsonResponse(
         {
@@ -1455,7 +1477,11 @@ def trash_restore_item(request: Any, content_type: str, pk: str) -> Any:
         raise Http404(_("Item not found in trash."))
 
     owner_id = getattr(obj, f"{owner_field}_id", None)
-    if not (request.user.is_staff or request.user.is_superuser or owner_id == request.user.id):
+    if not (
+        request.user.is_staff
+        or request.user.is_superuser
+        or owner_id == request.user.id
+    ):
         raise PermissionDenied
 
     obj.restore()
@@ -1479,7 +1505,11 @@ def trash_delete_item(request: Any, content_type: str, pk: str) -> Any:
         raise Http404(_("Item not found in trash."))
 
     owner_id = getattr(obj, f"{owner_field}_id", None)
-    if not (request.user.is_staff or request.user.is_superuser or owner_id == request.user.id):
+    if not (
+        request.user.is_staff
+        or request.user.is_superuser
+        or owner_id == request.user.id
+    ):
         raise PermissionDenied
 
     obj.hard_delete()

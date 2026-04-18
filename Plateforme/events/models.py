@@ -71,6 +71,15 @@ class Event(models.Model):
         ("rejected", _("Rejected")),
     )
 
+    SCRAPE_STATUS_APPROVED = "APPROVED"
+    SCRAPE_STATUS_PENDING_REVIEW = "PENDING_REVIEW"
+    SCRAPE_STATUS_REJECTED = "REJECTED"
+    SCRAPE_STATUS_CHOICES = (
+        (SCRAPE_STATUS_APPROVED, _("Approved")),
+        (SCRAPE_STATUS_PENDING_REVIEW, _("Pending review")),
+        (SCRAPE_STATUS_REJECTED, _("Rejected")),
+    )
+
     source = models.CharField(
         max_length=100,
         blank=True,
@@ -113,6 +122,20 @@ class Event(models.Model):
         choices=APPROVAL_STATUS_CHOICES,
         default="pending",
     )
+    scrape_status = models.CharField(
+        _("Scrape Status"),
+        max_length=20,
+        choices=SCRAPE_STATUS_CHOICES,
+        default=SCRAPE_STATUS_PENDING_REVIEW,
+        db_index=True,
+    )
+    validation_notes = models.TextField(_("Validation Notes"), blank=True, default="")
+    confidence_score = models.FloatField(
+        _("Confidence Score"),
+        null=True,
+        blank=True,
+        db_index=True,
+    )
     approval_date = models.DateTimeField(_("Approval Date"), null=True, blank=True)
     approved_by = models.ForeignKey(
         get_user_model(),
@@ -139,6 +162,14 @@ class Event(models.Model):
     source_url = models.URLField(_("Source URL"), null=True, blank=True)
     source_name = models.CharField(
         _("Source Name"), max_length=120, null=True, blank=True
+    )
+    last_scraped_at = models.DateTimeField(
+        _("Last Scraped At"), null=True, blank=True, db_index=True
+    )
+    update_count = models.PositiveIntegerField(_("Update Count"), default=0)
+    update_counter = models.PositiveIntegerField(_("Update Counter"), default=0)
+    is_past_event = models.BooleanField(
+        _("Is Past Event"), default=False, db_index=True
     )
     language = models.CharField(
         _("Language"),

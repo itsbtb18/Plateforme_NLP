@@ -1,40 +1,45 @@
 import uuid
 
-from django.db import models
-from django.utils.translation import gettext_lazy as _, get_language
-from django.utils import timezone
 from django.contrib.auth import get_user_model
-from django.core.validators import MaxValueValidator, MinLengthValidator, MinValueValidator
+from django.core.validators import (
+    MaxValueValidator,
+    MinLengthValidator,
+    MinValueValidator,
+)
+from django.db import models
+from django.utils import timezone
+from django.utils.translation import get_language
+from django.utils.translation import gettext_lazy as _
 
 User = get_user_model()
 
+
 class Stats(models.Model):
     """Model for platform statistics"""
-    date = models.DateField(_('date'), unique=True, default=timezone.now)
-    users_count = models.IntegerField(_('nombre d\'utilisateurs'), default=0)
-    publications_count = models.IntegerField(_('nombre de publications'), default=0)
-    corpora_count = models.IntegerField(_('nombre de corpus'), default=0)
-    tools_count = models.IntegerField(_('nombre d\'outils'), default=0)
-    projects_count = models.IntegerField(_('nombre de projets'), default=0)
-    forum_posts_count = models.IntegerField(_('nombre de messages forum'), default=0)
-    visits_count = models.IntegerField(_('nombre de visites'), default=0)
-    downloads_count = models.IntegerField(_('nombre de téléchargements'), default=0)
-    
+
+    date = models.DateField(_("date"), unique=True, default=timezone.now)
+    users_count = models.IntegerField(_("nombre d'utilisateurs"), default=0)
+    publications_count = models.IntegerField(_("nombre de publications"), default=0)
+    corpora_count = models.IntegerField(_("nombre de corpus"), default=0)
+    tools_count = models.IntegerField(_("nombre d'outils"), default=0)
+    projects_count = models.IntegerField(_("nombre de projets"), default=0)
+    forum_posts_count = models.IntegerField(_("nombre de messages forum"), default=0)
+    visits_count = models.IntegerField(_("nombre de visites"), default=0)
+    downloads_count = models.IntegerField(_("nombre de téléchargements"), default=0)
+
     class Meta:
-        verbose_name = _('statistique')
-        verbose_name_plural = _('statistiques')
-        ordering = ['-date']
-        
+        verbose_name = _("statistique")
+        verbose_name_plural = _("statistiques")
+        ordering = ["-date"]
+
     def __str__(self):
         return f"Stats {self.date}"
-    
-
 
 
 class UserStatusHistory(models.Model):
     """
     Modèle pour suivre l'historique des changements de statut des utilisateurs.
-    
+
     Ce modèle enregistre chaque modification du statut d'un utilisateur, incluant:
     - L'utilisateur concerné
     - L'ancien et le nouveau statut
@@ -42,92 +47,82 @@ class UserStatusHistory(models.Model):
     - La date et l'heure du changement
     - Une raison optionnelle pour le changement
     """
-    
+
     # Statuts possibles pour référence (correspond aux statuts du modèle User)
     STATUS_CHOICES = (
-        ('active', 'Actif'),
-        ('pending', 'En attente'),
-        ('blocked', 'Bloqué'),
-        ('new', 'Nouveau'),  # Utilisé pour la création initiale
+        ("active", "Actif"),
+        ("pending", "En attente"),
+        ("blocked", "Bloqué"),
+        ("new", "Nouveau"),  # Utilisé pour la création initiale
     )
-    
+
     # Relation avec l'utilisateur dont le statut a été modifié
     user = models.ForeignKey(
         get_user_model(),
         on_delete=models.CASCADE,  # Si l'utilisateur est supprimé, son historique l'est aussi
-        related_name='status_history',  # Permet d'accéder à l'historique depuis un utilisateur: user.status_history.all()
-        verbose_name="Utilisateur"
+        related_name="status_history",  # Permet d'accéder à l'historique depuis un utilisateur: user.status_history.all()
+        verbose_name="Utilisateur",
     )
-    
+
     # Ancien statut de l'utilisateur
-    old_status = models.CharField(
-        max_length=10,
-        verbose_name="Ancien statut"
-    )
-    
+    old_status = models.CharField(max_length=10, verbose_name="Ancien statut")
+
     # Nouveau statut de l'utilisateur
-    new_status = models.CharField(
-        max_length=10,
-        verbose_name="Nouveau statut"
-    )
-    
+    new_status = models.CharField(max_length=10, verbose_name="Nouveau statut")
+
     # Administrateur qui a effectué le changement
     changed_by = models.ForeignKey(
         get_user_model(),
         on_delete=models.SET_NULL,  # Si l'admin est supprimé, on garde null comme référence
         null=True,
-        related_name='status_changes_made',  # Permet d'accéder aux changements effectués par un admin: admin.status_changes_made.all()
-        verbose_name="Modifié par"
+        related_name="status_changes_made",  # Permet d'accéder aux changements effectués par un admin: admin.status_changes_made.all()
+        verbose_name="Modifié par",
     )
-    
+
     # Date et heure du changement
     change_date = models.DateTimeField(
         default=timezone.now,  # Utilise la date/heure actuelle par défaut
-        verbose_name="Date de modification"
+        verbose_name="Date de modification",
     )
-    
+
     # Raison du changement (optionnelle)
-    reason = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name="Raison"
-    )
-    
+    reason = models.TextField(blank=True, null=True, verbose_name="Raison")
+
     class Meta:
         verbose_name = "Historique de statut"
         verbose_name_plural = "Historiques de statut"
-        ordering = ['-change_date']  # Tri par défaut: du plus récent au plus ancien
-        
+        ordering = ["-change_date"]  # Tri par défaut: du plus récent au plus ancien
+
     def __str__(self):
         """Représentation textuelle de l'entrée d'historique."""
         return f"{self.user.email}: {self.old_status} → {self.new_status}"
-    
+
     def get_old_status_display(self):
         """Retourne l'affichage formaté de l'ancien statut."""
         for status, display in self.STATUS_CHOICES:
             if status == self.old_status:
                 return display
         return self.old_status
-    
+
     def get_new_status_display(self):
         """Retourne l'affichage formaté du nouveau statut."""
         for status, display in self.STATUS_CHOICES:
             if status == self.new_status:
                 return display
         return self.new_status
-    
+
     @classmethod
     def log_change(cls, user, old_status, new_status, changed_by, reason=None):
         """
         Méthode de classe pour faciliter la création d'une entrée d'historique.
-        
+
         Args:
             user (User): L'utilisateur dont le statut est modifié
             old_status (str): L'ancien statut
             new_status (str): Le nouveau statut
             changed_by (User): L'administrateur qui effectue le changement
             reason (str, optional): La raison du changement
-            
+
         Returns:
             UserStatusHistory: L'entrée d'historique créée
         """
@@ -136,7 +131,7 @@ class UserStatusHistory(models.Model):
             old_status=old_status,
             new_status=new_status,
             changed_by=changed_by,
-            reason=reason
+            reason=reason,
         )
 
 
@@ -212,55 +207,65 @@ def status_change_stats():
     }
 """
 
+
 class ContactMessage(models.Model):
     SUBJECT_CHOICES = [
-        ('general', 'General Inquiry'),
-        ('technical', 'Technical Support'),
-        ('suggestion', 'Suggestion'),
-        ('bug', 'Bug Report'),
-        ('other', 'Other'),
+        ("general", "General Inquiry"),
+        ("technical", "Technical Support"),
+        ("suggestion", "Suggestion"),
+        ("bug", "Bug Report"),
+        ("other", "Other"),
     ]
-    
+
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('read', 'Read'),
-        ('replied', 'Replied'),
-        ('closed', 'Closed'),
+        ("pending", "Pending"),
+        ("read", "Read"),
+        ("replied", "Replied"),
+        ("closed", "Closed"),
     ]
-    
+
     # Utilisateur qui envoie le message (optionnel pour les non-connectés)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    
+
     # Informations de contact pour les utilisateurs non connectés
     name = models.CharField(max_length=100)
     email = models.EmailField()
-    
+
     # Contenu du message
-    subject = models.CharField(max_length=20, choices=SUBJECT_CHOICES, default='general')
+    subject = models.CharField(
+        max_length=20, choices=SUBJECT_CHOICES, default="general"
+    )
     message = models.TextField()
-    
+
     # Métadonnées
     created_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     admin_response = models.TextField(blank=True, null=True)
     responded_at = models.DateTimeField(null=True, blank=True)
-    responded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_responses')
-    
+    responded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="admin_responses",
+    )
+
     class Meta:
-        ordering = ['-created_at']
-        
+        ordering = ["-created_at"]
+
     def __str__(self):
         return f"{self.name} - {self.get_subject_display()}"
-    
+
     def save(self, *args, **kwargs):
         # Si l'utilisateur est connecté, préremplir les informations
         if self.user and not self.name:
-            self.name = f"{self.user.first_name} {self.user.last_name}".strip() or self.user.email
+            self.name = (
+                f"{self.user.first_name} {self.user.last_name}".strip()
+                or self.user.email
+            )
         if self.user and not self.email:
             self.email = self.user.email
         super().save(*args, **kwargs)
-
-
 
 
 class AdminActivityLog(models.Model):
@@ -272,30 +277,30 @@ class AdminActivityLog(models.Model):
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='admin_activity_logs',
+        related_name="admin_activity_logs",
     )
-    role_snapshot = models.CharField(max_length=32, default='user')
+    role_snapshot = models.CharField(max_length=32, default="user")
     action = models.CharField(max_length=120)
-    path = models.CharField(max_length=255, blank=True, default='')
-    http_method = models.CharField(max_length=10, blank=True, default='GET')
-    target_type = models.CharField(max_length=80, blank=True, default='')
-    target_id = models.CharField(max_length=64, blank=True, default='')
-    details = models.TextField(blank=True, default='')
-    ip_address = models.CharField(max_length=64, blank=True, default='')
-    user_agent = models.CharField(max_length=255, blank=True, default='')
+    path = models.CharField(max_length=255, blank=True, default="")
+    http_method = models.CharField(max_length=10, blank=True, default="GET")
+    target_type = models.CharField(max_length=80, blank=True, default="")
+    target_id = models.CharField(max_length=64, blank=True, default="")
+    details = models.TextField(blank=True, default="")
+    ip_address = models.CharField(max_length=64, blank=True, default="")
+    user_agent = models.CharField(max_length=255, blank=True, default="")
     occurred_at = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
-        ordering = ['-occurred_at']
+        ordering = ["-occurred_at"]
         indexes = [
-            models.Index(fields=['admin_user', 'occurred_at']),
-            models.Index(fields=['action', 'occurred_at']),
+            models.Index(fields=["admin_user", "occurred_at"]),
+            models.Index(fields=["action", "occurred_at"]),
         ]
-        verbose_name = 'Admin activity log'
-        verbose_name_plural = 'Admin activity logs'
+        verbose_name = "Admin activity log"
+        verbose_name_plural = "Admin activity logs"
 
     def __str__(self):
-        who = getattr(self.admin_user, 'email', 'unknown')
+        who = getattr(self.admin_user, "email", "unknown")
         return f"{who} - {self.action} ({self.occurred_at:%Y-%m-%d %H:%M:%S})"
 
 
@@ -309,38 +314,38 @@ class BlockedUpload(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='blocked_uploads',
+        related_name="blocked_uploads",
     )
-    file_name = models.CharField(max_length=255, blank=True, default='')
-    reason = models.CharField(max_length=255, blank=True, default='')
-    path = models.CharField(max_length=255, blank=True, default='')
-    ip_address = models.CharField(max_length=64, blank=True, default='')
+    file_name = models.CharField(max_length=255, blank=True, default="")
+    reason = models.CharField(max_length=255, blank=True, default="")
+    path = models.CharField(max_length=255, blank=True, default="")
+    ip_address = models.CharField(max_length=64, blank=True, default="")
     blocked_at = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
-        ordering = ['-blocked_at']
-        verbose_name = 'Blocked upload'
-        verbose_name_plural = 'Blocked uploads'
+        ordering = ["-blocked_at"]
+        verbose_name = "Blocked upload"
+        verbose_name_plural = "Blocked uploads"
         indexes = [
-            models.Index(fields=['blocked_at']),
-            models.Index(fields=['ip_address', 'blocked_at']),
+            models.Index(fields=["blocked_at"]),
+            models.Index(fields=["ip_address", "blocked_at"]),
         ]
 
     def __str__(self):
-        base = self.file_name or 'upload'
+        base = self.file_name or "upload"
         return f"{base} blocked at {self.blocked_at:%Y-%m-%d %H:%M:%S}"
 
 
 class SecurityLog(models.Model):
     ACTION_CHOICES = [
-        ('login', _('Login')),
-        ('failed_login', _('Failed Login')),
-        ('upload', _('Upload')),
-        ('blocked_upload', _('Blocked Upload')),
-        ('create', _('Create')),
-        ('update', _('Update')),
-        ('delete', _('Delete')),
-        ('other', _('Other')),
+        ("login", _("Login")),
+        ("failed_login", _("Failed Login")),
+        ("upload", _("Upload")),
+        ("blocked_upload", _("Blocked Upload")),
+        ("create", _("Create")),
+        ("update", _("Update")),
+        ("delete", _("Delete")),
+        ("other", _("Other")),
     ]
 
     user = models.ForeignKey(
@@ -348,27 +353,27 @@ class SecurityLog(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='security_logs',
+        related_name="security_logs",
     )
-    role = models.CharField(max_length=32, blank=True, default='member')
-    action = models.CharField(max_length=32, choices=ACTION_CHOICES, default='other')
-    method = models.CharField(max_length=10, blank=True, default='GET')
-    ip_address = models.CharField(max_length=64, blank=True, default='')
-    path = models.CharField(max_length=255, blank=True, default='')
+    role = models.CharField(max_length=32, blank=True, default="member")
+    action = models.CharField(max_length=32, choices=ACTION_CHOICES, default="other")
+    method = models.CharField(max_length=10, blank=True, default="GET")
+    ip_address = models.CharField(max_length=64, blank=True, default="")
+    path = models.CharField(max_length=255, blank=True, default="")
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
-        ordering = ['-created_at']
-        verbose_name = _('Security Log')
-        verbose_name_plural = _('Security Logs')
+        ordering = ["-created_at"]
+        verbose_name = _("Security Log")
+        verbose_name_plural = _("Security Logs")
         indexes = [
-            models.Index(fields=['created_at']),
-            models.Index(fields=['action', 'created_at']),
-            models.Index(fields=['role', 'created_at']),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["action", "created_at"]),
+            models.Index(fields=["role", "created_at"]),
         ]
 
     def __str__(self):
-        actor = getattr(self.user, 'email', 'anonymous')
+        actor = getattr(self.user, "email", "anonymous")
         return f"{self.action} by {actor} at {self.created_at:%Y-%m-%d %H:%M:%S}"
 
 
@@ -391,6 +396,10 @@ class Opportunity(models.Model):
     STATUS_PENDING = "pending"
     STATUS_APPROVED = "approved"
     STATUS_REJECTED = "rejected"
+
+    SCRAPE_STATUS_APPROVED = "APPROVED"
+    SCRAPE_STATUS_PENDING_REVIEW = "PENDING_REVIEW"
+    SCRAPE_STATUS_REJECTED = "REJECTED"
 
     TYPE_CHOICES = [
         (TYPE_JOB, _("Job")),
@@ -419,6 +428,12 @@ class Opportunity(models.Model):
         (STATUS_REJECTED, _("Rejected")),
     ]
 
+    SCRAPE_STATUS_CHOICES = [
+        (SCRAPE_STATUS_APPROVED, _("Approved")),
+        (SCRAPE_STATUS_PENDING_REVIEW, _("Pending review")),
+        (SCRAPE_STATUS_REJECTED, _("Rejected")),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, blank=True, default="")
     title_en = models.CharField(max_length=255)
@@ -443,6 +458,16 @@ class Opportunity(models.Model):
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
     )
+    scrape_status = models.CharField(
+        max_length=20,
+        choices=SCRAPE_STATUS_CHOICES,
+        default=SCRAPE_STATUS_PENDING_REVIEW,
+        db_index=True,
+    )
+    validation_notes = models.TextField(blank=True, default="")
+    confidence_score = models.FloatField(null=True, blank=True, db_index=True)
+    last_scraped_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    update_counter = models.PositiveIntegerField(default=0)
     approval_status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
     )
@@ -553,7 +578,9 @@ class NewsPublication(models.Model):
     github_url = models.URLField(blank=True, null=True)
     dataset_url = models.URLField(blank=True, null=True)
     demo_url = models.URLField(blank=True, null=True)
-    cover_image = models.ImageField(upload_to=news_cover_upload_to, blank=True, null=True)
+    cover_image = models.ImageField(
+        upload_to=news_cover_upload_to, blank=True, null=True
+    )
     pdf_file = models.FileField(upload_to=news_pdf_upload_to, blank=True, null=True)
     status = models.CharField(
         max_length=20,

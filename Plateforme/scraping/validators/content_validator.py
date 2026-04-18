@@ -106,10 +106,12 @@ class ExtractionQualityValidator:
             confidence = float(item.get("extraction_confidence", 0))
         except (TypeError, ValueError):
             confidence = 0.0
-        if confidence < effective_threshold:
-            errors.append(
-                f"Confidence too low: {confidence} < {effective_threshold}"
-            )
+            
+        # USER REQUEST: Do not reject based on confidence anymore. Save all items as pending.
+        # if confidence < effective_threshold:
+        #     errors.append(
+        #         f"Confidence {confidence:.2f} below threshold {effective_threshold:.2f}"
+        #     )
 
         is_valid = len(errors) == 0
         return is_valid, errors + warnings

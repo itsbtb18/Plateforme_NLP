@@ -43,10 +43,6 @@ from resources.models import Course, NLPTool
 
 from scraping.intelligence import detect_trends
 from scraping.scrapers.custom_scraper import CustomDomainScraper
-from scraping.utils import (
-    apply_translation_confidence_cap,
-    normalize_translation_status,
-)
 from scraping.validators.content_validator import ContentValidator
 from scraping.validators.network_validator import NetworkValidator
 
@@ -1488,7 +1484,9 @@ def scraping_dashboard_by_category(request, category: str):
             if run.started_at
             else "-",
             "duration": (f"{int(run.duration)}s" if run.duration is not None else "-"),
-            "items": int(run.items_created or 0),
+            "items_created": int(run.items_created or 0),
+            "items_updated": int(run.items_updated or 0),
+            "items_skipped": int(run.items_skipped or 0),
             "status": str(run.status or "-").upper(),
         }
         for run in recent_runs
@@ -2360,17 +2358,6 @@ def _translation_filter_match(translation_state: str, translation_filter: str) -
     if translation_filter == "any":
         return True
     return translation_state == translation_filter
-
-
-def _confidence_cap_status(raw_translation_status: str, translation_state: str) -> str:
-    raw_status = normalize_translation_status(raw_translation_status, default="")
-    if raw_status:
-        return raw_status
-    if translation_state == "translated":
-        return "translated"
-    if translation_state == "copied":
-        return "copied"
-    return "missing"
 
 
 def _extract_results_filters(raw_params) -> dict:
@@ -3875,63 +3862,18 @@ def scraping_result_detail(request, item_id):
     )
 
     title_en_score = 100 if title_en else 0
-    title_ar_score = (
-        0
-        if title_translation_state == "missing"
-        else (60 if title_translation_state == "copied" else 100)
-    )
-
     description_en_score = _text_quality_score(description_en, long_form=True)
-    if description_translation_state == "missing":
-        description_ar_score = 0
-    elif description_translation_state == "copied":
-        description_ar_score = 60
-    else:
-        description_ar_score = _text_quality_score(description_ar, long_form=True)
-
     date_score = 100 if scraped_date else 0
-    if has_location:
-        if location_translation_state == "missing":
-            location_score = 0
-        elif location_translation_state == "copied":
-            location_score = 60
-        else:
-            location_score = 100
-    else:
-        location_score = 0
+    location_score = 100 if location_en else 0
     url_score = 100 if source_url else 0
 
-    title_group_score = round((title_en_score + title_ar_score) / 2.0, 1)
-    description_group_score = round(
-        (description_en_score + description_ar_score) / 2.0, 1
-    )
+    if confidence_score is None:
+        fallback_scores = [title_en_score, description_en_score, date_score, url_score]
+        if has_location:
+            fallback_scores.append(location_score)
+        confidence_score = round(sum(fallback_scores) / max(len(fallback_scores), 1), 1)
 
-    overall_confidence = round(
-        (title_group_score * 0.30)
-        + (description_group_score * 0.30)
-        + (date_score * 0.15)
-        + (location_score * 0.10)
-        + (url_score * 0.15)
-    )
-
-    translation_state_for_cap = "translated"
-    translation_state_values = [
-        title_translation_state,
-        description_translation_state,
-        location_translation_state,
-    ]
-    if any(state == "copied" for state in translation_state_values):
-        translation_state_for_cap = "copied"
-    elif not all(state == "translated" for state in translation_state_values):
-        translation_state_for_cap = "missing"
-
-    cap_status = _confidence_cap_status(
-        raw_translation_status, translation_state_for_cap
-    )
-    confidence_score = apply_translation_confidence_cap(confidence_score, cap_status)
-    overall_confidence = apply_translation_confidence_cap(
-        overall_confidence, cap_status
-    )
+    overall_confidence = confidence_score
     if overall_confidence is None:
         overall_confidence = 0.0
 
@@ -3943,28 +3885,10 @@ def scraping_result_detail(request, item_id):
             "state": _breakdown_state_for_score(title_en_score),
         },
         {
-            "key": "title_ar",
-            "label": "Title AR",
-            "score": title_ar_score,
-            "state": _breakdown_state_for_score(
-                title_ar_score,
-                translation_state=title_translation_state,
-            ),
-        },
-        {
             "key": "description_en",
             "label": "Description EN",
             "score": description_en_score,
             "state": _breakdown_state_for_score(description_en_score),
-        },
-        {
-            "key": "description_ar",
-            "label": "Description AR",
-            "score": description_ar_score,
-            "state": _breakdown_state_for_score(
-                description_ar_score,
-                translation_state=description_translation_state,
-            ),
         },
         {
             "key": "date",
@@ -3973,21 +3897,23 @@ def scraping_result_detail(request, item_id):
             "state": _breakdown_state_for_score(date_score),
         },
         {
-            "key": "location",
-            "label": "Location",
-            "score": location_score,
-            "state": _breakdown_state_for_score(
-                location_score,
-                translation_state=location_translation_state,
-            ),
-        },
-        {
             "key": "url",
             "label": "URL",
             "score": url_score,
             "state": _breakdown_state_for_score(url_score),
         },
     ]
+
+    if has_location:
+        breakdown_rows.insert(
+            3,
+            {
+                "key": "location",
+                "label": "Location",
+                "score": location_score,
+                "state": _breakdown_state_for_score(location_score),
+            },
+        )
 
     title_ar_target_field = ""
     for candidate in [f"{title_field}_ar", "title_ar", "name_ar", "job_title_ar"]:
@@ -4066,12 +3992,6 @@ def scraping_result_detail(request, item_id):
             translation_status = "copied" if copied_fields_count > 0 else "missing"
 
     provenance_warnings = []
-    if title_translation_state == "copied":
-        provenance_warnings.append({"key": "title_copied", "value": ""})
-    if description_translation_state == "missing":
-        provenance_warnings.append({"key": "description_missing", "value": ""})
-    if has_location and location_translation_state == "missing":
-        provenance_warnings.append({"key": "location_missing", "value": ""})
     if meta is not None and _safe_text(meta.skip_reason):
         provenance_warnings.append(
             {"key": "skip_reason", "value": _safe_text(meta.skip_reason)}
@@ -4245,13 +4165,23 @@ def run_scraper(request, category):
 
         run.items_found = result.get("items_found", 0)
         run.items_created = result.get("items_created", 0)
+        run.items_updated = result.get("items_updated", 0)
         run.items_skipped = result.get("items_skipped", 0)
         result_errors = result.get("errors", [])
         if not isinstance(result_errors, list):
             result_errors = [str(result_errors)] if result_errors else []
         run.errors = "\n".join(str(err) for err in result_errors if err)
-        has_items = bool(int(run.items_found or 0) or int(run.items_created or 0))
+        has_items = bool(
+            int(run.items_found or 0)
+            or int(run.items_created or 0)
+            or int(run.items_updated or 0)
+        )
         run.status = "failed" if run.errors and not has_items else "completed"
+        run.current_message = (
+            f"Run Complete: {int(run.items_created or 0)} Created, "
+            f"{int(run.items_updated or 0)} Updated, "
+            f"{int(run.items_skipped or 0)} Skipped"
+        )
         run.completed_at = timezone.now()
         run.save()
 
@@ -4261,10 +4191,12 @@ def run_scraper(request, category):
                 "run_id": str(run.pk),
                 "items_found": run.items_found,
                 "items_created": run.items_created,
+                "items_updated": run.items_updated,
                 "items_skipped": run.items_skipped,
                 "errors": result_errors,
                 "results": result.get("results", []),
                 "duration": run.duration,
+                "message": run.current_message,
             }
         )
 
@@ -4594,6 +4526,7 @@ def run_scraper_status(request, run_id):
         "current_item": getattr(run, "current_item", run.current_source) or "",
         "items_found": run.items_found,
         "items_created": run.items_created,
+        "items_updated": run.items_updated,
         "items_skipped": run.items_skipped,
         "items_failed": int(getattr(run, "items_failed", run.items_skipped) or 0),
         "duration": run.duration,
@@ -4646,11 +4579,20 @@ def run_custom_source(request, source_id):
         scraper = CustomDomainScraper(source)
         results = scraper.scrape()
 
-        items_created = len(results)
+        items_updated = int(getattr(scraper, "items_updated", 0) or 0)
+        raw_items_created = getattr(scraper, "items_created", None)
+        if raw_items_created is None:
+            items_created = max(0, int(len(results) or 0) - items_updated)
+        else:
+            items_created = int(raw_items_created or 0)
         items_failed = getattr(scraper, "items_failed", 0)
+        run_complete_message = (
+            f"Run Complete: {int(items_created or 0)} Created, "
+            f"{int(items_updated or 0)} Updated, {int(items_failed or 0)} Skipped"
+        )
 
         # Determine real status based on results
-        if items_created == 0 and items_failed > 0:
+        if items_created == 0 and items_updated == 0 and items_failed > 0:
             # Everything failed
             run_status = "failed"
         elif items_failed > 0:
@@ -4670,11 +4612,14 @@ def run_custom_source(request, source_id):
 
         return JsonResponse(
             {
-                "success": items_created > 0 or items_failed == 0,
+                "success": items_created > 0 or items_updated > 0 or items_failed == 0,
                 "items_created": items_created,
+                "items_updated": int(items_updated or 0),
+                "items_skipped": int(items_failed or 0),
                 "items_failed": items_failed,
                 "run_status": run_status,
                 "source_name": source.name,
+                "message": run_complete_message,
             }
         )
     except Exception as e:
@@ -4817,7 +4762,11 @@ def _run_items_scraped_count(run: ScrapingRun) -> int:
     found = int(run.items_found or 0)
     if found > 0:
         return found
-    return int(run.items_created or 0) + int(run.items_skipped or 0)
+    return (
+        int(run.items_created or 0)
+        + int(run.items_updated or 0)
+        + int(run.items_skipped or 0)
+    )
 
 
 def _safe_percentage(numerator: float, denominator: float) -> float:

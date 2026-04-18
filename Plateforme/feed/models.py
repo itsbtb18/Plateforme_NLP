@@ -53,6 +53,15 @@ class Post(models.Model):
         ("blog", _("Blog")),
     )
 
+    SCRAPE_STATUS_APPROVED = "APPROVED"
+    SCRAPE_STATUS_PENDING_REVIEW = "PENDING_REVIEW"
+    SCRAPE_STATUS_REJECTED = "REJECTED"
+    SCRAPE_STATUS_CHOICES = (
+        (SCRAPE_STATUS_APPROVED, _("Approved")),
+        (SCRAPE_STATUS_PENDING_REVIEW, _("Pending review")),
+        (SCRAPE_STATUS_REJECTED, _("Rejected")),
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     author = models.ForeignKey(
         get_user_model(), on_delete=models.CASCADE, related_name="posts"
@@ -87,6 +96,8 @@ class Post(models.Model):
     source_url = models.URLField(blank=True, default="", db_index=True)
     source_name = models.CharField(max_length=120, blank=True, default="")
     relevance_score = models.FloatField(null=True, blank=True)
+    last_scraped_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    update_counter = models.PositiveIntegerField(default=0)
     thumbnail = models.ImageField(
         upload_to="posts/thumbnails/",
         null=True,
@@ -107,6 +118,20 @@ class Post(models.Model):
         max_length=20,
         choices=APPROVAL_STATUS_CHOICES,
         default="pending",
+    )
+    scrape_status = models.CharField(
+        _("Scrape Status"),
+        max_length=20,
+        choices=SCRAPE_STATUS_CHOICES,
+        default=SCRAPE_STATUS_PENDING_REVIEW,
+        db_index=True,
+    )
+    validation_notes = models.TextField(_("Validation Notes"), blank=True, default="")
+    confidence_score = models.FloatField(
+        _("Confidence Score"),
+        null=True,
+        blank=True,
+        db_index=True,
     )
     rejection_reason = models.TextField(
         verbose_name=_("Rejection Reason"),

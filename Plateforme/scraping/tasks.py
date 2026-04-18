@@ -41,6 +41,7 @@ SUPPORTED_SCRAPER_CATEGORIES = (
     "news",
     "opportunities",
     "corpus",
+    "laws",
 )
 SUPPORTED_SCRAPER_CATEGORY_SET = set(SUPPORTED_SCRAPER_CATEGORIES)
 
@@ -597,11 +598,24 @@ def run_scraper_task(
             if hasattr(scraper, "bind_progress_run"):
                 scraper.bind_progress_run(run)
             results = scraper.scrape()
-            items_created = len(results)
+            total_updated = int(getattr(scraper, "items_updated", 0) or 0)
+            raw_created = getattr(scraper, "items_created", None)
+            if raw_created is None:
+                total_created = max(0, int(len(results) or 0) - total_updated)
+            else:
+                total_created = int(raw_created or 0)
+            total_flagged_for_review = int(
+                getattr(scraper, "items_flagged_for_review", 0) or 0
+            )
             items_failed = int(getattr(scraper, "items_failed", 0) or 0)
+            run_complete_message = (
+                f"Run Complete: {total_created} Created, "
+                f"{total_updated} Updated, {int(items_failed or 0)} Skipped"
+            )
 
-            run.items_found = items_created + items_failed
-            run.items_created = items_created
+            run.items_found = total_created + total_updated + items_failed
+            run.items_created = total_created
+            run.items_updated = total_updated
             run.items_skipped = items_failed
             run.items_failed = items_failed
             run.errors = (
@@ -611,7 +625,7 @@ def run_scraper_task(
             run.progress_current = 1
             run.progress_total = 1
             run.current_step = "Completed"
-            run.current_message = "Scraping task completed"
+            run.current_message = run_complete_message
             run.current_source = source.name
             run.current_item = ""
             run.completed_at = timezone.now()
@@ -619,6 +633,7 @@ def run_scraper_task(
                 update_fields=[
                     "items_found",
                     "items_created",
+                    "items_updated",
                     "items_skipped",
                     "items_failed",
                     "errors",
@@ -644,12 +659,12 @@ def run_scraper_task(
                 current_source=source.name,
                 current_item="",
                 current_step="Completed",
-                message="Scraping task completed",
+                message=run_complete_message,
             )
 
             source.last_scraped = timezone.now()
             source.last_run_status = "success" if items_failed == 0 else "partial"
-            source.last_run_items_created = items_created
+            source.last_run_items_created = total_created
             source.last_run_error = run.errors
             source.save(
                 update_fields=[
@@ -660,20 +675,18 @@ def run_scraper_task(
                 ]
             )
 
-            category_label = _category_display_label(category)
             _create_scraping_notification(
                 notification_type="run_complete",
                 category=category,
                 run=run,
                 source=source,
-                message=(
-                    f"[{category_label}] Run #{str(run.id)[:8]} completed "
-                    f"({int(run.items_created or 0)} created, {int(run.items_skipped or 0)} skipped)."
-                ),
+                message=run_complete_message,
                 metadata={
                     "run_id": str(run.id),
                     "source_id": str(source.id),
-                    "items_created": int(run.items_created or 0),
+                    "items_created": int(total_created or 0),
+                    "items_updated": int(total_updated or 0),
+                    "items_flagged_for_review": int(total_flagged_for_review or 0),
                     "items_skipped": int(run.items_skipped or 0),
                 },
             )
@@ -683,11 +696,16 @@ def run_scraper_task(
                 "run_id": str(run.pk),
                 "source_id": str(source.id),
                 "items_found": run.items_found,
-                "items_created": run.items_created,
+                "items_created": total_created,
+                "items_updated": total_updated,
+                "total_created": total_created,
+                "total_updated": total_updated,
+                "total_flagged_for_review": total_flagged_for_review,
                 "items_skipped": run.items_skipped,
                 "items_failed": run.items_failed,
                 "results": results,
                 "duration": run.duration,
+                "message": run_complete_message,
             }
         except Exception as exc:
             run.status = "failed"
@@ -885,6 +903,9 @@ def run_scraper_task(
         run.items_created = result.get("items_created", 0)
         run.items_updated = result.get("items_updated", 0)
         run.items_skipped = result.get("items_skipped", 0)
+        total_created = int(result.get("total_created", run.items_created) or 0)
+        total_updated = int(result.get("total_updated", run.items_updated) or 0)
+        total_flagged_for_review = int(result.get("total_flagged_for_review", 0) or 0)
         run.items_failed = int(run.items_skipped or 0)
         result_errors = result.get("errors", [])
         if not isinstance(result_errors, list):
@@ -960,6 +981,11 @@ def run_scraper_task(
         update_scrape_queue_lag_metrics(force=True)
 
         category_label = _category_display_label(category)
+        run_complete_message = (
+            f"Run Complete: {int(total_created or 0)} Created, "
+            f"{int(total_updated or 0)} Updated, "
+            f"{int(run.items_skipped or 0)} Skipped"
+        )
         if run_failed:
             logger.error(
                 "scrape_task_failed",
@@ -1008,7 +1034,9 @@ def run_scraper_task(
                     "run_id": str(run.id),
                     "items_saved": run.items_created,
                     "items_skipped": run.items_skipped,
-                    "duration_seconds": (timezone.now() - run.started_at).total_seconds(),
+                    "duration_seconds": (
+                        timezone.now() - run.started_at
+                    ).total_seconds(),
                 },
             )
 
@@ -1023,22 +1051,20 @@ def run_scraper_task(
                 current_source=run.current_source,
                 current_item=run.current_item,
                 current_step=run.current_step,
-                message="Scraping task completed",
+                message=run_complete_message,
             )
 
             _create_scraping_notification(
                 notification_type="run_complete",
                 category=category,
                 run=run,
-                message=(
-                    f"[{category_label}] Run #{str(run.id)[:8]} completed "
-                    f"({int(run.items_created or 0)} created, {int(run.items_skipped or 0)} skipped)."
-                ),
+                message=run_complete_message,
                 metadata={
                     "run_id": str(run.id),
                     "items_found": int(run.items_found or 0),
-                    "items_created": int(run.items_created or 0),
-                    "items_updated": int(run.items_updated or 0),
+                    "items_created": int(total_created or 0),
+                    "items_updated": int(total_updated or 0),
+                    "items_flagged_for_review": int(total_flagged_for_review or 0),
                     "items_skipped": int(run.items_skipped or 0),
                 },
             )
@@ -1047,13 +1073,17 @@ def run_scraper_task(
             "status": "error" if run_failed else "success",
             "run_id": str(run.pk),
             "items_found": run.items_found,
-            "items_created": run.items_created,
-            "items_updated": run.items_updated,
+            "items_created": total_created,
+            "items_updated": total_updated,
+            "total_created": total_created,
+            "total_updated": total_updated,
+            "total_flagged_for_review": total_flagged_for_review,
             "items_skipped": run.items_skipped,
             "items_failed": run.items_failed,
             "errors": result_errors,
             "results": result.get("results", []),
             "duration": run.duration,
+            "message": run_complete_message,
         }
 
     except Exception as exc:
@@ -1175,6 +1205,7 @@ def run_events_pipeline_task(self, run_id: str | None = None) -> dict[str, Any]:
 
         run.items_found = int(summary.get("items_found", 0))
         run.items_created = int(summary.get("items_created", 0))
+        run.items_updated = int(summary.get("items_updated", 0))
         run.items_skipped = int(summary.get("items_skipped", 0))
         run.items_failed = int(run.items_skipped or 0)
         run.errors = "\n".join(summary.get("errors", []))
@@ -1184,6 +1215,7 @@ def run_events_pipeline_task(self, run_id: str | None = None) -> dict[str, Any]:
             update_fields=[
                 "items_found",
                 "items_created",
+                "items_updated",
                 "items_skipped",
                 "items_failed",
                 "errors",
@@ -1209,6 +1241,12 @@ def run_events_pipeline_task(self, run_id: str | None = None) -> dict[str, Any]:
             "run_id": str(run.id),
             "items_found": run.items_found,
             "items_created": run.items_created,
+            "items_updated": run.items_updated,
+            "total_created": int(summary.get("total_created", run.items_created) or 0),
+            "total_updated": int(summary.get("total_updated", run.items_updated) or 0),
+            "total_flagged_for_review": int(
+                summary.get("total_flagged_for_review", 0) or 0
+            ),
             "items_skipped": run.items_skipped,
             "items_failed": run.items_failed,
             "errors": summary.get("errors", []),

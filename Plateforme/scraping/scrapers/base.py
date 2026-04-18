@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
@@ -24,6 +25,71 @@ from scraping.utils import infer_translation_status
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+def handle_partial_data(item_data: dict) -> dict:
+    """Fill frequently missing research fields with a traceable placeholder."""
+    payload = dict(item_data or {})
+    placeholder = "[NEEDS RESEARCH]"
+
+    url_keys = (
+        "url",
+        "source_url",
+        "website",
+        "access_link",
+        "download_url",
+        "paper_url",
+        "registration_link",
+    )
+    date_keys = (
+        "date",
+        "published_date",
+        "start_date",
+        "end_date",
+        "deadline",
+        "submission_deadline",
+        "notification_date",
+    )
+    author_keys = (
+        "author",
+        "author_name",
+        "created_by",
+        "organizer",
+        "institution_name",
+    )
+    law_reference_keys = (
+        "law_reference",
+        "legal_reference",
+        "reference",
+    )
+
+    def _fill_group(keys: tuple[str, ...], canonical_key: str):
+        group_has_value = any(str(payload.get(key) or "").strip() for key in keys)
+        if not group_has_value:
+            payload[canonical_key] = placeholder
+            for key in keys:
+                if key in payload and not str(payload.get(key) or "").strip():
+                    payload[key] = placeholder
+
+    def _fill_alias_if_missing(keys: tuple[str, ...], value: str):
+        for key in keys:
+            if key in payload and not str(payload.get(key) or "").strip():
+                payload[key] = value
+
+    _fill_group(url_keys, "url")
+    _fill_group(date_keys, "date")
+    _fill_group(author_keys, "author")
+    _fill_group(law_reference_keys, "law_reference")
+
+    url_value = str(payload.get("url") or "").strip()
+    if url_value:
+        _fill_alias_if_missing(url_keys, url_value)
+
+    author_value = str(payload.get("author") or "").strip()
+    if author_value:
+        _fill_alias_if_missing(author_keys, author_value)
+
+    return payload
 
 
 def emit_progress(
@@ -112,6 +178,9 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
     name: str = "Base Scraper"
     category: str = "unknown"
     MIN_CONFIDENCE_TO_SAVE: float = 0.35
+    MIN_CONFIDENCE_PERCENT_TO_REVIEW: float = 50.0
+    NEEDS_RESEARCH_PLACEHOLDER = "[NEEDS RESEARCH]"
+    TERMINAL_REVIEW_STATUSES = {"APPROVED"}
 
     def __init__(self):
         self.results: list[dict] = []
@@ -119,6 +188,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
         self.structured_errors: list[dict] = []
         self.items_created: int = 0
         self.items_updated: int = 0
+        self.items_flagged_for_review: int = 0
         self.items_skipped: int = 0
         self._progress_run = None
         self.validation_stats = {
@@ -130,6 +200,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
         }
         self._system_user = None
         self._last_duplicate_match_id = ""
+        self._semantic_match_threshold = 90.0
 
     def bind_progress_run(self, run):
         """Bind a ScrapingRun instance used for progress updates."""
@@ -228,17 +299,25 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
         return payload
 
     def passes_min_confidence_to_save(self, item_data: dict) -> bool:
+        if isinstance(item_data, dict):
+            item_data.update(handle_partial_data(item_data))
+
+        confidence = 0.0
+        quality_messages: list[str] = []
         try:
             from scraping.intelligence import calculate_item_confidence
             from scraping.validators.content_validator import ExtractionQualityValidator
 
             payload = self._confidence_payload(item_data)
+            payload = handle_partial_data(payload)
 
             confidence_report = calculate_item_confidence(self.category, payload)
             confidence = max(0.0, min(1.0, float(confidence_report.get("score", 0.0))))
 
             if isinstance(item_data, dict):
-                item_data.setdefault("extraction_confidence", round(confidence, 3))
+                item_data["extraction_confidence"] = round(confidence, 3)
+
+            payload["extraction_confidence"] = round(confidence, 3)
 
             validator = ExtractionQualityValidator()
             is_valid, quality_messages = validator.validate(payload, self.category)
@@ -255,28 +334,260 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                         "messages": quality_messages,
                     },
                 )
-                return False
         except Exception:
             logger.debug("candidate_confidence_compute_failed", exc_info=True)
-            return True
 
-        min_confidence = float(
-            getattr(SS, "MIN_CONFIDENCE_TO_SAVE", self.MIN_CONFIDENCE_TO_SAVE)
+        confidence_percent = self._to_confidence_percent(
+            confidence if confidence else (item_data or {}).get("confidence_score")
         )
-        if confidence >= min_confidence:
-            return True
+        review_status = (
+            "PENDING_REVIEW"
+            if confidence_percent >= self.MIN_CONFIDENCE_PERCENT_TO_REVIEW
+            else "REJECTED"
+        )
+
+        if isinstance(item_data, dict):
+            item_data["confidence_score"] = round(confidence_percent, 1)
+            item_data["scrape_status"] = review_status
+            item_data["approval_status"] = (
+                "pending" if review_status == "PENDING_REVIEW" else "rejected"
+            )
+            if quality_messages:
+                existing_notes = str(item_data.get("validation_notes") or "").strip()
+                quality_note = "; ".join(
+                    str(msg).strip() for msg in quality_messages if str(msg).strip()
+                )
+                if quality_note:
+                    item_data["validation_notes"] = (
+                        f"{existing_notes}; {quality_note}"
+                        if existing_notes
+                        else quality_note
+                    )
+            if review_status == "REJECTED":
+                note = "Auto-rejected: confidence_score below 50%."
+                existing_notes = str(item_data.get("validation_notes") or "").strip()
+                if note not in existing_notes:
+                    item_data["validation_notes"] = (
+                        f"{existing_notes}; {note}" if existing_notes else note
+                    )
 
         logger.info(
-            "candidate_rejected_low_confidence",
+            "candidate_review_decision",
             extra={
                 "category": self.category,
                 "source_name": self.name,
-                "confidence": round(confidence, 3),
-                "min_confidence": round(min_confidence, 3),
+                "confidence": round(confidence_percent, 1),
+                "review_status": review_status,
                 "item_title": self._item_display_name(item_data),
             },
         )
-        return False
+        return True
+
+    @staticmethod
+    def _to_confidence_percent(value) -> float:
+        try:
+            if value is None:
+                return 0.0
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+        if numeric <= 1.0:
+            numeric *= 100.0
+        return max(0.0, min(100.0, numeric))
+
+    def _track_saved_item_status(self, item_data: dict | None) -> None:
+        status = str((item_data or {}).get("scrape_status") or "").strip().upper()
+        approval_status = (
+            str((item_data or {}).get("approval_status") or "").strip().lower()
+        )
+        if status == "PENDING_REVIEW" or approval_status == "pending":
+            self.items_flagged_for_review += 1
+
+    def _is_terminal_review_status(self, status: str | None) -> bool:
+        return str(status or "").strip().upper() in self.TERMINAL_REVIEW_STATUSES
+
+    def _is_approved_record(self, existing_obj) -> bool:
+        scrape_status = (
+            str(getattr(existing_obj, "scrape_status", "") or "").strip().upper()
+        )
+        approval_status = (
+            str(getattr(existing_obj, "approval_status", "") or "").strip().lower()
+        )
+        return scrape_status == "APPROVED" or approval_status == "approved"
+
+    def _is_needs_research_value(self, value) -> bool:
+        return (
+            isinstance(value, str)
+            and value.strip().upper() == self.NEEDS_RESEARCH_PLACEHOLDER.upper()
+        )
+
+    @staticmethod
+    def _strip_diacritics(value: str) -> str:
+        normalized = unicodedata.normalize("NFKD", value or "")
+        return "".join(
+            character
+            for character in normalized
+            if not unicodedata.combining(character)
+        )
+
+    @staticmethod
+    def _transliterate_to_phonetic(value: str) -> str:
+        transliteration_map = {
+            "ء": "",
+            "أ": "a",
+            "إ": "i",
+            "آ": "a",
+            "ا": "a",
+            "ب": "b",
+            "ت": "t",
+            "ث": "th",
+            "ج": "j",
+            "ح": "h",
+            "خ": "kh",
+            "د": "d",
+            "ذ": "dh",
+            "ر": "r",
+            "ز": "z",
+            "س": "s",
+            "ش": "sh",
+            "ص": "s",
+            "ض": "d",
+            "ط": "t",
+            "ظ": "z",
+            "ع": "a",
+            "غ": "gh",
+            "ف": "f",
+            "ق": "q",
+            "ك": "k",
+            "ل": "l",
+            "م": "m",
+            "ن": "n",
+            "ه": "h",
+            "ة": "h",
+            "و": "w",
+            "ؤ": "w",
+            "ي": "y",
+            "ى": "y",
+            "ئ": "y",
+            "ـ": "",
+        }
+        return "".join(
+            transliteration_map.get(character, character) for character in value
+        )
+
+    def get_semantic_hash(self, title: str | None) -> str:
+        """Normalize titles for cross-script phonetic matching."""
+        text = self._strip_diacritics(str(title or "")).lower().strip()
+        if not text:
+            return ""
+
+        has_arabic = bool(re.search(r"[\u0600-\u06ff]", text))
+        text = self._transliterate_to_phonetic(text)
+        text = re.sub(r"[^a-z0-9\s]+", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+
+        tokens: list[str] = []
+        prefix_tokens = {"the"}
+        for raw_token in text.split():
+            token = raw_token.strip().lower()
+            if not token or token in prefix_tokens:
+                continue
+            if has_arabic and token in {"al", "el", "il", "ul"}:
+                continue
+            token = re.sub(r"^[aeiouy]+", "", token)
+            token = re.sub(r"(.)\1+", r"\1", token)
+            token = re.sub(r"[^a-z0-9]", "", token)
+            if token:
+                tokens.append(token)
+
+        return " ".join(tokens)
+
+    def _semantic_title_similarity(self, left: str | None, right: str | None) -> float:
+        left_hash = self.get_semantic_hash(left)
+        right_hash = self.get_semantic_hash(right)
+        if not left_hash or not right_hash:
+            return 0.0
+        if left_hash == right_hash:
+            return 100.0
+        return SequenceMatcher(None, left_hash, right_hash).ratio() * 100.0
+
+    def _find_semantic_title_match(
+        self,
+        queryset,
+        incoming_title: str | None,
+        *,
+        title_fields: tuple[str, ...] = ("title_en", "title"),
+    ):
+        incoming_hash = self.get_semantic_hash(incoming_title)
+        if not incoming_hash:
+            return None, 0.0
+
+        best_match = None
+        best_score = 0.0
+        for existing_obj in queryset:
+            existing_title = ""
+            for field_name in title_fields:
+                candidate_value = str(
+                    getattr(existing_obj, field_name, "") or ""
+                ).strip()
+                if candidate_value:
+                    existing_title = candidate_value
+                    break
+            if not existing_title:
+                continue
+
+            score = self._semantic_title_similarity(incoming_title, existing_title)
+            if score > best_score:
+                best_match = existing_obj
+                best_score = score
+            if score >= self._semantic_match_threshold:
+                return existing_obj, score
+
+        if best_match is not None and best_score >= self._semantic_match_threshold:
+            return best_match, best_score
+        return None, best_score
+
+    def _build_terminal_status_update_defaults(
+        self,
+        *,
+        existing_obj,
+        incoming_defaults: dict,
+        metadata_fields: set[str] | None = None,
+    ) -> dict:
+        """Keep approved moderation status and only update metadata + [NEEDS RESEARCH] fields."""
+        allowed_metadata = set(metadata_fields or set())
+        safe_defaults: dict = {}
+
+        for field_name, field_value in incoming_defaults.items():
+            if field_name in allowed_metadata:
+                safe_defaults[field_name] = field_value
+                continue
+
+            if not hasattr(existing_obj, field_name):
+                continue
+
+            existing_value = getattr(existing_obj, field_name)
+            if not self._is_needs_research_value(existing_value):
+                continue
+
+            if field_value is None:
+                continue
+            if isinstance(field_value, str) and not field_value.strip():
+                continue
+
+            safe_defaults[field_name] = field_value
+
+        if hasattr(existing_obj, "scrape_status"):
+            safe_defaults["scrape_status"] = str(
+                existing_obj.scrape_status or ""
+            ).upper()
+        if hasattr(existing_obj, "approval_status"):
+            safe_defaults["approval_status"] = str(
+                existing_obj.approval_status or ""
+            ).lower()
+
+        return safe_defaults
 
     @abstractmethod
     def scrape(self):
@@ -346,8 +657,12 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             "category": self.category,
             "items_created": self.items_created,
             "items_updated": self.items_updated,
+            "items_flagged_for_review": self.items_flagged_for_review,
             "items_skipped": self.items_skipped,
             "items_found": self.items_created + self.items_updated + self.items_skipped,
+            "total_created": self.items_created,
+            "total_updated": self.items_updated,
+            "total_flagged_for_review": self.items_flagged_for_review,
             "errors": self.errors,
             "structured_errors": self.structured_errors,
             "results": self.results,
@@ -758,7 +1073,11 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                 similarity = self._title_similarity(candidate_title, existing_title)
                 if similarity >= threshold:
                     self._set_duplicate_match(event)
-                    return True, f"event title similarity >= {int(threshold * 100)}%", similarity
+                    return (
+                        True,
+                        f"event title similarity >= {int(threshold * 100)}%",
+                        similarity,
+                    )
 
         return False, "", 0.0
 
@@ -797,7 +1116,11 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                 similarity = self._title_similarity(title, existing_title)
                 if similarity >= threshold:
                     self._set_duplicate_match(tool)
-                    return True, f"tool title similarity >= {int(threshold * 100)}%", similarity
+                    return (
+                        True,
+                        f"tool title similarity >= {int(threshold * 100)}%",
+                        similarity,
+                    )
 
             try:
                 from scraping.embeddings import find_semantic_duplicate
@@ -851,7 +1174,11 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                 similarity = self._title_similarity(title, existing_title)
                 if similarity >= threshold:
                     self._set_duplicate_match(post)
-                    return True, f"news title similarity >= {int(threshold * 100)}%", similarity
+                    return (
+                        True,
+                        f"news title similarity >= {int(threshold * 100)}%",
+                        similarity,
+                    )
 
         return False, "", 0.0
 
@@ -871,7 +1198,9 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
         if title:
             instructor = self._normalize_text(item_data.get("instructor") or "")
             recent_courses = self._recent_dedup_queryset(
-                Course.objects.only("id", "title", "title_en", "description", "description_en")
+                Course.objects.only(
+                    "id", "title", "title_en", "description", "description_en"
+                )
             )
             normalized_title = self._normalize_text(title)
             for course in recent_courses:
@@ -892,7 +1221,11 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                 similarity = self._title_similarity(title, existing_title)
                 if similarity >= threshold:
                     self._set_duplicate_match(course)
-                    return True, f"course title similarity >= {int(threshold * 100)}%", similarity
+                    return (
+                        True,
+                        f"course title similarity >= {int(threshold * 100)}%",
+                        similarity,
+                    )
 
         return False, "", 0.0
 
@@ -906,7 +1239,9 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                 self._set_duplicate_match(existing)
                 return True, "institution ror_id exact match", 1.0
 
-        website_url = (item_data.get("website_url") or item_data.get("website") or "").strip()
+        website_url = (
+            item_data.get("website_url") or item_data.get("website") or ""
+        ).strip()
         if website_url:
             normalized = self._normalize_url(website_url, strip_www=True)
             for institution in self._recent_dedup_queryset(
@@ -929,7 +1264,11 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                 similarity = self._title_similarity(name, existing_name)
                 if similarity >= threshold:
                     self._set_duplicate_match(institution)
-                    return True, f"institution name similarity >= {int(threshold * 100)}%", similarity
+                    return (
+                        True,
+                        f"institution name similarity >= {int(threshold * 100)}%",
+                        similarity,
+                    )
 
         return False, "", 0.0
 

@@ -898,8 +898,14 @@ def run_scraper(request, category):
 
         run.items_found = result.get("items_found", 0)
         run.items_created = result.get("items_created", 0)
+        run.items_updated = result.get("items_updated", 0)
         run.items_skipped = result.get("items_skipped", 0)
         run.errors = "\n".join(result.get("errors", []))
+        run.current_message = (
+            f"Run Complete: {int(run.items_created or 0)} Created, "
+            f"{int(run.items_updated or 0)} Updated, "
+            f"{int(run.items_skipped or 0)} Skipped"
+        )
         run.status = "completed"
         run.completed_at = timezone.now()
         run.save()
@@ -910,10 +916,12 @@ def run_scraper(request, category):
                 "run_id": str(run.pk),
                 "items_found": run.items_found,
                 "items_created": run.items_created,
+                "items_updated": run.items_updated,
                 "items_skipped": run.items_skipped,
                 "errors": result.get("errors", []),
                 "results": result.get("results", []),
                 "duration": run.duration,
+                "message": run.current_message,
             }
         )
 
@@ -974,6 +982,7 @@ def run_scraper_status(request, run_id):
         "current_item": getattr(run, "current_item", run.current_source) or "",
         "items_found": run.items_found,
         "items_created": run.items_created,
+        "items_updated": run.items_updated,
         "items_skipped": run.items_skipped,
         "items_failed": int(getattr(run, "items_failed", run.items_skipped) or 0),
         "duration": run.duration,
@@ -1030,11 +1039,20 @@ def run_custom_source(request, source_id):
         scraper = CustomDomainScraper(source)
         results = scraper.scrape()
 
-        items_created = len(results)
+        items_updated = int(getattr(scraper, "items_updated", 0) or 0)
+        raw_items_created = getattr(scraper, "items_created", None)
+        if raw_items_created is None:
+            items_created = max(0, int(len(results) or 0) - items_updated)
+        else:
+            items_created = int(raw_items_created or 0)
         items_failed = getattr(scraper, "items_failed", 0)
+        run_complete_message = (
+            f"Run Complete: {int(items_created or 0)} Created, "
+            f"{int(items_updated or 0)} Updated, {int(items_failed or 0)} Skipped"
+        )
 
         # Determine real status based on results
-        if items_created == 0 and items_failed > 0:
+        if items_created == 0 and items_updated == 0 and items_failed > 0:
             # Everything failed
             run_status = "failed"
         elif items_failed > 0:
@@ -1054,11 +1072,14 @@ def run_custom_source(request, source_id):
 
         return JsonResponse(
             {
-                "success": items_created > 0 or items_failed == 0,
+                "success": items_created > 0 or items_updated > 0 or items_failed == 0,
                 "items_created": items_created,
+                "items_updated": int(items_updated or 0),
+                "items_skipped": int(items_failed or 0),
                 "items_failed": items_failed,
                 "run_status": run_status,
                 "source_name": source.name,
+                "message": run_complete_message,
             }
         )
     except Exception as e:

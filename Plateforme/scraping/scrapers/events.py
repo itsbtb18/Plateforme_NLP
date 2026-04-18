@@ -1,10 +1,18 @@
+import json
 import logging
 import re
 from datetime import date, timedelta
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
+import requests
 from asgiref.sync import async_to_sync
+from django.db import transaction
 from django.utils import timezone
+
+try:
+    from bs4 import BeautifulSoup
+except Exception:  # pragma: no cover - optional dependency at runtime
+    BeautifulSoup = None
 
 from scraping.constants import EVENT_PRIORITY_SCORES, SCRAPER_BOT_EMAIL
 from scraping.extractors.events.llm_event_extractor import LLMEventExtractor
@@ -22,6 +30,33 @@ logger = logging.getLogger(__name__)
 class EventScraper(BaseScraper):
     name = "NLP Events Scraper"
     category = "events"
+    STATUS_CONFIDENCE_DELTA = 15.0
+    PAST_EVENT_WINDOW_DAYS = 365
+    MAX_DISCOVERY_SOURCE_PAGES = 12
+    RELATED_SECTION_HINTS = (
+        "related events",
+        "upcoming conferences",
+        "past editions",
+        "related conference",
+        "other editions",
+    )
+    RELATED_SECTION_SELECTORS = (
+        "section.related-events a[href]",
+        "section.upcoming-conferences a[href]",
+        "section.past-editions a[href]",
+        ".related-events a[href]",
+        ".upcoming-conferences a[href]",
+        ".past-editions a[href]",
+        "[id*='related'] a[href]",
+        "[id*='upcoming'] a[href]",
+        "[id*='past'] a[href]",
+    )
+    DISCOVERY_PRIORITY_KEYWORDS = (
+        "2026",
+        "2027",
+        "call for papers",
+        "conference",
+    )
 
     DEFAULT_EVENT_SEARCH_QUERY_TEMPLATES = (
         "upcoming arabic nlp conferences {year}",
@@ -322,7 +357,18 @@ class EventScraper(BaseScraper):
         )
         target_result_pool = max(60, target_items * 12)
 
-        total_queries = len(search_queries)
+        discovered_results = self._load_pending_discovered_url_batch(limit=20)
+        discovery_offset = 1
+        if discovered_results:
+            combined_results.extend(discovered_results)
+            seen_urls.update(
+                self._safe_url(result.get("url"))
+                for result in discovered_results
+                if isinstance(result, dict) and self._safe_url(result.get("url"))
+            )
+            discovery_offset = 2
+
+        total_queries = len(search_queries) + (1 if discovered_results else 0)
         self.emit_progress(
             "discovery",
             0,
@@ -330,7 +376,17 @@ class EventScraper(BaseScraper):
             "🔍 Starting discovery...",
             current_source=self.name,
         )
-        for query_index, query in enumerate(search_queries, start=1):
+        if discovered_results:
+            self.emit_progress(
+                "discovery",
+                1,
+                total_queries,
+                "🔍 Processing discovered URLs...",
+                current_source=self.name,
+                current_item="Discovered frontier",
+            )
+
+        for query_index, query in enumerate(search_queries, start=discovery_offset):
             self.emit_progress(
                 "discovery",
                 query_index,
@@ -385,6 +441,8 @@ class EventScraper(BaseScraper):
         if not combined_results:
             logger.warning("No event search results returned by Tavily.")
             return
+
+        self._discover_related_urls_from_results(combined_results)
 
         candidates: list[dict] = []
         seen_candidate_keys: set[tuple[str, str, str]] = set()
@@ -522,6 +580,419 @@ class EventScraper(BaseScraper):
                 target_items,
             )
 
+    def _discover_related_urls_from_results(self, search_results: list[dict]) -> None:
+        from scraping.models import DiscoveredURL
+
+        if not search_results:
+            return
+
+        scanned_pages = 0
+        discovered_total = 0
+        for row in search_results:
+            if scanned_pages >= self.MAX_DISCOVERY_SOURCE_PAGES:
+                break
+
+            source_page_url = self._safe_url(row.get("url"))
+            if not source_page_url:
+                continue
+            scanned_pages += 1
+
+            discovered_rows = self._extract_related_urls_with_css(source_page_url)
+            if not discovered_rows:
+                discovered_rows = self._extract_related_urls_with_llm_scan(
+                    self._safe_text(row.get("content")),
+                    source_page_url,
+                )
+
+            for discovered in discovered_rows:
+                discovered_url = self._safe_url(discovered.get("url"))
+                if not discovered_url or discovered_url == source_page_url:
+                    continue
+                if self._is_blocked_source_url(discovered_url):
+                    continue
+                if not self._looks_like_discoverable_event_url(discovered_url):
+                    continue
+
+                self._upsert_discovered_url(
+                    model=DiscoveredURL,
+                    discovered_url=discovered_url,
+                    source_page_url=source_page_url,
+                    section_label=self._safe_text(discovered.get("section")),
+                    anchor_text=self._safe_text(discovered.get("title")),
+                    method=self._safe_text(discovered.get("method")) or "heuristic",
+                )
+                discovered_total += 1
+
+        if discovered_total:
+            logger.info(
+                "event_source_discovery_saved count=%s scanned_pages=%s",
+                discovered_total,
+                scanned_pages,
+            )
+
+    def _load_pending_discovered_url_batch(self, limit: int = 20) -> list[dict]:
+        from scraping.models import DiscoveredURL
+
+        try:
+            rows = list(
+                DiscoveredURL.objects.filter(
+                    category=self.category,
+                    status="pending",
+                ).order_by("-priority_score", "-times_seen", "-last_discovered_at")[
+                    : max(1, limit)
+                ]
+            )
+        except Exception as exc:
+            logger.warning("Failed to load discovered URL queue: %s", exc)
+            return []
+
+        if not rows:
+            return []
+
+        rows = sorted(rows, key=self._discovered_url_priority, reverse=True)
+        pending_results: list[dict] = []
+        for row in rows[: max(1, limit)]:
+            try:
+                result = self._crawl_discovered_url(row)
+            except Exception as exc:
+                self._finalize_discovered_url(row, "failed")
+                logger.debug("discovered_url_crawl_failed url=%s err=%s", row.url, exc)
+                continue
+
+            if result is None:
+                self._finalize_discovered_url(row, "failed")
+                continue
+
+            pending_results.append(result)
+            self._finalize_discovered_url(row, "completed")
+
+        return pending_results
+
+    def _discovered_url_priority(self, row) -> tuple[int, int, str]:
+        text_blob = " ".join(
+            [
+                str(row.url or ""),
+                str(row.section_label or ""),
+                " ".join(str(v) for v in (row.keywords_hit or [])),
+            ]
+        ).lower()
+
+        boost = 0
+        for keyword in self.DISCOVERY_PRIORITY_KEYWORDS:
+            if keyword.lower() in text_blob:
+                boost += 25
+        if any(token in text_blob for token in self.WEB_DISCOVERY_EVENT_URL_TOKENS):
+            boost += 10
+
+        return (
+            int(row.priority_score or 0) + boost,
+            int(row.times_seen or 0),
+            str(row.url or ""),
+        )
+
+    def _crawl_discovered_url(self, row) -> dict | None:
+        if BeautifulSoup is None:
+            return None
+
+        response = requests.get(
+            row.url,
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0 EventDiscoveryBot/1.0"},
+        )
+        response.raise_for_status()
+
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        if "html" not in content_type and "xml" not in content_type:
+            return None
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        title = self._safe_text(
+            soup.title.get_text(" ", strip=True) if soup.title else ""
+        )
+        if not title:
+            meta_title = soup.find("meta", attrs={"property": "og:title"})
+            title = self._safe_text(meta_title.get("content") if meta_title else "")
+        if not title:
+            title = self._safe_text(row.section_label or row.url)
+
+        text_blob = self._safe_text(" ".join(soup.stripped_strings))
+        description = text_blob[:2000] if text_blob else title
+        if not description:
+            description = title
+
+        return {
+            "title": title,
+            "title_en": title,
+            "content": description,
+            "url": row.url,
+            "source_url": row.url,
+            "source_name": "Discovered URL Frontier",
+        }
+
+    def _finalize_discovered_url(self, row, status: str) -> None:
+        from scraping.models import DiscoveredURL
+
+        final_status = status if status in {"completed", "failed"} else "failed"
+        try:
+            DiscoveredURL.objects.filter(pk=row.pk).update(
+                status=final_status,
+                is_processed=True,
+            )
+        except Exception as exc:
+            logger.debug(
+                "discovered_url_finalize_failed url=%s status=%s err=%s",
+                row.url,
+                final_status,
+                exc,
+            )
+
+    def _extract_related_urls_with_css(self, page_url: str) -> list[dict[str, str]]:
+        if BeautifulSoup is None:
+            return []
+
+        try:
+            response = requests.get(
+                page_url,
+                timeout=12,
+                headers={"User-Agent": "Mozilla/5.0 EventDiscoveryBot/1.0"},
+            )
+            response.raise_for_status()
+        except Exception as exc:
+            logger.debug("source discovery fetch failed url=%s err=%s", page_url, exc)
+            return []
+
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        if "html" not in content_type and "xml" not in content_type:
+            return []
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        discovered: list[dict[str, str]] = []
+        seen: set[str] = set()
+
+        for selector in self.RELATED_SECTION_SELECTORS:
+            for anchor in soup.select(selector):
+                href = self._safe_text(anchor.get("href"))
+                url = self._safe_url(urljoin(page_url, href))
+                if not url or url in seen:
+                    continue
+                seen.add(url)
+                discovered.append(
+                    {
+                        "url": url,
+                        "section": selector,
+                        "title": self._safe_text(anchor.get_text(" ", strip=True)),
+                        "method": "css",
+                    }
+                )
+
+        heading_tags = ["h1", "h2", "h3", "h4", "h5", "h6"]
+        for heading in soup.find_all(heading_tags):
+            section_label = self._match_related_section_label(
+                self._safe_text(heading.get_text(" ", strip=True))
+            )
+            if not section_label:
+                continue
+
+            sibling_links = []
+            for sibling in heading.next_siblings:
+                sibling_name = getattr(sibling, "name", "")
+                if sibling_name in heading_tags:
+                    break
+                if hasattr(sibling, "find_all"):
+                    sibling_links.extend(sibling.find_all("a", href=True))
+
+            for anchor in sibling_links:
+                href = self._safe_text(anchor.get("href"))
+                url = self._safe_url(urljoin(page_url, href))
+                if not url or url in seen:
+                    continue
+                seen.add(url)
+                discovered.append(
+                    {
+                        "url": url,
+                        "section": section_label,
+                        "title": self._safe_text(anchor.get_text(" ", strip=True)),
+                        "method": "css",
+                    }
+                )
+
+        return discovered
+
+    def _extract_related_urls_with_llm_scan(
+        self,
+        page_text: str,
+        page_url: str,
+    ) -> list[dict[str, str]]:
+        content = self._safe_text(page_text)
+        if not content:
+            return []
+
+        discovered: list[dict[str, str]] = []
+        seen: set[str] = set()
+
+        llm_client = getattr(self._extractor, "client", None)
+        if llm_client and getattr(llm_client, "is_configured", False):
+            system_prompt = (
+                "Extract only event-page URLs that belong to related-events, "
+                "upcoming-conferences, or past-editions sections. Return JSON array only."
+            )
+            user_prompt = json.dumps(
+                {
+                    "page_url": page_url,
+                    "content": content[:4000],
+                    "sections": [
+                        "Related Events",
+                        "Upcoming Conferences",
+                        "Past Editions",
+                    ],
+                    "format": [{"url": "https://...", "section": "..."}],
+                },
+                ensure_ascii=False,
+            )
+            try:
+                response_text = llm_client._chat(system_prompt, user_prompt)
+                parsed = json.loads(response_text or "[]")
+            except Exception as exc:
+                logger.debug("LLM related URL scan failed url=%s err=%s", page_url, exc)
+                parsed = []
+
+            if isinstance(parsed, list):
+                for row in parsed:
+                    if not isinstance(row, dict):
+                        continue
+                    url = self._safe_url(row.get("url"))
+                    if not url or url in seen:
+                        continue
+                    seen.add(url)
+                    discovered.append(
+                        {
+                            "url": url,
+                            "section": self._safe_text(row.get("section")),
+                            "title": self._safe_text(row.get("title")),
+                            "method": "llm",
+                        }
+                    )
+
+        if discovered:
+            return discovered
+
+        for match in re.finditer(r"https?://[^\s\"'<>\)\]]+", content):
+            candidate_url = self._safe_url(match.group(0))
+            if not candidate_url or candidate_url in seen:
+                continue
+            left = max(0, match.start() - 140)
+            right = min(len(content), match.end() + 140)
+            context_blob = content[left:right].lower()
+            section_label = self._match_related_section_label(context_blob)
+            if not section_label and not any(
+                keyword in context_blob for keyword in self.DISCOVERY_PRIORITY_KEYWORDS
+            ):
+                continue
+            seen.add(candidate_url)
+            discovered.append(
+                {
+                    "url": candidate_url,
+                    "section": section_label or "related_context",
+                    "title": "",
+                    "method": "heuristic",
+                }
+            )
+
+        return discovered
+
+    def _upsert_discovered_url(
+        self,
+        *,
+        model,
+        discovered_url: str,
+        source_page_url: str,
+        section_label: str,
+        anchor_text: str,
+        method: str,
+    ) -> None:
+        composite_text = " ".join(
+            part for part in (discovered_url, section_label, anchor_text) if part
+        ).lower()
+        keywords_hit = [
+            keyword
+            for keyword in self.DISCOVERY_PRIORITY_KEYWORDS
+            if keyword.lower() in composite_text
+        ]
+
+        priority = 10 + (len(keywords_hit) * 25)
+        if any(
+            token in composite_text for token in self.WEB_DISCOVERY_EVENT_URL_TOKENS
+        ):
+            priority += 10
+
+        with transaction.atomic():
+            row = model.objects.select_for_update().filter(url=discovered_url).first()
+            if row is None:
+                model.objects.create(
+                    category=self.category,
+                    url=discovered_url,
+                    source_page_url=source_page_url,
+                    section_label=section_label[:120],
+                    discovery_method=method
+                    if method in {"css", "llm", "heuristic"}
+                    else "heuristic",
+                    keywords_hit=keywords_hit,
+                    priority_score=priority,
+                    times_seen=1,
+                    is_processed=False,
+                )
+                return
+
+            existing_keywords = [
+                self._safe_text(value).lower()
+                for value in (row.keywords_hit or [])
+                if self._safe_text(value)
+            ]
+            merged_keywords = sorted(set(existing_keywords + keywords_hit))
+
+            row.source_page_url = source_page_url or row.source_page_url
+            row.section_label = (section_label or row.section_label)[:120]
+            row.discovery_method = (
+                method
+                if method in {"css", "llm", "heuristic"}
+                else row.discovery_method
+            )
+            row.keywords_hit = merged_keywords
+            row.priority_score = max(int(row.priority_score or 0), priority)
+            row.times_seen = int(row.times_seen or 0) + 1
+            row.is_processed = False
+            row.status = "pending"
+            row.save(
+                update_fields=[
+                    "source_page_url",
+                    "section_label",
+                    "discovery_method",
+                    "keywords_hit",
+                    "priority_score",
+                    "times_seen",
+                    "is_processed",
+                    "status",
+                    "last_discovered_at",
+                ]
+            )
+
+    def _match_related_section_label(self, text: str) -> str:
+        lowered = self._safe_text(text).lower()
+        if not lowered:
+            return ""
+        for hint in self.RELATED_SECTION_HINTS:
+            if hint in lowered:
+                return hint
+        return ""
+
+    def _looks_like_discoverable_event_url(self, url: str) -> bool:
+        lowered = self._safe_text(url).lower()
+        if not lowered:
+            return False
+        if any(token in lowered for token in self.WEB_DISCOVERY_EVENT_URL_TOKENS):
+            return True
+        return any(keyword in lowered for keyword in self.DISCOVERY_PRIORITY_KEYWORDS)
+
     def _build_search_queries(self) -> list[str]:
         query_limit = max(
             3,
@@ -536,12 +1007,14 @@ class EventScraper(BaseScraper):
         candidates: list[str] = []
         candidates.extend(self.get_active_search_queries(self.category))
 
-        for template in self.DEFAULT_EVENT_SEARCH_QUERY_TEMPLATES:
-            if "{year}" in template:
-                for year in years:
-                    candidates.append(template.format(year=year))
-            else:
-                candidates.append(template)
+        # IMPORTANT: Only fallback to hardcoded defaults if the user has NOT provided any custom AI Prompts.
+        if not candidates:
+            for template in self.DEFAULT_EVENT_SEARCH_QUERY_TEMPLATES:
+                if "{year}" in template:
+                    for year in years:
+                        candidates.append(template.format(year=year))
+                else:
+                    candidates.append(template)
 
         deduped: list[str] = []
         seen: set[str] = set()
@@ -682,7 +1155,7 @@ class EventScraper(BaseScraper):
             return None
 
         current_year = timezone.now().date().year
-        if year_value < current_year or year_value > (current_year + 4):
+        if year_value < (current_year - 1) or year_value > (current_year + 4):
             return None
 
         return date(year_value, 6, 15)
@@ -708,7 +1181,7 @@ class EventScraper(BaseScraper):
 
         if start_date is not None:
             today = timezone.now().date()
-            if start_date < today - timedelta(days=30):
+            if start_date < today - timedelta(days=self.PAST_EVENT_WINDOW_DAYS):
                 return False, "event_too_old"
             if start_date > today + timedelta(days=int(SS.FRESHNESS_EVENTS)):
                 return False, "event_too_far_future"
@@ -821,23 +1294,10 @@ class EventScraper(BaseScraper):
     def _is_viable_search_result(
         self, title: str, content: str, source_url: str
     ) -> bool:
-        if not self._safe_url(source_url):
-            return False
-        if self._is_blocked_source_url(source_url):
-            return False
-        if self._looks_like_listing_title(title):
-            return False
-        if self._looks_like_non_event_title(title):
-            return False
-        if self._looks_like_schedule_fragment_title(title):
-            return False
-        if self._looks_like_listing_body(content):
-            return False
-
-        signal_blob = f"{title} {content}".lower()
-        if not any(token in signal_blob for token in self.EVENT_SIGNAL_TOKENS):
-            return False
-        return self._is_nlp_ai_relevant_payload({}, title, content)
+        del content
+        # Pre-extraction policy: keep thin snippets and rely on LLM normalization,
+        # as long as the result provides a valid URL and a title.
+        return bool(self._safe_url(source_url) and self._safe_text(title))
 
     def _is_viable_candidate(self, candidate: dict) -> bool:
         if not isinstance(candidate, dict):
@@ -1030,9 +1490,15 @@ class EventScraper(BaseScraper):
         )
         start_date = self._parse_iso_date(candidate_data.get("start_date"))
 
-        if not title_en or start_date is None:
+        if not title_en:
             self.items_skipped += 1
             return
+        if start_date is None:
+            start_date = timezone.now().date()
+            candidate_data["validation_notes"] = self._append_validation_note(
+                str(candidate_data.get("validation_notes") or ""),
+                "Missing start_date auto-filled with current date.",
+            )
 
         defaults = dict(candidate_data)
         defaults["title_en"] = title_en[:255]
@@ -1066,18 +1532,31 @@ class EventScraper(BaseScraper):
         defaults.setdefault("source_name", self.name)
 
         defaults = self._ensure_event_fields(defaults)
-        if not self.passes_min_confidence_to_save(defaults):
-            self.items_skipped += 1
-            return
+        self.passes_min_confidence_to_save(defaults)
 
         is_valid, reject_reason = self._passes_hard_event_rules(defaults)
         if not is_valid:
-            logger.info("Skipping low quality event candidate: %s", reject_reason)
-            self.items_skipped += 1
-            return
+            logger.info("Saving event despite hard-rule warning: %s", reject_reason)
+            defaults["validation_notes"] = self._append_validation_note(
+                str(defaults.get("validation_notes") or ""),
+                f"Hard-rule warning: {reject_reason}",
+            )
 
         defaults.setdefault("contact_email", SCRAPER_BOT_EMAIL)
         defaults.setdefault("created_by", self.get_system_user())
+        now = timezone.now()
+        incoming_confidence = self._normalize_confidence(
+            defaults.get(
+                "confidence_score", candidate_data.get("extraction_confidence")
+            )
+        )
+        if incoming_confidence is not None:
+            defaults["confidence_score"] = incoming_confidence
+        defaults.setdefault("validation_notes", "")
+        defaults.setdefault(
+            "scrape_status",
+            str(candidate_data.get("scrape_status") or "PENDING_REVIEW").upper(),
+        )
 
         if not defaults.get("organizer"):
             organizer = self._resolve_organizer(defaults)
@@ -1092,18 +1571,88 @@ class EventScraper(BaseScraper):
         }
 
         try:
-            event, created = Event.objects.update_or_create(
-                title_en=title_en[:255],
-                start_date=start_date,
-                defaults=defaults,
-            )
+            lookup = {"title_en": title_en[:255], "start_date": start_date}
+            with transaction.atomic():
+                event = Event.objects.select_for_update().filter(**lookup).first()
+                if event is not None:
+                    defaults["last_scraped_at"] = now
+                    defaults["update_count"] = int(event.update_count or 0) + 1
+                    defaults["update_counter"] = (
+                        int(getattr(event, "update_counter", 0) or 0) + 1
+                    )
+                    existing_status = str(
+                        getattr(event, "scrape_status", "") or ""
+                    ).upper()
+                    if self._is_terminal_review_status(existing_status):
+                        defaults = self._build_terminal_status_update_defaults(
+                            existing_obj=event,
+                            incoming_defaults=defaults,
+                            metadata_fields={
+                                "last_scraped_at",
+                                "update_count",
+                                "update_counter",
+                            },
+                        )
+                    elif defaults.get("scrape_status") == "REJECTED":
+                        defaults["scrape_status"] = "REJECTED"
+                    else:
+                        defaults["scrape_status"] = "PENDING_REVIEW"
+                    for field_name, field_value in defaults.items():
+                        setattr(event, field_name, field_value)
+                    event.save()
+                    created = False
+                else:
+                    semantic_queryset = self._recent_dedup_queryset(
+                        Event.objects.only("id", "title", "title_en")
+                    )
+                    semantic_event, semantic_score = self._find_semantic_title_match(
+                        semantic_queryset,
+                        title_en,
+                        title_fields=("title_en", "title"),
+                    )
+                    if semantic_event is not None:
+                        event = semantic_event
+                        defaults["last_scraped_at"] = now
+                        defaults["update_count"] = int(event.update_count or 0) + 1
+                        defaults["update_counter"] = (
+                            int(getattr(event, "update_counter", 0) or 0) + 1
+                        )
+                        existing_status = str(
+                            getattr(event, "scrape_status", "") or ""
+                        ).upper()
+                        if self._is_terminal_review_status(existing_status):
+                            defaults = self._build_terminal_status_update_defaults(
+                                existing_obj=event,
+                                incoming_defaults=defaults,
+                                metadata_fields={
+                                    "last_scraped_at",
+                                    "update_count",
+                                    "update_counter",
+                                },
+                            )
+                        for field_name, field_value in defaults.items():
+                            setattr(event, field_name, field_value)
+                        event.save()
+                        created = False
+                    else:
+                        defaults["last_scraped_at"] = now
+                        defaults.setdefault("update_count", 0)
+                        defaults.setdefault("update_counter", 0)
+                        defaults.setdefault(
+                            "scrape_status",
+                            str(
+                                candidate_data.get("scrape_status") or "PENDING_REVIEW"
+                            ).upper(),
+                        )
+                        create_data = dict(defaults)
+                        create_data.update(lookup)
+                        event = Event.objects.create(**create_data)
+                        created = True
         except Exception as exc:
             self.errors.append(f"Failed to upsert event '{title_en}': {exc}")
             return
 
         forced_updates = {}
-        if event.approval_status != "pending":
-            forced_updates["approval_status"] = "pending"
         if event.source != "scrape":
             forced_updates["source"] = "scrape"
         if forced_updates:
@@ -1115,6 +1664,7 @@ class EventScraper(BaseScraper):
             self.items_created += 1
         else:
             self.items_updated += 1
+        self._track_saved_item_status(defaults)
 
         self.results.append(
             {
@@ -1144,6 +1694,43 @@ class EventScraper(BaseScraper):
                 ),
             }
         )
+
+    @staticmethod
+    def _normalize_confidence(value) -> float | None:
+        try:
+            if value is None:
+                return None
+            numeric = float(value)
+            if numeric <= 1.0:
+                numeric *= 100.0
+            return max(0.0, min(100.0, numeric))
+        except (TypeError, ValueError):
+            return None
+
+    def _is_significantly_higher_confidence(
+        self,
+        incoming_confidence: float | None,
+        existing_confidence: float | None,
+    ) -> bool:
+        if incoming_confidence is None:
+            return False
+        if existing_confidence is None:
+            return True
+        return incoming_confidence >= (
+            existing_confidence + self.STATUS_CONFIDENCE_DELTA
+        )
+
+    @staticmethod
+    def _append_validation_note(existing: str, note: str) -> str:
+        existing = (existing or "").strip()
+        note = (note or "").strip()
+        if not note:
+            return existing
+        if not existing:
+            return note
+        if note in existing:
+            return existing
+        return f"{existing}\n{note}"
 
     def _attach_event_media(self, event, candidate_data: dict) -> None:
         from scraping.file_downloader import (
@@ -1454,6 +2041,11 @@ class EventScraper(BaseScraper):
 
         normalized["start_date"] = start_date
         normalized["end_date"] = end_date
+        effective_end = end_date or start_date
+        normalized["is_past_event"] = bool(
+            effective_end is not None and effective_end < timezone.now().date()
+        )
+        entities["is_past_event"] = normalized["is_past_event"]
 
         normalized["submission_deadline"] = self._parse_iso_date(
             normalized.get("submission_deadline")
@@ -1544,7 +2136,7 @@ class EventScraper(BaseScraper):
 
         if isinstance(start_date, date):
             today = timezone.now().date()
-            if start_date < today - timedelta(days=30):
+            if start_date < today - timedelta(days=self.PAST_EVENT_WINDOW_DAYS):
                 return False, "event_too_old"
             if start_date > today + timedelta(days=int(SS.FRESHNESS_EVENTS)):
                 return False, "event_too_far_future"

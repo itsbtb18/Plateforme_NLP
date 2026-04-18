@@ -19,6 +19,7 @@ Design principles:
 
 import json
 import logging
+import os
 import re
 import time
 from typing import Any
@@ -209,8 +210,8 @@ class GroqLLMClient:
             getattr(settings, "GEMINI_SCRAPING_API_KEY", "") or ""
         ).strip()
         self.gemini_model = str(
-            getattr(settings, "GEMINI_SCRAPING_MODEL", "gemini-2.5-flash")
-            or "gemini-2.5-flash"
+            getattr(settings, "GEMINI_SCRAPING_MODEL", "gemini-1.5-flash")
+            or "gemini-1.5-flash"
         ).strip()
         self.gemini_timeout = max(
             1,
@@ -231,6 +232,44 @@ class GroqLLMClient:
         self.last_error_message: str = ""
         self.last_provider_used: str = ""
 
+        # ── Groq API key rotation pool ──
+        _groq_candidates = [
+            str(getattr(settings, "GROQ_SCRAPING_API_KEY", "") or os.environ.get("GROQ_SCRAPING_API_KEY", "")).strip(),
+            str(getattr(settings, "GROQ_INTERNAL_API_KEY", "") or os.environ.get("GROQ_INTERNAL_API_KEY", "")).strip(),
+            str(getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")).strip(),
+        ]
+        self._groq_key_pool = [k for k in dict.fromkeys(_groq_candidates) if k]
+        self._groq_key_index = 0
+        if self._groq_key_pool:
+            logger.info("Groq key pool initialized with %d key(s)", len(self._groq_key_pool))
+            
+        # ── Gemini API key rotation pool ──
+        _gem_candidates = [
+            str(getattr(settings, "GEMINI_SCRAPING_API_KEY", "") or os.environ.get("GEMINI_SCRAPING_API_KEY", "")).strip(),
+            str(getattr(settings, "GEMINI_INTERNAL_API_KEY", "") or os.environ.get("GEMINI_INTERNAL_API_KEY", "")).strip(),
+            str(getattr(settings, "GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")).strip(),
+        ]
+        self._gemini_key_pool = [k for k in dict.fromkeys(_gem_candidates) if k]
+        self._gemini_key_index = 0
+        if self._gemini_key_pool:
+            logger.info("Gemini key pool initialized with %d key(s)", len(self._gemini_key_pool))
+
+    def _next_groq_key(self) -> str:
+        """Return the next API key from the rotation pool."""
+        if not self._groq_key_pool:
+            return self.api_key or ""
+        key = self._groq_key_pool[self._groq_key_index % len(self._groq_key_pool)]
+        self._groq_key_index += 1
+        return key
+
+    def _next_gemini_key(self) -> str:
+        """Return the next Gemini key from the pool."""
+        if not self._gemini_key_pool:
+            return self.gemini_api_key or ""
+        key = self._gemini_key_pool[self._gemini_key_index % len(self._gemini_key_pool)]
+        self._gemini_key_index += 1
+        return key
+
     @property
     def is_configured(self) -> bool:
         return self._is_provider_configured(self.primary_provider) or self._is_provider_configured(
@@ -240,9 +279,9 @@ class GroqLLMClient:
     def _is_provider_configured(self, provider: str) -> bool:
         normalized = (provider or "").strip().lower()
         if normalized == "gemini":
-            return bool(self.gemini_api_key)
+            return bool(self.gemini_api_key or self._gemini_key_pool)
         if normalized == "groq":
-            return bool(self.api_key)
+            return bool(self.api_key or self._groq_key_pool)
         return False
 
     @staticmethod
@@ -268,15 +307,11 @@ class GroqLLMClient:
         self._gemini_request_timestamps.append(time.time())
 
     def _chat_with_groq(self, system: str, user: str) -> str | None:
-        if not self.api_key:
+        if not self.api_key and not self._groq_key_pool:
             self.last_error_message = "groq_not_configured"
             self.last_status_code = None
             return None
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
         payload = {
             "model": self.model,
             "messages": [
@@ -286,43 +321,61 @@ class GroqLLMClient:
             "temperature": 0.15,
             "max_tokens": 1200,
         }
-        try:
-            resp = self._session.post(
-                GROQ_CHAT_URL,
-                headers=headers,
-                json=payload,
-                timeout=self.timeout,
-            )
-            self.last_status_code = int(resp.status_code)
-            resp.raise_for_status()
-            data = resp.json()
-            self.last_provider_used = "groq"
-            return data["choices"][0]["message"]["content"]
-        except requests.Timeout:
-            self.last_error_message = "timeout"
-            self.last_status_code = 408
-            logger.info("Groq API timeout after %ds", self.timeout)
-        except requests.RequestException as exc:
-            response = getattr(exc, "response", None)
-            status_code = getattr(response, "status_code", None)
-            if isinstance(status_code, int):
-                self.last_status_code = status_code
-            self.last_error_message = str(exc)
-            if status_code in {413, 429}:
-                logger.info(
-                    "Groq API constrained request status=%s: %s",
-                    status_code,
-                    exc,
+
+        # Try each key in the pool. On 429, rotate to the next key instantly.
+        num_keys = max(len(self._groq_key_pool), 1)
+        max_attempts = num_keys + 1  # Try all keys + one retry on the first
+        for attempt in range(max_attempts):
+            current_key = self._next_groq_key()
+            headers = {
+                "Authorization": f"Bearer {current_key}",
+                "Content-Type": "application/json",
+            }
+            try:
+                resp = self._session.post(
+                    GROQ_CHAT_URL,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout,
                 )
-            else:
-                logger.warning("Groq API request failed: %s", exc)
-        except (KeyError, IndexError):
-            self.last_error_message = "Unexpected Groq response structure"
-            logger.warning("Unexpected Groq response structure")
+                self.last_status_code = int(resp.status_code)
+                resp.raise_for_status()
+                data = resp.json()
+                self.last_provider_used = "groq"
+                return data["choices"][0]["message"]["content"]
+            except requests.Timeout:
+                self.last_error_message = "timeout"
+                self.last_status_code = 408
+                logger.info("Groq API timeout after %ds", self.timeout)
+                break
+            except requests.RequestException as exc:
+                response = getattr(exc, "response", None)
+                status_code = getattr(response, "status_code", None)
+                if isinstance(status_code, int):
+                    self.last_status_code = status_code
+                self.last_error_message = str(exc)
+
+                if status_code == 429:
+                    key_hint = current_key[-6:] if len(current_key) > 6 else "***"
+                    logger.info(
+                        "Groq 429 on key ...%s, rotating to next key (attempt %d/%d)",
+                        key_hint, attempt + 1, max_attempts,
+                    )
+                    continue  # Try the next key immediately, no sleep
+                elif status_code == 413:
+                    logger.info("Groq API payload too large.")
+                else:
+                    logger.warning("Groq API request failed: %s", exc)
+            except (KeyError, IndexError):
+                self.last_error_message = "Unexpected Groq response structure"
+                logger.warning("Unexpected Groq response structure")
+
+            break
+
         return None
 
     def _chat_with_gemini(self, system: str, user: str) -> str | None:
-        if not self.gemini_api_key:
+        if not self.gemini_api_key and not self._gemini_key_pool:
             self.last_error_message = "gemini_not_configured"
             self.last_status_code = None
             return None
@@ -347,12 +400,17 @@ class GroqLLMClient:
                 "maxOutputTokens": 1200,
             },
         }
-        url = GEMINI_CHAT_URL_TEMPLATE.format(
-            model=quote_plus(self.gemini_model),
-            api_key=quote_plus(self.gemini_api_key),
-        )
 
-        for attempt in range(0, self.gemini_max_retries + 1):
+        num_keys = max(len(self._gemini_key_pool), 1)
+        max_attempts = max(num_keys + 1, self.gemini_max_retries + 1)
+
+        for attempt in range(max_attempts):
+            current_key = self._next_gemini_key()
+            url = GEMINI_CHAT_URL_TEMPLATE.format(
+                model=quote_plus(self.gemini_model),
+                api_key=quote_plus(current_key),
+            )
+
             try:
                 resp = self._session.post(
                     url,
@@ -381,23 +439,34 @@ class GroqLLMClient:
                     return None
 
                 self.last_provider_used = "gemini"
+                self._gemini_request_timestamps.append(time.time())
                 return text
             except requests.Timeout:
                 self.last_status_code = 408
                 self.last_error_message = "timeout"
                 logger.info("Gemini API timeout after %ds", self.gemini_timeout)
+                break
             except requests.RequestException as exc:
                 response = getattr(exc, "response", None)
                 status_code = getattr(response, "status_code", None)
                 if isinstance(status_code, int):
                     self.last_status_code = status_code
                 self.last_error_message = str(exc)
-                logger.warning("Gemini API request failed: %s", exc)
+
+                if status_code == 429:
+                    key_hint = current_key[-6:] if len(current_key) > 6 else "***"
+                    logger.info(
+                        "Gemini 429 on key ...%s, rotating to next key (attempt %d/%d)",
+                        key_hint, attempt + 1, max_attempts,
+                    )
+                    continue
+                else:
+                    logger.warning("Gemini API request failed: %s", exc)
             except (KeyError, IndexError, TypeError, ValueError):
                 self.last_error_message = "Unexpected Gemini response structure"
                 logger.warning("Unexpected Gemini response structure")
 
-            if attempt < self.gemini_max_retries and self._is_retryable_status(
+            if attempt < max_attempts - 1 and self._is_retryable_status(
                 self.last_status_code
             ):
                 time.sleep(0.5 * (attempt + 1))

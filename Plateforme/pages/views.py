@@ -1,39 +1,41 @@
+import datetime
+import json
+from datetime import timedelta
+from types import SimpleNamespace
+from typing import TYPE_CHECKING
+from urllib.parse import urlencode
+
+from accounts.models import CustomUser
 from django.conf import settings
-from django.db import transaction
-from django.urls import reverse
-from django.core.mail import send_mail
-from django.views.generic import TemplateView
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.mail import send_mail
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.db.models import Count, Max, Sum
+from django.db.models.functions import TruncDate, TruncMonth
+from django.urls import reverse
+from django.utils import timezone
 from django.utils.timezone import now
-from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
+from django.utils.translation import gettext_lazy as _
+from django.views.generic import TemplateView
+from events.models import Event
+from feed.models import Post
+from forum.models import ChatRoom, Message, Topic
+from notifications.models import Notification
+from notifications.services import NotificationService
+from projects.models import Project
+from resources.models import Corpus, Course, Document, NLPTool
+
 from pages.forms import (
     AdminNewsPublicationForm,
     AdminResponseForm,
     ContactForm,
     OpportunityForm,
 )
-from accounts.models import CustomUser
-from events.models import Event
-from resources.models import Corpus, NLPTool, Document, Course
-from projects.models import Project, ProjectMember
-from django.contrib.auth import get_user_model
-from forum.models import Topic, ChatRoom, Message
-from django.db.models.functions import TruncDate, TruncMonth
-from notifications.models import Notification
-from notifications.services import NotificationService
-from feed.models import Post, Question
 from pages.moderation import approve_object, reject_object
-from django.db.models import Count, Sum, Max
-import datetime
-import json
-from urllib.parse import urlencode
-from datetime import timedelta
-from types import SimpleNamespace
-from django.utils import timezone
-from django.core.paginator import Paginator
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -54,7 +56,10 @@ class HomePageView(TemplateView):
 
         # Événements à venir
         context["events"] = Event.objects.filter(
-            start_date__gte=now(), approval_status="approved"
+            start_date__gte=now(),
+            approval_status="approved",
+            scrape_status=Event.SCRAPE_STATUS_APPROVED,
+            is_past_event=False,
         ).order_by("start_date")[:3]
 
         # Compteurs pour les statistiques
@@ -131,10 +136,9 @@ class OpportunitiesPageView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         from institutions.models import Institution
 
-        institutions_qs = (
-            Institution.objects.filter(country__code__iexact="DZ")
-            .order_by("name_en", "name")
-        )
+        institutions_qs = Institution.objects.filter(
+            country__code__iexact="DZ"
+        ).order_by("name_en", "name")
         if not institutions_qs.exists():
             institutions_qs = Institution.objects.all().order_by("name_en", "name")
 
@@ -249,7 +253,9 @@ class OpportunitiesPageView(LoginRequiredMixin, TemplateView):
         context["opportunities_data"] = [
             serialize_opportunity_for_frontend(item)
             for item in Opportunity.objects.filter(
-                status=Opportunity.STATUS_APPROVED, is_published=True
+                status=Opportunity.STATUS_APPROVED,
+                scrape_status=Opportunity.SCRAPE_STATUS_APPROVED,
+                is_published=True,
             ).select_related("institution", "created_by")
         ]
         context["page"] = "opportunities"
@@ -302,8 +308,16 @@ def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
         or getattr(institution, "name_ar", "")
         or getattr(institution, "name", "")
     )
-    location_en = opportunity.location or getattr(institution, "city_en", "") or getattr(institution, "city", "")
-    location_ar = opportunity.location or getattr(institution, "city_ar", "") or getattr(institution, "city", "")
+    location_en = (
+        opportunity.location
+        or getattr(institution, "city_en", "")
+        or getattr(institution, "city", "")
+    )
+    location_ar = (
+        opportunity.location
+        or getattr(institution, "city_ar", "")
+        or getattr(institution, "city", "")
+    )
     description = (opportunity.description or "").strip()
     short_text = description[:180] + ("..." if len(description) > 180 else "")
     created_at = _safe_datetime(getattr(opportunity, "created_at", None))
@@ -315,7 +329,10 @@ def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
             "en": opportunity.title_en or opportunity.title,
             "ar": opportunity.title_ar or opportunity.title,
         },
-        "organization": {"en": organization_en, "ar": organization_ar or organization_en},
+        "organization": {
+            "en": organization_en,
+            "ar": organization_ar or organization_en,
+        },
         "location": {"en": location_en, "ar": location_ar or location_en},
         "short": {"en": short_text, "ar": short_text},
         "full": {"en": description, "ar": description},
@@ -327,36 +344,36 @@ def serialize_opportunity_for_frontend(opportunity: "Opportunity") -> dict:
         "createdAt": _safe_iso_datetime(created_at),
         "relevance": 100,
         "isNew": (timezone.now() - created_at).days <= 30,
-        "orgInitials": "".join(part[0] for part in organization_en.split()[:2]).upper() if organization_en else "OP",
+        "orgInitials": "".join(part[0] for part in organization_en.split()[:2]).upper()
+        if organization_en
+        else "OP",
         "contact": opportunity.contact,
-        "author": _safe_display_name(getattr(opportunity, "created_by", None)) or organization_en,
+        "author": _safe_display_name(getattr(opportunity, "created_by", None))
+        or organization_en,
         "url": reverse("pages:opportunities"),
     }
 
 
-
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib import messages
-from django.http import JsonResponse
-from django.utils import timezone
-from django.db.models import Count, Q
-from .models import (
-    ContactMessage,
-    Stats,
-    UserStatusHistory,
-    AdminActivityLog,
-    SecurityLog,
-    NewsPublication,
-    Opportunity,
-)
-from .opportunities_service import apply_creation_policy, normalize_skills
-from institutions.models import Institution
-import datetime
 from accounts.forms import CustomUserChangeForm
+from django.contrib import messages
+from django.contrib.auth.decorators import user_passes_test
+from django.db.models import Q
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from institutions.models import Institution
+
 from pages.security import ROLE_ADMIN, get_user_role
 
+from .models import (
+    AdminActivityLog,
+    ContactMessage,
+    NewsPublication,
+    Opportunity,
+    SecurityLog,
+    Stats,
+    UserStatusHistory,
+)
+from .opportunities_service import apply_creation_policy, normalize_skills
 
 User = get_user_model()
 
@@ -373,7 +390,9 @@ def is_strict_admin(user):
 @login_required
 def create_opportunity(request):
     if request.method != "POST":
-        return JsonResponse({"ok": False, "error": _("Method not allowed.")}, status=405)
+        return JsonResponse(
+            {"ok": False, "error": _("Method not allowed.")}, status=405
+        )
 
     institutions_qs = Institution.objects.all()
     data = request.POST.copy()
@@ -418,18 +437,32 @@ def admin_opportunities(request):
     algerian_institutions_count = Institution.objects.filter(
         country__code__iexact="DZ"
     ).count()
-    opportunities_qs = Opportunity.objects.select_related("created_by", "institution", "approved_by")
+    opportunities_qs = Opportunity.objects.select_related(
+        "created_by", "institution", "approved_by"
+    )
     context = {
         "page": "admin_opportunities",
         "institutions_count": institutions_count,
         "algerian_institutions_count": algerian_institutions_count,
         "can_moderate_opportunities": is_strict_admin(request.user),
-        "pending_opportunities": opportunities_qs.filter(status=Opportunity.STATUS_PENDING),
-        "approved_opportunities": opportunities_qs.filter(status=Opportunity.STATUS_APPROVED),
-        "rejected_opportunities": opportunities_qs.filter(status=Opportunity.STATUS_REJECTED),
-        "pending_count": opportunities_qs.filter(status=Opportunity.STATUS_PENDING).count(),
-        "approved_count": opportunities_qs.filter(status=Opportunity.STATUS_APPROVED).count(),
-        "rejected_count": opportunities_qs.filter(status=Opportunity.STATUS_REJECTED).count(),
+        "pending_opportunities": opportunities_qs.filter(
+            status=Opportunity.STATUS_PENDING
+        ),
+        "approved_opportunities": opportunities_qs.filter(
+            status=Opportunity.STATUS_APPROVED
+        ),
+        "rejected_opportunities": opportunities_qs.filter(
+            status=Opportunity.STATUS_REJECTED
+        ),
+        "pending_count": opportunities_qs.filter(
+            status=Opportunity.STATUS_PENDING
+        ).count(),
+        "approved_count": opportunities_qs.filter(
+            status=Opportunity.STATUS_APPROVED
+        ).count(),
+        "rejected_count": opportunities_qs.filter(
+            status=Opportunity.STATUS_REJECTED
+        ).count(),
     }
     return render(request, "admin/opportunities.html", context)
 
@@ -443,7 +476,9 @@ def admin_opportunity_update(request, pk):
     )
     institutions_qs = Institution.objects.all()
     initial = {
-        "institution_ref": str(opportunity.institution_id) if opportunity.institution_id else "other",
+        "institution_ref": str(opportunity.institution_id)
+        if opportunity.institution_id
+        else "other",
         "skills_payload": json.dumps(opportunity.skills or []),
     }
 
@@ -490,7 +525,8 @@ def admin_opportunity_update(request, pk):
         "is_pending": opportunity.status == Opportunity.STATUS_PENDING,
         "review_mode": request.GET.get("review") == "1",
         "edit_only": request.GET.get("edit_only") == "1",
-        "read_only_review": request.GET.get("admin_review") == "1" and request.GET.get("edit_only") != "1",
+        "read_only_review": request.GET.get("admin_review") == "1"
+        and request.GET.get("edit_only") != "1",
     }
     return render(request, "admin/opportunity_update.html", context)
 
@@ -499,7 +535,9 @@ def admin_opportunity_update(request, pk):
 @user_passes_test(is_strict_admin)
 def admin_opportunity_approve(request, pk):
     if request.method != "POST":
-        return JsonResponse({"ok": False, "error": _("Method not allowed.")}, status=405)
+        return JsonResponse(
+            {"ok": False, "error": _("Method not allowed.")}, status=405
+        )
 
     opportunity = get_object_or_404(Opportunity, pk=pk)
     approve_object(opportunity, moderator=request.user, save=True)
@@ -515,7 +553,9 @@ def admin_opportunity_approve(request, pk):
 @user_passes_test(is_strict_admin)
 def admin_opportunity_reject(request, pk):
     if request.method != "POST":
-        return JsonResponse({"ok": False, "error": _("Method not allowed.")}, status=405)
+        return JsonResponse(
+            {"ok": False, "error": _("Method not allowed.")}, status=405
+        )
 
     opportunity = get_object_or_404(Opportunity, pk=pk)
     rejection_reason = (request.POST.get("reason") or "").strip()
@@ -571,11 +611,18 @@ NEWS_LANGUAGE_OPTIONS = [
 
 
 def _news_type_choices():
-    return [{"value": value, "label": label} for value, label in NewsPublication.TYPE_CHOICES]
+    return [
+        {"value": value, "label": label}
+        for value, label in NewsPublication.TYPE_CHOICES
+    ]
 
 
-def _news_collection_response(request, message, *, level="success", redirect_url=None, status=200, payload=None):
-    wants_json = request.headers.get("x-requested-with") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", "")
+def _news_collection_response(
+    request, message, *, level="success", redirect_url=None, status=200, payload=None
+):
+    wants_json = request.headers.get(
+        "x-requested-with"
+    ) == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", "")
     if wants_json:
         body = {"ok": level == "success", "message": message}
         if payload:
@@ -618,7 +665,9 @@ def admin_news(request):
     content_type = request.GET.get("type", "").strip()
     year = request.GET.get("year", "").strip()
 
-    queryset = NewsPublication.objects.select_related("created_by").order_by("-created_at")
+    queryset = NewsPublication.objects.select_related("created_by").order_by(
+        "-created_at"
+    )
 
     if content_type:
         queryset = queryset.filter(type=content_type)
@@ -646,7 +695,9 @@ def admin_news(request):
         "active_year": year,
         "type_choices": _news_type_choices(),
         "year_choices": list(
-            NewsPublication.objects.order_by("-year").values_list("year", flat=True).distinct()
+            NewsPublication.objects.order_by("-year")
+            .values_list("year", flat=True)
+            .distinct()
         ),
         "type_meta": NEWS_TYPE_META,
     }
@@ -671,7 +722,9 @@ def admin_news_form(request, publication_id=None):
         "form_action": reverse(
             "pages:admin_publications_detail_api",
             kwargs={"publication_id": publication.pk},
-        ) if publication else reverse("pages:admin_publications_api"),
+        )
+        if publication
+        else reverse("pages:admin_publications_api"),
     }
     return render(request, "admin/news_form.html", context)
 
@@ -687,9 +740,13 @@ def admin_publications_api(request):
     if form.is_valid():
         publication = form.save(created_by=request.user, publish_status=publish_status)
         if publication.status == NewsPublication.STATUS_DRAFT:
-            success_message = _label_for_language("News saved as draft.", "تم حفظ الخبر كمسودة.")
+            success_message = _label_for_language(
+                "News saved as draft.", "تم حفظ الخبر كمسودة."
+            )
         else:
-            success_message = _label_for_language("News published successfully.", "تم نشر الخبر بنجاح.")
+            success_message = _label_for_language(
+                "News published successfully.", "تم نشر الخبر بنجاح."
+            )
         return _news_collection_response(
             request,
             success_message,
@@ -734,9 +791,13 @@ def admin_publications_detail_api(request, publication_id):
     if form.is_valid():
         updated = form.save(publish_status=publish_status)
         if updated.status == NewsPublication.STATUS_DRAFT:
-            success_message = _label_for_language("News saved as draft.", "تم حفظ الخبر كمسودة.")
+            success_message = _label_for_language(
+                "News saved as draft.", "تم حفظ الخبر كمسودة."
+            )
         else:
-            success_message = _label_for_language("News updated successfully.", "تم تحديث الخبر بنجاح.")
+            success_message = _label_for_language(
+                "News updated successfully.", "تم تحديث الخبر بنجاح."
+            )
         return _news_collection_response(
             request,
             success_message,
@@ -762,7 +823,7 @@ def admin_publications_detail_api(request, publication_id):
     return render(request, "admin/news_form.html", context, status=400)
 
 
-@login_required(login_url='account_login')
+@login_required(login_url="account_login")
 def publications_list(request):
     search = request.GET.get("q", "").strip()
     content_type = request.GET.get("type", "").strip()
@@ -770,7 +831,9 @@ def publications_list(request):
     language = request.GET.get("language", "").strip()
     year = request.GET.get("year", "").strip()
 
-    queryset = NewsPublication.objects.filter(status=NewsPublication.STATUS_PUBLISHED).order_by("-year", "-created_at")
+    queryset = NewsPublication.objects.filter(
+        status=NewsPublication.STATUS_PUBLISHED
+    ).order_by("-year", "-created_at")
 
     if content_type:
         queryset = queryset.filter(type=content_type)
@@ -791,7 +854,9 @@ def publications_list(request):
     paginator = Paginator(queryset, 12)
     page_obj = paginator.get_page(request.GET.get("page") or 1)
 
-    base_queryset = NewsPublication.objects.filter(status=NewsPublication.STATUS_PUBLISHED)
+    base_queryset = NewsPublication.objects.filter(
+        status=NewsPublication.STATUS_PUBLISHED
+    )
     context = {
         "page": "news",
         "publications": page_obj,
@@ -805,7 +870,9 @@ def publications_list(request):
         "type_choices": _news_type_choices(),
         "task_choices": _tag_options_for_queryset(base_queryset, "nlp_tasks"),
         "language_choices": _tag_options_for_queryset(base_queryset, "languages"),
-        "year_choices": list(base_queryset.order_by("-year").values_list("year", flat=True).distinct()),
+        "year_choices": list(
+            base_queryset.order_by("-year").values_list("year", flat=True).distinct()
+        ),
         "type_meta": NEWS_TYPE_META,
         "publications_count": base_queryset.count(),
     }
@@ -834,9 +901,11 @@ def admin_dashboard(request):
     last_year = today - datetime.timedelta(days=365)
 
     # Recent users - Type hint the queryset
-    recent_users_qs: "QuerySet[CustomUser]" = CustomUser.objects.filter(
-        date_joined__gte=today - datetime.timedelta(days=30)
-    ).exclude(is_active=False, is_email_verified=False).order_by("-date_joined")
+    recent_users_qs: QuerySet[CustomUser] = (
+        CustomUser.objects.filter(date_joined__gte=today - datetime.timedelta(days=30))
+        .exclude(is_active=False, is_email_verified=False)
+        .order_by("-date_joined")
+    )
 
     # Recent content
     recent_publications_qs = Document.objects.order_by(
@@ -1365,18 +1434,18 @@ def admin_review_save_api(request, model_type, pk):
 
     title = (payload.get("title") or "").strip()
     if title and hasattr(item, "title"):
-        setattr(item, "title", title)
+        item.title = title
         updated_fields.append("title")
     elif title and hasattr(item, "name"):
-        setattr(item, "name", title)
+        item.name = title
         updated_fields.append("name")
 
     description = (payload.get("description") or "").strip()
     if description and hasattr(item, "description"):
-        setattr(item, "description", description)
+        item.description = description
         updated_fields.append("description")
     elif description and hasattr(item, "content"):
-        setattr(item, "content", description)
+        item.content = description
         updated_fields.append("content")
 
     category = (payload.get("category") or "").strip()
@@ -1389,43 +1458,49 @@ def admin_review_save_api(request, model_type, pk):
     action = (payload.get("action") or "").strip().lower()
     if action in {"accept", "approve"}:
         if hasattr(item, "approval_status"):
-            setattr(item, "approval_status", "approved")
+            item.approval_status = "approved"
             updated_fields.append("approval_status")
         if hasattr(item, "status"):
             try:
                 status_field = item._meta.get_field("status")
-                if any(choice_value == "approved" for choice_value, _ in (status_field.choices or [])):
-                    setattr(item, "status", "approved")
+                if any(
+                    choice_value == "approved"
+                    for choice_value, _ in (status_field.choices or [])
+                ):
+                    item.status = "approved"
                     updated_fields.append("status")
             except Exception:
                 pass
         if hasattr(item, "is_published"):
-            setattr(item, "is_published", True)
+            item.is_published = True
             updated_fields.append("is_published")
         if hasattr(item, "is_approved"):
-            setattr(item, "is_approved", True)
+            item.is_approved = True
             updated_fields.append("is_approved")
     elif action == "reject":
         if hasattr(item, "approval_status"):
-            setattr(item, "approval_status", "rejected")
+            item.approval_status = "rejected"
             updated_fields.append("approval_status")
         if hasattr(item, "status"):
             try:
                 status_field = item._meta.get_field("status")
-                if any(choice_value == "rejected" for choice_value, _ in (status_field.choices or [])):
-                    setattr(item, "status", "rejected")
+                if any(
+                    choice_value == "rejected"
+                    for choice_value, _ in (status_field.choices or [])
+                ):
+                    item.status = "rejected"
                     updated_fields.append("status")
             except Exception:
                 pass
         if hasattr(item, "is_published"):
-            setattr(item, "is_published", False)
+            item.is_published = False
             updated_fields.append("is_published")
         if hasattr(item, "is_approved"):
-            setattr(item, "is_approved", False)
+            item.is_approved = False
             updated_fields.append("is_approved")
         rejection_reason = (payload.get("rejection_reason") or "").strip()
         if rejection_reason and hasattr(item, "rejection_reason"):
-            setattr(item, "rejection_reason", rejection_reason)
+            item.rejection_reason = rejection_reason
             updated_fields.append("rejection_reason")
 
     if updated_fields:
@@ -1442,7 +1517,7 @@ def admin_users(request):
     search = request.GET.get("search", "").strip()
 
     # Type hint the queryset
-    qs: "QuerySet[CustomUser]" = CustomUser.objects.exclude(
+    qs: QuerySet[CustomUser] = CustomUser.objects.exclude(
         is_active=False, is_email_verified=False
     ).order_by("-date_joined")
 
@@ -1676,7 +1751,7 @@ def admin_user_history(request, user_id):
         user=user, change_date__gte=seven_days_ago
     ).count()
 
-    all_admins: "QuerySet[CustomUser]" = CustomUser.objects.filter(
+    all_admins: QuerySet[CustomUser] = CustomUser.objects.filter(
         is_staff=True
     ).order_by("full_name")
 
@@ -1694,7 +1769,9 @@ def admin_user_history(request, user_id):
     admin_map = {u.id: u for u in CustomUser.objects.filter(id__in=admin_ids)}
     for a in admins_activity:
         admin_obj = admin_map.get(a["changed_by__id"])
-        a["username"] = a.get("changed_by__full_name") or a.get("changed_by__email") or ""
+        a["username"] = (
+            a.get("changed_by__full_name") or a.get("changed_by__email") or ""
+        )
         a["avatar"] = admin_obj.avatar if admin_obj else None
 
     pending_changes = UserStatusHistory.objects.filter(
@@ -2442,8 +2519,12 @@ def admin_feed(request):
 
     # Build structured metadata so list rows can use the same "new design" content style.
     for post in page_obj.object_list:
-        localized_content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
-        post.news_meta = extract_paper_metadata(localized_content or '')
+        localized_content = (
+            post.get_localized_content()
+            if hasattr(post, "get_localized_content")
+            else post.content
+        )
+        post.news_meta = extract_paper_metadata(localized_content or "")
 
     context = {
         "posts": page_obj,
@@ -2483,11 +2564,16 @@ def admin_feed_delete(request, post_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_feed_view(request, post_id):
-    from pages.content_parser import extract_structured_content, extract_paper_metadata
+    from pages.content_parser import extract_paper_metadata, extract_structured_content
+
     post = get_object_or_404(Post, id=post_id)
 
     # Parse content into structured format
-    content = post.get_localized_content() if hasattr(post, 'get_localized_content') else post.content
+    content = (
+        post.get_localized_content()
+        if hasattr(post, "get_localized_content")
+        else post.content
+    )
     parsed_content = extract_structured_content(content)
     preview_meta = extract_paper_metadata(content)
 
@@ -2513,7 +2599,10 @@ def admin_calls(request):
     if call_type:
         base_qs = base_qs.filter(event_type=call_type)
     if timeline == "upcoming":
-        base_qs = base_qs.filter(start_date__gte=timezone.now().date())
+        base_qs = base_qs.filter(
+            start_date__gte=timezone.now().date(),
+            is_past_event=False,
+        )
     elif timeline == "past":
         base_qs = base_qs.filter(end_date__lt=timezone.now().date())
     if search:
@@ -2726,70 +2815,98 @@ def admin_statistics(request):
 @user_passes_test(is_admin)
 def admin_settings(request):
     """Admin settings view - handles display and update of global settings"""
-    from settings.models import GlobalSettings
     from django.contrib import messages
-    
+    from settings.models import GlobalSettings
+
     settings = GlobalSettings.get_settings()
-    
-    if request.method == 'POST':
+
+    if request.method == "POST":
         try:
             # Platform Information
-            settings.site_name = request.POST.get('site_name', settings.site_name)
-            settings.site_description = request.POST.get('site_description', settings.site_description)
-            settings.site_url = request.POST.get('site_url', settings.site_url)
-            
+            settings.site_name = request.POST.get("site_name", settings.site_name)
+            settings.site_description = request.POST.get(
+                "site_description", settings.site_description
+            )
+            settings.site_url = request.POST.get("site_url", settings.site_url)
+
             # Email Configuration
-            settings.email_from_name = request.POST.get('email_from_name', settings.email_from_name)
-            settings.email_from_address = request.POST.get('email_from_address', settings.email_from_address)
-            settings.smtp_host = request.POST.get('smtp_host', settings.smtp_host)
-            settings.smtp_port = int(request.POST.get('smtp_port', settings.smtp_port))
-            settings.smtp_use_tls = 'smtp_use_tls' in request.POST
-            settings.admin_email = request.POST.get('admin_email', settings.admin_email)
-            
+            settings.email_from_name = request.POST.get(
+                "email_from_name", settings.email_from_name
+            )
+            settings.email_from_address = request.POST.get(
+                "email_from_address", settings.email_from_address
+            )
+            settings.smtp_host = request.POST.get("smtp_host", settings.smtp_host)
+            settings.smtp_port = int(request.POST.get("smtp_port", settings.smtp_port))
+            settings.smtp_use_tls = "smtp_use_tls" in request.POST
+            settings.admin_email = request.POST.get("admin_email", settings.admin_email)
+
             # Notifications
-            settings.enable_email_notifications = 'enable_email_notifications' in request.POST
-            settings.notify_on_user_registration = 'notify_on_user_registration' in request.POST
-            settings.notify_on_resource_submission = 'notify_on_resource_submission' in request.POST
-            settings.notify_on_forum_post = 'notify_on_forum_post' in request.POST
-            settings.notify_on_event = 'notify_on_event' in request.POST
-            settings.notification_email = request.POST.get('notification_email', settings.notification_email)
-            
+            settings.enable_email_notifications = (
+                "enable_email_notifications" in request.POST
+            )
+            settings.notify_on_user_registration = (
+                "notify_on_user_registration" in request.POST
+            )
+            settings.notify_on_resource_submission = (
+                "notify_on_resource_submission" in request.POST
+            )
+            settings.notify_on_forum_post = "notify_on_forum_post" in request.POST
+            settings.notify_on_event = "notify_on_event" in request.POST
+            settings.notification_email = request.POST.get(
+                "notification_email", settings.notification_email
+            )
+
             # Feature Flags
-            settings.enable_user_registration = 'enable_user_registration' in request.POST
-            settings.enable_social_login = 'enable_social_login' in request.POST
-            settings.enable_two_factor_auth = 'enable_two_factor_auth' in request.POST
-            settings.enable_forum = 'enable_forum' in request.POST
-            settings.enable_qa = 'enable_qa' in request.POST
-            settings.enable_events = 'enable_events' in request.POST
-            settings.enable_projects = 'enable_projects' in request.POST
-            settings.enable_chatbot = 'enable_chatbot' in request.POST
-            settings.enable_resource_submission = 'enable_resource_submission' in request.POST
-            settings.enable_resource_approval = 'enable_resource_approval' in request.POST
-            
+            settings.enable_user_registration = (
+                "enable_user_registration" in request.POST
+            )
+            settings.enable_social_login = "enable_social_login" in request.POST
+            settings.enable_two_factor_auth = "enable_two_factor_auth" in request.POST
+            settings.enable_forum = "enable_forum" in request.POST
+            settings.enable_qa = "enable_qa" in request.POST
+            settings.enable_events = "enable_events" in request.POST
+            settings.enable_projects = "enable_projects" in request.POST
+            settings.enable_chatbot = "enable_chatbot" in request.POST
+            settings.enable_resource_submission = (
+                "enable_resource_submission" in request.POST
+            )
+            settings.enable_resource_approval = (
+                "enable_resource_approval" in request.POST
+            )
+
             # Security & Moderation
-            settings.enable_content_moderation = 'enable_content_moderation' in request.POST
-            settings.require_email_verification = 'require_email_verification' in request.POST
-            settings.max_upload_size_mb = int(request.POST.get('max_upload_size_mb', settings.max_upload_size_mb))
-            
+            settings.enable_content_moderation = (
+                "enable_content_moderation" in request.POST
+            )
+            settings.require_email_verification = (
+                "require_email_verification" in request.POST
+            )
+            settings.max_upload_size_mb = int(
+                request.POST.get("max_upload_size_mb", settings.max_upload_size_mb)
+            )
+
             # Maintenance
-            settings.maintenance_mode = 'maintenance_mode' in request.POST
-            settings.maintenance_message = request.POST.get('maintenance_message', settings.maintenance_message)
-            
+            settings.maintenance_mode = "maintenance_mode" in request.POST
+            settings.maintenance_message = request.POST.get(
+                "maintenance_message", settings.maintenance_message
+            )
+
             # Save with admin user
             settings.updated_by = request.user
             settings.save()
-            
-            messages.success(request, '✅ Settings saved successfully!')
-            return redirect('pages:admin_settings')
-            
+
+            messages.success(request, "✅ Settings saved successfully!")
+            return redirect("pages:admin_settings")
+
         except Exception as e:
-            messages.error(request, f'Error saving settings: {str(e)}')
-    
+            messages.error(request, f"Error saving settings: {str(e)}")
+
     context = {
-        'settings': settings,
-        'maintenance_mode': settings.maintenance_mode,
+        "settings": settings,
+        "maintenance_mode": settings.maintenance_mode,
     }
-    return render(request, 'admin/settings.html', context)
+    return render(request, "admin/settings.html", context)
 
 
 @login_required
@@ -3118,7 +3235,7 @@ def admin_api_stats(request):
 @user_passes_test(is_admin)
 def admin_api_recent_users(request):
     """API endpoint for recent users"""
-    recent_users: "QuerySet[CustomUser]" = CustomUser.objects.all().order_by(
+    recent_users: QuerySet[CustomUser] = CustomUser.objects.all().order_by(
         "-date_joined"
     )[:10]
     data = []
@@ -3732,7 +3849,9 @@ def admin_reject_item(request, model_type, pk):
 
     def _response_error(message, status_code):
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return JsonResponse({"success": False, "error": message}, status=status_code)
+            return JsonResponse(
+                {"success": False, "error": message}, status=status_code
+            )
         messages.error(request, _(message))
         redirect_name = REDIRECT_MAP.get(normalized_model_type, "pages:admin_dashboard")
         return redirect(f"{reverse(redirect_name)}?tab=pending")
@@ -3778,7 +3897,9 @@ def admin_delete_item(request, model_type, pk):
     """Hard-delete an item from admin pending lists."""
     if request.method != "POST":
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+            return JsonResponse(
+                {"success": False, "error": "Method not allowed"}, status=405
+            )
         messages.error(request, _("Method not allowed"))
         return redirect("pages:admin_dashboard")
 
@@ -3791,7 +3912,9 @@ def admin_delete_item(request, model_type, pk):
 
     if normalized_model_type not in MODEL_MAP:
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return JsonResponse({"success": False, "error": "Invalid model type"}, status=400)
+            return JsonResponse(
+                {"success": False, "error": "Invalid model type"}, status=400
+            )
         messages.error(request, _("Invalid model type."))
         return redirect("pages:admin_dashboard")
 
@@ -3799,7 +3922,9 @@ def admin_delete_item(request, model_type, pk):
     item = Model.objects.filter(pk=pk).first()
     if item is None:
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return JsonResponse({"success": False, "error": "Item not found"}, status=404)
+            return JsonResponse(
+                {"success": False, "error": "Item not found"}, status=404
+            )
         messages.error(request, _("Item not found."))
         return redirect("pages:admin_dashboard")
 

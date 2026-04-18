@@ -405,7 +405,9 @@
         <th>{% trans "Run ID" %}</th>
         <th>{% trans "Started" %}</th>
         <th>{% trans "Duration" %}</th>
-        <th>{% trans "Items" %}</th>
+        <th>{% trans "Created" %}</th>
+        <th>{% trans "Updated" %}</th>
+        <th>{% trans "Skipped" %}</th>
         <th>{% trans "Status" %}</th>
       </tr>
     </thead>
@@ -415,12 +417,14 @@
         <td>{{ row.run_id }}</td>
         <td>{{ row.started_at }}</td>
         <td>{{ row.duration }}</td>
-        <td>{{ row.items }}</td>
+        <td>{{ row.items_created }}</td>
+        <td>{{ row.items_updated }}</td>
+        <td>{{ row.items_skipped }}</td>
         <td>{{ row.status }}</td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="5">{% trans "No snapshots available for this category." %}</td>
+        <td colspan="7">{% trans "No snapshots available for this category." %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -592,7 +596,9 @@
         runButton.disabled = false;
 
         if (status === 'completed') {
-          setRunStatus(`{% trans "Completed" %}: ${data.items_created || 0} {% trans "items" %}`);
+          setRunStatus(
+            `Run Complete: ${data.items_created || 0} Created, ${data.items_updated || 0} Updated, ${data.items_skipped || 0} Skipped`
+          );
           if (runStatusTime) {
             runStatusTime.textContent = new Date().toLocaleString();
           }
@@ -707,7 +713,9 @@
           }
 
           if (status === 'success') {
-            setRunStatus(`{% trans "Completed" %}: ${data.items_created || 0} {% trans "items" %}`);
+            setRunStatus(
+              `Run Complete: ${data.items_created || 0} Created, ${data.items_updated || 0} Updated, ${data.items_skipped || 0} Skipped`
+            );
             if (runStatusTime) {
               runStatusTime.textContent = new Date().toLocaleString();
             }

@@ -18,8 +18,6 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from scraping.utils import apply_translation_confidence_cap
-
 logger = logging.getLogger(__name__)
 
 
@@ -522,57 +520,45 @@ SCORING_WEIGHTS = {
 class ConfidenceCalculator:
     FIELD_WEIGHTS = {
         "events": {
-            "title_en": 0.20,
-            "title_ar": 0.15,
-            "description_en": 0.15,
-            "description_ar": 0.10,
-            "start_date": 0.15,
+            "title_en": 0.30,
+            "description_en": 0.25,
+            "start_date": 0.20,
             "url": 0.10,
-            "location": 0.08,
-            "end_date": 0.04,
-            "organizer": 0.03,
+            "location": 0.10,
+            "end_date": 0.03,
+            "organizer": 0.02,
         },
         "tools": {
-            "title_en": 0.20,
-            "title_ar": 0.15,
-            "description_en": 0.20,
-            "description_ar": 0.10,
-            "url": 0.15,
+            "title_en": 0.30,
+            "description_en": 0.30,
+            "url": 0.20,
             "capabilities": 0.10,
             "language_support": 0.10,
         },
         "courses": {
-            "title_en": 0.20,
-            "title_ar": 0.15,
-            "description_en": 0.20,
-            "description_ar": 0.10,
+            "title_en": 0.30,
+            "description_en": 0.30,
             "platform": 0.15,
-            "url": 0.10,
+            "url": 0.15,
             "level": 0.05,
             "price": 0.05,
         },
         "news": {
-            "title_en": 0.25,
-            "title_ar": 0.20,
-            "description_en": 0.20,
-            "description_ar": 0.15,
+            "title_en": 0.35,
+            "description_en": 0.35,
             "url": 0.10,
-            "published_date": 0.10,
+            "published_date": 0.20,
         },
         "opportunities": {
-            "title_en": 0.20,
-            "title_ar": 0.15,
-            "description_en": 0.20,
-            "description_ar": 0.10,
+            "title_en": 0.30,
+            "description_en": 0.30,
             "url": 0.15,
-            "deadline": 0.10,
+            "deadline": 0.15,
             "institution": 0.10,
         },
         "corpus": {
-            "title_en": 0.20,
-            "title_ar": 0.15,
-            "description_en": 0.20,
-            "description_ar": 0.10,
+            "title_en": 0.30,
+            "description_en": 0.30,
             "download_url": 0.15,
             "language_variants": 0.10,
             "size": 0.05,
@@ -598,9 +584,6 @@ class ConfidenceCalculator:
         if not value_str:
             return 0.0
 
-        if field_name.endswith("_ar"):
-            return self._score_arabic_field(value_str, en_equivalent)
-
         if "date" in field_name or "deadline" in field_name:
             return self._score_date_field(value_str)
 
@@ -610,29 +593,6 @@ class ConfidenceCalculator:
         if len(value_str) >= 3:
             return 1.0
         return 0.5
-
-    def _score_arabic_field(self, ar_value: str, en_value: str = None) -> float:
-        if not ar_value:
-            return 0.0
-
-        if en_value and ar_value.strip() == str(en_value).strip():
-            return 0.1
-
-        arabic_chars = sum(1 for c in ar_value if "\u0600" <= c <= "\u06ff")
-        total_chars = len(ar_value.replace(" ", ""))
-
-        if total_chars == 0:
-            return 0.0
-
-        arabic_ratio = arabic_chars / total_chars
-
-        if arabic_ratio >= 0.5:
-            return 1.0
-        if arabic_ratio >= 0.3:
-            return 0.7
-        if arabic_ratio >= 0.1:
-            return 0.3
-        return 0.1
 
     def _score_date_field(self, value: str) -> float:
         import re
@@ -802,8 +762,7 @@ def compute_relevance_score(
     if category and isinstance(item_data, dict):
         report = calculate_item_confidence(category, item_data)
         score = float(report.get("percent", 0.0))
-        capped_score = apply_translation_confidence_cap(score, translation_status)
-        return float(capped_score if capped_score is not None else score)
+        return score
 
     # ── Recency score (0-1) ──
     recency = 0.7  # default for unknown date
@@ -849,8 +808,7 @@ def compute_relevance_score(
         + SCORING_WEIGHTS["completeness"] * completeness
     )
     score = round(raw * 100, 1)
-    capped_score = apply_translation_confidence_cap(score, translation_status)
-    return float(capped_score if capped_score is not None else score)
+    return float(score)
 
 
 # =====================================================================

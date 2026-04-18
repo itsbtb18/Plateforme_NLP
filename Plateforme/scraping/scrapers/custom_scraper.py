@@ -6,6 +6,7 @@ import json
 import logging
 from datetime import timedelta
 
+from django.db import transaction
 from django.utils import timezone
 
 from scraping.scrapers.base import BaseScraper
@@ -24,6 +25,7 @@ class CustomDomainScraper(BaseScraper):
     """Persist curated items from source configuration without live HTTP fetching."""
 
     CATEGORY_KEYWORDS = _DEFAULT_CATEGORY_KEYWORDS
+    STATUS_CONFIDENCE_DELTA = 15.0
 
     def __init__(self, source):
         super().__init__()
@@ -70,8 +72,12 @@ class CustomDomainScraper(BaseScraper):
 
     def _resolve_effective_category(self, source_url, page_text=""):
         config = dict(getattr(self.source, "scrape_config", {}) or {})
-        explicit_category = self._normalize_category(getattr(self.source, "category", ""))
-        override_category = self._normalize_category(config.get("category_override", ""))
+        explicit_category = self._normalize_category(
+            getattr(self.source, "category", "")
+        )
+        override_category = self._normalize_category(
+            config.get("category_override", "")
+        )
         auto_detect = bool(config.get("auto_detect_category", False))
 
         if override_category:
@@ -171,12 +177,22 @@ class CustomDomainScraper(BaseScraper):
             "event_type": (item.get("event_type") or "conference").strip().lower(),
             "location": (item.get("location") or "Online").strip(),
             "registration_link": (item.get("registration_link") or "").strip(),
-            "tool_type": (item.get("tool_type") or item.get("task") or "tokenization").strip().lower(),
-            "github_url": (item.get("github_url") or item.get("github_link") or "").strip(),
-            "documentation_link": (item.get("documentation_link") or item.get("docs") or "").strip(),
-            "institution": (item.get("institution") or item.get("provider") or "Global NLP Academy").strip(),
+            "tool_type": (item.get("tool_type") or item.get("task") or "tokenization")
+            .strip()
+            .lower(),
+            "github_url": (
+                item.get("github_url") or item.get("github_link") or ""
+            ).strip(),
+            "documentation_link": (
+                item.get("documentation_link") or item.get("docs") or ""
+            ).strip(),
+            "institution": (
+                item.get("institution") or item.get("provider") or "Global NLP Academy"
+            ).strip(),
             "level": (item.get("level") or "master").strip().lower(),
-            "instructor": (item.get("instructor") or item.get("teacher") or "NLP Platform Team").strip(),
+            "instructor": (
+                item.get("instructor") or item.get("teacher") or "NLP Platform Team"
+            ).strip(),
             "platform": (item.get("platform") or "").strip(),
             "language": (item.get("language") or "en").strip().lower(),
             "duration": (item.get("duration") or "").strip(),
@@ -215,7 +231,13 @@ class CustomDomainScraper(BaseScraper):
             return None
 
         event_type = item.get("event_type") or "conference"
-        if event_type not in {"conference", "workshop", "seminar", "call_for_papers", "hackathon"}:
+        if event_type not in {
+            "conference",
+            "workshop",
+            "seminar",
+            "call_for_papers",
+            "hackathon",
+        }:
             event_type = "conference"
 
         defaults = {
@@ -243,16 +265,56 @@ class CustomDomainScraper(BaseScraper):
             "organizer": organizer,
             "created_by": self.get_system_user(),
             "approval_status": "pending",
+            "scrape_status": str(item.get("scrape_status") or "PENDING_REVIEW").upper(),
+            "validation_notes": "",
+            "confidence_score": self._normalize_confidence(
+                item.get("confidence_score", item.get("extraction_confidence"))
+            ),
             "source": "scrape",
         }
+        self.passes_min_confidence_to_save(defaults)
 
-        Event.objects.update_or_create(
-            title_en=title,
-            start_date=start_date,
-            defaults=defaults,
-        )
-
-        self.items_created += 1
+        now = timezone.now()
+        lookup = {"title_en": title, "start_date": start_date}
+        with transaction.atomic():
+            event = Event.objects.select_for_update().filter(**lookup).first()
+            if event is not None:
+                defaults["last_scraped_at"] = now
+                defaults["update_count"] = int(event.update_count or 0) + 1
+                defaults["update_counter"] = (
+                    int(getattr(event, "update_counter", 0) or 0) + 1
+                )
+                existing_status = str(getattr(event, "scrape_status", "") or "").upper()
+                if self._is_terminal_review_status(existing_status):
+                    defaults = self._build_terminal_status_update_defaults(
+                        existing_obj=event,
+                        incoming_defaults=defaults,
+                        metadata_fields={
+                            "last_scraped_at",
+                            "update_count",
+                            "update_counter",
+                        },
+                    )
+                elif defaults.get("scrape_status") == "REJECTED":
+                    defaults["scrape_status"] = "REJECTED"
+                    defaults["validation_notes"] = self._append_validation_note(
+                        str(defaults.get("validation_notes") or ""),
+                        "Auto-marked REJECTED due to confidence_score below 50%.",
+                    )
+                else:
+                    defaults["scrape_status"] = "PENDING_REVIEW"
+                for field_name, field_value in defaults.items():
+                    setattr(event, field_name, field_value)
+                event.save()
+                self.items_updated += 1
+            else:
+                defaults["last_scraped_at"] = now
+                defaults.setdefault("update_count", 0)
+                defaults.setdefault("update_counter", 0)
+                create_data = dict(defaults)
+                create_data.update(lookup)
+                Event.objects.create(**create_data)
+                self.items_created += 1
 
         mapped = {
             "title": defaults["title_en"],
@@ -265,7 +327,45 @@ class CustomDomainScraper(BaseScraper):
             "description_en": defaults["description_en"],
         }
         self.results.append(mapped)
+        self._track_saved_item_status(defaults)
         return mapped
+
+    @staticmethod
+    def _normalize_confidence(value) -> float | None:
+        try:
+            if value is None:
+                return None
+            numeric = float(value)
+            if numeric <= 1.0:
+                numeric *= 100.0
+            return max(0.0, min(100.0, numeric))
+        except (TypeError, ValueError):
+            return None
+
+    def _is_significantly_higher_confidence(
+        self,
+        incoming_confidence: float | None,
+        existing_confidence: float | None,
+    ) -> bool:
+        if incoming_confidence is None:
+            return False
+        if existing_confidence is None:
+            return True
+        return incoming_confidence >= (
+            existing_confidence + self.STATUS_CONFIDENCE_DELTA
+        )
+
+    @staticmethod
+    def _append_validation_note(existing: str, note: str) -> str:
+        existing = (existing or "").strip()
+        note = (note or "").strip()
+        if not note:
+            return existing
+        if not existing:
+            return note
+        if note in existing:
+            return existing
+        return f"{existing}\n{note}"
 
     def _save_as_tool(self, item):
         from resources.models import NLPTool
@@ -313,12 +413,36 @@ class CustomDomainScraper(BaseScraper):
             "update_date": timezone.now(),
         }
 
-        NLPTool.objects.update_or_create(
-            title_en=title,
-            defaults=defaults,
-        )
-
-        self.items_created += 1
+        now = timezone.now()
+        lookup = {"title_en": title}
+        with transaction.atomic():
+            tool = NLPTool.objects.select_for_update().filter(**lookup).first()
+            if tool is not None:
+                defaults["last_scraped_at"] = now
+                defaults["update_counter"] = (
+                    int(getattr(tool, "update_counter", 0) or 0) + 1
+                )
+                if self._is_approved_record(tool):
+                    defaults = self._build_terminal_status_update_defaults(
+                        existing_obj=tool,
+                        incoming_defaults=defaults,
+                        metadata_fields={
+                            "last_scraped_at",
+                            "update_counter",
+                            "update_date",
+                        },
+                    )
+                for field_name, field_value in defaults.items():
+                    setattr(tool, field_name, field_value)
+                tool.save()
+                self.items_updated += 1
+            else:
+                defaults["last_scraped_at"] = now
+                defaults.setdefault("update_counter", 0)
+                create_data = dict(defaults)
+                create_data.update(lookup)
+                NLPTool.objects.create(**create_data)
+                self.items_created += 1
 
         mapped = {
             "title": defaults["title_en"],
@@ -331,6 +455,7 @@ class CustomDomainScraper(BaseScraper):
             "description_en": defaults["description_en"],
         }
         self.results.append(mapped)
+        self._track_saved_item_status(defaults)
         return mapped
 
     def _save_as_course(self, item):
@@ -379,7 +504,9 @@ class CustomDomainScraper(BaseScraper):
             "syllabus": "",
             "instructor": item.get("instructor") or "NLP Platform Team",
             "duration": item.get("duration") or "",
-            "platform": self._normalize_course_platform(item.get("platform"), access_link),
+            "platform": self._normalize_course_platform(
+                item.get("platform"), access_link
+            ),
             "enrollment_url": access_link,
             "is_free": bool(item.get("is_free", True)),
             "source_url": access_link,
@@ -393,13 +520,36 @@ class CustomDomainScraper(BaseScraper):
             "update_date": timezone.now(),
         }
 
-        Course.objects.update_or_create(
-            title_en=title,
-            access_link=access_link,
-            defaults=defaults,
-        )
-
-        self.items_created += 1
+        now = timezone.now()
+        lookup = {"title_en": title, "access_link": access_link}
+        with transaction.atomic():
+            course = Course.objects.select_for_update().filter(**lookup).first()
+            if course is not None:
+                defaults["last_scraped_at"] = now
+                defaults["update_counter"] = (
+                    int(getattr(course, "update_counter", 0) or 0) + 1
+                )
+                if self._is_approved_record(course):
+                    defaults = self._build_terminal_status_update_defaults(
+                        existing_obj=course,
+                        incoming_defaults=defaults,
+                        metadata_fields={
+                            "last_scraped_at",
+                            "update_counter",
+                            "update_date",
+                        },
+                    )
+                for field_name, field_value in defaults.items():
+                    setattr(course, field_name, field_value)
+                course.save()
+                self.items_updated += 1
+            else:
+                defaults["last_scraped_at"] = now
+                defaults.setdefault("update_counter", 0)
+                create_data = dict(defaults)
+                create_data.update(lookup)
+                Course.objects.create(**create_data)
+                self.items_created += 1
 
         mapped = {
             "title": defaults["title_en"],
@@ -412,6 +562,7 @@ class CustomDomainScraper(BaseScraper):
             "description_en": defaults["description_en"],
         }
         self.results.append(mapped)
+        self._track_saved_item_status(defaults)
         return mapped
 
     def _normalize_course_platform(self, platform: str, url: str) -> str:

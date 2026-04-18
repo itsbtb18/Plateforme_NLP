@@ -6,6 +6,7 @@ import logging
 import time
 
 from asgiref.sync import async_to_sync
+from django.db import transaction
 from django.utils import timezone
 
 from scraping.extractors.tools.llm_tool_extractor import LLMToolExtractor
@@ -191,16 +192,64 @@ class ToolScraper(BaseScraper):
                 else None,
                 "entities": {"capabilities": normalized["capabilities"]},
                 "author": author,
-                "approval_status": "pending",
+                "approval_status": str(
+                    normalized.get("approval_status") or "pending"
+                ).lower(),
                 "is_approved": False,
                 "update_date": timezone.now(),
             }
 
             try:
-                tool, created = NLPTool.objects.update_or_create(
-                    **lookup,
-                    defaults=defaults,
-                )
+                now = timezone.now()
+                with transaction.atomic():
+                    tool = NLPTool.objects.select_for_update().filter(**lookup).first()
+                    if tool is not None:
+                        defaults["last_scraped_at"] = now
+                        defaults["update_counter"] = (
+                            int(getattr(tool, "update_counter", 0) or 0) + 1
+                        )
+                        if self._is_approved_record(tool):
+                            defaults = self._build_terminal_status_update_defaults(
+                                existing_obj=tool,
+                                incoming_defaults=defaults,
+                                metadata_fields={"last_scraped_at", "update_counter"},
+                            )
+                        for field_name, field_value in defaults.items():
+                            setattr(tool, field_name, field_value)
+                        tool.save()
+                        created = False
+                    else:
+                        semantic_queryset = self._recent_dedup_queryset(
+                            NLPTool.objects.only("id", "title", "title_en")
+                        )
+                        semantic_tool, semantic_score = self._find_semantic_title_match(
+                            semantic_queryset,
+                            normalized["title_en"],
+                            title_fields=("title_en", "title"),
+                        )
+                        if semantic_tool is not None:
+                            tool = semantic_tool
+                            defaults["last_scraped_at"] = now
+                            defaults["update_counter"] = (
+                                int(getattr(tool, "update_counter", 0) or 0) + 1
+                            )
+                            if self._is_approved_record(tool):
+                                defaults = self._build_terminal_status_update_defaults(
+                                    existing_obj=tool,
+                                    incoming_defaults=defaults,
+                                    metadata_fields={"last_scraped_at", "update_counter"},
+                                )
+                            for field_name, field_value in defaults.items():
+                                setattr(tool, field_name, field_value)
+                            tool.save()
+                            created = False
+                        else:
+                        defaults["last_scraped_at"] = now
+                        defaults.setdefault("update_counter", 0)
+                        create_data = dict(defaults)
+                        create_data.update(lookup)
+                        tool = NLPTool.objects.create(**create_data)
+                        created = True
             except Exception as exc:
                 self._log_error(
                     "tool_upsert_failed",
@@ -211,18 +260,11 @@ class ToolScraper(BaseScraper):
                 self.items_skipped += 1
                 continue
 
-            forced_updates = {}
-            if tool.approval_status != "pending":
-                forced_updates["approval_status"] = "pending"
-            if bool(tool.is_approved):
-                forced_updates["is_approved"] = False
-            if forced_updates:
-                NLPTool.objects.filter(pk=tool.pk).update(**forced_updates)
-
             if created:
                 self.items_created += 1
             else:
                 self.items_updated += 1
+            self._track_saved_item_status(normalized)
 
             self.results.append(
                 {
@@ -248,8 +290,10 @@ class ToolScraper(BaseScraper):
     def _normalize_candidate(self, item: dict):
         title_en = self._safe_text(item.get("title_en"))
         description_en = self._safe_text(item.get("description_en"))
-        if not title_en or not description_en:
+        if not title_en:
             return None
+        if not description_en:
+            description_en = "[NEEDS RESEARCH]"
 
         title_ar = self._safe_text(item.get("title_ar")) or None
         description_ar = self._safe_text(item.get("description_ar")) or None
@@ -266,9 +310,14 @@ class ToolScraper(BaseScraper):
                 if str(value).strip()
             ]
 
-        access_link = github_url or paper_url
-        if not access_link:
-            return None
+        access_link = (
+            github_url
+            or paper_url
+            or self._safe_text(item.get("url"))
+            or self._safe_text(item.get("source_url"))
+            or self._safe_text(item.get("access_link"))
+            or "[NEEDS RESEARCH]"
+        )
 
         translation_status = infer_translation_status(
             raw_status=self._safe_text(item.get("translation_status")) or "pending",

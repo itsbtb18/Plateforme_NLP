@@ -53,7 +53,7 @@ class ArabicTranslator:
 
         self.max_retries = max(
             1,
-            int(getattr(settings, "SCRAPING_TRANSLATION_MAX_RETRIES", 3) or 3),
+            int(getattr(settings, "SCRAPING_TRANSLATION_MAX_RETRIES", 1) or 1),
         )
         self.backoff_initial_seconds = max(
             0.25,
@@ -112,54 +112,13 @@ class ArabicTranslator:
     def translate_item(self, item: dict, fields_to_translate: list[str]) -> dict:
         """Translate configured fields for one candidate and set translation_status."""
         translated_item = dict(item or {})
-        if not fields_to_translate:
-            translated_item["translation_status"] = "translated"
-            return translated_item
-
-        translated_count = 0
-        failed_count = 0
-
-        for field in self._dedupe_preserve_order(fields_to_translate):
-            if not field:
-                continue
-
-            target_field = str(field).strip()
-            if not target_field:
-                continue
-
-            existing_value = self._clean_text(translated_item.get(target_field))
-            if existing_value and self._contains_arabic(existing_value):
-                translated_count += 1
-                continue
-
-            source_text = self._resolve_source_text(translated_item, target_field)
-            if not source_text:
-                continue
-
-            field_type = self._infer_field_type(target_field)
-            translated_value = self.translate_field(source_text, field_type)
-            if translated_value:
-                for destination_key in self._destination_keys(target_field):
-                    translated_item[destination_key] = translated_value
-                translated_count += 1
-            else:
-                failed_count += 1
-                logger.warning(
-                    "translation_field_failed field=%s source_hint=%s",
-                    target_field,
-                    source_text[:80],
-                )
-
-        if translated_count > 0 and failed_count == 0:
-            status = "translated"
-        elif translated_count > 0 and failed_count > 0:
-            status = "partial"
-        elif failed_count > 0:
-            status = "failed"
-        else:
-            status = "translated"
-
-        translated_item["translation_status"] = status
+        
+        # USER REQUEST: Disable LLM translation during the scraping step.
+        # Skip translation and set status to missing immediately. 
+        # Admin will translate in the panel later.
+        if "translation_status" not in translated_item:
+            translated_item["translation_status"] = "missing"
+            
         return translated_item
 
     def batch_translate(self, items: list[dict], fields: list[str]) -> list[dict]:

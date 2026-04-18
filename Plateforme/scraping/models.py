@@ -230,6 +230,73 @@ class SearchQuery(models.Model):
         return f"[{self.category}] {self.query_text[:80]} ({status})"
 
 
+class DiscoveredURL(models.Model):
+    """URLs discovered from event pages for future scraping runs."""
+
+    DISCOVERY_METHOD_CHOICES = [
+        ("css", _("CSS Selector")),
+        ("llm", _("LLM Scan")),
+        ("heuristic", _("Heuristic")),
+    ]
+
+    category = models.CharField(
+        _("Category"),
+        max_length=50,
+        choices=SCRAPER_CATEGORY_CHOICES,
+        default="events",
+        db_index=True,
+    )
+    url = models.URLField(_("URL"), unique=True)
+    status = models.CharField(
+        _("Status"),
+        max_length=20,
+        default="pending",
+        db_index=True,
+        choices=[
+            ("pending", _("Pending")),
+            ("completed", _("Completed")),
+            ("failed", _("Failed")),
+        ],
+    )
+    source_page_url = models.URLField(_("Source Page URL"), blank=True, default="")
+    section_label = models.CharField(
+        _("Section Label"), max_length=120, blank=True, default=""
+    )
+    discovery_method = models.CharField(
+        _("Discovery Method"),
+        max_length=20,
+        choices=DISCOVERY_METHOD_CHOICES,
+        default="heuristic",
+    )
+    keywords_hit = models.JSONField(_("Keywords Hit"), default=list, blank=True)
+    priority_score = models.IntegerField(_("Priority Score"), default=0, db_index=True)
+    times_seen = models.PositiveIntegerField(_("Times Seen"), default=1)
+    is_processed = models.BooleanField(_("Is Processed"), default=False, db_index=True)
+    first_discovered_at = models.DateTimeField(
+        _("First Discovered At"), auto_now_add=True
+    )
+    last_discovered_at = models.DateTimeField(_("Last Discovered At"), auto_now=True)
+
+    class Meta:
+        db_table = "discovered_urls"
+        ordering = ["-priority_score", "-times_seen", "-last_discovered_at"]
+        verbose_name = _("Discovered URL")
+        verbose_name_plural = _("Discovered URLs")
+        indexes = [
+            models.Index(
+                fields=["category", "is_processed", "priority_score"],
+                name="idx_discoveredurl_queue",
+            ),
+            models.Index(
+                fields=["category", "status", "priority_score"],
+                name="idx_discoveredurl_pending_queue",
+            ),
+        ]
+
+    def __str__(self):
+        return f"[{self.category}] {self.url}"
+
+
 class RejectedItem(models.Model):
     """Feedback loop storage for rejected scraping candidates."""
 
