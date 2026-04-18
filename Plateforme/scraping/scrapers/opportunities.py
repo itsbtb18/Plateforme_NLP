@@ -276,15 +276,15 @@ class OpportunityScraper(BaseScraper):
                             obj.save()
                             created = False
                         else:
-                        defaults.setdefault("scrape_status", "PENDING_REVIEW")
-                        if "last_scraped_at" in fields:
-                            defaults["last_scraped_at"] = now
-                        if "update_counter" in fields:
-                            defaults.setdefault("update_counter", 0)
-                        create_data = dict(defaults)
-                        create_data.update(lookup)
-                        obj = model.objects.create(**create_data)
-                        created = True
+                            defaults.setdefault("scrape_status", "PENDING_REVIEW")
+                            if "last_scraped_at" in fields:
+                                defaults["last_scraped_at"] = now
+                            if "update_counter" in fields:
+                                defaults.setdefault("update_counter", 0)
+                            create_data = dict(defaults)
+                            create_data.update(lookup)
+                            obj = model.objects.create(**create_data)
+                            created = True
             except Exception as exc:
                 self._log_error(
                     "opportunity_upsert_failed",

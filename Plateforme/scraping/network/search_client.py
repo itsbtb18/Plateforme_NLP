@@ -96,6 +96,23 @@ class TavilySearchClient:
                 **request_config,
             )
         except Exception as exc:
+            message = str(exc)
+            lowered = message.lower()
+            if (
+                "usage limit" in lowered
+                or "exceeds your plan" in lowered
+                or "quota" in lowered
+            ):
+                self._disabled_reason = (
+                    "Tavily plan usage limit reached; client disabled for this run"
+                )
+                self.client = None
+                logger.warning(
+                    "Tavily disabled for current run due to plan usage limit: %s",
+                    message,
+                )
+                return []
+
             logger.error("Tavily search failed: %s", exc)
             return []
 

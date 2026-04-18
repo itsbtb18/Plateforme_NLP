@@ -244,12 +244,12 @@ class ToolScraper(BaseScraper):
                             tool.save()
                             created = False
                         else:
-                        defaults["last_scraped_at"] = now
-                        defaults.setdefault("update_counter", 0)
-                        create_data = dict(defaults)
-                        create_data.update(lookup)
-                        tool = NLPTool.objects.create(**create_data)
-                        created = True
+                            defaults["last_scraped_at"] = now
+                            defaults.setdefault("update_counter", 0)
+                            create_data = dict(defaults)
+                            create_data.update(lookup)
+                            tool = NLPTool.objects.create(**create_data)
+                            created = True
             except Exception as exc:
                 self._log_error(
                     "tool_upsert_failed",

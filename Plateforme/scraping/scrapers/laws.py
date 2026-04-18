@@ -314,6 +314,18 @@ class LawScraper(BaseScraper):
     def _contains_arabic(text: str) -> bool:
         return any("\u0600" <= ch <= "\u06ff" for ch in (text or ""))
 
+    @staticmethod
+    def _normalize_confidence(value) -> float | None:
+        try:
+            if value is None:
+                return None
+            numeric = float(value)
+            if numeric <= 1.0:
+                numeric *= 100.0
+            return max(0.0, min(100.0, numeric))
+        except (TypeError, ValueError):
+            return None
+
     def _authority_from_url(self, source_url: str) -> str:
         if not source_url or source_url == "[NEEDS RESEARCH]":
             return "[NEEDS RESEARCH]"
