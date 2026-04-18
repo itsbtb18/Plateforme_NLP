@@ -112,23 +112,23 @@
 <section class="cat-shell">
   <header class="cat-hero">
     <div class="cat-title-row">
-      <h1 class="cat-title">{% trans "Category:" %} {{ category_name|default:scraping_current_category|title }}</h1>
+      <h1 class="cat-title">{% if scraping_is_rtl %}الفئة:{% else %}{% if scraping_is_rtl %}الفئة:{% else %}{% trans "Category:" %}{% endif %}{% endif %} {{ category_name|default:scraping_current_category|title }}</h1>
       <span class="cat-global-badge {% if category_global_status and category_global_status != 'ok' %}warn{% endif %}">
         <span class="cat-global-badge-dot"></span>
         {% if category_global_status_label %}
           {{ category_global_status_label }}
         {% else %}
-          {% trans "Global status: OK" %}
+          {% if scraping_is_rtl %}الحالة العامة: جيد{% else %}{% trans "Global status: OK" %}{% endif %}
         {% endif %}
       </span>
     </div>
 
-    <nav class="cat-tabs" aria-label="{% trans 'Category navigation tabs' %}">
-      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'dashboard' %}active{% endif %}" href="{% url 'scraping:category_dashboard' category_key|default:scraping_current_category %}">{% trans "Dashboard" %}</a>
-      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'pending' or category_active_tab|default:scraping_active_page == 'results' %}active{% endif %}" href="{% url 'scraping:category_results' category_key|default:scraping_current_category %}">{% trans "Pending Queue" %}</a>
-      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'analytics' %}active{% endif %}" href="{% url 'scraping:category_analytics' category_key|default:scraping_current_category %}">{% trans "Analytics" %}</a>
-      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'sources' %}active{% endif %}" href="{% url 'scraping:category_sources' category_key|default:scraping_current_category %}">{% trans "Sources" %}</a>
-      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'settings' %}active{% endif %}" href="{% url 'scraping:category_settings' category_key|default:scraping_current_category %}">{% trans "Settings" %}</a>
+    <nav class="cat-tabs" aria-label="{% if scraping_is_rtl %}تبويبات تنقل الفئة{% else %}{% if scraping_is_rtl %}تبويبات تنقل الفئة{% else %}{% trans 'Category navigation tabs' %}{% endif %}{% endif %}">
+      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'dashboard' %}active{% endif %}" href="{% url 'scraping:category_dashboard' category_key|default:scraping_current_category %}">{% if scraping_is_rtl %}لوحة التحكم{% else %}{% trans "Dashboard" %}{% endif %}</a>
+      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'pending' or category_active_tab|default:scraping_active_page == 'results' %}active{% endif %}" href="{% url 'scraping:category_results' category_key|default:scraping_current_category %}">{% if scraping_is_rtl %}قائمة المراجعة{% else %}{% if scraping_is_rtl %}قائمة المراجعة{% else %}{% trans "Pending Queue" %}{% endif %}{% endif %}</a>
+      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'analytics' %}active{% endif %}" href="{% url 'scraping:category_analytics' category_key|default:scraping_current_category %}">{% if scraping_is_rtl %}التحليلات{% else %}{% if scraping_is_rtl %}التحليلات{% else %}{% trans "Analytics" %}{% endif %}{% endif %}</a>
+      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'sources' %}active{% endif %}" href="{% url 'scraping:category_sources' category_key|default:scraping_current_category %}">{% if scraping_is_rtl %}المصادر{% else %}{% trans "Sources" %}{% endif %}</a>
+      <a class="cat-tab {% if category_active_tab|default:scraping_active_page == 'settings' %}active{% endif %}" href="{% url 'scraping:category_settings' category_key|default:scraping_current_category %}">{% if scraping_is_rtl %}الإعدادات{% else %}{% if scraping_is_rtl %}الإعدادات{% else %}{% trans "Settings" %}{% endif %}{% endif %}</a>
     </nav>
   </header>
 

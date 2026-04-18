@@ -1,6 +1,5 @@
 ﻿{% extends 'base_admin.html' %}
 {% load i18n %}
-{% get_current_language_bidi as LANGUAGE_BIDI %}
 
 {% block content %}
 <style>
@@ -494,13 +493,13 @@
   }
 </style>
 
-<div class="sp-shell" id="scrapingShell" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
-  <aside class="sp-sidebar" id="scrapingSidebar" aria-label="{% trans 'Scraping navigation' %}">
+<div class="sp-shell" id="scrapingShell" dir="{% if scraping_is_rtl %}rtl{% else %}ltr{% endif %}">
+  <aside class="sp-sidebar" id="scrapingSidebar" aria-label="{% if scraping_is_rtl %}تنقل الاستخراج{% else %}{% if scraping_is_rtl %}تنقل الاستخراج{% else %}{% trans 'Scraping navigation' %}{% endif %}{% endif %}">
     <div class="sp-brand">
       <span class="sp-brand-mark"><i class="fas fa-flask"></i></span>
       <div class="sp-brand-copy">
         <p class="sp-brand-title">{% trans "SANAD" %}</p>
-        <p class="sp-brand-sub">{% trans "Scraping Admin" %}</p>
+        <p class="sp-brand-sub">{% if scraping_is_rtl %}إدارة الاستخراج{% else %}{% if scraping_is_rtl %}إدارة الاستخراج{% else %}{% trans "Scraping Admin" %}{% endif %}{% endif %}</p>
       </div>
     </div>
 
@@ -509,14 +508,14 @@
         <a class="sp-link {% if scraping_active_page == 'dashboard' %}active{% endif %}" href="{% url 'scraping:dashboard' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-house"></i>
-            <span class="sp-link-label">{% trans "Hub" %}</span>
+            <span class="sp-link-label">{% if scraping_is_rtl %}المركز{% else %}{% if scraping_is_rtl %}المركز{% else %}{% trans "Hub" %}{% endif %}{% endif %}</span>
           </span>
         </a>
 
         <a class="sp-link {% if scraping_active_page == 'results' %}active{% endif %}" href="{% url 'scraping:results' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-clipboard-list"></i>
-            <span class="sp-link-label">{% trans "Pending Queue" %}</span>
+            <span class="sp-link-label">{% if scraping_is_rtl %}قائمة المراجعة{% else %}{% if scraping_is_rtl %}قائمة المراجعة{% else %}{% trans "Pending Queue" %}{% endif %}{% endif %}</span>
           </span>
           <span class="sp-pill">{{ scraping_pending_count|default:0 }}</span>
         </a>
@@ -524,21 +523,21 @@
         <a class="sp-link {% if scraping_active_page == 'analytics' %}active{% endif %}" href="{% url 'scraping:analytics' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-chart-column"></i>
-            <span class="sp-link-label">{% trans "Analytics" %}</span>
+            <span class="sp-link-label">{% if scraping_is_rtl %}التحليلات{% else %}{% if scraping_is_rtl %}التحليلات{% else %}{% trans "Analytics" %}{% endif %}{% endif %}</span>
           </span>
         </a>
 
         <a class="sp-link {% if scraping_active_page == 'sources' %}active{% endif %}" href="{% url 'scraping:sources' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-link"></i>
-            <span class="sp-link-label">{% trans "Sources" %}</span>
+            <span class="sp-link-label">{% if scraping_is_rtl %}المصادر{% else %}{% trans "Sources" %}{% endif %}</span>
           </span>
         </a>
 
         <a class="sp-link {% if scraping_active_page == 'settings' %}active{% endif %}" href="{% url 'scraping:settings' %}">
           <span class="sp-link-main">
             <i class="sp-link-icon fas fa-gear"></i>
-            <span class="sp-link-label">{% trans "Settings" %}</span>
+            <span class="sp-link-label">{% if scraping_is_rtl %}الإعدادات{% else %}{% trans "Settings" %}{% endif %}</span>
           </span>
         </a>
       </div>
@@ -547,7 +546,7 @@
 
       <button type="button" class="sp-collapse-button" id="scrapingCollapseButton">
         <i class="fas fa-angles-left" id="scrapingCollapseIcon"></i>
-        <span class="sp-collapse-text">{% trans "Collapse sidebar" %}</span>
+        <span class="sp-collapse-text">{% if scraping_is_rtl %}طي الشريط الجانبي{% else %}{% trans "Collapse sidebar" %}{% endif %}</span>
       </button>
     </nav>
   </aside>
@@ -555,11 +554,11 @@
   <section class="sp-main">
     <header class="sp-topbar">
       <div class="sp-topbar-left">
-        <button type="button" class="sp-menu-toggle" id="scrapingMenuToggle" aria-label="{% trans 'Toggle menu' %}">
+        <button type="button" class="sp-menu-toggle" id="scrapingMenuToggle" aria-label="{% if scraping_is_rtl %}تبديل القائمة{% else %}{% if scraping_is_rtl %}تبديل القائمة{% else %}{% trans 'Toggle menu' %}{% endif %}{% endif %}">
           <i class="fas fa-bars"></i>
         </button>
 
-        <nav class="sp-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+        <nav class="sp-breadcrumb" aria-label="{% if scraping_is_rtl %}مسار التنقل{% else %}{% trans 'Breadcrumb' %}{% endif %}">
           {% for crumb in scraping_breadcrumbs %}
             {% if crumb.url %}
               <a href="{{ crumb.url }}">{{ crumb.label }}</a>
@@ -575,16 +574,16 @@
 
       <div class="sp-topbar-right">
         <div class="sp-notif-wrap">
-          <button type="button" class="sp-notif-btn" id="scrapingNotifToggle" aria-label="{% trans 'Notifications' %}">
+          <button type="button" class="sp-notif-btn" id="scrapingNotifToggle" aria-label="{% if scraping_is_rtl %}الإشعارات{% else %}{% trans 'Notifications' %}{% endif %}">
             <i class="fas fa-bell"></i>
             <span class="sp-notif-count" id="scrapingNotifCount">{{ scraping_unread_count|default:0 }}</span>
           </button>
 
           <div class="sp-notif-dropdown" id="scrapingNotifDropdown">
             <div class="sp-notif-head">
-              <p class="sp-notif-title">{% trans "Notifications" %}</p>
+              <p class="sp-notif-title">{% if scraping_is_rtl %}الإشعارات{% else %}{% trans "Notifications" %}{% endif %}</p>
               <button type="button" class="sp-notif-mark" id="scrapingMarkAllReadButton">
-                {% trans "Mark all as read" %}
+                {% if scraping_is_rtl %}تحديد الكل كمقروء{% else %}{% trans "Mark all as read" %}{% endif %}
               </button>
             </div>
             <div class="sp-notif-list" id="scrapingNotifList">
@@ -602,7 +601,7 @@
                 </p>
               </article>
               {% empty %}
-              <div class="sp-empty-notifs">{% trans "No notifications yet." %}</div>
+              <div class="sp-empty-notifs">{% if scraping_is_rtl %}لا توجد إشعارات بعد.{% else %}{% trans "No notifications yet." %}{% endif %}</div>
               {% endfor %}
             </div>
           </div>
