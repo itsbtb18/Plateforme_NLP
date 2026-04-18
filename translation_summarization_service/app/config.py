@@ -19,10 +19,10 @@ class Settings(BaseSettings):
     TS_SERVICE_API_KEY: str = ""
 
     # Resilience for large inputs: retry when provider returns rate-limit responses.
-    TS_RATE_LIMIT_MAX_RETRIES: int = 5
-    TS_RATE_LIMIT_BASE_DELAY_SECONDS: float = 1.5
-    TS_RATE_LIMIT_MAX_WAIT_SECONDS: float = 90.0
-    TS_INTER_CHUNK_DELAY_SECONDS: float = 0.35
+    TS_RATE_LIMIT_MAX_RETRIES: int = 4
+    TS_RATE_LIMIT_BASE_DELAY_SECONDS: float = 1.0
+    TS_RATE_LIMIT_MAX_WAIT_SECONDS: float = 20.0
+    TS_INTER_CHUNK_DELAY_SECONDS: float = 1.1
 
     class Config:
         env_file = ".env"

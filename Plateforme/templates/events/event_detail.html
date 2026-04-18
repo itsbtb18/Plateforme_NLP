@@ -1406,12 +1406,24 @@ html[dir="rtl"] .ai-badge-inline {
 
                 <a href="{% url 'events:event_ics_export' event.pk %}" class="ed-btn-action btn-download">
                     <i class="bi bi-calendar-plus"></i>
-                    <span>{% translate "Add to Calendar" %} (.ics)</span>
+                    <span>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                        أضف إلى التقويم (.ics)
+                        {% else %}
+                        {% translate "Add to Calendar" %} (.ics)
+                        {% endif %}
+                    </span>
                 </a>
 
                 <a href="{{ google_calendar_url }}" class="ed-btn-action btn-website" target="_blank" rel="noopener">
                     <i class="bi bi-google"></i>
-                    <span>{% translate "Add to Google Calendar" %}</span>
+                    <span>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                        أضف إلى تقويم Google
+                        {% else %}
+                        {% translate "Add to Google Calendar" %}
+                        {% endif %}
+                    </span>
                 </a>
                 
                 {% if request.user.is_staff and request.GET.admin_review and request.GET.review_model and request.GET.review_pk or request.user.is_superuser and request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}

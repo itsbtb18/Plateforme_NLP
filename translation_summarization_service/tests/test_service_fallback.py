@@ -24,6 +24,14 @@ class _WorkingProvider:
         return "fallback-summary"
 
 
+class _RateLimitedProvider:
+    async def translate(self, **kwargs):
+        raise RuntimeError("429 Too Many Requests")
+
+    async def summarize(self, **kwargs):
+        raise RuntimeError("rate_limit_exceeded")
+
+
 def test_provider_order_from_env(monkeypatch):
     monkeypatch.setenv("TS_PRIMARY_PROVIDER", "gemini")
     monkeypatch.setenv("TS_FALLBACK_PROVIDER", "groq")
@@ -69,9 +77,33 @@ def test_summarize_uses_primary(monkeypatch):
     )
 
     assert "fallback-summary" in output
-    assert "# Document" in output
+    assert "# Document" not in output
     assert provider == "groq"
     assert fallback is False
+
+
+def test_summarize_uses_local_fallback_on_rate_limit(monkeypatch):
+    monkeypatch.setenv("TS_PRIMARY_PROVIDER", "groq")
+    monkeypatch.setenv("TS_FALLBACK_PROVIDER", "gemini")
+
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    svc = TranslationSummarizationService()
+    svc.providers = {"gemini": _RateLimitedProvider(), "groq": _RateLimitedProvider()}
+
+    text = (
+        "First part explains the project scope and main objectives. "
+        "Second part details constraints and implementation decisions. "
+        "Third part presents expected outcomes and evaluation criteria."
+    )
+    output, provider, fallback = _run_async(
+        svc.summarize(text=text, language="en", style="professional", max_words=120)
+    )
+
+    assert output
+    assert provider == "local-fallback"
+    assert fallback is True
 
 
 def _run_async(coro):

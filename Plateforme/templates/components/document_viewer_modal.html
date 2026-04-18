@@ -2511,11 +2511,12 @@ if (typeof pdfjsLib !== 'undefined') {
                     if (!response.ok) {
                         const status = Number(response.status || 0);
                         const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                        const isHtmlLike = contentType.includes('text/html');
                         const looksLikeWrongRoute =
                             status === 404 ||
                             status === 405 ||
-                            status >= 500 ||
-                            (status >= 400 && contentType.includes('text/html'));
+                            (status >= 500 && isHtmlLike) ||
+                            (status >= 400 && isHtmlLike);
 
                         if (looksLikeWrongRoute) {
                             lastHttpFailure = { response, base, url };
@@ -2882,23 +2883,50 @@ if (typeof pdfjsLib !== 'undefined') {
         },
 
         async submitAiRequest(endpoint, payload) {
-            const submitResult = await this.fetchAiWithFallback(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                signal: this.aiRequestController?.signal,
-                body: JSON.stringify(payload),
-            });
-            const response = submitResult.response;
-            const responseText = await response.text();
-            let responseJson = {};
-            try {
-                responseJson = responseText ? JSON.parse(responseText) : {};
-            } catch {
-                responseJson = {};
-            }
+            const maxRateLimitRetries = 4;
+            const baseRetryDelayMs = 1500;
+            const maxClientRetryDelayMs = 20000;
 
-            if (!response.ok) {
+            for (let attempt = 0; attempt <= maxRateLimitRetries; attempt++) {
+                const submitResult = await this.fetchAiWithFallback(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    signal: this.aiRequestController?.signal,
+                    body: JSON.stringify(payload),
+                });
+                const response = submitResult.response;
+                const responseText = await response.text();
+                let responseJson = {};
+                try {
+                    responseJson = responseText ? JSON.parse(responseText) : {};
+                } catch {
+                    responseJson = {};
+                }
+
+                if (response.ok) {
+                    return String(responseJson.output || '').trim();
+                }
+
+                const isRateLimited = response.status === 429;
+                if (isRateLimited && attempt < maxRateLimitRetries) {
+                    const detailMessage = String(responseJson.detail || responseText || '');
+                    const retryAfterMatch = detailMessage.match(/(?:retry after|try again in|waiting)\s*(\d+(?:\.\d+)?)/i);
+                    const hintedRetryMs = retryAfterMatch ? Math.round(parseFloat(retryAfterMatch[1]) * 1000) : 0;
+                    const retryDelayMs = Math.min(
+                        maxClientRetryDelayMs,
+                        Math.max(baseRetryDelayMs * (2 ** attempt), hintedRetryMs || 0)
+                    );
+                    this.showAiStatus(
+                        'info',
+                        this.t('ai_processing', '{% trans "AI Processing" %}'),
+                        `${this.t('ai_processing', '{% trans "AI Processing" %}')}: ${Math.round(retryDelayMs / 1000)}s...`,
+                        { canCloseOperation: true }
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+                    continue;
+                }
+
                 const contentType = String(response.headers.get('content-type') || '').toLowerCase();
                 const looksLikeHtml = contentType.includes('text/html') || /<!doctype html|<html/i.test(responseText || '');
                 const msg = looksLikeHtml
@@ -2907,7 +2935,7 @@ if (typeof pdfjsLib !== 'undefined') {
                 throw new Error(msg);
             }
 
-            return String(responseJson.output || '').trim();
+            throw new Error(this.t('unable_process', '{% trans "Unable to process request." %}'));
         },
 
         async startAiJob(task, buttonElement = null, options = {}) {
@@ -2937,7 +2965,10 @@ if (typeof pdfjsLib !== 'undefined') {
                 const finalPrompt = String(textForAi || '').trim();
                 const endpoint = isTranslation ? '/translate' : '/summarize';
                 const detectedLang = this.detectDocumentLanguage() || 'en';
-                const chunks = this.splitTextForAi(finalPrompt, isTranslation ? 2000 : 2600);
+                // Keep translation request duration predictable (similar to summarize)
+                // by chunking client-side instead of waiting one long backend response.
+                const chunkSize = isTranslation ? 2200 : 2600;
+                const chunks = this.splitTextForAi(finalPrompt, chunkSize);
 
                 if (!finalPrompt || this.isInvalidAiInputText(finalPrompt)) {
                     this.activeAiJob = null;
@@ -3009,7 +3040,7 @@ if (typeof pdfjsLib !== 'undefined') {
                             { canCloseOperation: true }
                         );
                         output = await this.submitAiRequest('/summarize', {
-                            text: `Summarize this combined text:\n\n${combinedSummary}`,
+                            text: combinedSummary,
                             language: detectedLang,
                             style: 'professional',
                             max_words: 420,

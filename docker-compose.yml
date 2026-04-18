@@ -3,7 +3,7 @@ services:
   # Keep PG image compatible with existing on-disk data.
   db:
     profiles: ["scraping", "full"]
-    image: ankane/pgvector:latest
+    image: pgvector/pgvector:pg16
     container_name: nlp_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
@@ -16,7 +16,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} && psql -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} -tAc \"SELECT NOT pg_is_in_recovery();\" | grep -q t"]
       interval: 10s
       timeout: 5s
       retries: 5

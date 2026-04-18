@@ -128,6 +128,28 @@ class TranslationSummarizationService:
                 safe_error = self._sanitize_error_message(str(exc))
                 errors.append(f"{name}: {safe_error}")
                 continue
+
+        # Graceful degradation: when all upstream providers are rate-limited,
+        # generate an extractive local summary instead of failing the request.
+        if self._all_errors_rate_limited(errors):
+            fallback_sections: list[dict[str, str | int]] = []
+            for section in sections:
+                section_title = str(section["title"])
+                section_level = int(section["level"])
+                section_body = str(section["content"]).strip() or section_title
+                section_target_words = self._estimate_section_summary_words(len(section_body.split()), max_words)
+                section_summary = self._local_section_summary(section_body, target_words=section_target_words)
+                fallback_sections.append(
+                    {
+                        "title": section_title,
+                        "level": section_level,
+                        "summary": section_summary,
+                    }
+                )
+
+            output = self._render_structured_summary(fallback_sections)
+            return output, "local-fallback", True
+
         raise RuntimeError("All providers failed: " + " | ".join(errors))
 
     @staticmethod
@@ -156,6 +178,12 @@ class TranslationSummarizationService:
 
                 # Prefer provider-advised wait, fallback to exponential backoff.
                 advised_wait = self._extract_retry_after_seconds(str(exc))
+                if advised_wait is not None and advised_wait > max_wait:
+                    raise RuntimeError(
+                        f"Provider {provider_name} rate limit asks waiting {advised_wait:.1f}s, "
+                        f"exceeding max wait {max_wait:.1f}s"
+                    ) from exc
+
                 backoff_wait = base_delay * (2 ** attempt)
                 wait_seconds = advised_wait if advised_wait is not None else backoff_wait
                 wait_seconds = max(base_delay, min(wait_seconds, max_wait))
@@ -192,6 +220,40 @@ class TranslationSummarizationService:
             return float(sec_only.group(1))
 
         return None
+
+    @classmethod
+    def _all_errors_rate_limited(cls, errors: list[str]) -> bool:
+        if not errors:
+            return False
+        return all(cls._is_rate_limit_error(RuntimeError(err)) for err in errors)
+
+    @staticmethod
+    def _local_section_summary(text: str, *, target_words: int) -> str:
+        source = re.sub(r"\s+", " ", str(text or "")).strip()
+        if not source:
+            return ""
+
+        # Keep a concise multi-sentence extract to provide continuity when APIs are throttled.
+        sentences = [s.strip() for s in re.split(r"(?<=[\.!?؟])\s+", source) if s.strip()]
+        if not sentences:
+            return source[:360]
+
+        max_words = max(60, min(260, int(target_words or 120)))
+        selected: list[str] = []
+        words_used = 0
+
+        for sentence in sentences:
+            count = len(sentence.split())
+            if selected and words_used + count > max_words:
+                break
+            selected.append(sentence)
+            words_used += count
+            if words_used >= max_words:
+                break
+
+        if not selected:
+            return sentences[0]
+        return " ".join(selected).strip()
 
     @staticmethod
     def _looks_like_summary(*, source_text: str, translated_text: str) -> bool:
@@ -238,7 +300,7 @@ class TranslationSummarizationService:
         return prepared.strip()
 
     @staticmethod
-    def _split_into_chunks(text: str, max_chars: int = 3200) -> list[str]:
+    def _split_into_chunks(text: str, max_chars: int = 5200) -> list[str]:
         if len(text) <= max_chars:
             return [text]
 
@@ -397,7 +459,29 @@ class TranslationSummarizationService:
         flush_current()
 
         # Ensure no section is dropped.
-        return [s for s in sections if str(s.get("title", "")).strip() or str(s.get("content", "")).strip()] or [
+        normalized_sections = [
+            s for s in sections if str(s.get("title", "")).strip() or str(s.get("content", "")).strip()
+        ]
+
+        # If no reliable headings were found, avoid a single giant catch-all block.
+        # Split long headingless documents into logical parts so each part is summarized independently.
+        if len(normalized_sections) == 1:
+            only = normalized_sections[0]
+            title = str(only.get("title") or "").strip().lower()
+            content = str(only.get("content") or "").strip()
+            if title == "document" and len(content) > 2800:
+                chunked = cls._split_into_chunks(content, max_chars=2600)
+                if len(chunked) > 1:
+                    return [
+                        {
+                            "title": f"Part {idx + 1}",
+                            "level": 2,
+                            "content": chunk,
+                        }
+                        for idx, chunk in enumerate(chunked)
+                    ]
+
+        return normalized_sections or [
             {"title": "Document", "level": 1, "content": text or ""}
         ]
 
@@ -411,17 +495,40 @@ class TranslationSummarizationService:
     @staticmethod
     def _post_process_summary(text: str) -> str:
         output = (text or "").strip()
-        output = re.sub(r"\s+", " ", output)
-        output = re.sub(r"\s+([,.;:!?])", r"\1", output)
-        return output.strip()
+        if not output:
+            return ""
+
+        # Preserve paragraph structure while normalizing noisy spacing.
+        output = output.replace("\r\n", "\n").replace("\r", "\n")
+        output = re.sub(r"\n{3,}", "\n\n", output)
+
+        cleaned_lines: list[str] = []
+        for line in output.split("\n"):
+            normalized = re.sub(r"[ \t]+", " ", line).strip()
+            normalized = re.sub(r"\s+([,.;:!?])", r"\1", normalized)
+            cleaned_lines.append(normalized)
+
+        return "\n".join(cleaned_lines).strip()
 
     @staticmethod
     def _render_structured_summary(sections: list[dict[str, str | int]]) -> str:
+        synthetic_titles = {
+            "document",
+            "summarize this combined text",
+            "summarize this combined text:",
+        }
         rendered_parts: list[str] = []
         for section in sections:
             title = str(section.get("title") or "Section").strip()
             level = int(section.get("level") or 1)
             summary = str(section.get("summary") or "").strip()
+            normalized_title = title.lower().strip()
+
+            if normalized_title in synthetic_titles:
+                if summary:
+                    rendered_parts.append(summary)
+                continue
+
             heading_prefix = "#" * max(1, min(level, 4))
             rendered_parts.append(f"{heading_prefix} {title}\n→ {summary}")
         return "\n\n".join(rendered_parts).strip()

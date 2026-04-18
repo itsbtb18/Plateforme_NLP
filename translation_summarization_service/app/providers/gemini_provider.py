@@ -51,7 +51,15 @@ class GeminiProvider(Provider):
         url = f"{self.base_url}/models/{self.model}:generateContent"
         async with httpx.AsyncClient(timeout=90.0) as client:
             response = await client.post(url, params={"key": self.api_key}, json=payload)
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                if response.status_code == 429:
+                    retry_after = response.headers.get("Retry-After")
+                    if retry_after:
+                        raise RuntimeError(f"Gemini rate limit (429). retry after {retry_after}") from exc
+                    raise RuntimeError("Gemini rate limit (429)") from exc
+                raise
             data = response.json()
 
         candidates = data.get("candidates") or []

@@ -115,6 +115,11 @@ html[dir="rtl"] body {
     transform: translateY(-2px);
 }
 
+.pd-card.pd-share-open,
+.pd-card.pd-share-open:hover {
+    transform: none !important;
+}
+
 .pd-card-accent {
     height: 4px;
     width: 100%;
@@ -377,6 +382,8 @@ html[dir="rtl"] body {
 
 .pd-share-menu {
     position: fixed;
+    left: 50%;
+    top: 50%;
     min-width: 240px;
     background: linear-gradient(135deg, rgba(26,26,46,.95), rgba(26,26,46,.98));
     border: 1.5px solid rgba(167,139,250,.2);
@@ -387,7 +394,7 @@ html[dir="rtl"] body {
     -webkit-backdrop-filter: blur(20px);
     opacity: 0;
     visibility: hidden;
-    transform: scale(.95);
+    transform: translate(-50%, -50%) scale(.95);
     transition: all .3s ease;
     z-index: 9999;
 }
@@ -395,7 +402,7 @@ html[dir="rtl"] body {
 .pd-share-dropdown.open .pd-share-menu {
     opacity: 1;
     visibility: visible;
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
 }
 
 .pd-share-menu {
@@ -474,7 +481,7 @@ html[dir="rtl"] body {
 
 html[dir="rtl"] .pd-share-menu {
     inset-inline-start: auto;
-    inset-inline-end: calc(100% + 8px);
+    inset-inline-end: auto;
 }
 
 /* Comments Section */
@@ -1209,8 +1216,22 @@ function getPostDetailUrl() {
 window.togglePostShareMenu = function(btn) {
     const menu = document.querySelector('#shareDropdown .pd-share-menu');
     const shareDropdown = document.getElementById('shareDropdown');
+    const card = btn?.closest('.pd-card');
     
-    if (!menu || !shareDropdown) return;
+    if (!menu || !shareDropdown) {
+        const url = getPostDetailUrl();
+        const title = btn?.dataset?.postTitle || document.title;
+        if (navigator.share) {
+            navigator.share({ title, url }).catch(() => {});
+            return;
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('{% trans "Link copied to clipboard!" %}');
+            });
+        }
+        return;
+    }
     
     const wasOpen = shareDropdown.classList.contains('open');
     
@@ -1218,26 +1239,20 @@ window.togglePostShareMenu = function(btn) {
     document.querySelectorAll('.pd-share-dropdown.open').forEach(d => {
         if (d !== shareDropdown) d.classList.remove('open');
     });
+    document.querySelectorAll('.pd-card.pd-share-open').forEach(c => c.classList.remove('pd-share-open'));
     
     if (!wasOpen) {
-        // Position menu to the right of the button
-        const btnRect = btn.getBoundingClientRect();
-        const isRTL = document.documentElement.dir === 'rtl';
-        
-        if (isRTL) {
-            // For RTL, position to the left of button
-            menu.style.right = (window.innerWidth - btnRect.left) + 'px';
-            menu.style.left = 'auto';
-        } else {
-            // For LTR, position to the right of button
-            menu.style.left = (btnRect.right + 8) + 'px';
-            menu.style.right = 'auto';
-        }
-        menu.style.top = btnRect.top + 'px';
-        
+        if (card) card.classList.add('pd-share-open');
+        // Keep the share frame fixed at exact viewport center.
         shareDropdown.classList.add('open');
+        menu.style.left = '50%';
+        menu.style.top = '50%';
+        menu.style.right = 'auto';
+        menu.style.insetInlineStart = 'auto';
+        menu.style.insetInlineEnd = 'auto';
     } else {
         shareDropdown.classList.remove('open');
+        if (card) card.classList.remove('pd-share-open');
     }
 };
 
@@ -1440,6 +1455,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (shareBtn && shareDropdown && !e.target.closest('#shareBtn') && !e.target.closest('#shareDropdown')) {
             shareDropdown.classList.remove('open');
+            document.querySelectorAll('.pd-card.pd-share-open').forEach(c => c.classList.remove('pd-share-open'));
         }
     });
 });

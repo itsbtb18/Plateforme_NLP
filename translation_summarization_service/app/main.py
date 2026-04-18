@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -32,9 +34,14 @@ def _service_error_to_http(exc: Exception) -> None:
     lowered = message.lower()
 
     if "429" in lowered or "rate limit" in lowered or "too many requests" in lowered:
+        retry_after_match = re.search(r"(?:retry after|try again in|waiting)\s*(\d+(?:\.\d+)?)", message, flags=re.IGNORECASE)
+        retry_hint = ""
+        if retry_after_match:
+            retry_seconds = max(1, min(20, int(float(retry_after_match.group(1)))))
+            retry_hint = f" Please retry after {retry_seconds}s."
         raise HTTPException(
             status_code=429,
-            detail="AI provider rate limit reached. Please wait a moment and retry.",
+            detail=f"AI provider rate limit reached.{retry_hint}",
         )
 
     if "api key" in lowered or "unauthorized" in lowered or "forbidden" in lowered:
