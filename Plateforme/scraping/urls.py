@@ -227,6 +227,11 @@ urlpatterns = [
         name="toggle_custom_source",
     ),
     path(
+        "settings/source/<uuid:source_id>/update/",
+        views.update_source_settings,
+        name="update_source_settings",
+    ),
+    path(
         "sources/delete/<uuid:source_id>/",
         views.delete_custom_source,
         name="delete_custom_source",

@@ -6,6 +6,7 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand, CommandError
+from django.core.management import call_command
 from django.utils import timezone
 
 from scraping.constants import ALL_CATEGORIES
@@ -30,8 +31,23 @@ class Command(BaseCommand):
             action="store_true",
             help="Run all scrapers",
         )
+        parser.add_argument(
+            "--skip-resource-sync",
+            action="store_true",
+            help="Skip syncing websites from website_to_add_to_scraping.md before running.",
+        )
 
     def handle(self, *args, **options):
+        if not options.get("skip_resource_sync"):
+            try:
+                call_command("sync_resource_websites")
+            except Exception as exc:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Resource website sync skipped due to error: {exc}"
+                    )
+                )
+
         categories = []
         if options.get("all"):
             categories = list(ALL_CATEGORIES)

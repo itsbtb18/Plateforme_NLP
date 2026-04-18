@@ -58,6 +58,7 @@ from .models import (
     SearchQuery,
 )
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
+from .scraping_settings import scraping_settings as SS
 from .tasks import (
     push_scraping_progress,
     run_quick_scrape_task,
@@ -137,6 +138,7 @@ SCRAPING_NAV_CATEGORY_KEYS = (
     "opportunities",
     "courses",
     "news",
+    "laws",
 )
 
 
@@ -1527,6 +1529,10 @@ def scraping_dashboard_by_category(request, category: str):
             )
         )
     )
+    is_rtl_lang = str(getattr(request, "LANGUAGE_CODE", "")).lower().startswith("ar")
+
+    def ui(en_text: str, ar_text: str) -> str:
+        return ar_text if is_rtl_lang else str(_(en_text))
 
     context = {
         "page": "scraping",
@@ -1576,10 +1582,290 @@ def scraping_settings_by_category(request, category: str):
 @user_passes_test(is_admin)
 @require_GET
 def scraping_settings_page(request):
-    """Scraping module settings landing page."""
+    """Render a category-aware scraping settings page with live configuration data."""
     _log_scraping_action(request)
+
+    category_key = _resolve_scraping_nav_category(request)
+    category_name = str(
+        _(
+            (CATEGORY_META.get(category_key, {}) or {}).get(
+                "label", category_key.title()
+            )
+        )
+    )
+    is_rtl_lang = str(getattr(request, "LANGUAGE_CODE", "")).lower().startswith("ar")
+
+    def ui(en_text: str, ar_text: str) -> str:
+        return ar_text if is_rtl_lang else str(_(en_text))
+
+    category_sources_qs = ScrapingSource.objects.filter(category=category_key)
+    all_sources_qs = ScrapingSource.objects.all()
+
+    source_stats = {
+        "total": int(category_sources_qs.count()),
+        "active": int(category_sources_qs.filter(is_active=True).count()),
+        "inactive": int(category_sources_qs.filter(is_active=False).count()),
+        "rss_enabled": int(category_sources_qs.filter(use_rss=True).count()),
+        "llm_enabled": int(
+            category_sources_qs.filter(use_llm_extraction=True).count()
+        ),
+        "ssl_disabled": int(category_sources_qs.filter(verify_ssl=False).count()),
+        "proxy_enabled": int(
+            category_sources_qs.exclude(proxy_url__isnull=True)
+            .exclude(proxy_url="")
+            .count()
+        ),
+        "global_total": int(all_sources_qs.count()),
+        "global_active": int(all_sources_qs.filter(is_active=True).count()),
+    }
+
+    schedule_tier_labels = {
+        "very_high": ui("Very High", "عال جدا"),
+        "high": ui("High", "عال"),
+        "medium": ui("Medium", "متوسط"),
+        "low": ui("Low", "منخفض"),
+        "dormant": ui("Dormant", "خامل"),
+    }
+    schedule_tier_counts = {
+        key: int(category_sources_qs.filter(schedule_tier=key).count())
+        for key in schedule_tier_labels
+    }
+    schedule_tier_rows = [
+        {
+            "key": tier_key,
+            "label": tier_label,
+            "count": schedule_tier_counts.get(tier_key, 0),
+        }
+        for tier_key, tier_label in schedule_tier_labels.items()
+    ]
+
+    validation_counts = {
+        "GREEN": int(category_sources_qs.filter(validation_status="GREEN").count()),
+        "YELLOW": int(
+            category_sources_qs.filter(validation_status="YELLOW").count()
+        ),
+        "RED": int(category_sources_qs.filter(validation_status="RED").count()),
+        "PENDING": int(
+            category_sources_qs.filter(validation_status="PENDING").count()
+        ),
+        "UNKNOWN": int(
+            category_sources_qs.filter(validation_status="UNKNOWN").count()
+        ),
+    }
+
+    source_rows = []
+    for source in category_sources_qs.order_by("name")[:40]:
+        source_rows.append(
+            {
+                "id": str(source.id),
+                "name": source.name,
+                "url": source.base_url or source.url,
+                "is_active": bool(source.is_active),
+                "use_rss": bool(source.use_rss),
+                "use_llm_extraction": bool(source.use_llm_extraction),
+                "verify_ssl": bool(source.verify_ssl),
+                "has_proxy": bool(str(source.proxy_url or "").strip()),
+                "schedule_tier": str(source.schedule_tier or "medium"),
+                "schedule_interval_hours": int(source.schedule_interval_hours or 0),
+                "validation_status": str(source.validation_status or "UNKNOWN"),
+                "last_run_status": str(source.last_run_status or "pending"),
+                "last_run_items_created": int(source.last_run_items_created or 0),
+                "last_scraped": source.last_scraped,
+                "consecutive_failures": int(source.consecutive_failures or 0),
+            }
+        )
+
+    query_rows = list(
+        SearchQuery.objects.filter(category=category_key)
+        .order_by("-is_active", "query_text")
+        .values("id", "query_text", "is_active")[:40]
+    )
+    active_query_count = sum(1 for row in query_rows if row.get("is_active"))
+
+    bool_yes = ui("Yes", "نعم")
+    bool_no = ui("No", "لا")
+
+    settings_sections = [
+        {
+            "title": ui("Timeouts", "مهلات الاتصال"),
+            "items": [
+                {
+                    "label": ui("Connect timeout", "مهلة الاتصال"),
+                    "value": f"{SS.CONNECT_TIMEOUT}s",
+                    "hint": ui(
+                        "Maximum time to open a TCP connection.",
+                        "الحد الأقصى لفتح اتصال TCP.",
+                    ),
+                },
+                {
+                    "label": ui("Read timeout", "مهلة القراءة"),
+                    "value": f"{SS.READ_TIMEOUT}s",
+                    "hint": ui(
+                        "Maximum wait time for response body.",
+                        "الحد الأقصى لانتظار محتوى الاستجابة.",
+                    ),
+                },
+                {
+                    "label": ui("Total request timeout", "المهلة الكلية للطلب"),
+                    "value": f"{SS.TOTAL_TIMEOUT}s",
+                    "hint": ui(
+                        "Hard cap per outbound request.",
+                        "حد أقصى صارم لكل طلب خارجي.",
+                    ),
+                },
+                {
+                    "label": ui("LLM timeout", "مهلة LLM"),
+                    "value": f"{SS.LLM_TIMEOUT}s",
+                    "hint": ui(
+                        "Maximum wait time for LLM calls.",
+                        "الحد الأقصى لانتظار استدعاءات LLM.",
+                    ),
+                },
+            ],
+        },
+        {
+            "title": ui("Retry & Backoff", "إعادة المحاولة والتراجع"),
+            "items": [
+                {
+                    "label": ui("Max retries", "أقصى عدد للمحاولات"),
+                    "value": str(SS.MAX_RETRIES),
+                    "hint": ui(
+                        "Maximum retry attempts per request.",
+                        "أقصى محاولات إعادة لكل طلب.",
+                    ),
+                },
+                {
+                    "label": ui("Backoff base", "قاعدة التراجع"),
+                    "value": f"{SS.RETRY_BACKOFF_BASE}s",
+                    "hint": ui(
+                        "Initial delay used for exponential backoff.",
+                        "التأخير الابتدائي المستخدم في التراجع الأسي.",
+                    ),
+                },
+                {
+                    "label": ui("Backoff cap", "الحد الأعلى للتراجع"),
+                    "value": f"{SS.RETRY_BACKOFF_CAP}s",
+                    "hint": ui(
+                        "Maximum delay between retries.",
+                        "أقصى تأخير بين المحاولات.",
+                    ),
+                },
+            ],
+        },
+        {
+            "title": ui("Deduplication", "إزالة التكرار"),
+            "items": [
+                {
+                    "label": ui("Jaccard threshold", "عتبة جاكارد"),
+                    "value": str(SS.JACCARD_THRESHOLD),
+                    "hint": ui(
+                        "Loose textual similarity threshold.",
+                        "عتبة تشابه نصي مرن.",
+                    ),
+                },
+                {
+                    "label": ui("Strict Jaccard", "جاكارد الصارم"),
+                    "value": str(SS.STRICT_JACCARD),
+                    "hint": ui(
+                        "Strict textual similarity threshold.",
+                        "عتبة تشابه نصي صارمة.",
+                    ),
+                },
+                {
+                    "label": ui("Semantic fallback", "البديل الدلالي"),
+                    "value": str(SS.SEMANTIC_FALLBACK),
+                    "hint": ui(
+                        "Cosine similarity fallback threshold.",
+                        "عتبة بديل تشابه جيب التمام.",
+                    ),
+                },
+                {
+                    "label": ui("Dedup window", "نافذة إزالة التكرار"),
+                    "value": str(SS.DEDUP_WINDOW),
+                    "hint": ui(
+                        "Recent records scanned for duplicates.",
+                        "السجلات الحديثة المفحوصة لاكتشاف التكرار.",
+                    ),
+                },
+            ],
+        },
+        {
+            "title": ui("System Limits", "حدود النظام"),
+            "items": [
+                {
+                    "label": ui("RSS max items", "الحد الأقصى لعناصر RSS"),
+                    "value": str(SS.RSS_MAX_ITEMS),
+                    "hint": ui(
+                        "Maximum entries fetched from RSS feeds.",
+                        "أقصى عناصر يتم جلبها من RSS.",
+                    ),
+                },
+                {
+                    "label": ui("Concurrent downloads", "التنزيلات المتزامنة"),
+                    "value": str(SS.MAX_CONCURRENT_DOWNLOADS),
+                    "hint": ui(
+                        "Parallel media downloads per run.",
+                        "تنزيلات وسائط متوازية لكل تشغيل.",
+                    ),
+                },
+                {
+                    "label": ui("Max document size", "أقصى حجم للملف"),
+                    "value": f"{SS.MAX_DOCUMENT_MB} MB",
+                    "hint": ui(
+                        "Maximum allowed document size.",
+                        "أقصى حجم مسموح للمستند.",
+                    ),
+                },
+                {
+                    "label": ui("Max image size", "أقصى حجم للصورة"),
+                    "value": f"{SS.MAX_IMAGE_MB} MB",
+                    "hint": ui(
+                        "Maximum allowed image size.",
+                        "أقصى حجم مسموح للصورة.",
+                    ),
+                },
+                {
+                    "label": ui("Automatic schedules enabled", "الجدولة التلقائية مفعلة"),
+                    "value": bool_no if bool(getattr(settings, "SCRAPING_MANUAL_ONLY", True)) else bool_yes,
+                    "hint": ui(
+                        "If disabled, runs are manual-only.",
+                        "عند تعطيلها تصبح التشغيلات يدوية فقط.",
+                    ),
+                },
+            ],
+        },
+    ]
+
+    has_active_sources = source_stats["active"] > 0
     context = {
         "page": "scraping",
+        "category_key": category_key,
+        "category_name": category_name,
+        "category_active_tab": "settings",
+        "category_global_status": "ok" if has_active_sources else "warn",
+        "category_global_status_label": (
+            ui("Global status: OK", "الحالة العامة: جيد")
+            if has_active_sources
+            else ui("Global status: No active sources", "الحالة العامة: لا توجد مصادر نشطة")
+        ),
+        "source_stats": source_stats,
+        "schedule_tier_labels": schedule_tier_labels,
+        "schedule_tier_counts": schedule_tier_counts,
+        "schedule_tier_rows": schedule_tier_rows,
+        "validation_counts": validation_counts,
+        "source_rows": source_rows,
+        "query_rows": query_rows,
+        "active_query_count": active_query_count,
+        "settings_sections": settings_sections,
+        "settings_update_source_url_template": reverse(
+            "scraping:update_source_settings",
+            kwargs={"source_id": uuid.UUID("00000000-0000-0000-0000-000000000000")},
+        ),
+        "settings_toggle_query_url_template": reverse(
+            "scraping:toggle_prompt_api",
+            kwargs={"query_id": 0},
+        ),
+        "settings_add_query_url": reverse("scraping:add_prompt_api"),
         **_scraping_shell_context(request, active_page="settings"),
     }
     return render(request, "scraping/settings.html", context)
@@ -1886,6 +2172,76 @@ def _scraping_result_category_map():
                 ),
             }
 
+    law_model = _resolve_dynamic_model(
+        [
+            ("resources", "Law"),
+            ("events", "Law"),
+        ]
+    )
+    if law_model is not None:
+        title_field = _first_existing_field(
+            law_model,
+            "law_title",
+            "title",
+            "title_en",
+            "name",
+        )
+        description_field = _first_existing_field(
+            law_model,
+            "legal_text",
+            "description",
+            "description_en",
+            "summary",
+            "content",
+        )
+        source_field = _first_existing_field(
+            law_model,
+            "source_url",
+            "url",
+            "access_link",
+            "document_url",
+        )
+        date_field = _first_existing_field(
+            law_model,
+            "created_at",
+            "creation_date",
+            "updated_at",
+            "last_scraped_at",
+        )
+        status_field = _first_existing_field(
+            law_model,
+            "approval_status",
+            "status",
+        )
+
+        if (
+            title_field
+            and description_field
+            and source_field
+            and date_field
+            and status_field
+        ):
+            category_map["laws"] = {
+                "label": "Laws",
+                "model": law_model,
+                "title_field": title_field,
+                "description_field": description_field,
+                "source_field": source_field,
+                "date_field": date_field,
+                "status_field": status_field,
+                "entity_field": _first_existing_field(
+                    law_model,
+                    "category_tags",
+                    "keywords",
+                    "entities",
+                ),
+                "confidence_field": _first_existing_field(
+                    law_model,
+                    "confidence_score",
+                    "relevance_score",
+                ),
+            }
+
     return category_map
 
 
@@ -1965,6 +2321,12 @@ def _set_category_request_context(request, category: str) -> str:
 
 
 def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
+    language_code = str(getattr(request, "LANGUAGE_CODE", "") or "").lower()
+    is_rtl = language_code.startswith("ar")
+
+    def crumb(en_text: str, ar_text: str) -> str:
+        return ar_text if is_rtl else str(_(en_text))
+
     current_category = _resolve_scraping_nav_category(request)
     category_dashboard_url = reverse(
         "scraping:category_dashboard",
@@ -1977,7 +2339,7 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
 
     breadcrumbs: list[dict[str, str]] = [
         {
-            "label": str(_("Scraping")),
+            "label": crumb("Scraping", "الاستخراج"),
             "url": category_dashboard_url,
         }
     ]
@@ -1991,16 +2353,16 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
     if url_name == "category_dashboard":
         breadcrumbs.append({"label": category_label, "url": ""})
     elif url_name in {"dashboard", "scraping_dashboard"}:
-        breadcrumbs.append({"label": str(_("Hub")), "url": ""})
+        breadcrumbs.append({"label": crumb("Hub", "المركز"), "url": ""})
     elif url_name == "category_results":
         breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
-        breadcrumbs.append({"label": str(_("Pending Queue")), "url": ""})
+        breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
     elif url_name in {"results", "scraping_results"}:
-        breadcrumbs.append({"label": str(_("Pending Queue")), "url": ""})
+        breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
     elif url_name in {"result_detail", "scraping_result_detail"}:
         breadcrumbs.append(
             {
-                "label": str(_("Pending Queue")),
+                "label": crumb("Pending Queue", "قائمة المراجعة"),
                 "url": reverse("scraping:results"),
             }
         )
@@ -2010,25 +2372,25 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
             short_item_id = short_item_id.split("-", 1)[0]
         if len(short_item_id) > 8:
             short_item_id = short_item_id[:8]
-        item_label = str(_("Item"))
+        item_label = crumb("Item", "عنصر")
         if short_item_id:
             item_label = f"{item_label} #{short_item_id}"
         breadcrumbs.append({"label": item_label, "url": ""})
     elif url_name == "category_analytics":
         breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
-        breadcrumbs.append({"label": str(_("Analytics")), "url": ""})
+        breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
     elif url_name in {"scraping_analytics", "analytics"}:
-        breadcrumbs.append({"label": str(_("Analytics")), "url": ""})
+        breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
     elif url_name == "category_sources":
         breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
-        breadcrumbs.append({"label": str(_("Sources")), "url": ""})
+        breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
     elif url_name in {"scraping_sources", "sources"}:
-        breadcrumbs.append({"label": str(_("Sources")), "url": ""})
+        breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
     elif url_name == "category_settings":
         breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
-        breadcrumbs.append({"label": str(_("Settings")), "url": ""})
+        breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
     elif url_name in {"settings", "scraping_settings"}:
-        breadcrumbs.append({"label": str(_("Settings")), "url": ""})
+        breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
 
     return breadcrumbs
 
@@ -2045,9 +2407,12 @@ def _scraping_shell_context(request, *, active_page: str) -> dict:
 
     nav_categories = _scraping_nav_categories()
     current_category = _resolve_scraping_nav_category(request)
+    language_code = str(getattr(request, "LANGUAGE_CODE", "") or "").lower()
+    is_rtl = language_code.startswith("ar")
 
     return {
         "scraping_active_page": active_page,
+        "scraping_is_rtl": is_rtl,
         "scraping_nav_categories": nav_categories,
         "scraping_current_category": current_category,
         "scraping_pending_count": _scraping_pending_queue_count(),
@@ -4921,11 +5286,15 @@ def scraping_analytics_page(request):
         }
         for category in CATEGORY_META
     }
+    is_rtl_lang = str(getattr(request, "LANGUAGE_CODE", "")).lower().startswith("ar")
 
     context = {
         "page": "scraping",
         "completed_runs_count": completed_runs_count,
         "has_enough_data": completed_runs_count >= 3,
+        "initial_analytics_payload_json": json.dumps(
+            _collect_analytics_payload(window)
+        ),
         "default_range": window["range"],
         "default_date_from": window["start_date"].isoformat(),
         "default_date_to": window["end_date"].isoformat(),
@@ -4935,9 +5304,13 @@ def scraping_analytics_page(request):
         "category_active_tab": "analytics",
         "category_global_status": "ok" if completed_runs_count >= 1 else "warn",
         "category_global_status_label": (
-            str(_("Global status: OK"))
+            ("الحالة العامة: جيد" if is_rtl_lang else str(_("Global status: OK")))
             if completed_runs_count >= 1
-            else str(_("Global status: Insufficient data"))
+            else (
+                "الحالة العامة: بيانات غير كافية"
+                if is_rtl_lang
+                else str(_("Global status: Insufficient data"))
+            )
         ),
         **_scraping_shell_context(request, active_page="analytics"),
     }
@@ -6170,6 +6543,80 @@ def toggle_custom_source(request, source_id):
             "id": str(source.id),
             "is_active": bool(source.is_active),
             "message": "Source activated" if source.is_active else "Source disabled",
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=60, period_seconds=60, scope="action")
+def update_source_settings(request, source_id):
+    """Update editable source settings from the settings page."""
+    _log_scraping_action(request)
+
+    source = ScrapingSource.objects.filter(pk=source_id).first()
+    if source is None:
+        return JsonResponse({"error": _("Source not found")}, status=404)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except (TypeError, json.JSONDecodeError):
+        payload = request.POST
+
+    schedule_tier = str(payload.get("schedule_tier") or source.schedule_tier).strip()
+    allowed_tiers = {"very_high", "high", "medium", "low", "dormant"}
+    if schedule_tier not in allowed_tiers:
+        return JsonResponse({"error": _("Invalid schedule tier")}, status=400)
+
+    interval_hours_raw = payload.get("schedule_interval_hours", source.schedule_interval_hours)
+    try:
+        interval_hours = int(interval_hours_raw)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": _("Invalid schedule interval")}, status=400)
+
+    if interval_hours < 1 or interval_hours > 168:
+        return JsonResponse(
+            {"error": _("Schedule interval must be between 1 and 168 hours")},
+            status=400,
+        )
+
+    source.is_active = _as_bool(payload.get("is_active"), default=source.is_active)
+    source.is_admin_disabled = not source.is_active
+    source.use_rss = _as_bool(payload.get("use_rss"), default=source.use_rss)
+    source.use_llm_extraction = _as_bool(
+        payload.get("use_llm_extraction"),
+        default=source.use_llm_extraction,
+    )
+    source.verify_ssl = _as_bool(payload.get("verify_ssl"), default=source.verify_ssl)
+    source.schedule_tier = schedule_tier
+    source.schedule_interval_hours = interval_hours
+    source.schedule_updated_at = timezone.now()
+
+    source.save(
+        update_fields=[
+            "is_active",
+            "is_admin_disabled",
+            "use_rss",
+            "use_llm_extraction",
+            "verify_ssl",
+            "schedule_tier",
+            "schedule_interval_hours",
+            "schedule_updated_at",
+        ]
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "id": str(source.id),
+            "is_active": bool(source.is_active),
+            "use_rss": bool(source.use_rss),
+            "use_llm_extraction": bool(source.use_llm_extraction),
+            "verify_ssl": bool(source.verify_ssl),
+            "schedule_tier": source.schedule_tier,
+            "schedule_interval_hours": int(source.schedule_interval_hours),
         }
     )
 
