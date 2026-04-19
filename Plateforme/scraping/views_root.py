@@ -2308,6 +2308,20 @@ def _resolve_scraping_nav_category(request) -> str:
     return current_category
 
 
+def _resolve_scraping_selected_category(request) -> str:
+    if request.resolver_match is None:
+        return ""
+
+    resolver_category = (
+        str((request.resolver_match.kwargs or {}).get("category") or "")
+        .strip()
+        .lower()
+    )
+    if resolver_category in SCRAPING_NAV_CATEGORY_KEYS:
+        return resolver_category
+    return ""
+
+
 def _set_category_request_context(request, category: str) -> str:
     category_key = str(category or "").strip().lower()
     if category_key not in SCRAPING_NAV_CATEGORY_KEYS:
@@ -2327,20 +2341,20 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
     def crumb(en_text: str, ar_text: str) -> str:
         return ar_text if is_rtl else str(_(en_text))
 
+    selected_category = _resolve_scraping_selected_category(request)
     current_category = _resolve_scraping_nav_category(request)
+    category_for_links = selected_category or current_category
     category_dashboard_url = reverse(
         "scraping:category_dashboard",
-        kwargs={"category": current_category},
+        kwargs={"category": category_for_links},
     )
-    category_label = (
-        str(_((CATEGORY_META.get(current_category, {}) or {}).get("label", "")))
-        or current_category.title()
-    )
+    root_dashboard_url = reverse("scraping:dashboard")
+    dashboard_url = category_dashboard_url if selected_category else root_dashboard_url
 
     breadcrumbs: list[dict[str, str]] = [
         {
             "label": crumb("Scraping", "الاستخراج"),
-            "url": category_dashboard_url,
+            "url": dashboard_url,
         }
     ]
 
@@ -2351,11 +2365,10 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         kwargs = request.resolver_match.kwargs or {}
 
     if url_name == "category_dashboard":
-        breadcrumbs.append({"label": category_label, "url": ""})
+        breadcrumbs.append({"label": crumb("Hub", "المركز"), "url": ""})
     elif url_name in {"dashboard", "scraping_dashboard"}:
         breadcrumbs.append({"label": crumb("Hub", "المركز"), "url": ""})
     elif url_name == "category_results":
-        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
         breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
     elif url_name in {"results", "scraping_results"}:
         breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
@@ -2377,17 +2390,14 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
             item_label = f"{item_label} #{short_item_id}"
         breadcrumbs.append({"label": item_label, "url": ""})
     elif url_name == "category_analytics":
-        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
         breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
     elif url_name in {"scraping_analytics", "analytics"}:
         breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
     elif url_name == "category_sources":
-        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
         breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
     elif url_name in {"scraping_sources", "sources"}:
         breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
     elif url_name == "category_settings":
-        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
         breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
     elif url_name in {"settings", "scraping_settings"}:
         breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
@@ -2402,11 +2412,44 @@ def _scraping_shell_context(request, *, active_page: str) -> dict:
     unread_count = int(ScrapingNotification.objects.filter(is_read=False).count())
 
     admin_name = ""
+    admin_avatar_url = ""
+    admin_initials = "A"
     if getattr(request, "user", None) is not None and request.user.is_authenticated:
-        admin_name = request.user.get_full_name() or request.user.get_username()
+        name_candidate = ""
+        if hasattr(request.user, "get_full_name_display") and callable(
+            request.user.get_full_name_display
+        ):
+            name_candidate = str(request.user.get_full_name_display() or "").strip()
+        if not name_candidate:
+            name_candidate = str(request.user.get_full_name() or "").strip()
+        if "@" in name_candidate:
+            name_candidate = ""
+
+        if not name_candidate:
+            username_candidate = str(request.user.get_username() or "").strip()
+            if username_candidate:
+                name_candidate = username_candidate.split("@", 1)[0].strip()
+        if not name_candidate:
+            name_candidate = str(_("Administrator"))
+        admin_name = name_candidate
+
+        avatar_obj = getattr(request.user, "avatar", None)
+        if avatar_obj:
+            try:
+                admin_avatar_url = str(avatar_obj.url or "")
+            except Exception:
+                admin_avatar_url = ""
+
+        if hasattr(request.user, "get_initials") and callable(request.user.get_initials):
+            initials_candidate = str(request.user.get_initials() or "").strip()
+            if initials_candidate:
+                admin_initials = initials_candidate[:2].upper()
+        elif admin_name:
+            admin_initials = admin_name[:1].upper()
 
     nav_categories = _scraping_nav_categories()
     current_category = _resolve_scraping_nav_category(request)
+    selected_category = _resolve_scraping_selected_category(request)
     language_code = str(getattr(request, "LANGUAGE_CODE", "") or "").lower()
     is_rtl = language_code.startswith("ar")
 
@@ -2415,10 +2458,13 @@ def _scraping_shell_context(request, *, active_page: str) -> dict:
         "scraping_is_rtl": is_rtl,
         "scraping_nav_categories": nav_categories,
         "scraping_current_category": current_category,
+        "scraping_selected_category": selected_category,
         "scraping_pending_count": _scraping_pending_queue_count(),
         "scraping_notifications": notification_rows,
         "scraping_unread_count": unread_count,
         "scraping_admin_name": admin_name,
+        "scraping_admin_avatar_url": admin_avatar_url,
+        "scraping_admin_initials": admin_initials,
         "scraping_breadcrumbs": _build_scraping_breadcrumbs(request),
         "scraping_mark_notifications_read_url": reverse(
             "scraping:mark_notifications_read"
@@ -3928,16 +3974,16 @@ def scraping_results(request):
             }
         )
 
-    resolved_category_key = (
-        selected_category
-        if selected_category != "all"
-        else _resolve_scraping_nav_category(request)
-    )
-    resolved_category_label = (
-        category_map.get(resolved_category_key, {}).get("label")
-        or CATEGORY_META.get(resolved_category_key, {}).get("label")
-        or resolved_category_key.title()
-    )
+    if selected_category == "all":
+        resolved_category_key = "all"
+        resolved_category_label = str(_("All categories"))
+    else:
+        resolved_category_key = selected_category
+        resolved_category_label = (
+            category_map.get(resolved_category_key, {}).get("label")
+            or CATEGORY_META.get(resolved_category_key, {}).get("label")
+            or resolved_category_key.title()
+        )
     category_global_status = "warn" if filtered_low_confidence_count > 0 else "ok"
     category_global_status_label = (
         str(_("Global status: Needs attention"))
