@@ -5315,14 +5315,19 @@ def scraping_analytics_page(request):
         return _analytics_json_response(request, window=window)
 
     completed_runs_count = ScrapingRun.objects.filter(status="completed").count()
-    category_key = _resolve_scraping_nav_category(request)
-    category_name = str(
-        _(
-            (CATEGORY_META.get(category_key, {}) or {}).get(
-                "label", category_key.title()
+    selected_category = _resolve_scraping_selected_category(request)
+    if selected_category:
+        category_key = selected_category
+        category_name = str(
+            _(
+                (CATEGORY_META.get(category_key, {}) or {}).get(
+                    "label", category_key.title()
+                )
             )
         )
-    )
+    else:
+        category_key = "all"
+        category_name = str(_("All categories"))
     category_meta = {
         category: {
             "label": str(
@@ -5678,6 +5683,27 @@ def _collect_analytics_payload(window: dict) -> dict:
                 }
             )
 
+        # Keep Source Health charts populated even when health snapshots are missing
+        # by backfilling active sources with a neutral default score.
+        existing_health_sources = {
+            str(item.get("source") or "").strip().lower() for item in source_health
+        }
+        for source in ScrapingSource.objects.filter(category=category, is_active=True).only(
+            "name"
+        ):
+            source_name = str(source.name or "").strip()
+            if not source_name:
+                continue
+            if source_name.lower() in existing_health_sources:
+                continue
+            source_health.append(
+                {
+                    "source": source_name,
+                    "state": "unknown",
+                    "score": 0.0,
+                }
+            )
+
         last_completed = completed_runs.aggregate(last_run_at=Max("started_at"))[
             "last_run_at"
         ]
@@ -5747,6 +5773,40 @@ def _collect_analytics_payload(window: dict) -> dict:
     date_to_index = {date_value: idx for idx, date_value in enumerate(date_points)}
     category_series = {category: [0] * len(date_points) for category in category_keys}
 
+    # Build the daily scraped volume from persisted category records.
+    # This keeps analytics useful even when run logs are incomplete or rotated.
+    for category in category_keys:
+        cfg = category_cfg_map.get(category) or {}
+        model_cls = cfg.get("model")
+        date_field = cfg.get("date_field")
+        source_field = cfg.get("source_field")
+        if not model_cls or not date_field:
+            continue
+
+        field_names = {
+            field.name
+            for field in model_cls._meta.get_fields()
+            if getattr(field, "concrete", False)
+        }
+        if date_field not in field_names:
+            continue
+
+        records_qs = model_cls.objects.all()
+        if source_field and source_field in field_names:
+            records_qs = records_qs.exclude(**{f"{source_field}__isnull": True}).exclude(
+                **{source_field: ""}
+            )
+        records_qs = _apply_date_window(records_qs, date_field, window)
+
+        grouped = records_qs.values(f"{date_field}__date").annotate(total=Count("id"))
+        date_key = f"{date_field}__date"
+        for row in grouped:
+            row_date = row.get(date_key)
+            if row_date in date_to_index:
+                category_series[category][date_to_index[row_date]] += int(
+                    row.get("total") or 0
+                )
+
     series_runs = _apply_date_window(
         ScrapingRun.objects.filter(status="completed"),
         "started_at",
@@ -5759,9 +5819,10 @@ def _collect_analytics_payload(window: dict) -> dict:
             continue
         if run.category not in category_series:
             continue
-        category_series[run.category][date_to_index[run_date]] += (
-            _run_items_scraped_count(run)
-        )
+        if category_series[run.category][date_to_index[run_date]] == 0:
+            category_series[run.category][date_to_index[run_date]] += (
+                _run_items_scraped_count(run)
+            )
 
     translated_count = period_meta_qs.filter(translation_status="translated").count()
     copied_count = period_meta_qs.filter(
