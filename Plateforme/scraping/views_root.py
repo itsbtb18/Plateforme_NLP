@@ -18,6 +18,7 @@ from ipaddress import ip_address, ip_network
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
 
+from celery import current_app as current_celery_app
 from celery.result import AsyncResult
 from django.apps import apps
 from django.conf import settings
@@ -2245,9 +2246,18 @@ def _scraping_result_category_map():
     return category_map
 
 
-def _scraping_pending_queue_count() -> int:
+def _scraping_pending_queue_count(category: str | None = None) -> int:
     total_pending = 0
-    for cfg in _scraping_result_category_map().values():
+    category_map = _scraping_result_category_map()
+    if category:
+        cfg = category_map.get(str(category).strip().lower())
+        iterable_cfgs = [cfg] if cfg else []
+    else:
+        iterable_cfgs = list(category_map.values())
+
+    for cfg in iterable_cfgs:
+        if not cfg:
+            continue
         model_cls = cfg.get("model")
         status_field = cfg.get("status_field")
         source_field = cfg.get("source_field")
@@ -2450,6 +2460,7 @@ def _scraping_shell_context(request, *, active_page: str) -> dict:
     nav_categories = _scraping_nav_categories()
     current_category = _resolve_scraping_nav_category(request)
     selected_category = _resolve_scraping_selected_category(request)
+    pending_count = _scraping_pending_queue_count(selected_category or None)
     language_code = str(getattr(request, "LANGUAGE_CODE", "") or "").lower()
     is_rtl = language_code.startswith("ar")
 
@@ -2459,7 +2470,7 @@ def _scraping_shell_context(request, *, active_page: str) -> dict:
         "scraping_nav_categories": nav_categories,
         "scraping_current_category": current_category,
         "scraping_selected_category": selected_category,
-        "scraping_pending_count": _scraping_pending_queue_count(),
+        "scraping_pending_count": pending_count,
         "scraping_notifications": notification_rows,
         "scraping_unread_count": unread_count,
         "scraping_admin_name": admin_name,
@@ -3990,6 +4001,11 @@ def scraping_results(request):
         if category_global_status == "warn"
         else str(_("Global status: OK"))
     )
+    pending_total = (
+        pending_counts.get(selected_category, 0)
+        if selected_category != "all"
+        else sum(pending_counts.values())
+    )
 
     return render(
         request,
@@ -4010,7 +4026,7 @@ def scraping_results(request):
             "previous_page": previous_page,
             "next_page": next_page,
             "category_tabs": category_tabs,
-            "pending_total": sum(pending_counts.values()),
+            "pending_total": pending_total,
             "filtered_category_counts_json": json.dumps(filtered_category_counts),
             "filtered_low_confidence_count": filtered_low_confidence_count,
             "export_url": export_url,
@@ -4558,24 +4574,39 @@ def run_scraper(request, category):
         triggered_by=request.user,
     )
 
-    # --- Try async (Celery) execution first ---
-    try:
-        async_result = run_scraper_task.delay(
-            category,
-            run_id=str(run.pk),
-            user_id=request.user.pk,
-        )
-        run.task_id = async_result.id
-        run.save(update_fields=["task_id"])
+    def _celery_workers_available() -> bool:
+        try:
+            inspector = current_celery_app.control.inspect(timeout=1)
+            pings = inspector.ping() if inspector else None
+            return bool(pings)
+        except Exception as exc:
+            logger.warning(
+                "celery_worker_ping_failed",
+                extra={"error": str(exc), "context": category},
+                exc_info=False,
+            )
+            return False
 
-        return JsonResponse(
-            {
-                "status": "started",
-                "run_id": str(run.pk),
-                "task_id": async_result.id,
-                "message": "Scraper dispatched to background worker.",
-            }
-        )
+    # --- Try async (Celery) execution first, only when workers are available ---
+    try:
+        if _celery_workers_available():
+            async_result = run_scraper_task.delay(
+                category,
+                run_id=str(run.pk),
+                user_id=request.user.pk,
+            )
+            run.task_id = async_result.id
+            run.save(update_fields=["task_id"])
+
+            return JsonResponse(
+                {
+                    "status": "started",
+                    "run_id": str(run.pk),
+                    "task_id": async_result.id,
+                    "message": "Scraper dispatched to background worker.",
+                }
+            )
+        logger.warning("No Celery workers detected; falling back to synchronous run")
 
     except Exception as celery_exc:
         # Celery unavailable — fall back to synchronous execution
@@ -4684,23 +4715,40 @@ def run_quick_scrape(request, category):
         progress_total=6,
     )
 
-    try:
-        async_result = run_quick_scrape_task.delay(
-            category,
-            run_id=str(run.pk),
-            user_id=request.user.pk,
-        )
-        run.task_id = async_result.id
-        run.save(update_fields=["task_id"])
+    def _celery_workers_available() -> bool:
+        try:
+            inspector = current_celery_app.control.inspect(timeout=1)
+            pings = inspector.ping() if inspector else None
+            return bool(pings)
+        except Exception as exc:
+            logger.warning(
+                "celery_worker_ping_failed",
+                extra={"error": str(exc), "context": category},
+                exc_info=False,
+            )
+            return False
 
-        return JsonResponse(
-            {
-                "status": "started",
-                "run_id": str(run.pk),
-                "task_id": async_result.id,
-                "mode": "quick_scrape",
-                "message": "Quick scrape dispatched to background worker.",
-            }
+    try:
+        if _celery_workers_available():
+            async_result = run_quick_scrape_task.delay(
+                category,
+                run_id=str(run.pk),
+                user_id=request.user.pk,
+            )
+            run.task_id = async_result.id
+            run.save(update_fields=["task_id"])
+
+            return JsonResponse(
+                {
+                    "status": "started",
+                    "run_id": str(run.pk),
+                    "task_id": async_result.id,
+                    "mode": "quick_scrape",
+                    "message": "Quick scrape dispatched to background worker.",
+                }
+            )
+        logger.warning(
+            "No Celery workers detected for quick scrape; falling back to synchronous run"
         )
     except Exception as celery_exc:
         logger.warning(
