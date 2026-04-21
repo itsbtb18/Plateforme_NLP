@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Any
 
@@ -378,11 +379,17 @@ class NewsScraper(BaseScraper):
             self._set_if_present(defaults, fields, "url", item["source_url"])
             self._set_if_present(defaults, fields, "access_link", item["source_url"])
 
-        if item.get("published_date"):
+        normalized_published_date = self._normalize_date_text(
+            item.get("published_date")
+        )
+        if normalized_published_date:
             self._set_if_present(
-                defaults, fields, "published_date", item["published_date"]
+                defaults,
+                fields,
+                "published_date",
+                normalized_published_date,
             )
-            self._set_if_present(defaults, fields, "date", item["published_date"])
+            self._set_if_present(defaults, fields, "date", normalized_published_date)
 
         tags = item.get("tags") or []
         if tags:
@@ -451,6 +458,17 @@ class NewsScraper(BaseScraper):
             return ""
         return text
 
+    @classmethod
+    def _normalize_date_text(cls, value: Any) -> str | None:
+        text = cls._safe_text(value)
+        if not text or text == "[NEEDS RESEARCH]":
+            return None
+
+        candidate = text[:10]
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", candidate):
+            return candidate
+        return None
+
     def _normalize_candidate(self, item: dict[str, Any]) -> dict[str, Any] | None:
         title_en = self._safe_text(item.get("title_en"))
         summary_en = self._safe_text(item.get("summary_en"))
@@ -492,7 +510,7 @@ class NewsScraper(BaseScraper):
                 or self._safe_text(item.get("access_link"))
                 or "[NEEDS RESEARCH]"
             )[:500],
-            "published_date": self._safe_text(item.get("published_date"))[:10] or None,
+            "published_date": self._normalize_date_text(item.get("published_date")),
             "tags": tags,
             "confidence_score": self._normalize_confidence(
                 item.get("confidence_score", item.get("extraction_confidence"))

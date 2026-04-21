@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Any
 
@@ -518,11 +519,15 @@ class OpportunityScraper(BaseScraper):
 
     @staticmethod
     def _normalize_date(value: Any) -> str | None:
-        if value is None:
+        if not value:
             return None
         text = str(value).strip()
-        if len(text) == 10 and text[4] == "-" and text[7] == "-":
-            return text
+        if not text or text == "[NEEDS RESEARCH]" or text.lower() == "null":
+            return None
+            
+        candidate = text[:10]
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", candidate):
+            return candidate
         return None
 
     @staticmethod
