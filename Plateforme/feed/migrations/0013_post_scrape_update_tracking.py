@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("feed", "0012_post_scrape_review_fields"),
+        ("QA", "0012_post_scrape_review_fields"),
     ]
 
     operations = [

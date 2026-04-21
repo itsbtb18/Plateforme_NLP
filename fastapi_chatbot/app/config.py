@@ -32,7 +32,6 @@ class Settings(BaseSettings):
     GROQ_INTERNAL_API_KEY: str = ""
     GROQ_INTERNAL_MODEL: str = "llama-3.1-8b-instant"
 
-<<<<<<< HEAD
     # Gemini API — Chatbot (User-facing)
     GENAI_API_KEY: str = ""
     GENAI_MODEL: str = "gemini-2.0-flash"
@@ -50,13 +49,6 @@ class Settings(BaseSettings):
     # Provider selectors (chat vs internal workflows)
     LLM_PROVIDER_CHAT: str = "gemini"
     LLM_PROVIDER_INTERNAL: str = "gemini"
-
-=======
-    # Gemini API (fallback)
-    GENAI_API_KEY: str = ""
-    GENAI_MODEL: str = "gemini-2.0-flash"
-
->>>>>>> 6211e0493a3e93637955a41e8280df5e394207b3
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 

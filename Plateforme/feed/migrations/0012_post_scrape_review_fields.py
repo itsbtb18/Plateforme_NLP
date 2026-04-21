@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("feed", "0011_post_entities"),
+        ("QA", "0011_post_entities"),
     ]
 
     operations = [

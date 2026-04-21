@@ -4,12 +4,20 @@ import asyncio
 import re
 from typing import Awaitable, Callable
 
+try:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except Exception:  # pragma: no cover - optional dependency fallback at runtime
+    RecursiveCharacterTextSplitter = None
+
 from app.config import get_settings
 from app.providers.gemini_provider import GeminiProvider
 from app.providers.groq_provider import GroqProvider
 
 
 class TranslationSummarizationService:
+    DEFAULT_CHUNK_SIZE = 5200
+    DEFAULT_CHUNK_OVERLAP = 200
+
     def __init__(self) -> None:
         self.settings = get_settings()
         self.providers = {
@@ -299,14 +307,15 @@ class TranslationSummarizationService:
         prepared = re.sub(r"\n{3,}", "\n\n", prepared)
         return prepared.strip()
 
-    @staticmethod
-    def _split_into_chunks(text: str, max_chars: int = 5200) -> list[str]:
-        if len(text) <= max_chars:
-            return [text]
+    @classmethod
+    def simple_rechunk(cls, text: str, max_chars: int = DEFAULT_CHUNK_SIZE) -> list[str]:
+        source = str(text or "")
+        if len(source) <= max_chars:
+            return [source]
 
-        paragraphs = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
+        paragraphs = [p.strip() for p in re.split(r"\n{2,}", source) if p.strip()]
         if not paragraphs:
-            return [text]
+            return [source]
 
         chunks: list[str] = []
         current: list[str] = []
@@ -322,7 +331,7 @@ class TranslationSummarizationService:
         for paragraph in paragraphs:
             if len(paragraph) > max_chars:
                 flush()
-                chunks.extend(TranslationSummarizationService._split_large_paragraph(paragraph, max_chars))
+                chunks.extend(cls._split_large_paragraph(paragraph, max_chars))
                 continue
 
             projected = current_len + len(paragraph) + (2 if current else 0)
@@ -332,7 +341,60 @@ class TranslationSummarizationService:
             current_len += len(paragraph) + (2 if len(current) > 1 else 0)
 
         flush()
-        return chunks or [text]
+        return chunks or [source]
+
+    @classmethod
+    def smart_rechunk(
+        cls,
+        text: str,
+        *,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+    ) -> list[str]:
+        source = str(text or "").strip()
+        if not source:
+            return [""]
+
+        if len(source) <= chunk_size:
+            return [source]
+
+        if RecursiveCharacterTextSplitter is None:
+            return cls.simple_rechunk(source, max_chars=chunk_size)
+
+        safe_overlap = max(0, min(int(chunk_overlap), max(0, int(chunk_size) - 1)))
+        separators = [
+            "\n\n",
+            "\n",
+            ". ",
+            "! ",
+            "? ",
+            "؟ ",
+            "; ",
+            "، ",
+            " ",
+            "",
+        ]
+
+        try:
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=int(chunk_size),
+                chunk_overlap=safe_overlap,
+                length_function=len,
+                separators=separators,
+                is_separator_regex=False,
+            )
+            chunks = [c.strip() for c in splitter.split_text(source) if c and c.strip()]
+            return chunks or cls.simple_rechunk(source, max_chars=chunk_size)
+        except Exception:
+            return cls.simple_rechunk(source, max_chars=chunk_size)
+
+    @classmethod
+    def _split_into_chunks(cls, text: str, max_chars: int = DEFAULT_CHUNK_SIZE) -> list[str]:
+        return cls.smart_rechunk(
+            text,
+            chunk_size=max_chars,
+            chunk_overlap=cls.DEFAULT_CHUNK_OVERLAP,
+        )
 
     @staticmethod
     def _split_large_paragraph(paragraph: str, max_chars: int) -> list[str]:
@@ -474,7 +536,7 @@ class TranslationSummarizationService:
                 if len(chunked) > 1:
                     return [
                         {
-                            "title": f"Part {idx + 1}",
+                            "title": cls._derive_section_title_from_content(chunk, idx + 1),
                             "level": 2,
                             "content": chunk,
                         }
@@ -491,6 +553,33 @@ class TranslationSummarizationService:
         if global_max_words is not None:
             target = min(target, max(60, global_max_words))
         return target
+
+    @staticmethod
+    def _derive_section_title_from_content(content: str, section_index: int) -> str:
+        source = str(content or "").strip()
+        if not source:
+            return f"Section {section_index}"
+
+        # Prefer the first meaningful line/sentence to avoid generic labels like "Part 1".
+        first_line = ""
+        for line in re.split(r"\r?\n", source):
+            line = re.sub(r"\s+", " ", line).strip(" -:\t")
+            if len(line) >= 4:
+                first_line = line
+                break
+
+        candidate = first_line or source[:120]
+        candidate = re.sub(r"\s+", " ", candidate).strip(" -:\t")
+
+        # If line is very long, keep only the first sentence-like segment.
+        sentence_cut = re.split(r"(?<=[\.!\?؟])\s+", candidate, maxsplit=1)[0]
+        title = (sentence_cut or candidate)[:72].strip()
+        title = title.rstrip(".,;:!؟")
+
+        if not title:
+            return f"Section {section_index}"
+
+        return f"Section {section_index} - {title}"
 
     @staticmethod
     def _post_process_summary(text: str) -> str:

@@ -289,7 +289,7 @@ class DiscoveredURL(models.Model):
             ),
             models.Index(
                 fields=["category", "status", "priority_score"],
-                name="idx_discoveredurl_pending_queue",
+                name="idx_discurl_pending_queue",
             ),
         ]
 
