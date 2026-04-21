@@ -246,7 +246,7 @@ class TranslationSummarizationService:
         if not sentences:
             return source[:360]
 
-        max_words = max(60, min(260, int(target_words or 120)))
+        max_words = max(120, min(600, int(target_words or 240)))
         selected: list[str] = []
         words_used = 0
 
@@ -549,9 +549,9 @@ class TranslationSummarizationService:
 
     @staticmethod
     def _estimate_section_summary_words(source_words: int, global_max_words: int | None) -> int:
-        target = max(80, min(380, int(source_words * 0.25)))
+        target = max(120, min(600, int(source_words * 0.5)))
         if global_max_words is not None:
-            target = min(target, max(60, global_max_words))
+            target = min(target, max(120, global_max_words))
         return target
 
     @staticmethod

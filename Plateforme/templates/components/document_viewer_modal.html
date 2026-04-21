@@ -2538,15 +2538,36 @@ if (typeof pdfjsLib !== 'undefined') {
         },
 
         async fetchAiWithFallback(path, options = {}) {
+            const { timeoutMs: requestedTimeoutMs, signal: externalSignal, ...fetchOptions } = options;
             const bases = this.getAiBaseCandidates();
             let lastError = null;
             let lastHttpFailure = null;
+            const timeoutMs = Math.max(15000, Number(requestedTimeoutMs || 90000));
 
             for (const base of bases) {
                 const url = `${base}${path}`;
+                let timedOut = false;
+                const controller = new AbortController();
+                const onExternalAbort = () => controller.abort();
+                const timeoutId = setTimeout(() => {
+                    timedOut = true;
+                    controller.abort();
+                }, timeoutMs);
+
+                if (externalSignal) {
+                    if (externalSignal.aborted) {
+                        controller.abort();
+                    } else {
+                        externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+                    }
+                }
+
                 try {
                     console.log('DocViewer AI trying URL:', url);
-                    const response = await fetch(url, options);
+                    const response = await fetch(url, {
+                        ...fetchOptions,
+                        signal: controller.signal,
+                    });
                     if (!response.ok) {
                         const status = Number(response.status || 0);
                         const contentType = String(response.headers.get('content-type') || '').toLowerCase();
@@ -2568,7 +2589,15 @@ if (typeof pdfjsLib !== 'undefined') {
                     this.lastWorkingAiBase = base;
                     return { response, base, url };
                 } catch (err) {
+                    if (timedOut) {
+                        throw new Error('{% trans "Translation/Summarization request timed out. Please retry with a shorter document or try again later." %}');
+                    }
                     lastError = err;
+                } finally {
+                    clearTimeout(timeoutId);
+                    if (externalSignal) {
+                        externalSignal.removeEventListener('abort', onExternalAbort);
+                    }
                 }
             }
 
@@ -2922,7 +2951,7 @@ if (typeof pdfjsLib !== 'undefined') {
             return chunks;
         },
 
-        async submitAiRequest(endpoint, payload) {
+        async submitAiRequest(endpoint, payload, requestOptions = {}) {
             const maxRateLimitRetries = 4;
             const baseRetryDelayMs = 1500;
             const maxClientRetryDelayMs = 20000;
@@ -2933,6 +2962,7 @@ if (typeof pdfjsLib !== 'undefined') {
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin',
                     signal: this.aiRequestController?.signal,
+                    timeoutMs: requestOptions.timeoutMs,
                     body: JSON.stringify(payload),
                 });
                 const response = submitResult.response;
@@ -3005,10 +3035,13 @@ if (typeof pdfjsLib !== 'undefined') {
                 const finalPrompt = String(textForAi || '').trim();
                 const endpoint = isTranslation ? '/translate' : '/summarize';
                 const detectedLang = this.detectDocumentLanguage() || 'en';
-                // Keep translation request duration predictable (similar to summarize)
-                // by chunking client-side instead of waiting one long backend response.
-                const chunkSize = isTranslation ? 2200 : 2600;
-                const chunks = this.splitTextForAi(finalPrompt, chunkSize);
+                const sourceWords = finalPrompt ? finalPrompt.split(/\s+/).filter(Boolean).length : 0;
+                const summaryTargetWords = Math.max(220, Math.min(1400, Math.round(sourceWords * 0.5)));
+                // Translation stays chunked to stay responsive, but summarization should use the full
+                // document so the backend can build a structured result with a real paragraph flow.
+                const chunks = isTranslation
+                    ? this.splitTextForAi(finalPrompt, 1600)
+                    : [finalPrompt];
 
                 if (!finalPrompt || this.isInvalidAiInputText(finalPrompt)) {
                     this.activeAiJob = null;
@@ -3057,10 +3090,12 @@ if (typeof pdfjsLib !== 'undefined') {
                             text: chunk,
                             language: detectedLang,
                             style: 'professional',
-                            max_words: 180,
+                            max_words: summaryTargetWords,
                         };
 
-                    const partOutput = await this.submitAiRequest(endpoint, payload);
+                    const partOutput = await this.submitAiRequest(endpoint, payload, {
+                        timeoutMs: isTranslation ? 90000 : 120000,
+                    });
                     if (partOutput) {
                         chunkOutputs.push(partOutput);
                     }
