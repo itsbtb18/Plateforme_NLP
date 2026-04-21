@@ -1936,13 +1936,16 @@ html[dir="rtl"] .ctt-actions { flex-direction: row-reverse; }
 
 .ai-result-content {
     margin: 0;
-    padding: 24px 28px;
+    padding: 20px 24px 22px;
     white-space: pre-wrap;
     word-break: break-word;
     color: #ede9fe;
-    line-height: 1.75;
-    font-family: 'Consolas', 'Courier New', 'Noto Naskh Arabic', monospace;
-    font-size: 14.5px;
+    line-height: 1.65;
+    font-family: 'Segoe UI', 'Noto Sans Arabic', Arial, sans-serif;
+    font-size: 12.5px;
+    font-weight: 400;
+    text-align: left;
+    letter-spacing: 0.01em;
 }
 
 .ai-result-actions {
@@ -2284,12 +2287,40 @@ if (typeof pdfjsLib !== 'undefined') {
 
             titleEl.textContent = this.lastAiResult.title || this.t('ai_result', '{% trans "AI Result" %}');
             metaEl.textContent = this.lastAiResult.meta || this.t('generated_in_page', '{% trans "Generated without leaving the current page." %}');
-            contentEl.textContent = this.lastAiResult.output || '';
+            contentEl.textContent = this.formatAiResultDisplayText(this.lastAiResult.output || '');
             const copyBtn = document.getElementById('copyAiResultBtn');
             if (copyBtn) {
                 copyBtn.textContent = this.t('copy', '{% trans "Copy" %}');
             }
             overlay.style.display = 'flex';
+        },
+
+        formatAiResultDisplayText(rawText) {
+            const normalized = String(rawText || '')
+                .replace(/\r\n/g, '\n')
+                .replace(/\n{3,}/g, '\n\n')
+                .split('\n')
+                .map((line) => {
+                    const trimmed = String(line || '').trim();
+                    if (!trimmed) {
+                        return '';
+                    }
+
+                    const headingMatch = trimmed.match(/^#{1,6}\s*(.+)$/);
+                    if (headingMatch) {
+                        return headingMatch[1].trim();
+                    }
+
+                    return trimmed
+                        .replace(/^[-*•]\s+/, '')
+                        .replace(/^→\s+/, '')
+                        .replace(/\s{2,}/g, ' ');
+                })
+                .join('\n')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+
+            return normalized;
         },
 
         closeAiResultOverlay() {

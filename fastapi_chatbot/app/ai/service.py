@@ -109,7 +109,9 @@ class AIPipelineService:
             self.cache.set_json("translation", cache_key, {"text": translated}, ttl=60 * 60 * 24 * 7)
             return translated
 
-        translated_chunks = await asyncio.gather(*(translate_chunk(chunk.text) for chunk in chunks))
+        translated_chunks = []
+        for chunk in chunks:
+            translated_chunks.append(await translate_chunk(chunk.text))
         translated_text = "\n\n".join(translated_chunks)
         quality = self.quality.translation_quality(
             source_text="\n".join(b.text for b in cir.structural_blocks),
@@ -127,7 +129,7 @@ class AIPipelineService:
             "quality": quality,
             "metadata": {
                 "chunk_count": len(chunks),
-                "strategy": "parallel-structure-aware",
+                "strategy": "sequential-structure-aware",
                 "estimated_cost_usd": sum(d.estimated_cost_usd for _, d in chain),
                 "estimated_latency_ms": min(d.estimated_latency_ms for _, d in chain),
             },

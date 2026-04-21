@@ -77,7 +77,6 @@ def handle_partial_data(item_data: dict) -> dict:
                 payload[key] = value
 
     _fill_group(url_keys, "url")
-    _fill_group(date_keys, "date")
     _fill_group(author_keys, "author")
     _fill_group(law_reference_keys, "law_reference")
 
@@ -88,6 +87,17 @@ def handle_partial_data(item_data: dict) -> dict:
     author_value = str(payload.get("author") or "").strip()
     if author_value:
         _fill_alias_if_missing(author_keys, author_value)
+
+    # Never inject placeholders into date fields; keep them empty unless a real
+    # date-like value already exists and can be mirrored across aliases.
+    date_value = ""
+    for key in date_keys:
+        candidate = str(payload.get(key) or "").strip()
+        if candidate:
+            date_value = candidate
+            break
+    if date_value:
+        _fill_alias_if_missing(date_keys, date_value)
 
     return payload
 

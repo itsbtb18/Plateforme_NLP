@@ -112,6 +112,11 @@ urlpatterns = [
     ),
     path("run/<str:category>/", views.run_scraper, name="run_scraper"),
     path(
+        "run-quick/<str:category>/",
+        views.run_quick_scrape,
+        name="run_quick_scrape",
+    ),
+    path(
         "stop/<uuid:run_id>/",
         views.stop_scraping_run,
         name="stop_scraping_run",
@@ -130,6 +135,11 @@ urlpatterns = [
         "api/prompts/add/",
         views.add_prompt_api,
         name="add_prompt_api",
+    ),
+    path(
+        "api/prompts/generate/",
+        views.generate_search_prompts,
+        name="generate_search_prompts",
     ),
     path(
         "api/prompts/<int:query_id>/toggle/",
@@ -215,6 +225,11 @@ urlpatterns = [
         "sources/<uuid:source_id>/toggle/",
         views.toggle_custom_source,
         name="toggle_custom_source",
+    ),
+    path(
+        "settings/source/<uuid:source_id>/update/",
+        views.update_source_settings,
+        name="update_source_settings",
     ),
     path(
         "sources/delete/<uuid:source_id>/",

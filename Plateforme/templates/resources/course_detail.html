@@ -1514,5 +1514,30 @@ function copyCode(button) {
 }
 </script>
 
+<script>
+    window.TS_WIDGET_CONFIG = {
+        csrfToken: '{{ csrf_token }}',
+        translateUrl: '{% url "translate:api_ts_translate" %}',
+        summarizeUrl: '{% url "translate:api_ts_summarize" %}',
+        sections: [
+            {
+                id: 'description',
+                label: '{% translate "Description" %}',
+                sourceText: `{{ object.description|striptags|escapejs }}`,
+                sourceLang: 'en'
+            },
+            {% if object.syllabus %}
+            {
+                id: 'syllabus',
+                label: '{% translate "Syllabus" %}',
+                sourceText: `{{ object.syllabus|striptags|escapejs }}`,
+                sourceLang: 'en'
+            }
+            {% endif %}
+        ]
+    };
+</script>
+{% include "partials/ts_widget.html" %}
+
 {% include "components/document_viewer_modal.html" %}
 {% endblock %}

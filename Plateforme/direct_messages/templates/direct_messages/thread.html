@@ -1759,9 +1759,15 @@
                       <div class="ig-file-meta">
                         <div class="ig-file-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مرفق ملف{% else %}File attachment{% endif %}</div>
                         <div class="ig-file-actions">
-                          <a href="{{ msg.file_path.url }}" class="ig-file-link" target="_blank" rel="noopener">
-                            <i class="fas fa-paperclip"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}فتح الملف{% else %}Open file{% endif %}
-                          </a>
+                          {% if ".pdf" in file_url or ".doc" in file_url or ".docx" in file_url or ".txt" in file_url or ".md" in file_url or ".json" in file_url or ".xml" in file_url or ".csv" in file_url or ".log" in file_url %}
+                            <a href="#" class="ig-file-link" onclick="openDocumentViewer('{{ msg.file_path.url|escapejs }}', null, '{{ conversation.id }}', '{{ conversation_title|escapejs }}'); return false;">
+                              <i class="fas fa-wand-magic-sparkles"></i> {% trans "Open in AI Viewer" %}
+                            </a>
+                          {% else %}
+                            <a href="{{ msg.file_path.url }}" class="ig-file-link" target="_blank" rel="noopener">
+                              <i class="fas fa-paperclip"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}فتح الملف{% else %}Open file{% endif %}
+                            </a>
+                          {% endif %}
                           <a href="{{ msg.file_path.url }}" class="ig-file-link download" download>
                             <i class="fas fa-download"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحميل{% else %}Download{% endif %}
                           </a>
@@ -1934,6 +1940,7 @@
   </div>
 </div>
 {% endif %}
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}
 
 {% block extra_scripts %}
@@ -1997,6 +2004,9 @@
     const uiOpenFileLabelLocalized = isArUi ? "\u0641\u062a\u062d \u0627\u0644\u0645\u0644\u0641" : "Open file";
     const uiDownloadLabel = isArUi ? "\u062a\u062d\u0645\u064a\u0644" : "Download";
     const uiAttachmentLabel = isArUi ? "\u0645\u0631\u0641\u0642 \u0645\u0644\u0641" : "File attachment";
+    const uiOpenAiViewerLabel = isArUi ? "\u0641\u062a\u062d \u0641\u064a \u0639\u0627\u0631\u0636 \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a" : "Open in AI Viewer";
+    const conversationResourceId = "{{ conversation.id }}";
+    const conversationResourceTitle = "{{ conversation_title|escapejs }}";
     const VOICE_TOKEN = "__voice__";
     if (input && isArUi) {
       input.setAttribute("placeholder", "اكتب رسالة...");
@@ -2385,6 +2395,20 @@
       if (u.endsWith(".webm")) return String(content || "") === VOICE_TOKEN;
       return u.endsWith(".mp3") || u.endsWith(".wav") || u.endsWith(".ogg") || u.endsWith(".m4a");
     }
+    function isDocViewerSupported(url) {
+      const u = (url || "").toLowerCase();
+      return (
+        u.endsWith(".pdf") ||
+        u.endsWith(".doc") ||
+        u.endsWith(".docx") ||
+        u.endsWith(".txt") ||
+        u.endsWith(".md") ||
+        u.endsWith(".json") ||
+        u.endsWith(".xml") ||
+        u.endsWith(".csv") ||
+        u.endsWith(".log")
+      );
+    }
     function openImageViewer(url) {
       if (!mediaViewer || !mediaViewerImage || !mediaViewerOpen || !mediaViewerDownload || !url) return;
       mediaViewerImage.src = url;
@@ -2402,14 +2426,18 @@
       document.body.style.overflow = "";
     }
     function fileCardHtml(fileUrl) {
+      const safeUrl = escapeHtml(fileUrl);
+      const viewerAction = isDocViewerSupported(fileUrl)
+        ? `<a href="#" class="ig-file-link" onclick="openDocumentViewer('${safeUrl}', null, '${conversationResourceId}', '${escapeHtml(conversationResourceTitle)}'); return false;"><i class="fas fa-wand-magic-sparkles"></i>${uiOpenAiViewerLabel}</a>`
+        : `<a href="${safeUrl}" class="ig-file-link" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i>${uiOpenFileLabelLocalized}</a>`;
       return `
         <div class="ig-file-card">
           <span class="ig-file-icon"><i class="fas fa-file-alt"></i></span>
           <div class="ig-file-meta">
             <div class="ig-file-title">${uiAttachmentLabel}</div>
             <div class="ig-file-actions">
-              <a href="${escapeHtml(fileUrl)}" class="ig-file-link" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i>${uiOpenFileLabelLocalized}</a>
-              <a href="${escapeHtml(fileUrl)}" class="ig-file-link download" download><i class="fas fa-download"></i>${uiDownloadLabel}</a>
+              ${viewerAction}
+              <a href="${safeUrl}" class="ig-file-link download" download><i class="fas fa-download"></i>${uiDownloadLabel}</a>
             </div>
           </div>
         </div>

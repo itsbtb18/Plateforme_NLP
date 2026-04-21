@@ -1,13 +1,754 @@
-{% extends 'scraping/base_scraping.html' %}
+{% extends 'scraping/category_base.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Scraping Settings" %} - {% trans "Admin Panel" %}{% endblock %}
+{% block title %}{% if scraping_is_rtl %}الإعدادات - الاستخراج{% else %}{% if scraping_is_rtl %}الإعدادات{% else %}{% trans "Settings" %}{% endif %} - {% if scraping_is_rtl %}الاستخراج{% else %}{% trans "Scraping" %}{% endif %}{% endif %}{% endblock %}
 
-{% block scraping_page_content %}
-<section style="border:1px solid #dbe3ef;border-radius:14px;background:#ffffff;padding:1rem 1.1rem;box-shadow:0 16px 28px -30px rgba(15,23,42,.75);">
-  <h1 style="margin:0 0 .42rem;color:#0f172a;font-size:1.1rem;font-weight:900;">{% trans "Scraping Settings" %}</h1>
-  <p style="margin:0;color:#64748b;font-size:.84rem;max-width:72ch;">
-    {% trans "Configure scraping defaults, thresholds, and moderation preferences for the Arabic NLP research pipeline." %}
-  </p>
+{% block category_extra_css %}
+<style>
+  .set-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .set-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.8rem;
+  }
+
+  .set-kpi {
+    border: 1px solid #dbe3ef;
+    border-radius: 0.85rem;
+    background: #ffffff;
+    padding: 0.85rem;
+    box-shadow: 0 12px 24px -22px rgba(15, 23, 42, 0.6);
+  }
+
+  .set-kpi-label {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .set-kpi-value {
+    margin: 0.3rem 0 0;
+    color: #0f172a;
+    font-size: 1.45rem;
+    font-weight: 900;
+  }
+
+  .set-panel {
+    border: 1px solid #dbe3ef;
+    border-radius: 0.95rem;
+    background: #ffffff;
+    padding: 1rem;
+    box-shadow: 0 14px 26px -24px rgba(15, 23, 42, 0.6);
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .set-panel-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 900;
+  }
+
+  .set-panel-sub {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.82rem;
+  }
+
+  .set-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .set-chip {
+    border-radius: 999px;
+    border: 1px solid #dbe3ef;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .set-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-size: 0.69rem;
+    font-weight: 800;
+    padding: 0.24rem 0.5rem;
+    border: 1px solid #dbe3ef;
+    color: #334155;
+    background: #f8fafc;
+  }
+
+  .set-status.ok {
+    border-color: #bbf7d0;
+    color: #065f46;
+    background: #ecfdf5;
+  }
+
+  .set-status.warn {
+    border-color: #fde68a;
+    color: #92400e;
+    background: #fffbeb;
+  }
+
+  .set-status.bad {
+    border-color: #fecaca;
+    color: #991b1b;
+    background: #fef2f2;
+  }
+
+  .set-config-grid {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  }
+
+  .set-config-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+    padding: 0.75rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .set-config-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 0.83rem;
+    font-weight: 900;
+  }
+
+  .set-config-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.44rem;
+  }
+
+  .set-config-item {
+    display: grid;
+    gap: 0.14rem;
+  }
+
+  .set-config-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.7rem;
+    align-items: baseline;
+  }
+
+  .set-config-label {
+    margin: 0;
+    color: #334155;
+    font-size: 0.74rem;
+    font-weight: 700;
+  }
+
+  .set-config-value {
+    margin: 0;
+    color: #0f172a;
+    font-size: 0.76rem;
+    font-weight: 900;
+    text-align: end;
+    word-break: break-word;
+  }
+
+  .set-config-hint {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.7rem;
+  }
+
+  .set-table-wrap {
+    overflow-x: auto;
+  }
+
+  .set-table {
+    width: 100%;
+    min-width: 780px;
+    border-collapse: collapse;
+  }
+
+  .set-table th,
+  .set-table td {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.5rem 0.45rem;
+    text-align: start;
+    vertical-align: middle;
+    font-size: 0.75rem;
+  }
+
+  .set-table th {
+    color: #334155;
+    background: #f8fafc;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .set-table td {
+    color: #0f172a;
+  }
+
+  .set-link-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .set-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border-radius: 0.65rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #1e3a8a;
+    text-decoration: none;
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 0.44rem 0.62rem;
+  }
+
+  .set-control-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .set-switch {
+    width: 0.95rem;
+    height: 0.95rem;
+    accent-color: #2563eb;
+  }
+
+  .set-input,
+  .set-select {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.55rem;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.32rem 0.45rem;
+    min-height: 2rem;
+  }
+
+  .set-input.small {
+    max-width: 84px;
+  }
+
+  .set-btn {
+    border: 1px solid #bfdbfe;
+    border-radius: 0.6rem;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.35rem 0.58rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .set-btn.primary {
+    border-color: #1d4ed8;
+    background: #1d4ed8;
+    color: #ffffff;
+  }
+
+  .set-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .set-query-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.42rem;
+    flex-wrap: wrap;
+  }
+
+  .set-query-add {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+  }
+
+  .set-query-list {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .set-query-item {
+    border: 1px solid #dbe3ef;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    padding: 0.45rem 0.55rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .set-toast {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 9999;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.6rem;
+    color: #ffffff;
+    font-size: 0.76rem;
+    font-weight: 800;
+    background: #0f172a;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    pointer-events: none;
+  }
+
+  .set-toast.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .set-empty {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  @media (max-width: 760px) {
+    .set-panel {
+      padding: 0.8rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block category_content %}
+<section class="set-grid">
+  <article class="set-panel">
+    <h2 class="set-panel-title">{% if scraping_is_rtl %}نظرة عامة على إعدادات الاستخراج{% else %}{% if scraping_is_rtl %}نظرة عامة على إعدادات الاستخراج{% else %}{% trans "Scraping Settings Overview" %}{% endif %}{% endif %}</h2>
+    <p class="set-panel-sub">{% if scraping_is_rtl %}إعدادات تشغيل مباشرة وعناصر تحكم بالمصادر للفئة المحددة.{% else %}{% trans "Live operational settings and source-level controls for the selected category." %}{% endif %}</p>
+
+    <div class="set-kpis">
+      <div class="set-kpi">
+        <p class="set-kpi-label">{% if scraping_is_rtl %}مصادر الفئة{% else %}{% if scraping_is_rtl %}مصادر الفئة{% else %}{% trans "Category Sources" %}{% endif %}{% endif %}</p>
+        <p class="set-kpi-value">{{ source_stats.total }}</p>
+      </div>
+      <div class="set-kpi">
+        <p class="set-kpi-label">{% if scraping_is_rtl %}المصادر النشطة{% else %}{% trans "Active Sources" %}{% endif %}</p>
+        <p class="set-kpi-value">{{ source_stats.active }}</p>
+      </div>
+      <div class="set-kpi">
+        <p class="set-kpi-label">{% if scraping_is_rtl %}استعلامات البحث النشطة{% else %}{% trans "Active Search Queries" %}{% endif %}</p>
+        <p class="set-kpi-value">{{ active_query_count }}</p>
+      </div>
+      <div class="set-kpi">
+        <p class="set-kpi-label">{% if scraping_is_rtl %}المصادر النشطة إجمالاً{% else %}{% trans "Global Active Sources" %}{% endif %}</p>
+        <p class="set-kpi-value">{{ source_stats.global_active }}/{{ source_stats.global_total }}</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="set-panel">
+    <h3 class="set-panel-title">{% if scraping_is_rtl %}مؤشرات المصادر{% else %}{% trans "Source Flags" %}{% endif %}</h3>
+    <div class="set-chip-row">
+      <span class="set-chip">{% if scraping_is_rtl %}RSS مفعّل{% else %}{% trans "RSS enabled" %}{% endif %}: {{ source_stats.rss_enabled }}</span>
+      <span class="set-chip">{% if scraping_is_rtl %}استخراج LLM مفعّل{% else %}{% trans "LLM extraction enabled" %}{% endif %}: {{ source_stats.llm_enabled }}</span>
+      <span class="set-chip">{% if scraping_is_rtl %}تعطيل التحقق من SSL{% else %}{% trans "SSL verification disabled" %}{% endif %}: {{ source_stats.ssl_disabled }}</span>
+      <span class="set-chip">{% if scraping_is_rtl %}وكيل مهيأ{% else %}{% trans "Proxy configured" %}{% endif %}: {{ source_stats.proxy_enabled }}</span>
+      <span class="set-chip">{% if scraping_is_rtl %}مصادر غير نشطة{% else %}{% trans "Inactive sources" %}{% endif %}: {{ source_stats.inactive }}</span>
+    </div>
+  </article>
+
+  <article class="set-panel">
+    <h3 class="set-panel-title">{% if scraping_is_rtl %}توزيع مستويات الجدولة{% else %}{% trans "Schedule Tier Distribution" %}{% endif %}</h3>
+    <div class="set-chip-row">
+      {% for tier in schedule_tier_rows %}
+        <span class="set-chip">{{ tier.label }}: {{ tier.count }}</span>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="set-panel">
+    <h3 class="set-panel-title">{% if scraping_is_rtl %}حالة التحقق{% else %}{% if scraping_is_rtl %}حالة التحقق{% else %}{% trans "Validation Status" %}{% endif %}{% endif %}</h3>
+    <div class="set-chip-row">
+      <span class="set-status ok">{% if scraping_is_rtl %}أخضر{% else %}GREEN{% endif %}: {{ validation_counts.GREEN }}</span>
+      <span class="set-status warn">{% if scraping_is_rtl %}أصفر{% else %}YELLOW{% endif %}: {{ validation_counts.YELLOW }}</span>
+      <span class="set-status bad">{% if scraping_is_rtl %}أحمر{% else %}RED{% endif %}: {{ validation_counts.RED }}</span>
+      <span class="set-status">{% if scraping_is_rtl %}قيد الانتظار{% else %}PENDING{% endif %}: {{ validation_counts.PENDING }}</span>
+      <span class="set-status">{% if scraping_is_rtl %}غير معروف{% else %}UNKNOWN{% endif %}: {{ validation_counts.UNKNOWN }}</span>
+    </div>
+  </article>
+
+  <article class="set-panel">
+    <h3 class="set-panel-title">{% if scraping_is_rtl %}إعدادات التشغيل الأساسية{% else %}{% trans "Core Runtime Configuration" %}{% endif %}</h3>
+    <div class="set-config-grid">
+      {% for section in settings_sections %}
+        <section class="set-config-card">
+          <h4 class="set-config-title">{{ section.title }}</h4>
+          <ul class="set-config-list">
+            {% for item in section.items %}
+              <li class="set-config-item">
+                <div class="set-config-line">
+                  <p class="set-config-label">{{ item.label }}</p>
+                  <p class="set-config-value">{{ item.value }}</p>
+                </div>
+                <p class="set-config-hint">{{ item.hint }}</p>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="set-panel">
+    <h3 class="set-panel-title">{% if scraping_is_rtl %}مصادر الفئة{% else %}{% if scraping_is_rtl %}مصادر الفئة{% else %}{% trans "Category Sources" %}{% endif %}{% endif %}</h3>
+    {% if source_rows %}
+      <div class="set-table-wrap">
+        <table class="set-table">
+          <thead>
+            <tr>
+              <th>{% trans "Source" %}</th>
+              <th>{% trans "Status" %}</th>
+              <th>{% if scraping_is_rtl %}التحقق{% else %}{% trans "Validation" %}{% endif %}</th>
+              <th>{% if scraping_is_rtl %}المستوى{% else %}{% trans "Tier" %}{% endif %}</th>
+              <th>{% if scraping_is_rtl %}الفاصل{% else %}{% trans "Interval" %}{% endif %}</th>
+              <th>{% trans "RSS" %}</th>
+              <th>{% trans "LLM" %}</th>
+              <th>{% trans "SSL" %}</th>
+              <th>{% trans "Proxy" %}</th>
+              <th>{% if scraping_is_rtl %}الإخفاقات{% else %}{% trans "Failures" %}{% endif %}</th>
+              <th>{% if scraping_is_rtl %}آخر استخراج{% else %}{% trans "Last scrape" %}{% endif %}</th>
+              <th>{% trans "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in source_rows %}
+              <tr data-source-row="1" data-source-id="{{ row.id }}">
+                <td>
+                  <strong>{{ row.name }}</strong><br>
+                  <span style="color:#64748b;word-break:break-all;">{{ row.url }}</span>
+                </td>
+                <td>
+                  <label class="set-control-row">
+                    <input class="set-switch" type="checkbox" data-field="is_active" {% if row.is_active %}checked{% endif %}>
+                    <span class="set-status {% if row.is_active %}ok{% else %}bad{% endif %}" data-status-pill="1">
+                      {% if row.is_active %}{% trans "Active" %}{% else %}{% trans "Inactive" %}{% endif %}
+                    </span>
+                  </label>
+                </td>
+                <td>
+                  {% if row.validation_status == 'GREEN' %}
+                    <span class="set-status ok">{% if scraping_is_rtl %}أخضر{% else %}GREEN{% endif %}</span>
+                  {% elif row.validation_status == 'YELLOW' %}
+                    <span class="set-status warn">{% if scraping_is_rtl %}أصفر{% else %}YELLOW{% endif %}</span>
+                  {% elif row.validation_status == 'RED' %}
+                    <span class="set-status bad">{% if scraping_is_rtl %}أحمر{% else %}RED{% endif %}</span>
+                  {% elif row.validation_status == 'PENDING' %}
+                    <span class="set-status">{% if scraping_is_rtl %}قيد الانتظار{% else %}PENDING{% endif %}</span>
+                  {% elif row.validation_status == 'UNKNOWN' %}
+                    <span class="set-status">{% if scraping_is_rtl %}غير معروف{% else %}UNKNOWN{% endif %}</span>
+                  {% else %}
+                    <span class="set-status">{{ row.validation_status }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <select class="set-select" data-field="schedule_tier">
+                    <option value="very_high" {% if row.schedule_tier == 'very_high' %}selected{% endif %}>{% if scraping_is_rtl %}عالٍ جدًا{% else %}very_high{% endif %}</option>
+                    <option value="high" {% if row.schedule_tier == 'high' %}selected{% endif %}>{% if scraping_is_rtl %}عالٍ{% else %}high{% endif %}</option>
+                    <option value="medium" {% if row.schedule_tier == 'medium' %}selected{% endif %}>{% if scraping_is_rtl %}متوسط{% else %}medium{% endif %}</option>
+                    <option value="low" {% if row.schedule_tier == 'low' %}selected{% endif %}>{% if scraping_is_rtl %}منخفض{% else %}low{% endif %}</option>
+                    <option value="dormant" {% if row.schedule_tier == 'dormant' %}selected{% endif %}>{% if scraping_is_rtl %}خامل{% else %}dormant{% endif %}</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="set-control-row">
+                    <input class="set-input small" data-field="schedule_interval_hours" type="number" min="1" max="168" value="{{ row.schedule_interval_hours }}">
+                    <span>h</span>
+                  </div>
+                </td>
+                <td><input class="set-switch" type="checkbox" data-field="use_rss" {% if row.use_rss %}checked{% endif %}></td>
+                <td><input class="set-switch" type="checkbox" data-field="use_llm_extraction" {% if row.use_llm_extraction %}checked{% endif %}></td>
+                <td><input class="set-switch" type="checkbox" data-field="verify_ssl" {% if row.verify_ssl %}checked{% endif %}></td>
+                <td>{% if row.has_proxy %}{% trans "Configured" %}{% else %}{% trans "None" %}{% endif %}</td>
+                <td>{{ row.consecutive_failures }}</td>
+                <td>
+                  {% if row.last_scraped %}
+                    {{ row.last_scraped|date:'Y-m-d H:i' }}
+                  {% else %}
+                    {% trans "Never" %}
+                  {% endif %}
+                </td>
+                <td>
+                  <button class="set-btn primary" type="button" data-save-source="1">{% trans "Save" %}</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="set-empty">{% trans "No sources are configured for this category yet." %}</p>
+    {% endif %}
+  </article>
+
+  <article class="set-panel">
+    <h3 class="set-panel-title">{% if scraping_is_rtl %}استعلامات البحث{% else %}{% trans "Search Queries" %}{% endif %}</h3>
+    <div class="set-query-add">
+      <input class="set-input" id="setAddQueryInput" type="text" placeholder="{% if scraping_is_rtl %}أضف استعلامًا جديدًا{% else %}{% trans 'Add a new query' %}{% endif %}">
+      <button class="set-btn primary" type="button" id="setAddQueryButton">{% trans "Add" %}</button>
+    </div>
+    <div class="set-query-list" id="setQueryList">
+      {% if query_rows %}
+        {% for row in query_rows %}
+          <div class="set-query-item" data-query-id="{{ row.id }}">
+            <div>{{ row.query_text }}</div>
+            <div class="set-query-actions">
+              <label class="set-control-row">
+                <input class="set-switch" type="checkbox" data-query-active="1" {% if row.is_active %}checked{% endif %}>
+                <span>{% if row.is_active %}{% trans "Active" %}{% else %}{% trans "Disabled" %}{% endif %}</span>
+              </label>
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+    {% if not query_rows %}
+      <p class="set-empty" id="setQueryEmpty">{% trans "No search queries are defined for this category." %}</p>
+    {% endif %}
+  </article>
+
+  <article class="set-panel">
+    <h3 class="set-panel-title">{% if scraping_is_rtl %}إجراءات سريعة{% else %}{% if scraping_is_rtl %}إجراءات سريعة{% else %}{% trans "Quick Actions" %}{% endif %}{% endif %}</h3>
+    <div class="set-link-row">
+      <a class="set-link" href="{% url 'scraping:category_sources' category_key|default:scraping_current_category %}">{% if scraping_is_rtl %}إدارة المصادر{% else %}{% trans "Manage Sources" %}{% endif %}</a>
+      <a class="set-link" href="{% url 'scraping:category_analytics' category_key|default:scraping_current_category %}">{% if scraping_is_rtl %}فتح التحليلات{% else %}{% trans "Open Analytics" %}{% endif %}</a>
+      <a class="set-link" href="{% url 'scraping:category_results' category_key|default:scraping_current_category %}">{% if scraping_is_rtl %}مراجعة القائمة{% else %}{% trans "Review Queue" %}{% endif %}</a>
+    </div>
+  </article>
 </section>
+<div class="set-toast" id="setToast"></div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(() => {
+  const sourceRows = Array.from(document.querySelectorAll("[data-source-row='1']"));
+  const queryList = document.getElementById("setQueryList");
+  const addQueryInput = document.getElementById("setAddQueryInput");
+  const addQueryButton = document.getElementById("setAddQueryButton");
+  const toast = document.getElementById("setToast");
+  const emptyQueryMessage = document.getElementById("setQueryEmpty");
+
+  const urls = {
+    updateSource: "{{ settings_update_source_url_template }}",
+    toggleQuery: "{{ settings_toggle_query_url_template }}",
+    addQuery: "{{ settings_add_query_url }}",
+  };
+
+  const EMPTY_UUID = "00000000-0000-0000-0000-000000000000";
+
+  function getCookie(name) {
+    const chunk = document.cookie
+      .split(";")
+      .map((v) => v.trim())
+      .find((v) => v.startsWith(name + "="));
+    return chunk ? decodeURIComponent(chunk.split("=").slice(1).join("=")) : "";
+  }
+
+  function getCsrfToken() {
+    const cookieToken = getCookie("csrftoken");
+    if (cookieToken.length === 32 || cookieToken.length === 64) {
+      return cookieToken;
+    }
+
+    const renderedToken = "{{ csrf_token }}";
+    if (renderedToken && renderedToken !== "NOTPROVIDED" && (renderedToken.length === 32 || renderedToken.length === 64)) {
+      return renderedToken;
+    }
+
+    return "";
+  }
+
+  async function request(url, method, body) {
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+      throw new Error("CSRF token missing");
+    }
+    const headers = {
+      "X-CSRFToken": csrfToken,
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    };
+    const response = await fetch(url, {
+      method,
+      headers,
+      credentials: "same-origin",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    let payload = null;
+    const type = response.headers.get("content-type") || "";
+    if (type.includes("application/json")) {
+      payload = await response.json();
+    }
+
+    if (!response.ok) {
+      const msg = payload && payload.error ? String(payload.error) : "Request failed";
+      throw new Error(msg);
+    }
+    return payload;
+  }
+
+  function showToast(message, ok) {
+    if (!toast) return;
+    toast.textContent = String(message || "");
+    toast.style.background = ok ? "#065f46" : "#991b1b";
+    toast.classList.add("visible");
+    window.clearTimeout(showToast._timer);
+    showToast._timer = window.setTimeout(() => {
+      toast.classList.remove("visible");
+    }, 2200);
+  }
+
+  function sourceUpdateUrl(sourceId) {
+    return String(urls.updateSource || "").replace(EMPTY_UUID, encodeURIComponent(String(sourceId)));
+  }
+
+  function queryToggleUrl(queryId) {
+    return String(urls.toggleQuery || "").replace("/0/toggle/", `/${encodeURIComponent(String(queryId))}/toggle/`);
+  }
+
+  sourceRows.forEach((row) => {
+    const saveBtn = row.querySelector("[data-save-source='1']");
+    const statusPill = row.querySelector("[data-status-pill='1']");
+
+    if (!saveBtn) return;
+
+    saveBtn.addEventListener("click", async () => {
+      const sourceId = row.dataset.sourceId || "";
+      if (!sourceId) return;
+
+      const payload = {
+        is_active: !!row.querySelector("[data-field='is_active']")?.checked,
+        use_rss: !!row.querySelector("[data-field='use_rss']")?.checked,
+        use_llm_extraction: !!row.querySelector("[data-field='use_llm_extraction']")?.checked,
+        verify_ssl: !!row.querySelector("[data-field='verify_ssl']")?.checked,
+        schedule_tier: String(row.querySelector("[data-field='schedule_tier']")?.value || "medium"),
+        schedule_interval_hours: Number(row.querySelector("[data-field='schedule_interval_hours']")?.value || 24),
+      };
+
+      saveBtn.disabled = true;
+      try {
+        const result = await request(sourceUpdateUrl(sourceId), "POST", payload);
+        const active = !!(result && result.is_active);
+        if (statusPill) {
+          statusPill.className = "set-status " + (active ? "ok" : "bad");
+          statusPill.textContent = active ? "{% trans 'Active' %}" : "{% trans 'Inactive' %}";
+        }
+        showToast("{% trans 'Source settings saved.' %}", true);
+      } catch (err) {
+        showToast(err && err.message ? err.message : "{% trans 'Failed to save source settings.' %}", false);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+  });
+
+  if (queryList) {
+    queryList.addEventListener("change", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || !target.matches("[data-query-active='1']")) {
+        return;
+      }
+
+      const queryItem = target.closest("[data-query-id]");
+      const queryId = queryItem ? queryItem.getAttribute("data-query-id") : "";
+      if (!queryId) return;
+
+      target.disabled = true;
+      try {
+        await request(queryToggleUrl(queryId), "POST", { is_active: !!target.checked });
+        const label = queryItem.querySelector("label span");
+        if (label) {
+          label.textContent = target.checked ? "{% trans 'Active' %}" : "{% trans 'Disabled' %}";
+        }
+        showToast("{% trans 'Query updated.' %}", true);
+      } catch (err) {
+        target.checked = !target.checked;
+        showToast(err && err.message ? err.message : "{% trans 'Failed to update query.' %}", false);
+      } finally {
+        target.disabled = false;
+      }
+    });
+  }
+
+  if (addQueryButton && addQueryInput) {
+    addQueryButton.addEventListener("click", async () => {
+      const queryText = String(addQueryInput.value || "").trim();
+      if (!queryText) {
+        showToast("{% trans 'Please enter a query.' %}", false);
+        return;
+      }
+
+      addQueryButton.disabled = true;
+      try {
+        const payload = await request(urls.addQuery, "POST", {
+          category: "{{ category_key|default:scraping_current_category }}",
+          query_text: queryText,
+          is_active: true,
+        });
+
+        if (payload && payload.id && queryList) {
+          const node = document.createElement("div");
+          node.className = "set-query-item";
+          node.setAttribute("data-query-id", String(payload.id));
+          node.innerHTML = `
+            <div>${queryText}</div>
+            <div class="set-query-actions">
+              <label class="set-control-row">
+                <input class="set-switch" type="checkbox" data-query-active="1" checked>
+                <span>{% trans "Active" %}</span>
+              </label>
+            </div>
+          `;
+          queryList.prepend(node);
+          if (emptyQueryMessage) {
+            emptyQueryMessage.remove();
+          }
+        }
+
+        addQueryInput.value = "";
+        showToast("{% trans 'Query added.' %}", true);
+      } catch (err) {
+        showToast(err && err.message ? err.message : "{% trans 'Failed to add query.' %}", false);
+      } finally {
+        addQueryButton.disabled = false;
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

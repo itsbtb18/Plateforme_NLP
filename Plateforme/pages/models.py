@@ -535,6 +535,34 @@ def news_pdf_upload_to(instance, filename):
     return f"news/pdfs/{timezone.now():%Y/%m}/{filename}"
 
 
+NEWS_TYPE_META = {
+    "paper": {
+        "icon": "fa-file-lines",
+        "color": "#3B82F6",
+    },
+    "dataset": {
+        "icon": "fa-database",
+        "color": "#1D9E75",
+    },
+    "tool": {
+        "icon": "fa-screwdriver-wrench",
+        "color": "#F59E0B",
+    },
+    "event": {
+        "icon": "fa-calendar-days",
+        "color": "#FF7F50",
+    },
+    "thesis": {
+        "icon": "fa-graduation-cap",
+        "color": "#534AB7",
+    },
+    "news": {
+        "icon": "fa-newspaper",
+        "color": "#a78bfa",
+    },
+}
+
+
 class NewsPublication(models.Model):
     TYPE_PAPER = "paper"
     TYPE_DATASET = "dataset"
@@ -607,6 +635,20 @@ class NewsPublication(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def type_meta(self):
+        return NEWS_TYPE_META.get(self.type, NEWS_TYPE_META.get(self.TYPE_NEWS))
+
+    @property
+    def type_icon(self):
+        return self.type_meta.get("icon", "fa-newspaper")
+
+    @property
+    def type_color(self):
+        return self.type_meta.get("color", "#a78bfa")
+
+
 
     def get_absolute_url(self):
         from django.urls import reverse

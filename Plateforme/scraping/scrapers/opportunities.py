@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Any
 
@@ -276,15 +277,15 @@ class OpportunityScraper(BaseScraper):
                             obj.save()
                             created = False
                         else:
-                        defaults.setdefault("scrape_status", "PENDING_REVIEW")
-                        if "last_scraped_at" in fields:
-                            defaults["last_scraped_at"] = now
-                        if "update_counter" in fields:
-                            defaults.setdefault("update_counter", 0)
-                        create_data = dict(defaults)
-                        create_data.update(lookup)
-                        obj = model.objects.create(**create_data)
-                        created = True
+                            defaults.setdefault("scrape_status", "PENDING_REVIEW")
+                            if "last_scraped_at" in fields:
+                                defaults["last_scraped_at"] = now
+                            if "update_counter" in fields:
+                                defaults.setdefault("update_counter", 0)
+                            create_data = dict(defaults)
+                            create_data.update(lookup)
+                            obj = model.objects.create(**create_data)
+                            created = True
             except Exception as exc:
                 self._log_error(
                     "opportunity_upsert_failed",
@@ -518,11 +519,15 @@ class OpportunityScraper(BaseScraper):
 
     @staticmethod
     def _normalize_date(value: Any) -> str | None:
-        if value is None:
+        if not value:
             return None
         text = str(value).strip()
-        if len(text) == 10 and text[4] == "-" and text[7] == "-":
-            return text
+        if not text or text == "[NEEDS RESEARCH]" or text.lower() == "null":
+            return None
+            
+        candidate = text[:10]
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", candidate):
+            return candidate
         return None
 
     @staticmethod

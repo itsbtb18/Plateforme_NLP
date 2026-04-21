@@ -18,6 +18,7 @@ from ipaddress import ip_address, ip_network
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
 
+from celery import current_app as current_celery_app
 from celery.result import AsyncResult
 from django.apps import apps
 from django.conf import settings
@@ -41,6 +42,7 @@ from events.models import Event
 from feed.models import Post
 from resources.models import Course, NLPTool
 
+from scraping.extractors.core.llm_validation import GroqLLMClient
 from scraping.intelligence import detect_trends
 from scraping.scrapers.custom_scraper import CustomDomainScraper
 from scraping.validators.content_validator import ContentValidator
@@ -57,7 +59,13 @@ from .models import (
     SearchQuery,
 )
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
-from .tasks import push_scraping_progress, run_scraper_task, validate_source_async
+from .scraping_settings import scraping_settings as SS
+from .tasks import (
+    push_scraping_progress,
+    run_quick_scrape_task,
+    run_scraper_task,
+    validate_source_async,
+)
 from .translation import ArabicTranslator
 
 try:
@@ -131,6 +139,7 @@ SCRAPING_NAV_CATEGORY_KEYS = (
     "opportunities",
     "courses",
     "news",
+    "laws",
 )
 
 
@@ -1019,6 +1028,11 @@ def _build_recent_runs_rows(category: str, limit: int = 10):
             {
                 "run_id": str(run.id),
                 "status": run.status,
+                "run_mode": (
+                    "quick"
+                    if str(run.current_source or "").strip().lower() == "quick_scrape"
+                    else "standard"
+                ),
                 "started_at": run.started_at.isoformat() if run.started_at else None,
                 "duration_seconds": run.duration,
                 "items_saved": int(run.items_created or 0),
@@ -1488,6 +1502,11 @@ def scraping_dashboard_by_category(request, category: str):
             "items_updated": int(run.items_updated or 0),
             "items_skipped": int(run.items_skipped or 0),
             "status": str(run.status or "-").upper(),
+            "run_mode": (
+                "quick"
+                if str(run.current_source or "").strip().lower() == "quick_scrape"
+                else "standard"
+            ),
         }
         for run in recent_runs
     ]
@@ -1511,6 +1530,10 @@ def scraping_dashboard_by_category(request, category: str):
             )
         )
     )
+    is_rtl_lang = str(getattr(request, "LANGUAGE_CODE", "")).lower().startswith("ar")
+
+    def ui(en_text: str, ar_text: str) -> str:
+        return ar_text if is_rtl_lang else str(_(en_text))
 
     context = {
         "page": "scraping",
@@ -1560,10 +1583,290 @@ def scraping_settings_by_category(request, category: str):
 @user_passes_test(is_admin)
 @require_GET
 def scraping_settings_page(request):
-    """Scraping module settings landing page."""
+    """Render a category-aware scraping settings page with live configuration data."""
     _log_scraping_action(request)
+
+    category_key = _resolve_scraping_nav_category(request)
+    category_name = str(
+        _(
+            (CATEGORY_META.get(category_key, {}) or {}).get(
+                "label", category_key.title()
+            )
+        )
+    )
+    is_rtl_lang = str(getattr(request, "LANGUAGE_CODE", "")).lower().startswith("ar")
+
+    def ui(en_text: str, ar_text: str) -> str:
+        return ar_text if is_rtl_lang else str(_(en_text))
+
+    category_sources_qs = ScrapingSource.objects.filter(category=category_key)
+    all_sources_qs = ScrapingSource.objects.all()
+
+    source_stats = {
+        "total": int(category_sources_qs.count()),
+        "active": int(category_sources_qs.filter(is_active=True).count()),
+        "inactive": int(category_sources_qs.filter(is_active=False).count()),
+        "rss_enabled": int(category_sources_qs.filter(use_rss=True).count()),
+        "llm_enabled": int(
+            category_sources_qs.filter(use_llm_extraction=True).count()
+        ),
+        "ssl_disabled": int(category_sources_qs.filter(verify_ssl=False).count()),
+        "proxy_enabled": int(
+            category_sources_qs.exclude(proxy_url__isnull=True)
+            .exclude(proxy_url="")
+            .count()
+        ),
+        "global_total": int(all_sources_qs.count()),
+        "global_active": int(all_sources_qs.filter(is_active=True).count()),
+    }
+
+    schedule_tier_labels = {
+        "very_high": ui("Very High", "عال جدا"),
+        "high": ui("High", "عال"),
+        "medium": ui("Medium", "متوسط"),
+        "low": ui("Low", "منخفض"),
+        "dormant": ui("Dormant", "خامل"),
+    }
+    schedule_tier_counts = {
+        key: int(category_sources_qs.filter(schedule_tier=key).count())
+        for key in schedule_tier_labels
+    }
+    schedule_tier_rows = [
+        {
+            "key": tier_key,
+            "label": tier_label,
+            "count": schedule_tier_counts.get(tier_key, 0),
+        }
+        for tier_key, tier_label in schedule_tier_labels.items()
+    ]
+
+    validation_counts = {
+        "GREEN": int(category_sources_qs.filter(validation_status="GREEN").count()),
+        "YELLOW": int(
+            category_sources_qs.filter(validation_status="YELLOW").count()
+        ),
+        "RED": int(category_sources_qs.filter(validation_status="RED").count()),
+        "PENDING": int(
+            category_sources_qs.filter(validation_status="PENDING").count()
+        ),
+        "UNKNOWN": int(
+            category_sources_qs.filter(validation_status="UNKNOWN").count()
+        ),
+    }
+
+    source_rows = []
+    for source in category_sources_qs.order_by("name")[:40]:
+        source_rows.append(
+            {
+                "id": str(source.id),
+                "name": source.name,
+                "url": source.base_url or source.url,
+                "is_active": bool(source.is_active),
+                "use_rss": bool(source.use_rss),
+                "use_llm_extraction": bool(source.use_llm_extraction),
+                "verify_ssl": bool(source.verify_ssl),
+                "has_proxy": bool(str(source.proxy_url or "").strip()),
+                "schedule_tier": str(source.schedule_tier or "medium"),
+                "schedule_interval_hours": int(source.schedule_interval_hours or 0),
+                "validation_status": str(source.validation_status or "UNKNOWN"),
+                "last_run_status": str(source.last_run_status or "pending"),
+                "last_run_items_created": int(source.last_run_items_created or 0),
+                "last_scraped": source.last_scraped,
+                "consecutive_failures": int(source.consecutive_failures or 0),
+            }
+        )
+
+    query_rows = list(
+        SearchQuery.objects.filter(category=category_key)
+        .order_by("-is_active", "query_text")
+        .values("id", "query_text", "is_active")[:40]
+    )
+    active_query_count = sum(1 for row in query_rows if row.get("is_active"))
+
+    bool_yes = ui("Yes", "نعم")
+    bool_no = ui("No", "لا")
+
+    settings_sections = [
+        {
+            "title": ui("Timeouts", "مهلات الاتصال"),
+            "items": [
+                {
+                    "label": ui("Connect timeout", "مهلة الاتصال"),
+                    "value": f"{SS.CONNECT_TIMEOUT}s",
+                    "hint": ui(
+                        "Maximum time to open a TCP connection.",
+                        "الحد الأقصى لفتح اتصال TCP.",
+                    ),
+                },
+                {
+                    "label": ui("Read timeout", "مهلة القراءة"),
+                    "value": f"{SS.READ_TIMEOUT}s",
+                    "hint": ui(
+                        "Maximum wait time for response body.",
+                        "الحد الأقصى لانتظار محتوى الاستجابة.",
+                    ),
+                },
+                {
+                    "label": ui("Total request timeout", "المهلة الكلية للطلب"),
+                    "value": f"{SS.TOTAL_TIMEOUT}s",
+                    "hint": ui(
+                        "Hard cap per outbound request.",
+                        "حد أقصى صارم لكل طلب خارجي.",
+                    ),
+                },
+                {
+                    "label": ui("LLM timeout", "مهلة LLM"),
+                    "value": f"{SS.LLM_TIMEOUT}s",
+                    "hint": ui(
+                        "Maximum wait time for LLM calls.",
+                        "الحد الأقصى لانتظار استدعاءات LLM.",
+                    ),
+                },
+            ],
+        },
+        {
+            "title": ui("Retry & Backoff", "إعادة المحاولة والتراجع"),
+            "items": [
+                {
+                    "label": ui("Max retries", "أقصى عدد للمحاولات"),
+                    "value": str(SS.MAX_RETRIES),
+                    "hint": ui(
+                        "Maximum retry attempts per request.",
+                        "أقصى محاولات إعادة لكل طلب.",
+                    ),
+                },
+                {
+                    "label": ui("Backoff base", "قاعدة التراجع"),
+                    "value": f"{SS.RETRY_BACKOFF_BASE}s",
+                    "hint": ui(
+                        "Initial delay used for exponential backoff.",
+                        "التأخير الابتدائي المستخدم في التراجع الأسي.",
+                    ),
+                },
+                {
+                    "label": ui("Backoff cap", "الحد الأعلى للتراجع"),
+                    "value": f"{SS.RETRY_BACKOFF_CAP}s",
+                    "hint": ui(
+                        "Maximum delay between retries.",
+                        "أقصى تأخير بين المحاولات.",
+                    ),
+                },
+            ],
+        },
+        {
+            "title": ui("Deduplication", "إزالة التكرار"),
+            "items": [
+                {
+                    "label": ui("Jaccard threshold", "عتبة جاكارد"),
+                    "value": str(SS.JACCARD_THRESHOLD),
+                    "hint": ui(
+                        "Loose textual similarity threshold.",
+                        "عتبة تشابه نصي مرن.",
+                    ),
+                },
+                {
+                    "label": ui("Strict Jaccard", "جاكارد الصارم"),
+                    "value": str(SS.STRICT_JACCARD),
+                    "hint": ui(
+                        "Strict textual similarity threshold.",
+                        "عتبة تشابه نصي صارمة.",
+                    ),
+                },
+                {
+                    "label": ui("Semantic fallback", "البديل الدلالي"),
+                    "value": str(SS.SEMANTIC_FALLBACK),
+                    "hint": ui(
+                        "Cosine similarity fallback threshold.",
+                        "عتبة بديل تشابه جيب التمام.",
+                    ),
+                },
+                {
+                    "label": ui("Dedup window", "نافذة إزالة التكرار"),
+                    "value": str(SS.DEDUP_WINDOW),
+                    "hint": ui(
+                        "Recent records scanned for duplicates.",
+                        "السجلات الحديثة المفحوصة لاكتشاف التكرار.",
+                    ),
+                },
+            ],
+        },
+        {
+            "title": ui("System Limits", "حدود النظام"),
+            "items": [
+                {
+                    "label": ui("RSS max items", "الحد الأقصى لعناصر RSS"),
+                    "value": str(SS.RSS_MAX_ITEMS),
+                    "hint": ui(
+                        "Maximum entries fetched from RSS feeds.",
+                        "أقصى عناصر يتم جلبها من RSS.",
+                    ),
+                },
+                {
+                    "label": ui("Concurrent downloads", "التنزيلات المتزامنة"),
+                    "value": str(SS.MAX_CONCURRENT_DOWNLOADS),
+                    "hint": ui(
+                        "Parallel media downloads per run.",
+                        "تنزيلات وسائط متوازية لكل تشغيل.",
+                    ),
+                },
+                {
+                    "label": ui("Max document size", "أقصى حجم للملف"),
+                    "value": f"{SS.MAX_DOCUMENT_MB} MB",
+                    "hint": ui(
+                        "Maximum allowed document size.",
+                        "أقصى حجم مسموح للمستند.",
+                    ),
+                },
+                {
+                    "label": ui("Max image size", "أقصى حجم للصورة"),
+                    "value": f"{SS.MAX_IMAGE_MB} MB",
+                    "hint": ui(
+                        "Maximum allowed image size.",
+                        "أقصى حجم مسموح للصورة.",
+                    ),
+                },
+                {
+                    "label": ui("Automatic schedules enabled", "الجدولة التلقائية مفعلة"),
+                    "value": bool_no if bool(getattr(settings, "SCRAPING_MANUAL_ONLY", True)) else bool_yes,
+                    "hint": ui(
+                        "If disabled, runs are manual-only.",
+                        "عند تعطيلها تصبح التشغيلات يدوية فقط.",
+                    ),
+                },
+            ],
+        },
+    ]
+
+    has_active_sources = source_stats["active"] > 0
     context = {
         "page": "scraping",
+        "category_key": category_key,
+        "category_name": category_name,
+        "category_active_tab": "settings",
+        "category_global_status": "ok" if has_active_sources else "warn",
+        "category_global_status_label": (
+            ui("Global status: OK", "الحالة العامة: جيد")
+            if has_active_sources
+            else ui("Global status: No active sources", "الحالة العامة: لا توجد مصادر نشطة")
+        ),
+        "source_stats": source_stats,
+        "schedule_tier_labels": schedule_tier_labels,
+        "schedule_tier_counts": schedule_tier_counts,
+        "schedule_tier_rows": schedule_tier_rows,
+        "validation_counts": validation_counts,
+        "source_rows": source_rows,
+        "query_rows": query_rows,
+        "active_query_count": active_query_count,
+        "settings_sections": settings_sections,
+        "settings_update_source_url_template": reverse(
+            "scraping:update_source_settings",
+            kwargs={"source_id": uuid.UUID("00000000-0000-0000-0000-000000000000")},
+        ),
+        "settings_toggle_query_url_template": reverse(
+            "scraping:toggle_prompt_api",
+            kwargs={"query_id": 0},
+        ),
+        "settings_add_query_url": reverse("scraping:add_prompt_api"),
         **_scraping_shell_context(request, active_page="settings"),
     }
     return render(request, "scraping/settings.html", context)
@@ -1870,12 +2173,91 @@ def _scraping_result_category_map():
                 ),
             }
 
+    law_model = _resolve_dynamic_model(
+        [
+            ("resources", "Law"),
+            ("events", "Law"),
+        ]
+    )
+    if law_model is not None:
+        title_field = _first_existing_field(
+            law_model,
+            "law_title",
+            "title",
+            "title_en",
+            "name",
+        )
+        description_field = _first_existing_field(
+            law_model,
+            "legal_text",
+            "description",
+            "description_en",
+            "summary",
+            "content",
+        )
+        source_field = _first_existing_field(
+            law_model,
+            "source_url",
+            "url",
+            "access_link",
+            "document_url",
+        )
+        date_field = _first_existing_field(
+            law_model,
+            "created_at",
+            "creation_date",
+            "updated_at",
+            "last_scraped_at",
+        )
+        status_field = _first_existing_field(
+            law_model,
+            "approval_status",
+            "status",
+        )
+
+        if (
+            title_field
+            and description_field
+            and source_field
+            and date_field
+            and status_field
+        ):
+            category_map["laws"] = {
+                "label": "Laws",
+                "model": law_model,
+                "title_field": title_field,
+                "description_field": description_field,
+                "source_field": source_field,
+                "date_field": date_field,
+                "status_field": status_field,
+                "entity_field": _first_existing_field(
+                    law_model,
+                    "category_tags",
+                    "keywords",
+                    "entities",
+                ),
+                "confidence_field": _first_existing_field(
+                    law_model,
+                    "confidence_score",
+                    "relevance_score",
+                ),
+            }
+
     return category_map
 
 
-def _scraping_pending_queue_count() -> int:
+def _scraping_pending_queue_count(category: str | None = None) -> int:
     total_pending = 0
-    for cfg in _scraping_result_category_map().values():
+    category_map = _scraping_result_category_map()
+    if category:
+        cfg = category_map.get(str(category).strip().lower())
+        iterable_cfgs = [cfg] if cfg else []
+    else:
+        iterable_cfgs = list(category_map.values())
+
+    for cfg in iterable_cfgs:
+        if not cfg:
+            continue
         model_cls = cfg.get("model")
         status_field = cfg.get("status_field")
         source_field = cfg.get("source_field")
@@ -1936,6 +2318,20 @@ def _resolve_scraping_nav_category(request) -> str:
     return current_category
 
 
+def _resolve_scraping_selected_category(request) -> str:
+    if request.resolver_match is None:
+        return ""
+
+    resolver_category = (
+        str((request.resolver_match.kwargs or {}).get("category") or "")
+        .strip()
+        .lower()
+    )
+    if resolver_category in SCRAPING_NAV_CATEGORY_KEYS:
+        return resolver_category
+    return ""
+
+
 def _set_category_request_context(request, category: str) -> str:
     category_key = str(category or "").strip().lower()
     if category_key not in SCRAPING_NAV_CATEGORY_KEYS:
@@ -1949,20 +2345,26 @@ def _set_category_request_context(request, category: str) -> str:
 
 
 def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
+    language_code = str(getattr(request, "LANGUAGE_CODE", "") or "").lower()
+    is_rtl = language_code.startswith("ar")
+
+    def crumb(en_text: str, ar_text: str) -> str:
+        return ar_text if is_rtl else str(_(en_text))
+
+    selected_category = _resolve_scraping_selected_category(request)
     current_category = _resolve_scraping_nav_category(request)
+    category_for_links = selected_category or current_category
     category_dashboard_url = reverse(
         "scraping:category_dashboard",
-        kwargs={"category": current_category},
+        kwargs={"category": category_for_links},
     )
-    category_label = (
-        str(_((CATEGORY_META.get(current_category, {}) or {}).get("label", "")))
-        or current_category.title()
-    )
+    root_dashboard_url = reverse("scraping:dashboard")
+    dashboard_url = category_dashboard_url if selected_category else root_dashboard_url
 
     breadcrumbs: list[dict[str, str]] = [
         {
-            "label": str(_("Scraping")),
-            "url": category_dashboard_url,
+            "label": crumb("Scraping", "الاستخراج"),
+            "url": dashboard_url,
         }
     ]
 
@@ -1973,18 +2375,17 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         kwargs = request.resolver_match.kwargs or {}
 
     if url_name == "category_dashboard":
-        breadcrumbs.append({"label": category_label, "url": ""})
+        breadcrumbs.append({"label": crumb("Hub", "المركز"), "url": ""})
     elif url_name in {"dashboard", "scraping_dashboard"}:
-        breadcrumbs.append({"label": str(_("Hub")), "url": ""})
+        breadcrumbs.append({"label": crumb("Hub", "المركز"), "url": ""})
     elif url_name == "category_results":
-        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
-        breadcrumbs.append({"label": str(_("Pending Queue")), "url": ""})
+        breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
     elif url_name in {"results", "scraping_results"}:
-        breadcrumbs.append({"label": str(_("Pending Queue")), "url": ""})
+        breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
     elif url_name in {"result_detail", "scraping_result_detail"}:
         breadcrumbs.append(
             {
-                "label": str(_("Pending Queue")),
+                "label": crumb("Pending Queue", "قائمة المراجعة"),
                 "url": reverse("scraping:results"),
             }
         )
@@ -1994,25 +2395,22 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
             short_item_id = short_item_id.split("-", 1)[0]
         if len(short_item_id) > 8:
             short_item_id = short_item_id[:8]
-        item_label = str(_("Item"))
+        item_label = crumb("Item", "عنصر")
         if short_item_id:
             item_label = f"{item_label} #{short_item_id}"
         breadcrumbs.append({"label": item_label, "url": ""})
     elif url_name == "category_analytics":
-        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
-        breadcrumbs.append({"label": str(_("Analytics")), "url": ""})
+        breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
     elif url_name in {"scraping_analytics", "analytics"}:
-        breadcrumbs.append({"label": str(_("Analytics")), "url": ""})
+        breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
     elif url_name == "category_sources":
-        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
-        breadcrumbs.append({"label": str(_("Sources")), "url": ""})
+        breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
     elif url_name in {"scraping_sources", "sources"}:
-        breadcrumbs.append({"label": str(_("Sources")), "url": ""})
+        breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
     elif url_name == "category_settings":
-        breadcrumbs.append({"label": category_label, "url": category_dashboard_url})
-        breadcrumbs.append({"label": str(_("Settings")), "url": ""})
+        breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
     elif url_name in {"settings", "scraping_settings"}:
-        breadcrumbs.append({"label": str(_("Settings")), "url": ""})
+        breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
 
     return breadcrumbs
 
@@ -2024,20 +2422,60 @@ def _scraping_shell_context(request, *, active_page: str) -> dict:
     unread_count = int(ScrapingNotification.objects.filter(is_read=False).count())
 
     admin_name = ""
+    admin_avatar_url = ""
+    admin_initials = "A"
     if getattr(request, "user", None) is not None and request.user.is_authenticated:
-        admin_name = request.user.get_full_name() or request.user.get_username()
+        name_candidate = ""
+        if hasattr(request.user, "get_full_name_display") and callable(
+            request.user.get_full_name_display
+        ):
+            name_candidate = str(request.user.get_full_name_display() or "").strip()
+        if not name_candidate:
+            name_candidate = str(request.user.get_full_name() or "").strip()
+        if "@" in name_candidate:
+            name_candidate = ""
+
+        if not name_candidate:
+            username_candidate = str(request.user.get_username() or "").strip()
+            if username_candidate:
+                name_candidate = username_candidate.split("@", 1)[0].strip()
+        if not name_candidate:
+            name_candidate = str(_("Administrator"))
+        admin_name = name_candidate
+
+        avatar_obj = getattr(request.user, "avatar", None)
+        if avatar_obj:
+            try:
+                admin_avatar_url = str(avatar_obj.url or "")
+            except Exception:
+                admin_avatar_url = ""
+
+        if hasattr(request.user, "get_initials") and callable(request.user.get_initials):
+            initials_candidate = str(request.user.get_initials() or "").strip()
+            if initials_candidate:
+                admin_initials = initials_candidate[:2].upper()
+        elif admin_name:
+            admin_initials = admin_name[:1].upper()
 
     nav_categories = _scraping_nav_categories()
     current_category = _resolve_scraping_nav_category(request)
+    selected_category = _resolve_scraping_selected_category(request)
+    pending_count = _scraping_pending_queue_count(selected_category or None)
+    language_code = str(getattr(request, "LANGUAGE_CODE", "") or "").lower()
+    is_rtl = language_code.startswith("ar")
 
     return {
         "scraping_active_page": active_page,
+        "scraping_is_rtl": is_rtl,
         "scraping_nav_categories": nav_categories,
         "scraping_current_category": current_category,
-        "scraping_pending_count": _scraping_pending_queue_count(),
+        "scraping_selected_category": selected_category,
+        "scraping_pending_count": pending_count,
         "scraping_notifications": notification_rows,
         "scraping_unread_count": unread_count,
         "scraping_admin_name": admin_name,
+        "scraping_admin_avatar_url": admin_avatar_url,
+        "scraping_admin_initials": admin_initials,
         "scraping_breadcrumbs": _build_scraping_breadcrumbs(request),
         "scraping_mark_notifications_read_url": reverse(
             "scraping:mark_notifications_read"
@@ -3547,21 +3985,26 @@ def scraping_results(request):
             }
         )
 
-    resolved_category_key = (
-        selected_category
-        if selected_category != "all"
-        else _resolve_scraping_nav_category(request)
-    )
-    resolved_category_label = (
-        category_map.get(resolved_category_key, {}).get("label")
-        or CATEGORY_META.get(resolved_category_key, {}).get("label")
-        or resolved_category_key.title()
-    )
+    if selected_category == "all":
+        resolved_category_key = "all"
+        resolved_category_label = str(_("All categories"))
+    else:
+        resolved_category_key = selected_category
+        resolved_category_label = (
+            category_map.get(resolved_category_key, {}).get("label")
+            or CATEGORY_META.get(resolved_category_key, {}).get("label")
+            or resolved_category_key.title()
+        )
     category_global_status = "warn" if filtered_low_confidence_count > 0 else "ok"
     category_global_status_label = (
         str(_("Global status: Needs attention"))
         if category_global_status == "warn"
         else str(_("Global status: OK"))
+    )
+    pending_total = (
+        pending_counts.get(selected_category, 0)
+        if selected_category != "all"
+        else sum(pending_counts.values())
     )
 
     return render(
@@ -3583,7 +4026,7 @@ def scraping_results(request):
             "previous_page": previous_page,
             "next_page": next_page,
             "category_tabs": category_tabs,
-            "pending_total": sum(pending_counts.values()),
+            "pending_total": pending_total,
             "filtered_category_counts_json": json.dumps(filtered_category_counts),
             "filtered_low_confidence_count": filtered_low_confidence_count,
             "export_url": export_url,
@@ -4131,24 +4574,39 @@ def run_scraper(request, category):
         triggered_by=request.user,
     )
 
-    # --- Try async (Celery) execution first ---
-    try:
-        async_result = run_scraper_task.delay(
-            category,
-            run_id=str(run.pk),
-            user_id=request.user.pk,
-        )
-        run.task_id = async_result.id
-        run.save(update_fields=["task_id"])
+    def _celery_workers_available() -> bool:
+        try:
+            inspector = current_celery_app.control.inspect(timeout=1)
+            pings = inspector.ping() if inspector else None
+            return bool(pings)
+        except Exception as exc:
+            logger.warning(
+                "celery_worker_ping_failed",
+                extra={"error": str(exc), "context": category},
+                exc_info=False,
+            )
+            return False
 
-        return JsonResponse(
-            {
-                "status": "started",
-                "run_id": str(run.pk),
-                "task_id": async_result.id,
-                "message": "Scraper dispatched to background worker.",
-            }
-        )
+    # --- Try async (Celery) execution first, only when workers are available ---
+    try:
+        if _celery_workers_available():
+            async_result = run_scraper_task.delay(
+                category,
+                run_id=str(run.pk),
+                user_id=request.user.pk,
+            )
+            run.task_id = async_result.id
+            run.save(update_fields=["task_id"])
+
+            return JsonResponse(
+                {
+                    "status": "started",
+                    "run_id": str(run.pk),
+                    "task_id": async_result.id,
+                    "message": "Scraper dispatched to background worker.",
+                }
+            )
+        logger.warning("No Celery workers detected; falling back to synchronous run")
 
     except Exception as celery_exc:
         # Celery unavailable — fall back to synchronous execution
@@ -4210,6 +4668,138 @@ def run_scraper(request, category):
         return JsonResponse(
             {
                 "status": "error",
+                "message": str(exc),
+            },
+            status=500,
+        )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def run_quick_scrape(request, category):
+    """AJAX endpoint: dispatch quick broad-discovery scrape to Celery."""
+    _log_scraping_action(request)
+
+    if not _check_rate_limit(
+        request,
+        scope="quick_run_trigger",
+        max_calls=20,
+        period=3600,
+    ):
+        return JsonResponse(
+            {"error": "Too many quick scrape requests. Max 20 per hour."},
+            status=429,
+            headers={"Retry-After": "3600"},
+        )
+
+    staff_error = _require_staff(request)
+    if staff_error:
+        return staff_error
+
+    if category not in CATEGORY_META:
+        return JsonResponse(
+            {"status": "error", "message": f"Unknown category: {category}"},
+            status=400,
+        )
+
+    run = ScrapingRun.objects.create(
+        category=category,
+        status="running",
+        items_updated=0,
+        triggered_by=request.user,
+        current_source="quick_scrape",
+        current_step="Quick scrape: broad web discovery",
+        current_message="Quick scrape started",
+        progress_total=6,
+    )
+
+    def _celery_workers_available() -> bool:
+        try:
+            inspector = current_celery_app.control.inspect(timeout=1)
+            pings = inspector.ping() if inspector else None
+            return bool(pings)
+        except Exception as exc:
+            logger.warning(
+                "celery_worker_ping_failed",
+                extra={"error": str(exc), "context": category},
+                exc_info=False,
+            )
+            return False
+
+    try:
+        if _celery_workers_available():
+            async_result = run_quick_scrape_task.delay(
+                category,
+                run_id=str(run.pk),
+                user_id=request.user.pk,
+            )
+            run.task_id = async_result.id
+            run.save(update_fields=["task_id"])
+
+            return JsonResponse(
+                {
+                    "status": "started",
+                    "run_id": str(run.pk),
+                    "task_id": async_result.id,
+                    "mode": "quick_scrape",
+                    "message": "Quick scrape dispatched to background worker.",
+                }
+            )
+        logger.warning(
+            "No Celery workers detected for quick scrape; falling back to synchronous run"
+        )
+    except Exception as celery_exc:
+        logger.warning(
+            "Quick scrape celery dispatch failed (%s); running synchronously",
+            celery_exc,
+        )
+
+    try:
+        result = run_quick_scrape_task.apply(
+            kwargs={
+                "category": category,
+                "run_id": str(run.pk),
+                "user_id": request.user.pk,
+            }
+        ).get()
+        return JsonResponse(
+            {
+                "status": "success",
+                "run_id": str(run.pk),
+                "mode": "quick_scrape",
+                "items_found": int(result.get("items_found", 0) or 0),
+                "items_created": int(result.get("items_created", 0) or 0),
+                "items_updated": int(result.get("items_updated", 0) or 0),
+                "items_skipped": int(result.get("items_skipped", 0) or 0),
+                "errors": result.get("errors", []),
+                "results": result.get("results", []),
+                "duration": run.duration,
+                "message": result.get("message") or "Quick scrape completed.",
+            }
+        )
+    except Exception as exc:
+        run.status = "failed"
+        run.errors = str(exc)
+        run.current_source = "quick_scrape"
+        run.current_step = str(exc)[:100]
+        run.current_message = str(exc)[:255]
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "status",
+                "errors",
+                "current_source",
+                "current_step",
+                "current_message",
+                "completed_at",
+            ]
+        )
+        return JsonResponse(
+            {
+                "status": "error",
+                "mode": "quick_scrape",
                 "message": str(exc),
             },
             status=500,
@@ -4300,6 +4890,124 @@ def quick_stats(request):
     """Return compact quick stats payload used by the dashboard sidebar."""
     _log_scraping_action(request)
     return JsonResponse(_collect_quick_stats_payload())
+
+
+def _parse_prompt_suggestions(raw_text: str) -> list[str]:
+    """Parse LLM output into a JSON array of non-empty prompt strings."""
+    text = str(raw_text or "").strip()
+    if not text:
+        return []
+
+    candidates: list = []
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            candidates = parsed
+    except (TypeError, json.JSONDecodeError):
+        pass
+
+    if not candidates:
+        array_match = re.search(r"\[[\s\S]*\]", text)
+        if array_match:
+            try:
+                parsed = json.loads(array_match.group(0))
+                if isinstance(parsed, list):
+                    candidates = parsed
+            except (TypeError, json.JSONDecodeError):
+                candidates = []
+
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for item in candidates:
+        prompt = str(item or "").strip()
+        if not prompt:
+            continue
+        key = prompt.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(prompt)
+    return cleaned
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=8, period_seconds=60, scope="action")
+def generate_search_prompts(request):
+    """Generate high-yield search prompts for one scraping category using Groq."""
+    _log_scraping_action(request)
+    try:
+        payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except (TypeError, json.JSONDecodeError):
+        payload = request.POST
+
+    category = str(payload.get("category") or "").strip().lower()
+    supported_categories = {
+        "events",
+        "tools",
+        "corpus",
+        "courses",
+        "opportunities",
+        "news",
+    }
+    if category not in supported_categories:
+        return JsonResponse({"error": "Unknown category"}, status=400)
+
+    existing_prompts = list(
+        SearchQuery.objects.filter(category=category, is_active=True)
+        .order_by("id")
+        .values_list("query_text", flat=True)
+    )
+    current_year = timezone.now().year
+    existing_prompts_list = json.dumps(existing_prompts, ensure_ascii=False)
+
+    system_prompt = (
+        "You are an expert NLP data curator specializing in Arabic and MENA "
+        "region NLP research. Generate highly effective web search queries "
+        "designed to discover maximum new content for a scraping pipeline. "
+        "Each query must be distinct, specific, and target sources not "
+        "commonly indexed."
+    )
+    user_prompt = f"""Generate 8 diverse, high-yield search queries for the category: {category}
+
+Rules:
+- Each query must be unique and target a different angle (geographic, temporal, linguistic, institutional, event-type)
+- Mix English and Arabic queries (at least 2 Arabic queries)
+- Include site-specific modifiers for at least 2 queries (site:.edu, site:.ac.*, site:.org, site:github.com, site:huggingface.co)
+- Include current year ({current_year}) or next year ({current_year + 1}) in time-sensitive queries
+- Target MENA, Maghreb, Gulf region institutions explicitly in at least 1 query
+- Do NOT repeat any of these already-used prompts: {existing_prompts_list}
+
+Return ONLY a JSON array of strings. No explanation. No markdown. Example:
+["query one", "query two", ...]
+
+Category-specific guidance:
+- events: conferences, workshops, shared tasks, challenges, symposiums, seminars, hackathons
+- tools: GitHub repos, HuggingFace models, APIs, tokenizers, libraries, datasets tools
+- corpus: datasets, annotated corpora, speech corpora, text collections, benchmarks
+- courses: MOOCs, university courses, bootcamps, certifications, training programs
+- opportunities: PhD positions, postdocs, research internships, NLP job openings, grants
+- news: research papers, arXiv preprints, tech news, government AI initiatives, lab announcements
+"""
+
+    try:
+        llm_client = GroqLLMClient(timeout=10, max_retries=1)
+        llm_text = llm_client._chat_with_groq(system_prompt, user_prompt)
+    except Exception as exc:
+        logger.warning(
+            "generate_search_prompts_call_failed",
+            extra={"category": category, "error": str(exc)},
+            exc_info=False,
+        )
+        return JsonResponse({"error": "LLM call failed"}, status=502)
+
+    prompts = _parse_prompt_suggestions(llm_text)
+    if not prompts:
+        return JsonResponse({"error": "Could not parse prompts"}, status=502)
+
+    return JsonResponse({"prompts": prompts[:8]})
 
 
 @login_required
@@ -4655,14 +5363,19 @@ def scraping_analytics_page(request):
         return _analytics_json_response(request, window=window)
 
     completed_runs_count = ScrapingRun.objects.filter(status="completed").count()
-    category_key = _resolve_scraping_nav_category(request)
-    category_name = str(
-        _(
-            (CATEGORY_META.get(category_key, {}) or {}).get(
-                "label", category_key.title()
+    selected_category = _resolve_scraping_selected_category(request)
+    if selected_category:
+        category_key = selected_category
+        category_name = str(
+            _(
+                (CATEGORY_META.get(category_key, {}) or {}).get(
+                    "label", category_key.title()
+                )
             )
         )
-    )
+    else:
+        category_key = "all"
+        category_name = str(_("All categories"))
     category_meta = {
         category: {
             "label": str(
@@ -4672,11 +5385,15 @@ def scraping_analytics_page(request):
         }
         for category in CATEGORY_META
     }
+    is_rtl_lang = str(getattr(request, "LANGUAGE_CODE", "")).lower().startswith("ar")
 
     context = {
         "page": "scraping",
         "completed_runs_count": completed_runs_count,
         "has_enough_data": completed_runs_count >= 3,
+        "initial_analytics_payload_json": json.dumps(
+            _collect_analytics_payload(window)
+        ),
         "default_range": window["range"],
         "default_date_from": window["start_date"].isoformat(),
         "default_date_to": window["end_date"].isoformat(),
@@ -4686,9 +5403,13 @@ def scraping_analytics_page(request):
         "category_active_tab": "analytics",
         "category_global_status": "ok" if completed_runs_count >= 1 else "warn",
         "category_global_status_label": (
-            str(_("Global status: OK"))
+            ("الحالة العامة: جيد" if is_rtl_lang else str(_("Global status: OK")))
             if completed_runs_count >= 1
-            else str(_("Global status: Insufficient data"))
+            else (
+                "الحالة العامة: بيانات غير كافية"
+                if is_rtl_lang
+                else str(_("Global status: Insufficient data"))
+            )
         ),
         **_scraping_shell_context(request, active_page="analytics"),
     }
@@ -5010,6 +5731,27 @@ def _collect_analytics_payload(window: dict) -> dict:
                 }
             )
 
+        # Keep Source Health charts populated even when health snapshots are missing
+        # by backfilling active sources with a neutral default score.
+        existing_health_sources = {
+            str(item.get("source") or "").strip().lower() for item in source_health
+        }
+        for source in ScrapingSource.objects.filter(category=category, is_active=True).only(
+            "name"
+        ):
+            source_name = str(source.name or "").strip()
+            if not source_name:
+                continue
+            if source_name.lower() in existing_health_sources:
+                continue
+            source_health.append(
+                {
+                    "source": source_name,
+                    "state": "unknown",
+                    "score": 0.0,
+                }
+            )
+
         last_completed = completed_runs.aggregate(last_run_at=Max("started_at"))[
             "last_run_at"
         ]
@@ -5079,6 +5821,40 @@ def _collect_analytics_payload(window: dict) -> dict:
     date_to_index = {date_value: idx for idx, date_value in enumerate(date_points)}
     category_series = {category: [0] * len(date_points) for category in category_keys}
 
+    # Build the daily scraped volume from persisted category records.
+    # This keeps analytics useful even when run logs are incomplete or rotated.
+    for category in category_keys:
+        cfg = category_cfg_map.get(category) or {}
+        model_cls = cfg.get("model")
+        date_field = cfg.get("date_field")
+        source_field = cfg.get("source_field")
+        if not model_cls or not date_field:
+            continue
+
+        field_names = {
+            field.name
+            for field in model_cls._meta.get_fields()
+            if getattr(field, "concrete", False)
+        }
+        if date_field not in field_names:
+            continue
+
+        records_qs = model_cls.objects.all()
+        if source_field and source_field in field_names:
+            records_qs = records_qs.exclude(**{f"{source_field}__isnull": True}).exclude(
+                **{source_field: ""}
+            )
+        records_qs = _apply_date_window(records_qs, date_field, window)
+
+        grouped = records_qs.values(f"{date_field}__date").annotate(total=Count("id"))
+        date_key = f"{date_field}__date"
+        for row in grouped:
+            row_date = row.get(date_key)
+            if row_date in date_to_index:
+                category_series[category][date_to_index[row_date]] += int(
+                    row.get("total") or 0
+                )
+
     series_runs = _apply_date_window(
         ScrapingRun.objects.filter(status="completed"),
         "started_at",
@@ -5091,9 +5867,10 @@ def _collect_analytics_payload(window: dict) -> dict:
             continue
         if run.category not in category_series:
             continue
-        category_series[run.category][date_to_index[run_date]] += (
-            _run_items_scraped_count(run)
-        )
+        if category_series[run.category][date_to_index[run_date]] == 0:
+            category_series[run.category][date_to_index[run_date]] += (
+                _run_items_scraped_count(run)
+            )
 
     translated_count = period_meta_qs.filter(translation_status="translated").count()
     copied_count = period_meta_qs.filter(
@@ -5921,6 +6698,80 @@ def toggle_custom_source(request, source_id):
             "id": str(source.id),
             "is_active": bool(source.is_active),
             "message": "Source activated" if source.is_active else "Source disabled",
+        }
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+@rate_limit(max_calls=60, period_seconds=60, scope="action")
+def update_source_settings(request, source_id):
+    """Update editable source settings from the settings page."""
+    _log_scraping_action(request)
+
+    source = ScrapingSource.objects.filter(pk=source_id).first()
+    if source is None:
+        return JsonResponse({"error": _("Source not found")}, status=404)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except (TypeError, json.JSONDecodeError):
+        payload = request.POST
+
+    schedule_tier = str(payload.get("schedule_tier") or source.schedule_tier).strip()
+    allowed_tiers = {"very_high", "high", "medium", "low", "dormant"}
+    if schedule_tier not in allowed_tiers:
+        return JsonResponse({"error": _("Invalid schedule tier")}, status=400)
+
+    interval_hours_raw = payload.get("schedule_interval_hours", source.schedule_interval_hours)
+    try:
+        interval_hours = int(interval_hours_raw)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": _("Invalid schedule interval")}, status=400)
+
+    if interval_hours < 1 or interval_hours > 168:
+        return JsonResponse(
+            {"error": _("Schedule interval must be between 1 and 168 hours")},
+            status=400,
+        )
+
+    source.is_active = _as_bool(payload.get("is_active"), default=source.is_active)
+    source.is_admin_disabled = not source.is_active
+    source.use_rss = _as_bool(payload.get("use_rss"), default=source.use_rss)
+    source.use_llm_extraction = _as_bool(
+        payload.get("use_llm_extraction"),
+        default=source.use_llm_extraction,
+    )
+    source.verify_ssl = _as_bool(payload.get("verify_ssl"), default=source.verify_ssl)
+    source.schedule_tier = schedule_tier
+    source.schedule_interval_hours = interval_hours
+    source.schedule_updated_at = timezone.now()
+
+    source.save(
+        update_fields=[
+            "is_active",
+            "is_admin_disabled",
+            "use_rss",
+            "use_llm_extraction",
+            "verify_ssl",
+            "schedule_tier",
+            "schedule_interval_hours",
+            "schedule_updated_at",
+        ]
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "id": str(source.id),
+            "is_active": bool(source.is_active),
+            "use_rss": bool(source.use_rss),
+            "use_llm_extraction": bool(source.use_llm_extraction),
+            "verify_ssl": bool(source.verify_ssl),
+            "schedule_tier": source.schedule_tier,
+            "schedule_interval_hours": int(source.schedule_interval_hours),
         }
     )
 

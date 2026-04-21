@@ -1,94 +1,1020 @@
 {% extends 'base.html' %}
-{% load i18n %}
-{% block title %}{{ publication.title }}{% endblock %}
+{% load i18n static %}
+
+{% block title %}{{ publication.title }} | {% if LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار{% else %}News{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== PUBLICATION DETAIL – DARK VIOLET THEME ===== */
+:root {
+    --pd-primary: #a78bfa;
+    --pd-primary-dark: #8b5cf6;
+    --pd-primary-light: #c4b5fd;
+    --pd-accent: #7c3aed;
+    --pd-accent-cyan: #06b6d4;
+    --pd-accent-pink: #ec4899;
+    --pd-primary-glow: rgba(167, 139, 250, 0.2);
+
+    --pd-deep: #0f1419;
+    --pd-navy: #1a1a2e;
+    --pd-white: #ffffff;
+    --pd-bg: #0f1419;
+    --pd-muted: rgba(167, 139, 250, 0.08);
+    --pd-subtle: rgba(167, 139, 250, 0.12);
+
+    --pd-text: #ffffff;
+    --pd-text-secondary: #d1d5db;
+    --pd-text-muted: #9ca3af;
+
+    --pd-border: rgba(167, 139, 250, 0.2);
+    --pd-border-light: rgba(167, 139, 250, 0.1);
+    --pd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --pd-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --pd-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.3);
+    --pd-shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+
+    --pd-success: #34d399;
+    --pd-success-bg: rgba(52, 211, 153, 0.15);
+    --pd-warning: #fbbf24;
+    --pd-warning-bg: rgba(251, 191, 36, 0.15);
+    --pd-danger: #ef4444;
+    --pd-danger-bg: rgba(239, 68, 68, 0.15);
+
+    --pd-radius-sm: 6px;
+    --pd-radius-md: 10px;
+    --pd-radius-lg: 14px;
+    --pd-radius-xl: 20px;
+    --pd-radius-full: 9999px;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    color: var(--pd-text);
+}
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
+
+/* ===== PAGE WRAPPER ===== */
+.pd-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.pd-page::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ===== HERO BANNER ===== */
+.pd-hero {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+    padding: 3rem 0;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.pd-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 60% 80% at 70% 30%, rgba(167, 139, 250, 0.1), transparent),
+        none;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.pd-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Breadcrumb */
+.pd-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.pd-breadcrumb a {
+    font-size: 0.875rem;
+    color: var(--pd-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.pd-breadcrumb a:hover { color: var(--pd-white); }
+.pd-breadcrumb span { font-size: 0.875rem; color: rgba(255, 255, 255, 0.5); }
+
+/* Hero Content Layout */
+.pd-hero-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+.pd-cover-box {
+    width: 120px;
+    height: 120px;
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    border-radius: var(--pd-radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+.pd-cover-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--pd-radius-xl);
+}
+
+.pd-cover-placeholder {
+    color: var(--pd-primary);
+    font-size: 3rem;
+    filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.3));
+}
+
+.pd-hero-info { flex: 1; }
+
+/* Badges */
+.pd-hero-badges {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.pd-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: var(--pd-radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.pd-badge-type {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(124, 58, 237, 0.1));
+    color: var(--pd-primary);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+.pd-badge-year {
+    background: rgba(6, 182, 212, 0.15);
+    color: var(--pd-accent-cyan);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+/* Title */
+.pd-hero-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #d1d5db;
+    margin: 0 0 1rem;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+}
+
+/* Meta Info */
+.pd-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-top: 0.5rem;
+}
+
+.pd-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--pd-text-secondary);
+}
+
+.pd-meta-item i { color: var(--pd-primary); }
+
+/* ===== MAIN LAYOUT ===== */
+.pd-main {
+    max-width: 1200px;
+    margin: 2rem auto 0;
+    padding: 0 2rem 4rem;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 2rem;
+    position: relative;
+    z-index: 2;
+}
+
+@media (max-width: 900px) {
+    .pd-main { grid-template-columns: 1fr; }
+}
+
+/* ===== LEFT COLUMN ===== */
+.pd-content { display: flex; flex-direction: column; gap: 1.5rem; }
+
+/* Section Cards */
+.pd-section {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-xl);
+    padding: 1.75rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: pdSlideIn 0.4s ease-out;
+}
+
+/* Detail Cards (used for link / viewer blocks) */
+.pd-card {
+    margin-bottom: 1.5rem;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-xl);
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    animation: pdSlideIn 0.4s ease-out;
+}
+
+.pd-card-header {
+    padding: 1.35rem 1.5rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    overflow-wrap: break-word;
+}
+
+.pd-card-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(167, 139, 250, 0.15);
+    border-radius: var(--pd-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pd-primary);
+    font-size: 1.125rem;
+    flex-shrink: 0;
+}
+
+.pd-card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--pd-text);
+    margin: 0;
+    line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.pd-card-body {
+    padding: 1.5rem;
+}
+
+.pd-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.pd-section-icon {
+    width: 44px;
+    height: 44px;
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pd-primary);
+    font-size: 1.2rem;
+}
+
+.pd-section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, var(--pd-primary) 0%, var(--pd-accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Abstract Text */
+.pd-abstract {
+    font-size: 0.95rem;
+    line-height: 1.9;
+    color: var(--pd-text-secondary);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.pd-abstract p {
+    color: var(--pd-text-secondary);
+    margin: 0 0 1rem;
+}
+.pd-abstract p:last-child { margin-bottom: 0; }
+
+/* Tags */
+.pd-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.pd-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--pd-text-secondary);
+    transition: all 0.2s;
+}
+
+.pd-tag:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--pd-primary);
+    color: var(--pd-primary);
+}
+
+.pd-tag i { color: var(--pd-primary); font-size: 0.8rem; }
+
+.pd-tag-lang {
+    background: rgba(6, 182, 212, 0.1);
+    border-color: rgba(6, 182, 212, 0.25);
+    color: var(--pd-accent-cyan);
+}
+
+.pd-tag-lang:hover {
+    background: rgba(6, 182, 212, 0.18);
+    border-color: var(--pd-accent-cyan);
+    color: #22d3ee;
+}
+
+.pd-tag-lang i { color: var(--pd-accent-cyan); }
+
+.pd-tag-keyword {
+    background: rgba(236, 72, 153, 0.1);
+    border-color: rgba(236, 72, 153, 0.25);
+    color: var(--pd-accent-pink);
+}
+
+.pd-tag-keyword:hover {
+    background: rgba(236, 72, 153, 0.18);
+    border-color: var(--pd-accent-pink);
+    color: #f472b6;
+}
+
+.pd-tag-keyword i { color: var(--pd-accent-pink); }
+
+/* Tag Group Label */
+.pd-tag-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--pd-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+/* Links Grid */
+.pd-link-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.8rem;
+}
+
+.pd-link-card {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 1.15rem 1.25rem;
+    border-radius: var(--pd-radius-lg);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    background: rgba(167, 139, 250, 0.06);
+    color: var(--pd-text-secondary);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.pd-link-card:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--pd-primary);
+    color: var(--pd-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(167, 139, 250, 0.15);
+}
+
+.pd-link-card i {
+    font-size: 1.3rem;
+    color: var(--pd-primary);
+    flex-shrink: 0;
+}
+
+.pd-doc-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 1rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(124, 58, 237, 0.2));
+    color: var(--pd-primary);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    border-radius: var(--pd-radius-md);
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
+}
+
+.pd-doc-action:hover {
+    transform: translateY(-2px);
+    color: #ddd6fe;
+    border-color: rgba(167, 139, 250, 0.6);
+    box-shadow: 0 8px 20px rgba(167, 139, 250, 0.25);
+}
+
+/* ===== SIDEBAR ===== */
+.pd-sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+
+@media (min-width: 901px) {
+    .pd-sidebar { position: sticky; top: 2rem; height: fit-content; }
+}
+
+/* Sidebar Quick Info Card */
+.pd-info-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-xl);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: pdSlideIn 0.4s ease-out 0.1s both;
+}
+
+.pd-info-header {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(124, 58, 237, 0.15) 100%);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.pd-info-header-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--pd-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+}
+
+.pd-info-body {
+    padding: 1.5rem;
+    background: rgba(167, 139, 250, 0.04);
+}
+
+.pd-info-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+}
+
+.pd-info-item:last-child { border-bottom: none; padding-bottom: 0; }
+.pd-info-item:first-child { padding-top: 0; }
+
+.pd-info-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pd-primary);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.pd-info-content { flex: 1; min-width: 0; }
+
+.pd-info-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--pd-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+    opacity: 0.8;
+}
+
+.pd-info-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--pd-text);
+    word-break: break-word;
+}
+
+.pd-info-value a {
+    color: var(--pd-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.pd-info-value a:hover {
+    color: var(--pd-accent-cyan);
+    text-decoration: underline;
+}
+
+/* Back Button */
+.pd-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 1rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--pd-primary), var(--pd-accent));
+    color: var(--pd-deep);
+    border: none;
+    border-radius: var(--pd-radius-md);
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.pd-back-btn:hover {
+    background: linear-gradient(135deg, var(--pd-primary-dark), var(--pd-primary));
+    color: var(--pd-deep);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+}
+
+/* Meta Card at bottom of sidebar */
+.pd-meta-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-lg);
+    padding: 1rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: pdSlideIn 0.4s ease-out 0.15s both;
+}
+
+.pd-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.pd-meta-label {
+    font-size: 0.8rem;
+    color: var(--pd-text-muted);
+    opacity: 0.8;
+}
+
+.pd-meta-value {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--pd-primary);
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes pdSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pdFadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pd-page {
+    animation: pdFadeInUp 0.5s ease-out;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .pd-hero {
+        padding: 1.5rem 0 2.5rem;
+    }
+
+    .pd-hero-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .pd-hero-badges { justify-content: center; }
+    .pd-hero-meta { justify-content: center; }
+
+    .pd-hero-title {
+        font-size: 1.75rem;
+    }
+
+    .pd-main {
+        padding: 0 1rem 3rem;
+    }
+}
+
+/* RTL Support */
+html[dir="rtl"] .pd-hero-content {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .pd-info-item {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .pd-link-card {
+    flex-direction: row-reverse;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<style>
-.pub-detail-shell{padding:1.25rem 0 2rem}
-.pub-detail-card{background:#fff;border:1px solid #e2e8f0;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,.06)}
-.pub-detail-hero{display:grid;grid-template-columns:360px 1fr;gap:0;background:linear-gradient(135deg,#f4f2ff,#f8fbff 55%,#eefaf7)}
-.pub-detail-cover{min-height:100%;display:flex;align-items:center;justify-content:center;padding:1rem}
-.pub-detail-cover img{width:100%;height:100%;max-height:360px;object-fit:cover;border-radius:22px}
-.pub-detail-info{padding:1.5rem}
-.pub-detail-type{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:999px;color:#fff;font-weight:800}
-.pub-detail-title{margin:.9rem 0 .7rem;font-size:2rem;font-weight:900;color:#0f172a}
-.pub-detail-meta{color:#475569;line-height:1.8}
-.pub-detail-section{padding:1.4rem 1.5rem;border-top:1px solid #e2e8f0}
-.pub-detail-section h2{margin:0 0 .8rem;font-size:1.15rem;font-weight:800;color:#0f172a}
-.pub-detail-text{color:#334155;line-height:1.75}
-.pub-detail-tags{display:flex;flex-wrap:wrap;gap:.5rem}
-.pub-detail-tag{background:#e6fffa;color:#116149;border-radius:999px;padding:.38rem .72rem;font-size:.82rem;font-weight:700}
-.pub-link-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem}
-.pub-link-card{display:flex;align-items:center;gap:.65rem;padding:1rem;border-radius:18px;border:1px solid #dbe4ff;background:#f8fbff;color:#0f172a;text-decoration:none;font-weight:700}
-@media (max-width:900px){.pub-detail-hero{grid-template-columns:1fr}}
-</style>
+<div class="pd-page">
 
-<div class="pub-detail-shell">
-  <div class="pub-detail-card">
-    <div class="pub-detail-hero">
-      <div class="pub-detail-cover">
-        {% if publication.cover_image %}
-        <img src="{{ publication.cover_image.url }}" alt="{{ publication.title }}">
-        {% else %}
-        <i class="fas {{ publication.type_icon }}" style="font-size:4rem;color:{{ publication.type_color }}"></i>
-        {% endif %}
-      </div>
-      <div class="pub-detail-info">
-        <span class="pub-detail-type" style="background:{{ publication.type_color }}">
-          <i class="fas {{ publication.type_icon }}"></i>
-          {{ publication.get_type_display }}
-        </span>
-        <h1 class="pub-detail-title">{{ publication.title }}</h1>
-        <div class="pub-detail-meta">
-          <div><strong>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المؤلفون{% else %}Authors{% endif %}:</strong> {{ publication.authors_display|default:"-" }}</div>
-          <div><strong>{% if LANGUAGE_CODE|slice:":2" == "ar" %}السنة{% else %}Year{% endif %}:</strong> {{ publication.year }}</div>
-          {% if publication.venue %}<div><strong>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الجهة / المؤتمر{% else %}Venue{% endif %}:</strong> {{ publication.venue }}</div>{% endif %}
-          {% if publication.affiliations %}<div><strong>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الانتماءات{% else %}Affiliations{% endif %}:</strong> {{ publication.affiliations }}</div>{% endif %}
-          {% if publication.doi %}<div><strong>DOI:</strong> {{ publication.doi }}</div>{% endif %}
+    <!-- Hero Banner -->
+    <header class="pd-hero">
+        <div class="pd-hero-container">
+            <nav class="pd-breadcrumb">
+                <a href="{% url 'pages:publications_list' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار{% else %}News{% endif %}</a>
+                <span>/</span>
+                <span>{{ publication.title|truncatechars:40 }}</span>
+            </nav>
+
+            <div class="pd-hero-content">
+                <div class="pd-cover-box">
+                    {% if publication.cover_image %}
+                    <img src="{{ publication.cover_image.url }}" alt="{{ publication.title }}">
+                    {% else %}
+                    <i class="fas {{ publication.type_icon }} pd-cover-placeholder" style="color:{{ publication.type_color }}"></i>
+                    {% endif %}
+                </div>
+
+                <div class="pd-hero-info">
+                    <div class="pd-hero-badges">
+                        <span class="pd-badge pd-badge-type" style="background: linear-gradient(135deg, {{ publication.type_color }}33, {{ publication.type_color }}1a); color: {{ publication.type_color }}; border-color: {{ publication.type_color }}55;">
+                            <i class="fas {{ publication.type_icon }}"></i>
+                            {{ publication.get_type_display }}
+                        </span>
+                        <span class="pd-badge pd-badge-year">
+                            <i class="bi bi-calendar3"></i>
+                            {{ publication.year }}
+                        </span>
+                    </div>
+
+                    <h1 class="pd-hero-title">{{ publication.title }}</h1>
+
+                    <div class="pd-hero-meta">
+                        <span class="pd-meta-item">
+                            <i class="bi bi-people-fill"></i>
+                            {{ publication.authors_display|default:"-" }}
+                        </span>
+                        {% if publication.venue %}
+                        <span class="pd-meta-item">
+                            <i class="bi bi-journal-text"></i>
+                            {{ publication.venue }}
+                        </span>
+                        {% endif %}
+                        {% if publication.affiliations %}
+                        <span class="pd-meta-item">
+                            <i class="bi bi-building"></i>
+                            {{ publication.affiliations }}
+                        </span>
+                        {% endif %}
+                        {% if publication.doi %}
+                        <span class="pd-meta-item">
+                            <i class="bi bi-link-45deg"></i>
+                            DOI: {{ publication.doi }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
+    </header>
 
-    <section class="pub-detail-section">
-      <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الملخص{% else %}Abstract{% endif %}</h2>
-      <div class="pub-detail-text">{{ publication.abstract|linebreaks }}</div>
-    </section>
+    <!-- Main Content -->
+    <main class="pd-main">
 
-    <section class="pub-detail-section">
-      <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مهام NLP واللغات{% else %}NLP Tasks & Languages{% endif %}</h2>
-      <div class="pub-detail-tags" style="margin-bottom:.8rem">
-        {% for task in publication.nlp_tasks %}
-        <span class="pub-detail-tag">{{ task }}</span>
-        {% endfor %}
-      </div>
-      <div class="pub-detail-tags">
-        {% for language in publication.languages %}
-        <span class="pub-detail-tag">{{ language }}</span>
-        {% endfor %}
-      </div>
-    </section>
+        <!-- Left Column -->
+        <div class="pd-content">
 
-    {% if publication.keywords %}
-    <section class="pub-detail-section">
-      <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</h2>
-      <div class="pub-detail-tags">
-        {% for keyword in publication.keywords %}
-        <span class="pub-detail-tag">{{ keyword }}</span>
-        {% endfor %}
-      </div>
-    </section>
-    {% endif %}
+            <!-- Abstract Section -->
+            <section class="pd-section">
+                <div class="pd-section-header">
+                    <div class="pd-section-icon">
+                        <i class="bi bi-file-text"></i>
+                    </div>
+                    <h2 class="pd-section-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}الملخص{% else %}Abstract{% endif %}</h2>
+                </div>
+                <div class="pd-abstract">
+                    {% if publication.abstract %}
+                    {{ publication.abstract|linebreaks }}
+                    {% else %}
+                    <p style="color: var(--pd-text-muted); font-style: italic;">
+                        {% if LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد ملخص متاح.{% else %}No abstract available.{% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+            </section>
 
-    <section class="pub-detail-section">
-      <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الروابط والملفات{% else %}Links & Files{% endif %}</h2>
-      <div class="pub-link-grid">
-        {% if publication.pdf_url %}<a class="pub-link-card" href="{{ publication.pdf_url }}" target="_blank" rel="noopener"><i class="fas fa-file-pdf" style="color:#534AB7"></i><span>PDF / arXiv</span></a>{% endif %}
-        {% if publication.pdf_file %}<a class="pub-link-card" href="{{ publication.pdf_file.url }}" target="_blank" rel="noopener"><i class="fas fa-download" style="color:#534AB7"></i><span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تحميل PDF{% else %}Download PDF{% endif %}</span></a>{% endif %}
-        {% if publication.github_url %}<a class="pub-link-card" href="{{ publication.github_url }}" target="_blank" rel="noopener"><i class="fab fa-github" style="color:#534AB7"></i><span>GitHub</span></a>{% endif %}
-        {% if publication.dataset_url %}<a class="pub-link-card" href="{{ publication.dataset_url }}" target="_blank" rel="noopener"><i class="fas fa-database" style="color:#534AB7"></i><span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}البيانات / HuggingFace{% else %}Dataset / HuggingFace{% endif %}</span></a>{% endif %}
-        {% if publication.demo_url %}<a class="pub-link-card" href="{{ publication.demo_url }}" target="_blank" rel="noopener"><i class="fas fa-laptop-code" style="color:#534AB7"></i><span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العرض التجريبي{% else %}Demo{% endif %}</span></a>{% endif %}
-      </div>
-    </section>
-  </div>
+            <!-- NLP Tasks & Languages Section -->
+            {% if publication.nlp_tasks or publication.languages %}
+            <section class="pd-section">
+                <div class="pd-section-header">
+                    <div class="pd-section-icon">
+                        <i class="bi bi-cpu"></i>
+                    </div>
+                    <h2 class="pd-section-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}مهام NLP واللغات{% else %}NLP Tasks & Languages{% endif %}</h2>
+                </div>
+
+                {% if publication.nlp_tasks %}
+                <div class="pd-tag-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المهام{% else %}Tasks{% endif %}</div>
+                <div class="pd-tags" style="margin-bottom: 1rem;">
+                    {% for task in publication.nlp_tasks %}
+                    <span class="pd-tag">
+                        <i class="bi bi-hash"></i>
+                        {{ task }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if publication.languages %}
+                <div class="pd-tag-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}اللغات{% else %}Languages{% endif %}</div>
+                <div class="pd-tags">
+                    {% for language in publication.languages %}
+                    <span class="pd-tag pd-tag-lang">
+                        <i class="bi bi-translate"></i>
+                        {{ language }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            <!-- Keywords Section -->
+            {% if publication.keywords %}
+            <section class="pd-section">
+                <div class="pd-section-header">
+                    <div class="pd-section-icon">
+                        <i class="bi bi-tags"></i>
+                    </div>
+                    <h2 class="pd-section-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</h2>
+                </div>
+                <div class="pd-tags">
+                    {% for keyword in publication.keywords %}
+                    <span class="pd-tag pd-tag-keyword">
+                        <i class="bi bi-bookmark"></i>
+                        {{ keyword }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Links & Files / Document Viewer -->
+            {% if publication.pdf_url or publication.pdf_file or publication.github_url or publication.dataset_url or publication.demo_url %}
+            <section class="pd-card">
+                <div class="pd-card-header">
+                    <div class="pd-card-icon">
+                        <i class="bi bi-link-45deg"></i>
+                    </div>
+                    <h2 class="pd-card-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}الروابط والملفات{% else %}Links & Files{% endif %}</h2>
+                </div>
+                <div class="pd-card-body">
+                    <div class="pd-link-grid">
+                        {% if publication.pdf_url %}
+                        <a class="pd-link-card" href="{{ publication.pdf_url }}" target="_blank" rel="noopener">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                            <span>PDF / arXiv</span>
+                        </a>
+                        {% endif %}
+                        {% if publication.pdf_file %}
+                        <a class="pd-link-card" href="{{ publication.pdf_file.url }}" target="_blank" rel="noopener">
+                            <i class="bi bi-download"></i>
+                            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تحميل PDF{% else %}Download PDF{% endif %}</span>
+                        </a>
+                        {% endif %}
+                        {% if publication.github_url %}
+                        <a class="pd-link-card" href="{{ publication.github_url }}" target="_blank" rel="noopener">
+                            <i class="bi bi-github"></i>
+                            <span>GitHub</span>
+                        </a>
+                        {% endif %}
+                        {% if publication.dataset_url %}
+                        <a class="pd-link-card" href="{{ publication.dataset_url }}" target="_blank" rel="noopener">
+                            <i class="bi bi-database"></i>
+                            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}البيانات / HuggingFace{% else %}Dataset / HuggingFace{% endif %}</span>
+                        </a>
+                        {% endif %}
+                        {% if publication.demo_url %}
+                        <a class="pd-link-card" href="{{ publication.demo_url }}" target="_blank" rel="noopener">
+                            <i class="bi bi-laptop"></i>
+                            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العرض التجريبي{% else %}Demo{% endif %}</span>
+                        </a>
+                        {% endif %}
+                    </div>
+
+                    {% if publication.pdf_file %}
+                    <button
+                        type="button"
+                        class="pd-doc-action"
+                        style="margin-top: 1rem;"
+                        onclick="openDocumentViewer('{{ publication.pdf_file.url }}', null, '{{ publication.pk }}', '{{ publication.title|escapejs }}', '{% url 'pages:publication-convert-to-text' publication.pk %}')"
+                    >
+                        <i class="bi bi-stars"></i>
+                        {% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح في عارض المستند مع الترجمة والتلخيص{% else %}Open in document viewer with translation and summarization{% endif %}
+                    </button>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="pd-sidebar">
+
+            <!-- Back to News Button -->
+            <a href="{% url 'pages:publications_list' %}" class="pd-back-btn">
+                <i class="bi bi-arrow-left"></i>
+                {% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة إلى الأخبار{% else %}Back to News{% endif %}
+            </a>
+
+            <!-- Quick Info Card -->
+            <div class="pd-info-card">
+                <div class="pd-info-header">
+                    <h3 class="pd-info-header-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}تفاصيل المنشور{% else %}Publication Info{% endif %}</h3>
+                </div>
+                <div class="pd-info-body">
+                    <div class="pd-info-item">
+                        <div class="pd-info-icon">
+                            <i class="bi bi-journal-bookmark"></i>
+                        </div>
+                        <div class="pd-info-content">
+                            <div class="pd-info-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}النوع{% else %}Type{% endif %}</div>
+                            <div class="pd-info-value">{{ publication.get_type_display }}</div>
+                        </div>
+                    </div>
+                    <div class="pd-info-item">
+                        <div class="pd-info-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="pd-info-content">
+                            <div class="pd-info-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المؤلفون{% else %}Authors{% endif %}</div>
+                            <div class="pd-info-value">{{ publication.authors_display|default:"-" }}</div>
+                        </div>
+                    </div>
+                    <div class="pd-info-item">
+                        <div class="pd-info-icon">
+                            <i class="bi bi-calendar3"></i>
+                        </div>
+                        <div class="pd-info-content">
+                            <div class="pd-info-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}السنة{% else %}Year{% endif %}</div>
+                            <div class="pd-info-value">{{ publication.year }}</div>
+                        </div>
+                    </div>
+                    {% if publication.venue %}
+                    <div class="pd-info-item">
+                        <div class="pd-info-icon">
+                            <i class="bi bi-journal-text"></i>
+                        </div>
+                        <div class="pd-info-content">
+                            <div class="pd-info-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}الجهة / المؤتمر{% else %}Venue{% endif %}</div>
+                            <div class="pd-info-value">{{ publication.venue }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if publication.doi %}
+                    <div class="pd-info-item">
+                        <div class="pd-info-icon">
+                            <i class="bi bi-link-45deg"></i>
+                        </div>
+                        <div class="pd-info-content">
+                            <div class="pd-info-label">DOI</div>
+                            <div class="pd-info-value">{{ publication.doi }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Stats Card -->
+            <div class="pd-meta-card">
+                {% if publication.nlp_tasks %}
+                <div class="pd-meta-row">
+                    <span class="pd-meta-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}عدد المهام{% else %}NLP Tasks{% endif %}</span>
+                    <span class="pd-meta-value">{{ publication.nlp_tasks|length }}</span>
+                </div>
+                {% endif %}
+                {% if publication.languages %}
+                <div class="pd-meta-row">
+                    <span class="pd-meta-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}اللغات{% else %}Languages{% endif %}</span>
+                    <span class="pd-meta-value">{{ publication.languages|length }}</span>
+                </div>
+                {% endif %}
+                {% if publication.keywords %}
+                <div class="pd-meta-row">
+                    <span class="pd-meta-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</span>
+                    <span class="pd-meta-value">{{ publication.keywords|length }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+        </aside>
+
+    </main>
+
 </div>
+
+<script>
+    window.TS_WIDGET_CONFIG = {
+        csrfToken: '{{ csrf_token }}',
+        translateUrl: '{% url "translate:api_ts_translate" %}',
+        summarizeUrl: '{% url "translate:api_ts_summarize" %}',
+        sections: [
+            {
+                id: 'abstract',
+                label: 'Abstract',
+                sourceText: `{{ publication.abstract|escapejs }}`,
+                sourceLang: '{{ publication.original_language|default:"en" }}'
+            },
+            {
+                id: 'title',
+                label: 'Title',
+                sourceText: `{{ publication.title|escapejs }}`,
+                sourceLang: '{{ publication.original_language|default:"en" }}'
+            }
+        ]
+    };
+</script>
+{% include "components/document_viewer_modal.html" %}
+{% include "partials/ts_widget.html" %}
 {% endblock %}

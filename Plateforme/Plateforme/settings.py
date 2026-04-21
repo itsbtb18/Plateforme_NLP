@@ -409,6 +409,16 @@ CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "8192"))
 CHATBOT_TIMEOUT = int(os.getenv("CHATBOT_TIMEOUT", "180"))
 CHATBOT_MAX_FILE_SIZE = int(os.getenv("CHATBOT_MAX_FILE_SIZE", "20971520"))  # 20MB
 
+# Translation / Summarization Service
+TS_SERVICE_PORT = os.getenv("TS_SERVICE_PORT", "8010")
+TS_SERVICE_HOST = os.getenv("TS_SERVICE_HOST", "localhost")
+TS_SERVICE_URL = os.getenv(
+    "TS_SERVICE_URL",
+    f"http://{TS_SERVICE_HOST}:{TS_SERVICE_PORT}",
+)
+TS_SERVICE_API_KEY = os.getenv("TS_SERVICE_API_KEY", "")
+TS_SERVICE_TIMEOUT = int(os.getenv("TS_SERVICE_TIMEOUT", "120"))
+
 # Logging
 LOG_DIR = BASE_DIR / "logs"
 os.makedirs(LOG_DIR, exist_ok=True)

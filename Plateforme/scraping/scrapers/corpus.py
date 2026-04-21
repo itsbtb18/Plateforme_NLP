@@ -242,14 +242,14 @@ class CorpusScraper(BaseScraper):
                             obj.save()
                             created = False
                         else:
-                        if "last_scraped_at" in fields:
-                            defaults["last_scraped_at"] = now
-                        if "update_counter" in fields:
-                            defaults.setdefault("update_counter", 0)
-                        create_data = dict(defaults)
-                        create_data.update(lookup)
-                        obj = model.objects.create(**create_data)
-                        created = True
+                            if "last_scraped_at" in fields:
+                                defaults["last_scraped_at"] = now
+                            if "update_counter" in fields:
+                                defaults.setdefault("update_counter", 0)
+                            create_data = dict(defaults)
+                            create_data.update(lookup)
+                            obj = model.objects.create(**create_data)
+                            created = True
             except Exception as exc:
                 self._log_error(
                     "corpus_upsert_failed",

@@ -1372,7 +1372,7 @@
                                name="q" 
                                id="search-input"
                                class="cmd-input"
-                               placeholder="{% trans 'Search...' %}"
+                               placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث...{% else %}{% trans 'Search...' %}{% endif %}"
                                autocomplete="off"
                                spellcheck="false"
                                aria-label="{% trans 'Search' %}"
@@ -2045,19 +2045,25 @@
                 overflow-y: auto;
             }
 
+            .search-bar-shell {
+                min-width: 220px;
+                position: relative;
+            }
+
             .search-icon-btn {
-                width: 48px;
-                height: 48px;
-                min-width: 48px;
-                padding: 0 !important;
-                border-radius: 14px;
+                width: min(320px, 28vw);
+                height: 44px;
+                padding: 0 0.9rem 0 0.95rem !important;
+                border-radius: 999px;
                 background: linear-gradient(160deg, #111736 0%, #171d42 100%);
                 border: 1px solid rgba(255, 255, 255, 0.08);
                 display: inline-flex;
                 align-items: center;
-                justify-content: center;
+                justify-content: flex-start;
+                gap: 0.65rem;
                 box-shadow: 0 10px 24px rgba(7, 10, 26, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.08);
                 transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+                position: relative;
             }
 
             .search-icon-btn:hover,
@@ -2074,8 +2080,46 @@
 
             .search-icon-btn i:first-child {
                 color: #f8fbff;
-                font-size: 1.85rem;
+                font-size: 1rem;
                 line-height: 1;
+            }
+
+            .search-icon-btn .search-bar-input {
+                flex: 1;
+                min-width: 0;
+                height: 100%;
+                border: 0;
+                outline: 0;
+                background: transparent;
+                color: #f8fbff;
+                font-size: 0.95rem;
+                font-weight: 600;
+                padding: 0;
+            }
+
+            .search-icon-btn .search-bar-input::placeholder {
+                color: rgba(248, 251, 255, 0.72);
+                font-weight: 500;
+            }
+
+            .search-icon-btn .search-submit-inline {
+                width: 32px;
+                height: 32px;
+                border: 0;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
+                color: #f8fbff;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: background 0.15s ease, transform 0.15s ease;
+                flex-shrink: 0;
+            }
+
+            .search-icon-btn .search-submit-inline:hover {
+                background: rgba(255, 255, 255, 0.16);
+                transform: translateY(-1px);
             }
 
             .search-dropdown {
@@ -2186,24 +2230,29 @@
             </style>
             <div class="header-actions">
                 <div class="search-dropdown-container action-dropdown-container">
-                    <button class="action-btn icon-btn search-icon-btn"
-                            id="searchIconBtn"
-                            type="button"
-                            aria-haspopup="true"
-                            aria-expanded="false"
-                            title="{% trans 'Search' %}">
-                        <i class="fas fa-search"></i>
-                        <span class="btn-label">{% trans "Search" %}</span>
-                        <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
-                    </button>
+                    <form class="search-icon-btn search-bar-shell"
+                          id="searchIconBtn"
+                          method="get"
+                          action="{% url 'search:global_search' %}">
+                        <i class="fas fa-search" aria-hidden="true"></i>
+                        <input type="text"
+                               name="q"
+                               class="search-bar-input"
+                               placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث...{% else %}{% trans 'Search' %}{% endif %}"
+                               autocomplete="off"
+                               aria-label="{% trans 'Search' %}">
+                        <button type="submit" class="search-submit-inline" aria-label="{% trans 'Search' %}">
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </button>
+                    </form>
                     <div class="dropdown-panel search-dropdown" id="searchDropdown" role="menu" aria-labelledby="searchIconBtn">
                         <form class="search-form" method="get" action="{% url 'search:global_search' %}" style="padding: 1rem;">
                             <div class="search-input-wrapper">
-                                <input type="text" 
-                                       name="q" 
-                                       class="search-input" 
-                                       placeholder="{% trans 'Search users by name or email...' %}"
-                                       autocomplete="off">
+                                    <input type="text" 
+                                        name="q" 
+                                        class="search-input" 
+                                        placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث عن مستخدم بالاسم أو البريد الإلكتروني...{% else %}{% trans 'Search users by name or email...' %}{% endif %}"
+                                        autocomplete="off">
                                 <button type="submit" class="search-submit-btn">
                                     <i class="fas fa-arrow-right"></i>
                                 </button>
@@ -3274,36 +3323,45 @@
             }
 
             if (searchIconBtn && searchDropdown) {
-                searchIconBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Close notification dropdown if open
+                const searchInput = searchDropdown.querySelector('.search-input');
+
+                function openSearchDropdown() {
                     if (notificationDropdown && notificationDropdown.classList.contains('show')) {
                         notificationDropdown.classList.remove('show');
                     }
-                    
-                    // Close profile dropdown if open
+
                     if (profileDropdown && profileDropdown.classList.contains('show')) {
                         profileDropdown.classList.remove('show');
                     }
-                    
-                    // Close language dropdown if open
+
                     if (languageDropdown && languageDropdown.classList.contains('show')) {
                         languageDropdown.classList.remove('show');
                     }
-                    
-                    // Toggle search dropdown
-                    searchDropdown.classList.toggle('show');
-                    
-                    // Focus on search input when opened
-                    if (searchDropdown.classList.contains('show')) {
-                        const searchInput = searchDropdown.querySelector('.search-input');
-                        if (searchInput) {
-                            searchInput.focus();
+
+                    searchDropdown.classList.add('show');
+                    searchIconBtn.setAttribute('aria-expanded', 'true');
+                }
+
+                function closeSearchDropdown() {
+                    searchDropdown.classList.remove('show');
+                    searchIconBtn.setAttribute('aria-expanded', 'false');
+                }
+
+                if (searchInput) {
+                    searchInput.addEventListener('focus', function() {
+                        openSearchDropdown();
+                    });
+
+                    searchInput.addEventListener('input', function() {
+                        openSearchDropdown();
+                    });
+
+                    searchInput.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape') {
+                            closeSearchDropdown();
                         }
-                    }
-                });
+                    });
+                }
 
                 // Prevent dropdown from closing when clicking inside
                 searchDropdown.addEventListener('click', function(e) {
@@ -3826,7 +3884,7 @@
 
             input.addEventListener('keydown', function(e) {
                 const items = results.querySelectorAll('.search-autocomplete-item');
-                if (!items.length) return;
+                if (!items.length && e.key !== 'Enter' && e.key !== 'Escape') return;
 
                 if (e.key === 'ArrowDown') {
                     e.preventDefault();
@@ -3834,9 +3892,13 @@
                 } else if (e.key === 'ArrowUp') {
                     e.preventDefault();
                     currentIndex = Math.max(currentIndex - 1, 0);
-                } else if (e.key === 'Enter' && currentIndex >= 0) {
+                } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    items[currentIndex].click();
+                    if (currentIndex >= 0 && items[currentIndex]) {
+                        items[currentIndex].click();
+                    } else {
+                        form.requestSubmit ? form.requestSubmit() : form.submit();
+                    }
                     return;
                 } else if (e.key === 'Escape') {
                     hideResults();
@@ -3856,8 +3918,13 @@
                 }
             });
 
-            form.addEventListener('submit', function() {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const query = input.value.trim();
                 hideResults();
+                if (query) {
+                    window.location.href = `${form.action}?q=${encodeURIComponent(query)}`;
+                }
             });
         })();
     </script>
