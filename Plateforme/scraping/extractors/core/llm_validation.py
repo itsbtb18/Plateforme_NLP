@@ -22,11 +22,15 @@ import logging
 import os
 import re
 import time
+from datetime import datetime
+from hashlib import sha1
 from typing import Any
 from urllib.parse import quote_plus
+from zoneinfo import ZoneInfo
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -223,11 +227,18 @@ class GroqLLMClient:
         )
         self.gemini_max_rpm = max(
             1,
-            int(getattr(settings, "GEMINI_SCRAPING_MAX_RPM", 10) or 10),
+            int(getattr(settings, "GEMINI_SCRAPING_MAX_RPM", 5) or 5),
+        )
+        self.gemini_max_rpd = max(
+            0,
+            int(getattr(settings, "GEMINI_SCRAPING_MAX_RPD", 20) or 20),
+        )
+        self.gemini_429_cooldown_seconds = max(
+            1,
+            int(getattr(settings, "GEMINI_SCRAPING_429_COOLDOWN_SECONDS", 65) or 65),
         )
 
         self._session = requests.Session()
-        self._gemini_request_timestamps: list[float] = []
         self.last_status_code: int | None = None
         self.last_error_message: str = ""
         self.last_provider_used: str = ""
@@ -290,21 +301,72 @@ class GroqLLMClient:
             return True
         return status_code in {408, 409, 413, 429, 500, 502, 503, 504}
 
-    def _respect_gemini_rate_limit(self) -> None:
+    @staticmethod
+    def _key_fingerprint(api_key: str) -> str:
+        token = str(api_key or "").strip()
+        if not token:
+            return "no-key"
+        return sha1(token.encode("utf-8")).hexdigest()[:10]
+
+    @staticmethod
+    def _cache_incr_with_ttl(key: str, ttl_seconds: int) -> int:
+        value = cache.get(key)
+        if value is None:
+            cache.set(key, 1, timeout=max(1, int(ttl_seconds)))
+            return 1
+        try:
+            return int(cache.incr(key))
+        except ValueError:
+            cache.set(key, 1, timeout=max(1, int(ttl_seconds)))
+            return 1
+
+    @staticmethod
+    def _pacific_day_key() -> str:
+        return datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y%m%d")
+
+    def _respect_gemini_rate_limit_for_key(self, api_key: str) -> None:
+        key_fp = self._key_fingerprint(api_key)
+        model = self.gemini_model
+
+        cooldown_key = f"scraping:llm:gemini:cooldown:{model}:{key_fp}"
+        cooldown_until = float(cache.get(cooldown_key) or 0.0)
         now = time.time()
-        window_start = now - 60.0
-        self._gemini_request_timestamps = [
-            ts for ts in self._gemini_request_timestamps if ts >= window_start
-        ]
+        if cooldown_until > now:
+            sleep_for = max(0.1, cooldown_until - now)
+            logger.info("Gemini cooldown sleep=%.2fs key=%s", sleep_for, key_fp)
+            time.sleep(sleep_for)
 
-        if len(self._gemini_request_timestamps) >= self.gemini_max_rpm:
-            oldest = self._gemini_request_timestamps[0]
-            sleep_for = max(0.0, 60.0 - (now - oldest))
-            if sleep_for > 0:
-                logger.info("Gemini free-tier rate limiting sleep=%.2fs", sleep_for)
-                time.sleep(sleep_for)
+        if self.gemini_max_rpd > 0:
+            day_key = self._pacific_day_key()
+            daily_counter_key = f"scraping:llm:gemini:rpd:{model}:{key_fp}:{day_key}"
+            daily_value = int(cache.get(daily_counter_key) or 0)
+            if daily_value >= self.gemini_max_rpd:
+                now_pt = datetime.now(ZoneInfo("America/Los_Angeles"))
+                midnight_pt = now_pt.replace(hour=23, minute=59, second=59, microsecond=0)
+                cooldown = max(60, int((midnight_pt - now_pt).total_seconds()))
+                cache.set(cooldown_key, time.time() + cooldown, timeout=cooldown)
+                self.last_status_code = 429
+                self.last_error_message = "gemini_rpd_quota_exhausted"
+                raise RuntimeError("gemini_rpd_quota_exhausted")
 
-        self._gemini_request_timestamps.append(time.time())
+            self._cache_incr_with_ttl(daily_counter_key, ttl_seconds=60 * 60 * 30)
+
+        minute_bucket = int(time.time() // 60)
+        rpm_key = f"scraping:llm:gemini:rpm:{model}:{key_fp}:{minute_bucket}"
+        rpm_value = int(cache.get(rpm_key) or 0)
+        if rpm_value >= self.gemini_max_rpm:
+            sleep_for = max(0.1, ((minute_bucket + 1) * 60) - time.time() + 0.05)
+            logger.info(
+                "Gemini preemptive RPM sleep=%.2fs model=%s key=%s",
+                sleep_for,
+                model,
+                key_fp,
+            )
+            time.sleep(sleep_for)
+            minute_bucket = int(time.time() // 60)
+            rpm_key = f"scraping:llm:gemini:rpm:{model}:{key_fp}:{minute_bucket}"
+
+        self._cache_incr_with_ttl(rpm_key, ttl_seconds=125)
 
     def _chat_with_groq(self, system: str, user: str) -> str | None:
         if not self.api_key and not self._groq_key_pool:
@@ -380,8 +442,6 @@ class GroqLLMClient:
             self.last_status_code = None
             return None
 
-        self._respect_gemini_rate_limit()
-
         combined_prompt = (
             "System instructions:\n"
             f"{system}\n\n"
@@ -406,6 +466,11 @@ class GroqLLMClient:
 
         for attempt in range(max_attempts):
             current_key = self._next_gemini_key()
+            try:
+                self._respect_gemini_rate_limit_for_key(current_key)
+            except RuntimeError:
+                continue
+
             url = GEMINI_CHAT_URL_TEMPLATE.format(
                 model=quote_plus(self.gemini_model),
                 api_key=quote_plus(current_key),
@@ -439,7 +504,6 @@ class GroqLLMClient:
                     return None
 
                 self.last_provider_used = "gemini"
-                self._gemini_request_timestamps.append(time.time())
                 return text
             except requests.Timeout:
                 self.last_status_code = 408
@@ -455,9 +519,29 @@ class GroqLLMClient:
 
                 if status_code == 429:
                     key_hint = current_key[-6:] if len(current_key) > 6 else "***"
+                    retry_after = 0.0
+                    if response is not None:
+                        try:
+                            retry_after = float(response.headers.get("Retry-After") or 0.0)
+                        except (TypeError, ValueError):
+                            retry_after = 0.0
+
+                    cooldown = max(self.gemini_429_cooldown_seconds, retry_after)
+                    cooldown_key = (
+                        f"scraping:llm:gemini:cooldown:{self.gemini_model}:"
+                        f"{self._key_fingerprint(current_key)}"
+                    )
+                    cache.set(
+                        cooldown_key,
+                        time.time() + cooldown,
+                        timeout=int(max(1.0, cooldown + 5.0)),
+                    )
                     logger.info(
-                        "Gemini 429 on key ...%s, rotating to next key (attempt %d/%d)",
-                        key_hint, attempt + 1, max_attempts,
+                        "Gemini 429 on key ...%s, cooldown=%.1fs, rotating (attempt %d/%d)",
+                        key_hint,
+                        cooldown,
+                        attempt + 1,
+                        max_attempts,
                     )
                     continue
                 else:
