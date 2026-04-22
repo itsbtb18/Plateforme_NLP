@@ -47,13 +47,10 @@ class TranslationSummarizationService:
             try:
                 translated_chunks: list[str] = []
                 for i, chunk in enumerate(chunks):
-                    translated = await self._call_with_rate_limit_retry(
-                        provider_name=name,
-                        op=lambda c=chunk: provider.translate(
-                            text=c,
-                            source_language=source_language,
-                            target_language=target_language,
-                        ),
+                    translated = await provider.translate(
+                        text=chunk,
+                        source_language=source_language,
+                        target_language=target_language,
                     )
                     translated = self._post_process_translation(translated)
                     if self._looks_like_summary(source_text=chunk, translated_text=translated):

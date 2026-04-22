@@ -2287,7 +2287,11 @@ if (typeof pdfjsLib !== 'undefined') {
 
             titleEl.textContent = this.lastAiResult.title || this.t('ai_result', '{% trans "AI Result" %}');
             metaEl.textContent = this.lastAiResult.meta || this.t('generated_in_page', '{% trans "Generated without leaving the current page." %}');
-            contentEl.textContent = this.formatAiResultDisplayText(this.lastAiResult.output || '');
+            contentEl.textContent = this.formatAiResultDisplayText(
+                this.lastAiResult.output || '',
+                this.lastAiResult.task || 'result'
+            );
+            contentEl.dir = String(this.lastAiResult.targetLanguage || '').startsWith('ar') ? 'rtl' : 'auto';
             const copyBtn = document.getElementById('copyAiResultBtn');
             if (copyBtn) {
                 copyBtn.textContent = this.t('copy', '{% trans "Copy" %}');
@@ -2295,7 +2299,7 @@ if (typeof pdfjsLib !== 'undefined') {
             overlay.style.display = 'flex';
         },
 
-        formatAiResultDisplayText(rawText) {
+        formatAiResultDisplayText(rawText, task = 'result') {
             const normalized = String(rawText || '')
                 .replace(/\r\n/g, '\n')
                 .replace(/\n{3,}/g, '\n\n')
@@ -2304,6 +2308,10 @@ if (typeof pdfjsLib !== 'undefined') {
                     const trimmed = String(line || '').trim();
                     if (!trimmed) {
                         return '';
+                    }
+
+                    if (String(task || '').toLowerCase() === 'translation') {
+                        return trimmed;
                     }
 
                     const headingMatch = trimmed.match(/^#{1,6}\s*(.+)$/);
@@ -2955,6 +2963,7 @@ if (typeof pdfjsLib !== 'undefined') {
             const maxRateLimitRetries = 4;
             const baseRetryDelayMs = 1500;
             const maxClientRetryDelayMs = 20000;
+            const retryOnRateLimit = requestOptions.retryOnRateLimit !== false;
 
             for (let attempt = 0; attempt <= maxRateLimitRetries; attempt++) {
                 const submitResult = await this.fetchAiWithFallback(endpoint, {
@@ -2979,7 +2988,7 @@ if (typeof pdfjsLib !== 'undefined') {
                 }
 
                 const isRateLimited = response.status === 429;
-                if (isRateLimited && attempt < maxRateLimitRetries) {
+                if (isRateLimited && retryOnRateLimit && attempt < maxRateLimitRetries) {
                     const detailMessage = String(responseJson.detail || responseText || '');
                     const retryAfterMatch = detailMessage.match(/(?:retry after|try again in|waiting)\s*(\d+(?:\.\d+)?)/i);
                     const hintedRetryMs = retryAfterMatch ? Math.round(parseFloat(retryAfterMatch[1]) * 1000) : 0;
@@ -3095,6 +3104,7 @@ if (typeof pdfjsLib !== 'undefined') {
 
                     const partOutput = await this.submitAiRequest(endpoint, payload, {
                         timeoutMs: isTranslation ? 90000 : 120000,
+                        retryOnRateLimit: !isTranslation,
                     });
                     if (partOutput) {
                         chunkOutputs.push(partOutput);
@@ -3140,6 +3150,7 @@ if (typeof pdfjsLib !== 'undefined') {
                     meta: isTranslation
                         ? this.t('translation_completed', '{% trans "Translation completed in current page." %}')
                         : this.t('summary_generated', '{% trans "Summary generated in current page." %}'),
+                    targetLanguage: isTranslation ? String(options.targetLanguage || '').trim().toLowerCase() : '',
                     output,
                 };
                 this.openAiResultOverlay();
