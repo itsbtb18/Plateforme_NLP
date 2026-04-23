@@ -19,6 +19,8 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 _TIMEOUT: int = getattr(settings, "TS_SERVICE_TIMEOUT", 120)
+_CONNECT_TIMEOUT_SECONDS: int = int(getattr(settings, "TS_SERVICE_CONNECT_TIMEOUT", 10))
+_MAX_TIMEOUT_SECONDS: int = int(getattr(settings, "TS_SERVICE_TIMEOUT_MAX", 900))
 
 
 def _base_url() -> str:
@@ -33,14 +35,44 @@ def _headers() -> dict[str, str]:
     return h
 
 
+def _clamp_timeout(value: float, minimum: int, maximum: int) -> int:
+    return int(max(minimum, min(maximum, value)))
+
+
+def _read_timeout_for_request(endpoint: str, payload: dict[str, Any]) -> int:
+    """
+    Adaptive read-timeout for long PDF translation/summarization workloads.
+    """
+    text_length = len(str(payload.get("text") or ""))
+    base_timeout = _TIMEOUT
+
+    if endpoint == "/translate":
+        # Translation can queue + retry on provider throttling.
+        estimated = base_timeout + (text_length / 45.0)
+        return _clamp_timeout(estimated, minimum=180, maximum=_MAX_TIMEOUT_SECONDS)
+
+    if endpoint == "/summarize":
+        # Summarization is usually heavier than translation.
+        estimated = base_timeout + (text_length / 35.0)
+        return _clamp_timeout(estimated, minimum=240, maximum=_MAX_TIMEOUT_SECONDS)
+
+    return _clamp_timeout(base_timeout, minimum=60, maximum=_MAX_TIMEOUT_SECONDS)
+
+
 def _post(endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
     url = f"{_base_url()}{endpoint}"
+    read_timeout = _read_timeout_for_request(endpoint, payload)
     try:
-        resp = requests.post(url, json=payload, headers=_headers(), timeout=_TIMEOUT)
+        resp = requests.post(
+            url,
+            json=payload,
+            headers=_headers(),
+            timeout=(_CONNECT_TIMEOUT_SECONDS, read_timeout),
+        )
         resp.raise_for_status()
         return resp.json()
     except requests.Timeout:
-        logger.warning("TS service timeout: %s", url)
+        logger.warning("TS service timeout: %s (read_timeout=%ss)", url, read_timeout)
         raise RuntimeError("Translation/Summarization service timed out.")
     except requests.ConnectionError:
         logger.warning("TS service unreachable: %s", url)
@@ -66,20 +98,21 @@ def ts_translate(
     text: str,
     source_language: str,
     target_language: str,
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """Translate *text* via the TS micro-service.
 
     Returns the full JSON response:
         {"task": "translation", "output": "...", "provider_used": "...", "fallback_used": false}
     """
-    return _post(
-        "/translate",
-        {
-            "text": text,
-            "source_language": source_language,
-            "target_language": target_language,
-        },
-    )
+    payload: dict[str, Any] = {
+        "text": text,
+        "source_language": source_language,
+        "target_language": target_language,
+    }
+    if user_id:
+        payload["user_id"] = user_id
+    return _post("/translate", payload)
 
 
 def ts_summarize(
@@ -88,6 +121,7 @@ def ts_summarize(
     language: str = "en",
     style: str = "brief",
     max_words: int | None = None,
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """Summarize *text* via the TS micro-service.
 
@@ -101,6 +135,8 @@ def ts_summarize(
     }
     if max_words is not None:
         payload["max_words"] = max_words
+    if user_id:
+        payload["user_id"] = user_id
     return _post("/summarize", payload)
 
 

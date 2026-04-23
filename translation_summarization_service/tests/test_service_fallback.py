@@ -44,6 +44,20 @@ class _RateLimitThenSuccessProvider:
             raise RuntimeError("429 Too Many Requests")
         return self.success_output
 
+
+class _CaptureProvider:
+    def __init__(self) -> None:
+        self.translate_calls: list[dict] = []
+        self.summarize_calls: list[dict] = []
+
+    async def translate(self, **kwargs):
+        self.translate_calls.append(dict(kwargs))
+        return "ok-translation"
+
+    async def summarize(self, **kwargs):
+        self.summarize_calls.append(dict(kwargs))
+        return "ok-summary"
+
     async def summarize(self, **kwargs):
         self.calls += 1
         if self.calls < 3:
@@ -128,6 +142,9 @@ class _AsyncFakeRedisQueue:
         self.lists[key] = remaining
         return removed
 
+    async def llen(self, key: str):
+        return len(self.lists.get(key, []))
+
 
 def test_provider_order_from_env(monkeypatch):
     monkeypatch.setenv("TS_PRIMARY_PROVIDER", "gemini")
@@ -157,6 +174,58 @@ def test_translate_uses_fallback(monkeypatch):
     assert output
     assert provider == "groq"
     assert fallback is True
+
+
+def test_translate_normalizes_language_aliases(monkeypatch):
+    monkeypatch.setenv("TS_PRIMARY_PROVIDER", "groq")
+    monkeypatch.setenv("TS_FALLBACK_PROVIDER", "gemini")
+
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    svc = TranslationSummarizationService()
+    capture = _CaptureProvider()
+    svc.providers = {"gemini": _FailingProvider(), "groq": capture}
+    svc.cache_client = _AsyncFakeRedisQueue()
+
+    output, provider, fallback = _run_async(
+        svc.translate(text="Bonjour tout le monde", source_language="french", target_language="arabic")
+    )
+
+    assert output == "ok-translation"
+    assert provider == "groq"
+    assert fallback is False
+    assert capture.translate_calls
+    assert capture.translate_calls[0]["source_language"] == "fr"
+    assert capture.translate_calls[0]["target_language"] == "ar"
+
+
+def test_summarize_auto_language_uses_text_inference(monkeypatch):
+    monkeypatch.setenv("TS_PRIMARY_PROVIDER", "groq")
+    monkeypatch.setenv("TS_FALLBACK_PROVIDER", "gemini")
+
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    svc = TranslationSummarizationService()
+    capture = _CaptureProvider()
+    svc.providers = {"gemini": _FailingProvider(), "groq": capture}
+    svc.cache_client = _AsyncFakeRedisQueue()
+
+    output, provider, fallback = _run_async(
+        svc.summarize(
+            text="هذا نص عربي للاختبار. يحتوي على جمل متعددة لاختبار كشف اللغة.",
+            language="auto",
+            style="brief",
+            max_words=120,
+        )
+    )
+
+    assert output
+    assert provider == "groq"
+    assert fallback is False
+    assert capture.summarize_calls
+    assert capture.summarize_calls[0]["language"] == "ar"
 
 
 def test_summarize_uses_primary(monkeypatch):
@@ -197,6 +266,33 @@ def test_translate_uses_local_fallback_on_rate_limit(monkeypatch):
     assert output == "fallback-translation"
     assert provider == "groq"
     assert fallback is False
+
+
+def test_summarize_uses_local_fallback_when_providers_fail(monkeypatch):
+    monkeypatch.setenv("TS_PRIMARY_PROVIDER", "groq")
+    monkeypatch.setenv("TS_FALLBACK_PROVIDER", "gemini")
+
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    svc = TranslationSummarizationService()
+    svc.providers = {"gemini": _FailingProvider(), "groq": _FailingProvider()}
+    svc.cache_client = _AsyncFakeRedisQueue()
+
+    text = (
+        "This is the first important sentence. "
+        "This is the second important sentence with more details. "
+        "This section continues with relevant context for the summary."
+    )
+
+    output, provider, fallback = _run_async(
+        svc.summarize(text=text, language="en", style="brief", max_words=80)
+    )
+
+    assert output
+    assert "important sentence" in output.lower()
+    assert provider == "local"
+    assert fallback is True
 
 
 def test_translate_skips_rate_limited_provider_during_cooldown(monkeypatch):

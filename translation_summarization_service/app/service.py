@@ -37,6 +37,8 @@ class TranslationSummarizationService:
     DEFAULT_CHUNK_OVERLAP = 200
     MAX_TRANSLATION_CHUNKS_PER_DOCUMENT = 3
     GOOGLE_FALLBACK_CHUNK_SIZE = 2400
+    SUMMARY_SECTION_CHUNK_SIZE = 7000
+    MAX_SUMMARY_SECTIONS = 5
     GLOBAL_REQUESTS_PER_MINUTE = 30
     GLOBAL_MIN_INTERVAL_SECONDS = 2.0
     MAX_TRANSLATION_CHUNKS_PER_DOCUMENT = 3
@@ -65,6 +67,14 @@ class TranslationSummarizationService:
             600,
             min(self.translation_chunk_size, int(getattr(self.settings, "TS_GOOGLE_FALLBACK_CHUNK_SIZE", self.GOOGLE_FALLBACK_CHUNK_SIZE))),
         )
+        self.summary_section_chunk_size = max(
+            1800,
+            min(12000, int(getattr(self.settings, "TS_SUMMARY_SECTION_CHUNK_SIZE", self.SUMMARY_SECTION_CHUNK_SIZE))),
+        )
+        self.max_summary_sections = max(
+            1,
+            min(8, int(getattr(self.settings, "TS_SUMMARY_MAX_SECTIONS", self.MAX_SUMMARY_SECTIONS))),
+        )
         self.cache_client = self._build_cache_client()
         self.global_min_interval_seconds = self._resolve_global_min_interval_seconds()
         logger.info("TS Service initialized instance_id=%s", self.instance_id)
@@ -92,6 +102,17 @@ class TranslationSummarizationService:
         return max(0.0, cooldown_until - time.monotonic())
 
     def _mark_provider_rate_limited(self, provider_name: str, exc: Exception) -> None:
+        if self._is_hard_quota_error(exc):
+            hard_cooldown = max(60.0, float(getattr(self.settings, "TS_PROVIDER_HARD_QUOTA_COOLDOWN_SECONDS", 300.0)))
+            self._provider_cooldowns[provider_name] = time.monotonic() + hard_cooldown
+            logger.warning(
+                "TS provider %s hard-quota cooldown for %.2fs instance=%s",
+                provider_name,
+                hard_cooldown,
+                self.instance_id,
+            )
+            return
+
         retry_after = self._extract_retry_after_seconds(str(exc))
         base_wait = max(10.0, float(self.settings.TS_RATE_LIMIT_BASE_DELAY_SECONDS))
         max_wait = min(60.0, max(base_wait, float(self.settings.TS_RATE_LIMIT_MAX_WAIT_SECONDS)))
@@ -106,17 +127,65 @@ class TranslationSummarizationService:
         )
 
     @staticmethod
-    def _normalize_translation_lang(lang: str | None) -> str:
+    def _infer_language_from_text(text: str | None) -> str:
+        sample = str(text or "")[:4000]
+        if not sample.strip():
+            return "en"
+
+        if re.search(r"[\u0600-\u06FF]", sample):
+            return "ar"
+
+        lowered = f" {sample.lower()} "
+        french_hints = [
+            " le ", " la ", " les ", " des ", " une ", " un ", " est ", " dans ",
+            " pour ", " avec ", " sur ", " que ", " qui ", " pas ", " plus ",
+        ]
+        english_hints = [
+            " the ", " and ", " with ", " this ", " that ", " for ", " from ",
+            " are ", " was ", " were ", " of ", " to ", " in ",
+        ]
+        french_score = sum(1 for token in french_hints if token in lowered)
+        english_score = sum(1 for token in english_hints if token in lowered)
+
+        if french_score > english_score:
+            return "fr"
+        return "en"
+
+    @classmethod
+    def _normalize_translation_lang(cls, lang: str | None, *, default: str = "", text_hint: str | None = None) -> str:
         value = str(lang or "").strip().lower()
         if not value:
-            return ""
-        if value == "auto":
-            return "auto"
-        if "-" in value:
-            value = value.split("-", 1)[0]
-        if "_" in value:
-            value = value.split("_", 1)[0]
-        return value
+            return default
+
+        alias_map = {
+            "auto": "auto",
+            "ar": "ar",
+            "arabic": "ar",
+            "arab": "ar",
+            "العربية": "ar",
+            "fr": "fr",
+            "fra": "fr",
+            "fre": "fr",
+            "french": "fr",
+            "francais": "fr",
+            "français": "fr",
+            "en": "en",
+            "eng": "en",
+            "english": "en",
+            "anglais": "en",
+        }
+        if value in alias_map:
+            return alias_map[value]
+
+        normalized = value.replace("_", "-").split("-", 1)[0]
+        if normalized in alias_map:
+            return alias_map[normalized]
+        if normalized in {"ar", "fr", "en"}:
+            return normalized
+
+        if text_hint:
+            return cls._infer_language_from_text(text_hint)
+        return default
 
     def _resolve_translation_chunk_size(self, *, source_language: str, target_language: str, text: str) -> int:
         chunk_size = self.translation_chunk_size
@@ -153,12 +222,21 @@ class TranslationSummarizationService:
         user_id: str | None = None,
     ) -> tuple[str, str, bool]:
         prepared_text = self._prepare_text_for_translation(text)
+        normalized_source_language = self._normalize_translation_lang(
+            source_language,
+            default="auto",
+            text_hint=prepared_text,
+        )
+        normalized_target_language = self._normalize_translation_lang(
+            target_language,
+            default="en",
+        )
         self._log_request_start("translation", user_id, prepared_text)
         cache_key = self._cache_key(
             task="translation",
             text=prepared_text,
-            source_language=source_language,
-            target_language=target_language,
+            source_language=normalized_source_language,
+            target_language=normalized_target_language,
         )
         request_id = f"{self.instance_id}:{uuid.uuid4().hex[:8]}"
         try:
@@ -166,8 +244,8 @@ class TranslationSummarizationService:
             async with await self._global_mutex():
                 output, provider_used, fallback_used = await self._translate_via_providers(
                     text=prepared_text,
-                    source_language=source_language,
-                    target_language=target_language,
+                    source_language=normalized_source_language,
+                    target_language=normalized_target_language,
                     user_id=user_id,
                 )
                 await self._cache_set(self.CACHE_NAMESPACE_TRANSLATION, cache_key, output)
@@ -238,7 +316,7 @@ class TranslationSummarizationService:
                         provider_name=name,
                         user_id=user_id,
                         chunk_id=f"chunk_{i}",
-                        max_retries=4,
+                        max_retries=int(getattr(self.settings, "TS_RATE_LIMIT_MAX_RETRIES", 1)),
                         op=lambda c=chunk: provider.translate(
                             text=c,
                             source_language=source_language,
@@ -318,11 +396,17 @@ class TranslationSummarizationService:
     ) -> tuple[str, str, bool]:
         errors: list[str] = []
         prepared_text = self._prepare_text_for_summarization(text)
+        sections: list[dict[str, str | int]] = [{"title": "Document", "level": 1, "content": prepared_text}]
+        normalized_summary_language = self._normalize_translation_lang(
+            language,
+            default=self._infer_language_from_text(prepared_text),
+            text_hint=prepared_text,
+        )
         self._log_request_start("summarization", user_id, prepared_text)
         cache_key = self._cache_key(
             task="summary",
             text=prepared_text,
-            language=language,
+            language=normalized_summary_language,
             style=style,
             max_words=max_words,
         )
@@ -334,15 +418,24 @@ class TranslationSummarizationService:
         request_id = f"{self.instance_id}:{uuid.uuid4().hex[:8]}"
         try:
             await self._wait_for_request_slot(user_id, request_id)
-            async with await self._global_mutex():
-                    sections = self._split_into_sections(prepared_text)
-                    sections = self._rebalance_sections(sections, max_sections=3)
+            async def _run_provider_phase() -> tuple[str, str, bool] | None:
+                async with await self._global_mutex():
+                    nonlocal sections
+                    sections = self._split_into_summary_sections(
+                        prepared_text,
+                        max_chars=self.summary_section_chunk_size,
+                    )
+                    sections = self._rebalance_sections(sections, max_sections=self.max_summary_sections)
                     order = self.provider_order()
                     for idx, name in enumerate(order):
+                        cooldown_remaining = self._provider_cooldown_remaining(name)
+                        if cooldown_remaining > 0:
+                            errors.append(f"{name}: skipped (rate limited, cooling down {cooldown_remaining:.1f}s)")
+                            continue
                         provider = self.providers[name]
                         try:
                             summarized_sections: list[dict[str, str | int]] = []
-                            for section in sections:
+                            for section_idx, section in enumerate(sections):
                                 section_title = str(section["title"])
                                 section_level = int(section["level"])
                                 section_body = str(section["content"]).strip() or section_title
@@ -354,7 +447,7 @@ class TranslationSummarizationService:
                                     chunk_id=f"section_{section_title[:20]}",
                                     op=lambda body=section_body, w=section_target_words: provider.summarize(
                                         text=body,
-                                        language=language,
+                                        language=normalized_summary_language,
                                         style=f"section::{style}",
                                         max_words=w,
                                     ),
@@ -368,8 +461,8 @@ class TranslationSummarizationService:
                                         "summary": section_summary,
                                     }
                                 )
-                                
-                                if sections.index(section) < len(sections) - 1 and self.global_min_interval_seconds > 0:
+
+                                if section_idx < len(sections) - 1 and self.global_min_interval_seconds > 0:
                                     logger.info("TS summarization pacing between sections: %.2fs", self.global_min_interval_seconds)
                                     await asyncio.sleep(self.global_min_interval_seconds)
 
@@ -387,8 +480,33 @@ class TranslationSummarizationService:
                             safe_error = self._sanitize_error_message(str(exc))
                             errors.append(f"{name}: {safe_error}")
                             continue
+                return None
+
+            provider_phase_timeout = max(10.0, float(getattr(self.settings, "TS_SUMMARIZATION_PROVIDER_PHASE_TIMEOUT_SECONDS", 35.0)))
+            provider_result = await asyncio.wait_for(_run_provider_phase(), timeout=provider_phase_timeout)
+            if provider_result is not None:
+                return provider_result
+            errors.append("providers: no usable output")
+        except asyncio.TimeoutError:
+            errors.append("providers: timed out")
         finally:
             await self._release_request_slot(user_id, request_id)
+
+        local_summary = self._build_local_summary_output(
+            prepared_text,
+            sections=sections,
+            max_words=max_words,
+        )
+        if local_summary:
+            logger.warning(
+                "TS summarization fallback provider=local user=%s text=%s errors=%s instance=%s",
+                self._safe_log_user(user_id),
+                self._safe_log_text(prepared_text),
+                " | ".join(errors),
+                self.instance_id,
+            )
+            await self._cache_set(self.CACHE_NAMESPACE_SUMMARY, cache_key, local_summary)
+            return local_summary, "local", True
 
         raise RuntimeError("All providers failed: " + " | ".join(errors))
 
@@ -445,6 +563,7 @@ class TranslationSummarizationService:
         max_retries = max(0, min(5, int(getattr(self.settings, "TS_RATE_LIMIT_MAX_RETRIES", 4) if max_retries is None else max_retries)))
         base_delay = max(10.0, float(self.settings.TS_RATE_LIMIT_BASE_DELAY_SECONDS))
         max_wait = min(60.0, max(base_delay, float(self.settings.TS_RATE_LIMIT_MAX_WAIT_SECONDS)))
+        op_timeout = max(5.0, float(getattr(self.settings, "TS_PROVIDER_OPERATION_TIMEOUT_SECONDS", 25.0)))
 
         logger.info(
             "TS AI call start provider=%s user=%s chunk=%s instance=%s",
@@ -458,7 +577,7 @@ class TranslationSummarizationService:
         for attempt in range(max_retries + 1):
             try:
                 await self._await_global_request_slot()
-                result = await op()
+                result = await asyncio.wait_for(op(), timeout=op_timeout)
                 logger.info(
                     "TS AI call success provider=%s user=%s chunk=%s attempt=%s instance=%s",
                     provider_name,
@@ -471,6 +590,7 @@ class TranslationSummarizationService:
             except Exception as exc:
                 last_exc = exc
                 is_rate_limited = self._is_rate_limit_error(exc)
+                is_hard_quota = self._is_hard_quota_error(exc)
                 is_transient = self._is_transient_network_error(exc)
 
                 if not is_rate_limited and not is_transient:
@@ -485,6 +605,17 @@ class TranslationSummarizationService:
                         self.instance_id,
                     )
                     raise
+
+                if is_hard_quota:
+                    logger.warning(
+                        "TS AI hard quota provider=%s user=%s chunk=%s reason=%s instance=%s",
+                        provider_name,
+                        self._safe_log_user(user_id),
+                        chunk_id or "root",
+                        self._sanitize_error_message(str(exc)),
+                        self.instance_id,
+                    )
+                    break
 
                 if attempt >= max_retries:
                     break
@@ -528,6 +659,19 @@ class TranslationSummarizationService:
             or "429" in msg
             or "rate_limit_exceeded" in msg
         )
+
+    @staticmethod
+    def _is_hard_quota_error(exc: Exception) -> bool:
+        msg = str(exc or "").lower()
+        hard_quota_markers = (
+            "tokens per day",
+            "daily limit",
+            "quota exceeded",
+            "insufficient_quota",
+            "resource_exhausted",
+            "exceeded your current quota",
+        )
+        return any(marker in msg for marker in hard_quota_markers)
 
     @staticmethod
     def _is_transient_network_error(exc: Exception) -> bool:
@@ -662,8 +806,9 @@ class TranslationSummarizationService:
             client = Redis.from_url(
                 self.settings.REDIS_URL,
                 decode_responses=True,
-                socket_connect_timeout=1.0,
-                socket_timeout=1.0,
+                socket_connect_timeout=3.0,
+                socket_timeout=5.0,
+                retry_on_timeout=False,
             )
             return client
         except Exception as exc:
@@ -671,9 +816,9 @@ class TranslationSummarizationService:
             return None
 
     @staticmethod
-    async def _await_redis(value):
+    async def _await_redis(value, timeout: float = 2.5):
         if inspect.isawaitable(value):
-            return await value
+            return await asyncio.wait_for(value, timeout=timeout)
         return value
 
     @staticmethod
@@ -714,6 +859,10 @@ class TranslationSummarizationService:
         return digest[:32]
 
     async def _wait_for_request_slot(self, user_id: str | None, request_id: str) -> int:
+        # Frontend calls often omit user_id; avoid a single shared "anonymous"
+        # queue that can be blocked by stale entries across restarts.
+        if not str(user_id or "").strip():
+            return 1
         if not self.cache_client:
             return 1
 
@@ -736,7 +885,8 @@ class TranslationSummarizationService:
             start_time = time.time()
             while True:
                 # Check for timeout (safety net)
-                if time.time() - start_time > 300: # 5 min max wait
+                queue_wait_timeout = max(60, int(self.settings.TS_QUEUE_WAIT_TIMEOUT_SECONDS))
+                if time.time() - start_time > queue_wait_timeout:
                     raise RuntimeError("Queue wait timeout")
 
                 head = await self._await_redis(self.cache_client.lindex(queue_key, 0))
@@ -753,21 +903,44 @@ class TranslationSummarizationService:
             await self._await_redis(self.cache_client.lrem(queue_key, 0, request_id))
             raise
         except Exception as exc:
-            # Cleanup on other errors
-            await self._await_redis(self.cache_client.lrem(queue_key, 0, request_id))
-            raise
+            # Degrade gracefully when Redis is slow/unavailable so requests still proceed.
+            logger.warning(
+                "TS queue unavailable, bypassing queue user=%s request_id=%s reason=%s",
+                self._safe_log_user(user_id),
+                request_id,
+                self._sanitize_error_message(str(exc)),
+            )
+            try:
+                await self._await_redis(self.cache_client.lrem(queue_key, 0, request_id))
+            except Exception:
+                pass
+            return 1
 
     async def _release_request_slot(self, user_id: str | None, request_id: str) -> None:
         """Explicitly release the head of the queue after the request is processed."""
+        if not str(user_id or "").strip():
+            return
         if not self.cache_client:
             return
         user_scope = self._user_scope(user_id)
         queue_key = f"ts:queue:{user_scope}:list"
         try:
-            # We only pop if we are actually at the head
-            head = await self._await_redis(self.cache_client.lindex(queue_key, 0))
-            if head == request_id:
-                await self._await_redis(self.cache_client.lpop(queue_key))
+            # Always remove this request id from the queue.
+            # This is more resilient than head-only pop if order shifted after
+            # retries/cancellations or worker restarts.
+            removed = await self._await_redis(self.cache_client.lrem(queue_key, 0, request_id))
+            queue_len = await self._await_redis(self.cache_client.llen(queue_key))
+            if queue_len and int(queue_len) > 0:
+                await self._await_redis(self.cache_client.expire(queue_key, 600))
+            else:
+                await self._await_redis(self.cache_client.delete(queue_key))
+            logger.info(
+                "TS queue release user=%s request_id=%s removed=%s remaining=%s",
+                self._safe_log_user(user_id),
+                request_id,
+                removed,
+                queue_len,
+            )
         except Exception:
             pass
 
@@ -803,12 +976,21 @@ class TranslationSummarizationService:
         token = f"{self.instance_id}:{uuid.uuid4().hex}"
         lock_key = self.GLOBAL_MUTEX_KEY
         ttl = self.GLOBAL_MUTEX_TTL
+        max_wait = max(1.0, float(getattr(self.settings, "TS_GLOBAL_MUTEX_WAIT_SECONDS", 8.0)))
+        started_at = time.monotonic()
         try:
             while True:
                 # Use a strictly non-blocking or very short sleep wait for the global lock
                 acquired = await self._await_redis(self.cache_client.set(lock_key, token, nx=True, ex=ttl))
                 if acquired:
                     return _RedisMutexGuard(self.cache_client, lock_key, token)
+                if (time.monotonic() - started_at) >= max_wait:
+                    logger.warning(
+                        "TS global mutex wait exceeded %.2fs, continuing without lock instance=%s",
+                        max_wait,
+                        self.instance_id,
+                    )
+                    return _NullAsyncContext()
                 await asyncio.sleep(0.5)
         except Exception:
             return _NullAsyncContext()
@@ -855,6 +1037,37 @@ class TranslationSummarizationService:
 
         return sections
 
+    def _split_into_summary_sections(self, text: str, *, max_chars: int | None = None) -> list[dict[str, str | int]]:
+        source = (text or "").strip()
+        if not source:
+            return [{"title": "Document", "level": 1, "content": ""}]
+
+        section_limit = max(1200, int(max_chars or self.summary_section_chunk_size))
+        sections = self._split_into_sections(source)
+        normalized_sections: list[dict[str, str | int]] = []
+
+        for index, section in enumerate(sections, start=1):
+            title = str(section.get("title") or f"Part {index}").strip() or f"Part {index}"
+            level = int(section.get("level") or 1)
+            content = str(section.get("content") or "").strip()
+            body = content or title
+
+            if len(body) <= section_limit:
+                normalized_sections.append({"title": title, "level": level, "content": body})
+                continue
+
+            chunks = self.smart_rechunk(body, chunk_size=section_limit, chunk_overlap=120)
+            for chunk_index, chunk in enumerate(chunks, start=1):
+                normalized_sections.append(
+                    {
+                        "title": f"{title} ({chunk_index}/{len(chunks)})",
+                        "level": level,
+                        "content": chunk,
+                    }
+                )
+
+        return normalized_sections or [{"title": "Document", "level": 1, "content": source}]
+
     @staticmethod
     def _estimate_section_summary_words(source_words: int, max_words: int | None) -> int:
         if max_words is None:
@@ -868,6 +1081,36 @@ class TranslationSummarizationService:
             prefix = "#" * int(section.get("level") or 1)
             lines.append(f"{prefix} {section.get('title')}\n\n{section.get('summary')}")
         return "\n\n".join(lines).strip()
+
+    def _build_local_summary_output(
+        self,
+        text: str,
+        *,
+        sections: list[dict[str, str | int]],
+        max_words: int | None,
+    ) -> str:
+        source = str(text or "").strip()
+        if not source:
+            return ""
+
+        summaries: list[dict[str, str | int]] = []
+        for section in sections:
+            content = str(section.get("content") or "").strip()
+            title = str(section.get("title") or "Document").strip() or "Document"
+            level = int(section.get("level") or 1)
+            target_words = self._estimate_section_summary_words(len(content.split()), max_words)
+            summary = self._local_section_summary(content, target_words=target_words)
+            if summary:
+                summaries.append({"title": title, "level": level, "summary": summary})
+
+        if not summaries:
+            fallback = self._local_section_summary(source, target_words=max_words or 220)
+            return fallback.strip()
+
+        if len(summaries) == 1 and str(summaries[0].get("title")) == "Document":
+            return str(summaries[0].get("summary") or "").strip()
+
+        return self._render_structured_summary(summaries)
 
     @staticmethod
     def _post_process_summary(text: str) -> str:

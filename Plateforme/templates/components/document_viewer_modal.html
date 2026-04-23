@@ -2341,7 +2341,18 @@ if (typeof pdfjsLib !== 'undefined') {
             overlay.style.display = 'flex';
         },
 
+        updateAiResultOverlay() {
+            const overlay = document.getElementById('aiResultOverlay');
+            if (!overlay) return;
+            if (overlay.style.display !== 'flex' && overlay.style.display !== 'block') {
+                this.openAiResultOverlay();
+                return;
+            }
+            this.openAiResultOverlay();
+        },
+
         formatAiResultDisplayText(rawText, task = 'result') {
+            const normalizedTask = String(task || '').toLowerCase();
             const normalized = String(rawText || '')
                 .replace(/\r\n/g, '\n')
                 .replace(/\n{3,}/g, '\n\n')
@@ -2352,7 +2363,7 @@ if (typeof pdfjsLib !== 'undefined') {
                         return '';
                     }
 
-                    if (String(task || '').toLowerCase() === 'translation') {
+                    if (normalizedTask === 'translation') {
                         return trimmed;
                     }
 
@@ -2549,18 +2560,10 @@ if (typeof pdfjsLib !== 'undefined') {
 
         getAiBaseUrl() {
             const base = this.modal?.dataset?.tsBase || '/ts-ai';
-            let normalized = base.endsWith('/') ? base.slice(0, -1) : base;
+            let normalized = String(base || '').trim() || '/ts-ai';
 
-            if (normalized.startsWith('http') && normalized.endsWith('/')) {
+            if (normalized.endsWith('/')) {
                 normalized = normalized.slice(0, -1);
-            }
-
-            // When accessing Django directly on localhost:8888, /ts-ai may not be proxied.
-            // Route browser calls to the host-published standalone service port.
-            const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-            const isDirectDjangoPort = window.location.port && !['80', '443', '8000'].includes(window.location.port);
-            if (normalized.startsWith('/') && isLocalHost && isDirectDjangoPort) {
-                return 'http://localhost:8010';
             }
 
             return normalized;
@@ -2572,48 +2575,68 @@ if (typeof pdfjsLib !== 'undefined') {
                 ?.split('=')[1];
         },
 
-        getAiBaseCandidates() {
-            const primary = this.getAiBaseUrl();
-            const candidates = [primary];
+        getLocalizedProxyPath(apiPath) {
+            const normalizedApiPath = String(apiPath || '').startsWith('/')
+                ? String(apiPath || '')
+                : `/${String(apiPath || '')}`;
+            const pathName = String(window.location.pathname || '');
+            const langMatch = pathName.match(/^\/([a-z]{2})(?:\/|$)/i);
+            if (!langMatch) {
+                return normalizedApiPath;
+            }
+            return `/${langMatch[1]}${normalizedApiPath}`;
+        },
 
-            // Prioritize the same-origin proxy views configured in translate/views.py.
-            // This avoids CORS and "localhost vs server" connectivity issues.
-            const djangoProxyBase = window.location.origin;
-            candidates.unshift(djangoProxyBase);
+        getTranslateProxyEndpoint() {
+            return this.modal?.dataset?.translateProxy || this.getLocalizedProxyPath('/api/ts/translate/');
+        },
 
-            // Same-origin proxy path via nginx (works when site is on port 80/443).
-            candidates.push('/ts-ai');
+        getSummarizeProxyEndpoint() {
+            return this.modal?.dataset?.summarizeProxy || this.getLocalizedProxyPath('/api/ts/summarize/');
+        },
 
-            // Host-level nginx fallback when page is served from a non-standard port.
-            const sameHostProxy = `${window.location.protocol}//${window.location.hostname}/ts-ai`;
-            candidates.push(sameHostProxy);
+        getAiBaseCandidates(path = '') {
+            const normalizedPath = String(path || '');
+            const candidates = [];
+            const isProxyPath = normalizedPath.includes('/api/ts/');
 
-            // Direct standalone service fallback for local Docker setup.
-            // Avoid mixed-content failures when the page is served via HTTPS.
-            const isHttpsPage = window.location.protocol === 'https:';
-            const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-            if (!isHttpsPage || isLocalHost) {
-                candidates.push('http://localhost:8010');
+            if (isProxyPath) {
+                // Django proxy endpoints are same-origin only.
+                candidates.push(window.location.origin);
+            } else {
+                const primary = this.getAiBaseUrl();
+                candidates.push(primary);
+
+                // Same-origin nginx proxy path.
+                candidates.push('/ts-ai');
+
+                // Host-level nginx fallback when page is served from a non-standard port.
+                candidates.push(`${window.location.protocol}//${window.location.hostname}/ts-ai`);
+
+                // Direct standalone service fallback for local Docker setup.
+                // Avoid mixed-content failures when the page is served via HTTPS.
+                const isHttpsPage = window.location.protocol === 'https:';
+                const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+                if (!isHttpsPage || isLocalHost) {
+                    candidates.push('http://localhost:8010');
+                }
+
+                if (!isHttpsPage) {
+                    candidates.push(`http://${window.location.hostname}:8010`);
+                }
             }
 
-            // Also try same host on port 8010 for LAN/domain-based local setups.
-            // Skip on HTTPS to prevent mixed-content blocking.
-            if (!isHttpsPage) {
-                const sameHostDirect = `http://${window.location.hostname}:8010`;
-                candidates.push(sameHostDirect);
-            }
-
-            // De-duplicate while preserving order.
-            console.log('AI Base Candidates:', candidates);
-            return [...new Set(candidates.filter(Boolean).map((u) => u.replace(/\/$/, '')))];
+            const deduped = [...new Set(candidates.filter(Boolean).map((u) => String(u).replace(/\/$/, '')))];
+            console.log('AI Base Candidates:', { path: normalizedPath, bases: deduped });
+            return deduped;
         },
 
         async fetchAiWithFallback(path, options = {}) {
             const { timeoutMs: requestedTimeoutMs, signal: externalSignal, ...fetchOptions } = options;
-            const bases = this.getAiBaseCandidates();
+            const bases = this.getAiBaseCandidates(path);
             let lastError = null;
             let lastHttpFailure = null;
-            const timeoutMs = Math.max(30000, Number(requestedTimeoutMs || 180000));
+            const timeoutMs = Math.max(45000, Number(requestedTimeoutMs || 300000));
 
             for (const base of bases) {
                 const url = `${base}${path}`;
@@ -2758,8 +2781,26 @@ if (typeof pdfjsLib !== 'undefined') {
         normalizeLangCode(lang) {
             const value = String(lang || '').trim().toLowerCase();
             if (!value) return '';
-            if (value === 'auto') return 'auto';
+            const aliases = {
+                auto: 'auto',
+                ar: 'ar',
+                arabic: 'ar',
+                arab: 'ar',
+                'العربية': 'ar',
+                fr: 'fr',
+                fra: 'fr',
+                fre: 'fr',
+                french: 'fr',
+                francais: 'fr',
+                'français': 'fr',
+                en: 'en',
+                eng: 'en',
+                english: 'en',
+                anglais: 'en',
+            };
+            if (aliases[value]) return aliases[value];
             const normalized = value.replace('_', '-').split('-', 1)[0];
+            if (aliases[normalized]) return aliases[normalized];
             return /^[a-z]{2,8}$/.test(normalized) ? normalized : '';
         },
 
@@ -2910,8 +2951,8 @@ if (typeof pdfjsLib !== 'undefined') {
                 }
 
                 const lower = sample.toLowerCase();
-                const frenchHints = [' le ', ' la ', ' les ', ' des ', ' est ', ' une ', ' que ', ' dans ', ' pour '];
-                const englishHints = [' the ', ' and ', ' with ', ' this ', ' that ', ' for ', ' from ', ' are '];
+                const frenchHints = [' le ', ' la ', ' les ', ' des ', ' est ', ' une ', ' un ', ' que ', ' qui ', ' dans ', ' pour ', ' avec ', ' sur '];
+                const englishHints = [' the ', ' and ', ' with ', ' this ', ' that ', ' for ', ' from ', ' are ', ' was ', ' were ', ' of ', ' to '];
                 const frenchScore = frenchHints.reduce((acc, token) => acc + (lower.includes(token) ? 1 : 0), 0);
                 const englishScore = englishHints.reduce((acc, token) => acc + (lower.includes(token) ? 1 : 0), 0);
 
@@ -3139,9 +3180,11 @@ if (typeof pdfjsLib !== 'undefined') {
         buildAiRequestTimeoutMs(task, text) {
             const contentLength = String(text || '').length;
             if (task === 'translation') {
-                return Math.max(180000, Math.min(600000, 120000 + (contentLength * 45)));
+                // Generous timeout for provider retries / queue delay on long or complex chunks.
+                return Math.max(90000, Math.min(420000, 90000 + (contentLength * 35)));
             }
-            return Math.max(240000, Math.min(720000, 180000 + (contentLength * 25)));
+            // Summarization tends to run longer than direct translation.
+            return Math.max(120000, Math.min(540000, 120000 + (contentLength * 40)));
         },
 
         buildTranslationChunkSize(text, sourceLanguage, targetLanguage) {
@@ -3155,21 +3198,21 @@ if (typeof pdfjsLib !== 'undefined') {
                 commonLangs.has(normalizedTarget);
 
             if (isCommonPair) {
-                if (contentLength > 80000) return 2600;
-                if (contentLength > 30000) return 3200;
-                return 4200;
+                if (contentLength > 80000) return 1800;
+                if (contentLength > 30000) return 2400;
+                return 3200;
             }
 
-            if (contentLength > 80000) return 1600;
-            return 2200;
+            if (contentLength > 80000) return 1400;
+            return 1800;
         },
 
         buildSummaryChunkSize(text) {
             const contentLength = String(text || '').length;
-            if (contentLength > 120000) return 22000;
-            if (contentLength > 60000) return 18000;
-            if (contentLength > 25000) return 15000;
-            return 22000;
+            if (contentLength > 120000) return 5000;
+            if (contentLength > 60000) return 6500;
+            if (contentLength > 25000) return 8000;
+            return 10000;
         },
 
         async waitWithCountdown(seconds, titleText, labelText, retryHandler = null, requestController = null) {
@@ -3251,6 +3294,103 @@ if (typeof pdfjsLib !== 'undefined') {
             throw new Error(msg);
         },
 
+        isAiTimeoutError(error) {
+            const message = String(error?.message || '').toLowerCase();
+            return message.includes('timed out') || message.includes('timeout');
+        },
+
+        async translateChunkWithAdaptiveRetry(endpoint, chunk, options = {}, depth = 0) {
+            const sourceText = String(chunk || '').trim();
+            if (!sourceText) {
+                return '';
+            }
+
+            const sourceLanguage = options.sourceLanguage || this.detectDocumentLanguage() || 'auto';
+            const targetLanguage = options.targetLanguage || 'en';
+            const timeoutMs = this.buildAiRequestTimeoutMs('translation', sourceText);
+
+            try {
+                return await this.submitAiRequest(endpoint, {
+                    text: sourceText,
+                    source_language: sourceLanguage,
+                    target_language: targetLanguage,
+                }, { timeoutMs });
+            } catch (err) {
+                const canSplitAgain = depth < 2 && sourceText.length > 900 && this.isAiTimeoutError(err);
+                if (!canSplitAgain) {
+                    throw err;
+                }
+
+                const smallerChunkSize = Math.max(700, Math.floor(sourceText.length / 2));
+                const parts = this.splitTextForAi(sourceText, smallerChunkSize);
+                if (parts.length <= 1) {
+                    throw err;
+                }
+
+                const translatedParts = [];
+                for (const part of parts) {
+                    const translated = await this.translateChunkWithAdaptiveRetry(
+                        endpoint,
+                        part,
+                        options,
+                        depth + 1,
+                    );
+                    if (translated) {
+                        translatedParts.push(translated);
+                    }
+                }
+                return translatedParts.join('\n\n').trim();
+            }
+        },
+
+        async summarizeChunkWithAdaptiveRetry(endpoint, chunk, options = {}, depth = 0) {
+            const sourceText = String(chunk || '').trim();
+            if (!sourceText) {
+                return '';
+            }
+
+            const language = options.language || this.detectDocumentLanguage() || 'auto';
+            const maxWords = Number(options.maxWords || 220);
+            const timeoutMs = this.buildAiRequestTimeoutMs('summarization', sourceText);
+
+            try {
+                return await this.submitAiRequest(endpoint, {
+                    text: sourceText,
+                    language,
+                    style: 'professional',
+                    max_words: maxWords,
+                }, { timeoutMs });
+            } catch (err) {
+                const canSplitAgain = depth < 2 && sourceText.length > 1400 && this.isAiTimeoutError(err);
+                if (!canSplitAgain) {
+                    throw err;
+                }
+
+                const smallerChunkSize = Math.max(900, Math.floor(sourceText.length / 2));
+                const parts = this.splitTextForAi(sourceText, smallerChunkSize);
+                if (parts.length <= 1) {
+                    throw err;
+                }
+
+                const summarizedParts = [];
+                for (const part of parts) {
+                    const summary = await this.summarizeChunkWithAdaptiveRetry(
+                        endpoint,
+                        part,
+                        {
+                            language,
+                            maxWords: Math.max(100, Math.round(maxWords * 0.75)),
+                        },
+                        depth + 1,
+                    );
+                    if (summary) {
+                        summarizedParts.push(summary);
+                    }
+                }
+                return summarizedParts.join('\n\n').trim();
+            }
+        },
+
         async startAiJob(task, buttonElement = null, options = {}) {
             const buttonId = task === 'translation' ? 'translateDocBtn' : 'summarizeDocBtn';
             const isTranslation = task === 'translation';
@@ -3276,16 +3416,16 @@ if (typeof pdfjsLib !== 'undefined') {
             try {
                 const textForAi = await this.ensureDocumentTextForAi();
                 const finalPrompt = String(textForAi || '').trim();
-                const detectedLang = this.detectDocumentLanguage() || 'en';
+                const detectedLang = this.detectDocumentLanguage() || 'auto';
                 const sourceWords = finalPrompt ? finalPrompt.split(/\s+/).filter(Boolean).length : 0;
-                const summaryTargetWords = Math.max(180, Math.min(1000, Math.round(sourceWords * 0.28)));
+                const summaryTargetWords = Math.max(120, Math.min(360, Math.round(sourceWords * 0.18)));
                 
                 // Use proxy endpoints if available
-                const translateProxy = this.modal?.dataset?.translateProxy;
-                const summarizeProxy = this.modal?.dataset?.summarizeProxy;
+                const translateProxy = this.getTranslateProxyEndpoint();
+                const summarizeProxy = this.getSummarizeProxyEndpoint();
                 const endpoint = isTranslation 
-                    ? (translateProxy || '/translate') 
-                    : (summarizeProxy || '/summarize');
+                    ? translateProxy
+                    : summarizeProxy;
 
                 // Use chunking for both translation and summarization to avoid timeouts.
                 // Summarization chunks are larger but still capped to keep requests under the timeout.
@@ -3338,24 +3478,27 @@ if (typeof pdfjsLib !== 'undefined') {
                         { canCloseOperation: true }
                     );
 
-                    const payload = isTranslation
-                        ? {
-                            text: chunk,
-                            source_language: options.sourceLanguage || detectedLang,
-                            target_language: options.targetLanguage || 'en',
-                        }
-                        : {
-                            text: chunk,
+                    const partOutput = isTranslation
+                        ? await this.translateChunkWithAdaptiveRetry(endpoint, chunk, {
+                            sourceLanguage: options.sourceLanguage || detectedLang,
+                            targetLanguage: options.targetLanguage || 'en',
+                        })
+                        : await this.summarizeChunkWithAdaptiveRetry(endpoint, chunk, {
                             language: detectedLang,
-                            style: 'professional',
-                            max_words: summaryTargetWords,
-                        };
-
-                    const partOutput = await this.submitAiRequest(endpoint, payload, {
-                        timeoutMs: this.buildAiRequestTimeoutMs(task, chunk),
-                    });
+                            maxWords: summaryTargetWords,
+                        });
                     if (partOutput) {
                         chunkOutputs.push(partOutput);
+                        if (isTranslation) {
+                            this.lastAiResult = {
+                                task: 'translation',
+                                title: this.t('translation', '{% trans "Translation"|escapejs %}'),
+                                meta: `${this.t('processing_document', '{% trans "Processing document..."|escapejs %}')} ${progress}`,
+                                targetLanguage: String(options.targetLanguage || '').trim().toLowerCase(),
+                                output: chunkOutputs.join('\n\n'),
+                            };
+                            this.updateAiResultOverlay();
+                        }
                     }
                 }
 
@@ -3369,8 +3512,8 @@ if (typeof pdfjsLib !== 'undefined') {
                         ? combinedSummary.split(/\s+/).filter(Boolean).length
                         : 0;
                     const shouldCondenseCombinedSummary =
-                        chunks.length > 2 &&
-                        combinedSummaryWords > 520;
+                        chunks.length > 4 &&
+                        combinedSummaryWords > 1200;
                     if (shouldCondenseCombinedSummary && combinedSummary) {
                         this.showAiStatus(
                             'info',
@@ -3378,12 +3521,10 @@ if (typeof pdfjsLib !== 'undefined') {
                             this.t('generating_final_summary', '{% trans "Generating final summary..."|escapejs %}'),
                             { canCloseOperation: true }
                         );
-                        output = await this.submitAiRequest(summarizeProxy || '/summarize', {
-                            text: combinedSummary,
+                        output = await this.summarizeChunkWithAdaptiveRetry(summarizeProxy, combinedSummary, {
                             language: detectedLang,
-                            style: 'professional',
-                            max_words: 420,
-                        }, { timeoutMs: this.buildAiRequestTimeoutMs('summarization', combinedSummary) });
+                            maxWords: 260,
+                        });
                     } else {
                         output = combinedSummary;
                     }
@@ -3418,6 +3559,8 @@ if (typeof pdfjsLib !== 'undefined') {
                 if (err?.name === 'AbortError') {
                     return;
                 }
+                this.closeAiResultOverlay();
+                this.lastAiResult = null;
                 this.aiRequestController = null;
                 this.activeAiJob = null;
                 this.setNlpButtonLoading(buttonId, false);

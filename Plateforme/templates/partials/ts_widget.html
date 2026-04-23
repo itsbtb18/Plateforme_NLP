@@ -84,7 +84,7 @@
   <!-- Spinner -->
   <div id="ts-spinner" class="ts-spinner" style="display:none;">
     <div class="ts-spinner-ring"></div>
-    <span>Processing…</span>
+    <span id="ts-spinner-text">Processing...</span>
   </div>
 
   <!-- Error -->
@@ -303,6 +303,10 @@
   function $(id) { return document.getElementById(id); }
 
   var TsWidget = {
+    _busyTimer: null,
+    _busyStartedAt: 0,
+    _requestController: null,
+    _requestTimeoutMs: 480000,
 
     init: function() {
       if (typeof TS_WIDGET_CONFIG === 'undefined') return;
@@ -341,11 +345,65 @@
       return cfg.sections.find(function(s) { return s.id === id; }) || cfg.sections[0];
     },
 
-    _setBusy: function(busy) {
+    _setBusy: function(busy, message) {
       $('ts-spinner').style.display = busy ? 'flex' : 'none';
       $('ts-error').style.display = 'none';
       document.querySelectorAll('.ts-btn').forEach(function(b) { b.disabled = busy; });
       if (busy) { $('ts-result-area').style.display = 'none'; }
+      if (busy) {
+        this._busyStartedAt = Date.now();
+        this._startBusyTicker(message || 'Processing...');
+      } else {
+        this._stopBusyTicker();
+      }
+    },
+
+    _startBusyTicker: function(baseMessage) {
+      var self = this;
+      var spinnerText = $('ts-spinner-text');
+      if (!spinnerText) return;
+      this._stopBusyTicker();
+      this._busyTimer = setInterval(function() {
+        var elapsed = Math.max(1, Math.floor((Date.now() - self._busyStartedAt) / 1000));
+        spinnerText.textContent = baseMessage + ' (' + elapsed + 's)';
+      }, 1000);
+      spinnerText.textContent = baseMessage + ' (1s)';
+    },
+
+    _stopBusyTicker: function() {
+      var spinnerText = $('ts-spinner-text');
+      if (this._busyTimer) {
+        clearInterval(this._busyTimer);
+        this._busyTimer = null;
+      }
+      if (spinnerText) spinnerText.textContent = 'Processing...';
+    },
+
+    _abortInFlight: function() {
+      if (this._requestController) {
+        this._requestController.abort();
+        this._requestController = null;
+      }
+    },
+
+    _fetchWithTimeout: function(url, options) {
+      if (typeof AbortController === 'undefined') {
+        return fetch(url, options);
+      }
+
+      var self = this;
+      self._abortInFlight();
+      self._requestController = new AbortController();
+      var timeoutId = setTimeout(function() {
+        if (self._requestController) self._requestController.abort();
+      }, self._requestTimeoutMs);
+      options = options || {};
+      options.signal = self._requestController.signal;
+
+      return fetch(url, options).finally(function() {
+        clearTimeout(timeoutId);
+        self._requestController = null;
+      });
     },
 
     _showError: function(msg) {
@@ -375,9 +433,9 @@
       if (!sec || !sec.sourceText) { this._showError('No text available to translate.'); return; }
 
       var targetLang = $('ts-target-lang').value;
-      this._setBusy(true);
+      this._setBusy(true, 'Translation in progress. Chunking and provider fallback may take time');
 
-      fetch(cfg.translateUrl, {
+      this._fetchWithTimeout(cfg.translateUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -390,7 +448,9 @@
           target_language: targetLang
         })
       })
-      .then(function(r) { return r.json(); })
+      .then(function(r) {
+        return r.json().catch(function() { return { ok: false, error: 'Invalid server response.' }; });
+      })
       .then(function(data) {
         TsWidget._setBusy(false);
         if (data.ok) {
@@ -405,6 +465,10 @@
       })
       .catch(function(err) {
         TsWidget._setBusy(false);
+        if (err && err.name === 'AbortError') {
+          TsWidget._showError('Request took too long. Please retry with a shorter text.');
+          return;
+        }
         TsWidget._showError('Network error: ' + err.message);
       });
     },
@@ -414,9 +478,9 @@
       if (!sec || !sec.sourceText) { this._showError('No text available to summarize.'); return; }
 
       var style = $('ts-summary-style').value;
-      this._setBusy(true);
+      this._setBusy(true, 'Summarization in progress. Large texts can take a few minutes');
 
-      fetch(cfg.summarizeUrl, {
+      this._fetchWithTimeout(cfg.summarizeUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -429,7 +493,9 @@
           style: style
         })
       })
-      .then(function(r) { return r.json(); })
+      .then(function(r) {
+        return r.json().catch(function() { return { ok: false, error: 'Invalid server response.' }; });
+      })
       .then(function(data) {
         TsWidget._setBusy(false);
         if (data.ok) {
@@ -444,6 +510,10 @@
       })
       .catch(function(err) {
         TsWidget._setBusy(false);
+        if (err && err.name === 'AbortError') {
+          TsWidget._showError('Request took too long. Please retry with a shorter text.');
+          return;
+        }
         TsWidget._showError('Network error: ' + err.message);
       });
     },

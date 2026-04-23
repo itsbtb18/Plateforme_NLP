@@ -76,7 +76,12 @@ def api_translate(request):
     from translate.ts_client import ts_translate
 
     try:
-        result = ts_translate(text, source_language, target_language)
+        result = ts_translate(
+            text,
+            source_language,
+            target_language,
+            user_id=str(getattr(request.user, "pk", "") or ""),
+        )
     except RuntimeError as exc:
         return JsonResponse({"ok": False, "error": str(exc)}, status=502)
 
@@ -121,7 +126,13 @@ def api_summarize(request):
     from translate.ts_client import ts_summarize
 
     try:
-        result = ts_summarize(text, language=language, style=style, max_words=max_words)
+        result = ts_summarize(
+            text,
+            language=language,
+            style=style,
+            max_words=max_words,
+            user_id=str(getattr(request.user, "pk", "") or ""),
+        )
     except RuntimeError as exc:
         return JsonResponse({"ok": False, "error": str(exc)}, status=502)
 

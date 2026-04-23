@@ -15,7 +15,7 @@ class GeminiProvider(Provider):
         self.api_key = settings.TS_GEMINI_API_KEY
         self.model = settings.TS_GEMINI_MODEL
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
-        self.timeout_seconds = max(60.0, float(settings.TS_PROVIDER_HTTP_TIMEOUT_SECONDS))
+        self.timeout_seconds = max(10.0, float(settings.TS_PROVIDER_HTTP_TIMEOUT_SECONDS))
 
     async def translate(self, *, text: str, source_language: str, target_language: str) -> str:
         prompt = PromptEngine.translation_prompt(

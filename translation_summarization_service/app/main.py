@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 
 from fastapi import FastAPI, Header, HTTPException
@@ -92,13 +93,25 @@ async def translate(req: TranslateRequest, x_ts_api_key: str | None = Header(def
 async def summarize(req: SummarizeRequest, x_ts_api_key: str | None = Header(default=None)) -> TaskResponse:
     _authorize(x_ts_api_key)
     try:
-        output, provider_used, fallback_used = await svc.summarize(
-            text=req.text,
-            language=req.language,
-            style=req.style,
-            max_words=req.max_words,
-            user_id=req.user_id,
+        hard_timeout = max(8.0, float(getattr(settings, "TS_SUMMARIZE_HTTP_HARD_TIMEOUT_SECONDS", 20.0)))
+        output, provider_used, fallback_used = await asyncio.wait_for(
+            svc.summarize(
+                text=req.text,
+                language=req.language,
+                style=req.style,
+                max_words=req.max_words,
+                user_id=req.user_id,
+            ),
+            timeout=hard_timeout,
         )
+    except asyncio.TimeoutError:
+        prepared = svc._prepare_text_for_summarization(req.text)
+        sections = svc._split_into_summary_sections(prepared, max_chars=svc.summary_section_chunk_size)
+        sections = svc._rebalance_sections(sections, max_sections=svc.max_summary_sections)
+        local_output = svc._build_local_summary_output(prepared, sections=sections, max_words=req.max_words)
+        output = local_output or prepared[:1000]
+        provider_used = "local-timeout"
+        fallback_used = True
     except Exception as exc:
         _service_error_to_http(exc)
     return TaskResponse(

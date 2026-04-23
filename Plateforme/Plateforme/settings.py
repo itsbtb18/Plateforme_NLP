@@ -420,7 +420,12 @@ TS_SERVICE_URL = os.getenv(
     f"http://{TS_SERVICE_HOST}:{TS_SERVICE_PORT}",
 )
 TS_SERVICE_API_KEY = os.getenv("TS_SERVICE_API_KEY", "")
-TS_SERVICE_TIMEOUT = int(os.getenv("TS_SERVICE_TIMEOUT", "300"))
+TS_SERVICE_TIMEOUT = int(
+    os.getenv(
+        "TS_SERVICE_TIMEOUT",
+        os.getenv("TS_SERVICE_TIMEOUT_SECONDS", "300"),
+    )
+)
 
 # Logging
 LOG_DIR = BASE_DIR / "logs"
