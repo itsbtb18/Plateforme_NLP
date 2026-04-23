@@ -31,8 +31,8 @@ class TranslationSummarizationService:
     DEFAULT_CHUNK_SIZE = 5200
     DEFAULT_CHUNK_OVERLAP = 200
     MAX_TRANSLATION_CHUNKS_PER_DOCUMENT = 3
-    GLOBAL_REQUESTS_PER_MINUTE = 10
-    GLOBAL_MIN_INTERVAL_SECONDS = 6.0
+    GLOBAL_REQUESTS_PER_MINUTE = 30
+    GLOBAL_MIN_INTERVAL_SECONDS = 2.0
     MAX_TRANSLATION_CHUNKS_PER_DOCUMENT = 3
     CACHE_NAMESPACE_TRANSLATION = "ts:translation"
     CACHE_NAMESPACE_TRANSLATION_CHUNK = "ts:translation:chunk"
@@ -120,11 +120,18 @@ class TranslationSummarizationService:
         chunks = self._rebalance_chunks(chunks, max_chunks=self.MAX_TRANSLATION_CHUNKS_PER_DOCUMENT)
         order = self.provider_order()
         errors: list[str] = []
+        # Track providers with persistent network failures so we skip them for
+        # subsequent chunks instead of wasting retry time.
+        broken_providers: set[str] = set()
 
         for idx, name in enumerate(order):
+            if name in broken_providers:
+                errors.append(f"{name}: skipped (network unreachable)")
+                continue
             provider = self.providers[name]
             translated_chunks: list[str] = []
             provider_errors: list[str] = []
+            provider_network_failed = False
             for i, chunk in enumerate(chunks):
                 chunk_key = self._cache_key(
                     task="translation-chunk",
@@ -143,7 +150,7 @@ class TranslationSummarizationService:
                         provider_name=name,
                         user_id=user_id,
                         chunk_id=f"chunk_{i}",
-                        max_retries=2,
+                        max_retries=4,
                         op=lambda c=chunk: provider.translate(
                             text=c,
                             source_language=source_language,
@@ -154,8 +161,19 @@ class TranslationSummarizationService:
                     if self._looks_like_summary(source_text=chunk, translated_text=translated_piece):
                         raise RuntimeError("provider output looks summarized/compressed, not full translation")
                 except Exception as exc:
-                    provider_errors.append(self._sanitize_error_message(str(exc)))
+                    err_msg = self._sanitize_error_message(str(exc))
+                    provider_errors.append(err_msg)
                     translated_piece = None
+                    # If the very first chunk fails with a network error,
+                    # mark this provider as broken and skip to fallback immediately.
+                    if self._is_transient_network_error(exc):
+                        provider_network_failed = True
+                        broken_providers.add(name)
+                        logger.warning(
+                            "TS provider %s has persistent network failure, skipping to fallback: %s",
+                            name, err_msg,
+                        )
+                        break
 
                 if translated_piece:
                     await self._cache_set(self.CACHE_NAMESPACE_TRANSLATION_CHUNK, chunk_key, translated_piece)
@@ -164,7 +182,7 @@ class TranslationSummarizationService:
                 if i < len(chunks) - 1 and self.global_min_interval_seconds > 0:
                     await asyncio.sleep(self.global_min_interval_seconds)
 
-            if not translated_chunks:
+            if provider_network_failed or not translated_chunks:
                 errors.append(f"{name}: " + " | ".join(provider_errors) if provider_errors else f"{name}: translation failed")
                 continue
 
@@ -339,7 +357,11 @@ class TranslationSummarizationService:
                 return result
             except Exception as exc:
                 last_exc = exc
-                if not self._is_rate_limit_error(exc):
+                is_rate_limited = self._is_rate_limit_error(exc)
+                is_transient = self._is_transient_network_error(exc)
+
+                if not is_rate_limited and not is_transient:
+                    # Permanent error (auth, bad request, etc.) — do not retry
                     logger.warning(
                         "TS AI call failed provider=%s user=%s chunk=%s attempt=%s reason=%s instance=%s",
                         provider_name,
@@ -354,28 +376,35 @@ class TranslationSummarizationService:
                 if attempt >= max_retries:
                     break
 
-                advised_wait = self._extract_retry_after_seconds(str(exc))
-                if advised_wait is not None and advised_wait > max_wait:
-                    advised_wait = max_wait
+                # Determine wait time based on error type
+                if is_rate_limited:
+                    advised_wait = self._extract_retry_after_seconds(str(exc))
+                    if advised_wait is not None and advised_wait > max_wait:
+                        advised_wait = max_wait
+                    wait_seconds = advised_wait if advised_wait is not None else min(max_wait, base_delay * (2 ** attempt))
+                    wait_seconds = max(10.0, min(wait_seconds, max_wait))
+                else:
+                    # Transient network error — use shorter backoff (2s, 4s, 8s)
+                    wait_seconds = min(15.0, 2.0 * (2 ** attempt))
 
-                wait_seconds = advised_wait if advised_wait is not None else min(max_wait, base_delay * (2 ** attempt))
-                wait_seconds = max(10.0, min(wait_seconds, max_wait))
-                
+                error_kind = "rate_limit" if is_rate_limited else "transient_network"
                 logger.info(
-                    "TS AI rate limit retry provider=%s user=%s chunk=%s attempt=%s waiting=%.2fs instance=%s",
+                    "TS AI %s retry provider=%s user=%s chunk=%s attempt=%s waiting=%.2fs reason=%s instance=%s",
+                    error_kind,
                     provider_name,
                     self._safe_log_user(user_id),
                     chunk_id or "root",
                     attempt + 1,
                     wait_seconds,
+                    self._sanitize_error_message(str(exc)),
                     self.instance_id,
                 )
                 
                 if wait_seconds > 0:
                     await asyncio.sleep(wait_seconds)
 
-        message = self._sanitize_error_message(str(last_exc)) if last_exc else "rate limit"
-        raise RuntimeError(f"Rate limit persisted for provider {provider_name}: {message}")
+        message = self._sanitize_error_message(str(last_exc)) if last_exc else "provider error"
+        raise RuntimeError(f"{provider_name}: {message}")
 
     @staticmethod
     def _is_rate_limit_error(exc: Exception) -> bool:
@@ -386,6 +415,34 @@ class TranslationSummarizationService:
             or "429" in msg
             or "rate_limit_exceeded" in msg
         )
+
+    @staticmethod
+    def _is_transient_network_error(exc: Exception) -> bool:
+        """Detect transient network errors that should be retried.
+
+        Covers DNS resolution failures, connection refused/reset, timeouts,
+        and similar issues that are common in Docker networking.
+        """
+        msg = str(exc or "").lower()
+        transient_markers = (
+            "no address associated with hostname",  # DNS failure (Errno -5)
+            "name or service not known",             # DNS failure (Errno -2)
+            "temporary failure in name resolution",  # DNS failure
+            "connection error",                      # Generic connection failure
+            "connection refused",                    # Service not ready yet
+            "connection reset",                      # Connection dropped
+            "network is unreachable",                # Network down
+            "timed out",                             # Socket timeout
+            "timeout",                               # httpx/requests timeout
+            "connecttimeout",                        # httpx connect timeout
+            "remotedisconnected",                    # Server closed connection
+            "connectionerror",                       # requests ConnectionError
+            "errno -5",                              # gaierror
+            "errno -2",                              # gaierror
+            "errno 111",                             # Connection refused
+            "errno 104",                             # Connection reset
+        )
+        return any(marker in msg for marker in transient_markers)
 
     @staticmethod
     def _extract_retry_after_seconds(message: str) -> float | None:
@@ -602,7 +659,7 @@ class TranslationSummarizationService:
             pass
 
     async def _await_global_request_slot(self) -> None:
-        interval = max(1.0, float(self.global_min_interval_seconds))
+        interval = max(0.5, float(self.global_min_interval_seconds))
         now = time.time()
 
         if not self.cache_client:
