@@ -11,6 +11,7 @@ Usage (inside a Django view):
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 import requests
@@ -21,6 +22,9 @@ logger = logging.getLogger(__name__)
 _TIMEOUT: int = getattr(settings, "TS_SERVICE_TIMEOUT", 120)
 _CONNECT_TIMEOUT_SECONDS: int = int(getattr(settings, "TS_SERVICE_CONNECT_TIMEOUT", 10))
 _MAX_TIMEOUT_SECONDS: int = int(getattr(settings, "TS_SERVICE_TIMEOUT_MAX", 900))
+_HEALTH_CACHE_TTL_SECONDS: int = int(getattr(settings, "TS_HEALTH_CACHE_TTL_SECONDS", 30))
+_LAST_HEALTH_AT: float = 0.0
+_LAST_HEALTH_VALUE: dict[str, str] | None = None
 
 
 def _base_url() -> str:
@@ -142,10 +146,21 @@ def ts_summarize(
 
 def ts_health() -> dict[str, str]:
     """Quick health-check on the TS service."""
+    global _LAST_HEALTH_AT, _LAST_HEALTH_VALUE
+    now = time.monotonic()
+    if _LAST_HEALTH_VALUE is not None and (now - _LAST_HEALTH_AT) < max(1, _HEALTH_CACHE_TTL_SECONDS):
+        return _LAST_HEALTH_VALUE
+
     url = f"{_base_url()}/health"
     try:
         resp = requests.get(url, headers=_headers(), timeout=10)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        _LAST_HEALTH_AT = now
+        _LAST_HEALTH_VALUE = data
+        return data
     except Exception as exc:
-        return {"status": "error", "detail": str(exc)}
+        data = {"status": "error", "detail": str(exc)}
+        _LAST_HEALTH_AT = now
+        _LAST_HEALTH_VALUE = data
+        return data

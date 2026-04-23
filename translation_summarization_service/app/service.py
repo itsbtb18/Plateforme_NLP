@@ -57,6 +57,14 @@ class TranslationSummarizationService:
             "groq": GroqProvider(),
         }
         self._provider_cooldowns: dict[str, float] = {}
+        self._provider_failure_counts: dict[str, int] = {}  # Circuit breaker: count consecutive failures
+        self._provider_last_failure: dict[str, float] = {}  # Track time of last failure for reset
+        self.circuit_breaker_threshold = max(1, int(getattr(self.settings, "TS_CIRCUIT_BREAKER_THRESHOLD", 3)))  # Disable after N failures
+        self.circuit_breaker_cooldown = max(30.0, float(getattr(self.settings, "TS_CIRCUIT_BREAKER_COOLDOWN_SECONDS", 60.0)))
+        self.provider_call_delay_seconds = max(0.0, float(getattr(self.settings, "TS_PROVIDER_CALL_DELAY_SECONDS", 0.3)))
+        self.provider_max_concurrency = max(1, int(getattr(self.settings, "TS_PROVIDER_MAX_CONCURRENCY", 2)))
+        self._provider_call_semaphore = asyncio.Semaphore(self.provider_max_concurrency)
+
         self.translation_chunk_size = max(1200, min(6000, int(getattr(self.settings, "TS_TRANSLATION_CHUNK_SIZE", self.DEFAULT_CHUNK_SIZE))))
         self.translation_chunk_overlap = max(0, min(self.translation_chunk_size - 1, int(getattr(self.settings, "TS_TRANSLATION_CHUNK_OVERLAP", self.DEFAULT_CHUNK_OVERLAP))))
         self.max_translation_chunks_per_document = max(
@@ -125,6 +133,30 @@ class TranslationSummarizationService:
             cooldown_seconds,
             self.instance_id,
         )
+
+    def _is_provider_circuit_open(self, provider_name: str) -> bool:
+        """Check if provider's circuit breaker is open (disabled due to too many failures)."""
+        failure_count = self._provider_failure_counts.get(provider_name, 0)
+        if failure_count < self.circuit_breaker_threshold:
+            return False
+
+        last_failure = self._provider_last_failure.get(provider_name, 0.0)
+        cooldown_remaining = self.circuit_breaker_cooldown - (time.monotonic() - last_failure)
+        return cooldown_remaining > 0
+
+    def _increment_provider_failure(self, provider_name: str) -> None:
+        """Increment failure counter for circuit breaker."""
+        self._provider_failure_counts[provider_name] = self._provider_failure_counts.get(provider_name, 0) + 1
+        self._provider_last_failure[provider_name] = time.monotonic()
+
+        failure_count = self._provider_failure_counts[provider_name]
+        if failure_count >= self.circuit_breaker_threshold:
+            logger.warning(
+                "TS circuit breaker activated for %s (failures=%d, cooling down %.1fs)",
+                provider_name,
+                failure_count,
+                self.circuit_breaker_cooldown,
+            )
 
     @staticmethod
     def _infer_language_from_text(text: str | None) -> str:
@@ -282,90 +314,92 @@ class TranslationSummarizationService:
         chunks = self._rebalance_chunks(chunks, max_chunks=self.max_translation_chunks_per_document)
         order = self.provider_order()
         errors: list[str] = []
-        # Track providers with persistent network failures so we skip them for
-        # subsequent chunks instead of wasting retry time.
-        broken_providers: set[str] = set()
-
-        for idx, name in enumerate(order):
-            cooldown_remaining = self._provider_cooldown_remaining(name)
-            if cooldown_remaining > 0:
-                errors.append(f"{name}: skipped (rate limited, cooling down {cooldown_remaining:.1f}s)")
-                continue
-            if name in broken_providers:
-                errors.append(f"{name}: skipped (network unreachable)")
-                continue
+        # OPTIMIZATION: Parallelize provider calls with asyncio.wait(FIRST_COMPLETED)
+        # instead of sequential retry. Race multiple providers, use first successful.
+        async def _try_provider(name: str, provider_idx: int) -> tuple[str, str, bool]:
             provider = self.providers[name]
             translated_chunks: list[str] = []
             provider_errors: list[str] = []
-            provider_network_failed = False
-            for i, chunk in enumerate(chunks):
-                chunk_key = self._cache_key(
-                    task="translation-chunk",
-                    text=chunk,
-                    source_language=source_language,
-                    target_language=target_language,
-                )
-                cached_chunk = await self._cache_get(self.CACHE_NAMESPACE_TRANSLATION_CHUNK, chunk_key)
-                if cached_chunk:
-                    translated_chunks.append(cached_chunk)
-                    continue
 
+            for i, chunk in enumerate(chunks):
                 translated_piece: str | None = None
                 try:
-                    translated_piece = await self._call_with_rate_limit_retry(
-                        provider_name=name,
-                        user_id=user_id,
-                        chunk_id=f"chunk_{i}",
-                        max_retries=int(getattr(self.settings, "TS_RATE_LIMIT_MAX_RETRIES", 1)),
-                        op=lambda c=chunk: provider.translate(
-                            text=c,
-                            source_language=source_language,
-                            target_language=target_language,
-                        ),
-                    )
+                    # SHORT TIMEOUT PER PROVIDER: 10s max per operation, not 30-60s with retries
+                    provider_timeout = max(5.0, float(getattr(self.settings, "TS_PROVIDER_TIMEOUT_SECONDS", 10.0)))
+                    if self.provider_call_delay_seconds > 0:
+                        await asyncio.sleep(self.provider_call_delay_seconds)
+                    async with self._provider_call_semaphore:
+                        translated_piece = await asyncio.wait_for(
+                            provider.translate(
+                                text=chunk,
+                                source_language=source_language,
+                                target_language=target_language,
+                            ),
+                            timeout=provider_timeout,
+                        )
                     translated_piece = self._post_process_translation(translated_piece)
                     if self._looks_like_summary(source_text=chunk, translated_text=translated_piece):
                         raise RuntimeError("provider output looks summarized/compressed, not full translation")
+                except asyncio.TimeoutError as exc:
+                    err_msg = f"timeout after {provider_timeout}s"
+                    provider_errors.append(err_msg)
+                    self._increment_provider_failure(name)
+                    logger.warning("TS provider %s timed out on chunk_%s: %s", name, i, err_msg)
+                    raise RuntimeError(err_msg)
                 except Exception as exc:
                     err_msg = self._sanitize_error_message(str(exc))
                     provider_errors.append(err_msg)
-                    translated_piece = None
-                    if self._is_rate_limit_error(exc):
-                        self._mark_provider_rate_limited(name, exc)
-                        logger.warning(
-                            "TS provider %s rate-limited on %s, switching provider: %s",
-                            name,
-                            f"chunk_{i}",
-                            err_msg,
-                        )
-                        break
-                    # If the very first chunk fails with a network error,
-                    # mark this provider as broken and skip to fallback immediately.
-                    if self._is_transient_network_error(exc):
-                        provider_network_failed = True
-                        broken_providers.add(name)
-                        logger.warning(
-                            "TS provider %s has persistent network failure, skipping to fallback: %s",
-                            name, err_msg,
-                        )
-                        break
+                    self._increment_provider_failure(name)
+                    logger.warning("TS provider %s failed on chunk_%s: %s", name, i, err_msg)
+                    raise
 
                 if translated_piece:
-                    await self._cache_set(self.CACHE_NAMESPACE_TRANSLATION_CHUNK, chunk_key, translated_piece)
                     translated_chunks.append(translated_piece)
 
                 if i < len(chunks) - 1 and self.global_min_interval_seconds > 0:
                     await asyncio.sleep(self.global_min_interval_seconds)
 
-            if provider_network_failed or not translated_chunks:
-                errors.append(f"{name}: " + " | ".join(provider_errors) if provider_errors else f"{name}: translation failed")
-                continue
+            if not translated_chunks:
+                raise RuntimeError("no translated chunks")
 
             output = self._merge_chunks(translated_chunks)
             if self._looks_like_summary(source_text=text, translated_text=output):
                 raise RuntimeError("provider output looks summarized/compressed, not full translation")
 
-            return output, name, idx > 0
+            # Reset failure counter on success
+            self._provider_failure_counts[name] = 0
+            return output, name, provider_idx > 0
+
+        # PARALLELIZATION: Launch all available providers concurrently, use first success
+        available_providers = []
+        for idx, name in enumerate(order):
+            if self._is_provider_circuit_open(name):
+                errors.append(f"{name}: circuit breaker open (too many failures)")
+                continue
+            if self._provider_cooldown_remaining(name) > 0:
+                errors.append(f"{name}: rate limited (cooling down)")
+                continue
+            available_providers.append((idx, name))
+
+        if available_providers:
+            tasks = [asyncio.create_task(_try_provider(name, idx)) for idx, name in available_providers]
+            pending: set[asyncio.Task[tuple[str, str, bool]]] = set(tasks)
+            try:
+                while pending:
+                    done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                    for completed in done:
+                        try:
+                            output, provider_name, fallback_used = completed.result()
+                            for task in pending:
+                                task.cancel()
+                            return output, provider_name, fallback_used
+                        except Exception as exc:
+                            errors.append(f"provider error: {self._sanitize_error_message(str(exc))}")
+                            continue
+            finally:
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+        # FALLBACK: All providers failed or timed out
 
         try:
             output = await self._translate_with_google_fallback(
@@ -427,60 +461,99 @@ class TranslationSummarizationService:
                     )
                     sections = self._rebalance_sections(sections, max_sections=self.max_summary_sections)
                     order = self.provider_order()
-                    for idx, name in enumerate(order):
-                        cooldown_remaining = self._provider_cooldown_remaining(name)
-                        if cooldown_remaining > 0:
-                            errors.append(f"{name}: skipped (rate limited, cooling down {cooldown_remaining:.1f}s)")
-                            continue
+                    # Parallelize providers with short timeout
+                    async def _try_provider_summarize(name: str, provider_idx: int) -> tuple[str, str, bool]:
                         provider = self.providers[name]
-                        try:
-                            summarized_sections: list[dict[str, str | int]] = []
-                            for section_idx, section in enumerate(sections):
-                                section_title = str(section["title"])
-                                section_level = int(section["level"])
-                                section_body = str(section["content"]).strip() or section_title
+                        summarized_sections: list[dict[str, str | int]] = []
+                        
+                        for section_idx, section in enumerate(sections):
+                            section_title = str(section["title"])
+                            section_level = int(section["level"])
+                            section_body = str(section["content"]).strip() or section_title
 
-                                section_target_words = self._estimate_section_summary_words(len(section_body.split()), max_words)
-                                section_summary = await self._call_with_rate_limit_retry(
-                                    provider_name=name,
-                                    user_id=user_id,
-                                    chunk_id=f"section_{section_title[:20]}",
-                                    op=lambda body=section_body, w=section_target_words: provider.summarize(
-                                        text=body,
-                                        language=normalized_summary_language,
-                                        style=f"section::{style}",
-                                        max_words=w,
-                                    ),
-                                )
+                            section_target_words = self._estimate_section_summary_words(len(section_body.split()), max_words)
+                            try:
+                                # SHORT TIMEOUT: 10s per section max
+                                provider_timeout = max(5.0, float(getattr(self.settings, "TS_PROVIDER_TIMEOUT_SECONDS", 10.0)))
+                                if self.provider_call_delay_seconds > 0:
+                                    await asyncio.sleep(self.provider_call_delay_seconds)
+                                async with self._provider_call_semaphore:
+                                    section_summary = await asyncio.wait_for(
+                                        provider.summarize(
+                                            text=section_body,
+                                            language=normalized_summary_language,
+                                            style=f"section::{style}",
+                                            max_words=section_target_words,
+                                        ),
+                                        timeout=provider_timeout,
+                                    )
                                 section_summary = self._post_process_summary(section_summary)
+                            except asyncio.TimeoutError:
+                                err_msg = f"timeout after {provider_timeout}s on section {section_title}"
+                                self._increment_provider_failure(name)
+                                logger.warning("TS provider %s summarization timeout: %s", name, err_msg)
+                                raise RuntimeError(err_msg)
+                            except Exception as exc:
+                                self._increment_provider_failure(name)
+                                raise
 
-                                summarized_sections.append(
-                                    {
-                                        "title": section_title,
-                                        "level": section_level,
-                                        "summary": section_summary,
-                                    }
-                                )
-
-                                if section_idx < len(sections) - 1 and self.global_min_interval_seconds > 0:
-                                    logger.info("TS summarization pacing between sections: %.2fs", self.global_min_interval_seconds)
-                                    await asyncio.sleep(self.global_min_interval_seconds)
-
-                            output = self._render_structured_summary(summarized_sections)
-                            await self._cache_set(self.CACHE_NAMESPACE_SUMMARY, cache_key, output)
-                            logger.info(
-                                "TS request done task=summarization provider=%s user=%s text=%s instance=%s",
-                                name,
-                                self._safe_log_user(user_id),
-                                self._safe_log_text(prepared_text),
-                                self.instance_id,
+                            summarized_sections.append(
+                                {
+                                    "title": section_title,
+                                    "level": section_level,
+                                    "summary": section_summary,
+                                }
                             )
-                            return output, name, idx > 0
-                        except Exception as exc:
-                            safe_error = self._sanitize_error_message(str(exc))
-                            errors.append(f"{name}: {safe_error}")
+
+                            if section_idx < len(sections) - 1 and self.global_min_interval_seconds > 0:
+                                await asyncio.sleep(self.global_min_interval_seconds)
+
+                        if len(summarized_sections) == 1 and str(summarized_sections[0].get("title")) == "Document":
+                            output = str(summarized_sections[0].get("summary") or "").strip()
+                        else:
+                            output = self._render_structured_summary(summarized_sections)
+                        # Reset failure counter on success
+                        self._provider_failure_counts[name] = 0
+                        return output, name, provider_idx > 0
+
+                    # Launch providers in parallel
+                    available_providers = []
+                    for idx, name in enumerate(order):
+                        if self._is_provider_circuit_open(name):
+                            errors.append(f"{name}: circuit breaker open")
                             continue
-                return None
+                        if self._provider_cooldown_remaining(name) > 0:
+                            errors.append(f"{name}: rate limited")
+                            continue
+                        available_providers.append((idx, name))
+
+                    if available_providers:
+                        tasks = [asyncio.create_task(_try_provider_summarize(name, idx)) for idx, name in available_providers]
+                        pending: set[asyncio.Task[tuple[str, str, bool]]] = set(tasks)
+                        try:
+                            while pending:
+                                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                                for completed in done:
+                                    try:
+                                        result = completed.result()
+                                        for task in pending:
+                                            task.cancel()
+                                        await self._cache_set(self.CACHE_NAMESPACE_SUMMARY, cache_key, result[0])
+                                        logger.info(
+                                            "TS request done task=summarization provider=%s user=%s text=%s instance=%s",
+                                            result[1],
+                                            self._safe_log_user(user_id),
+                                            self._safe_log_text(prepared_text),
+                                            self.instance_id,
+                                        )
+                                        return result[0], result[1], result[2]
+                                    except Exception as exc:
+                                        errors.append(f"provider error: {self._sanitize_error_message(str(exc))}")
+                                        continue
+                        finally:
+                            await asyncio.gather(*tasks, return_exceptions=True)
+
+                    return None
 
             provider_phase_timeout = max(10.0, float(getattr(self.settings, "TS_SUMMARIZATION_PROVIDER_PHASE_TIMEOUT_SECONDS", 35.0)))
             provider_result = await asyncio.wait_for(_run_provider_phase(), timeout=provider_phase_timeout)
@@ -525,19 +598,56 @@ class TranslationSummarizationService:
         try:
             await self._wait_for_request_slot(user_id, request_id)
             async with await self._global_mutex():
-                for idx, name in enumerate(order):
+                # Parallelize chat providers
+                async def _try_provider_chat(name: str, provider_idx: int) -> tuple[str, str, bool]:
                     provider = self.providers[name]
                     try:
-                        output = await self._call_with_rate_limit_retry(
-                            provider_name=name,
-                            user_id=user_id,
-                            chunk_id="chat",
-                            op=lambda: provider._generate(prompt=f"{system_prompt}\n\n{user_prompt}", model=getattr(provider, "model_translate", "auto")),
-                        )
-                        return output, name, idx > 0
+                        provider_timeout = max(5.0, float(getattr(self.settings, "TS_PROVIDER_TIMEOUT_SECONDS", 10.0)))
+                        if self.provider_call_delay_seconds > 0:
+                            await asyncio.sleep(self.provider_call_delay_seconds)
+                        async with self._provider_call_semaphore:
+                            output = await asyncio.wait_for(
+                                provider._generate(
+                                    prompt=f"{system_prompt}\n\n{user_prompt}",
+                                    model=getattr(provider, "model_translate", "auto"),
+                                ),
+                                timeout=provider_timeout,
+                            )
+                        # Reset failure counter on success
+                        self._provider_failure_counts[name] = 0
+                        return output, name, provider_idx > 0
+                    except asyncio.TimeoutError:
+                        self._increment_provider_failure(name)
+                        raise RuntimeError(f"timeout after {provider_timeout}s")
                     except Exception as exc:
-                        errors.append(f"{name}: {self._sanitize_error_message(str(exc))}")
+                        self._increment_provider_failure(name)
+                        raise
+
+                available_providers = []
+                for idx, name in enumerate(order):
+                    if self._is_provider_circuit_open(name):
+                        errors.append(f"{name}: circuit breaker open")
                         continue
+                    available_providers.append((idx, name))
+
+                if available_providers:
+                    tasks = [asyncio.create_task(_try_provider_chat(name, idx)) for idx, name in available_providers]
+                    pending: set[asyncio.Task[tuple[str, str, bool]]] = set(tasks)
+                    try:
+                        while pending:
+                            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                            for completed in done:
+                                try:
+                                    result = completed.result()
+                                    for task in pending:
+                                        task.cancel()
+                                    return result[0], result[1], result[2]
+                                except Exception as exc:
+                                    errors.append(f"chat error: {self._sanitize_error_message(str(exc))}")
+                                    continue
+                    finally:
+                        await asyncio.gather(*tasks, return_exceptions=True)
+
         finally:
             await self._release_request_slot(user_id, request_id)
 
@@ -620,16 +730,17 @@ class TranslationSummarizationService:
                 if attempt >= max_retries:
                     break
 
-                # Determine wait time based on error type
+                # Strong exponential backoff to avoid provider spam bursts.
                 if is_rate_limited:
                     advised_wait = self._extract_retry_after_seconds(str(exc))
                     if advised_wait is not None and advised_wait > max_wait:
                         advised_wait = max_wait
-                    wait_seconds = advised_wait if advised_wait is not None else min(max_wait, base_delay * (2 ** attempt))
-                    wait_seconds = max(10.0, min(wait_seconds, max_wait))
+                    exp_backoff = min(max_wait, float(2 ** (attempt + 1)))
+                    wait_seconds = advised_wait if advised_wait is not None else max(2.0, exp_backoff)
+                    wait_seconds = min(wait_seconds, max_wait)
                 else:
-                    # Transient network error — use shorter backoff (2s, 4s, 8s)
-                    wait_seconds = min(15.0, 2.0 * (2 ** attempt))
+                    # Transient network error — exponential backoff with cap.
+                    wait_seconds = min(max_wait, float(2 ** (attempt + 1)))
 
                 error_kind = "rate_limit" if is_rate_limited else "transient_network"
                 logger.info(
