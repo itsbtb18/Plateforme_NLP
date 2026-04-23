@@ -124,6 +124,7 @@ class Settings(BaseSettings):
     # Translation/Summarization Service (Global Scheduler)
     TS_SERVICE_URL: str = "http://translation_summarization:8010"
     TS_SERVICE_API_KEY: str = ""
+    TS_SERVICE_TIMEOUT_SECONDS: float = 420.0
 
     class Config:
         env_file = ".env"

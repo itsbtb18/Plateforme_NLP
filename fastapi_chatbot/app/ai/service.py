@@ -11,6 +11,7 @@ from app.ai.storage import get_object_storage
 from app.config import get_settings
 
 
+class AIPipelineService:
     def __init__(self) -> None:
         self.doc_intel = DocumentIntelligenceService()
         self.chunker = StructureAwareChunker()
@@ -24,7 +25,8 @@ from app.config import get_settings
     async def _call_ts_service(self, endpoint: str, payload: dict) -> dict:
         url = f"{self.settings.TS_SERVICE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
         headers = {"X-TS-API-KEY": self.settings.TS_SERVICE_API_KEY}
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        timeout_seconds = max(60.0, float(getattr(self.settings, "TS_SERVICE_TIMEOUT_SECONDS", 420.0)))
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
             try:
                 resp = await client.post(url, json=payload, headers=headers)
                 resp.raise_for_status()

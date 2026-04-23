@@ -17,6 +17,11 @@ try:
 except Exception:  # pragma: no cover - optional dependency fallback at runtime
     RecursiveCharacterTextSplitter = None
 
+try:
+    from deep_translator import GoogleTranslator
+except Exception:  # pragma: no cover - optional dependency fallback at runtime
+    GoogleTranslator = None
+
 from app.config import get_settings
 from app.providers.gemini_provider import GeminiProvider
 from app.providers.groq_provider import GroqProvider
@@ -31,6 +36,7 @@ class TranslationSummarizationService:
     DEFAULT_CHUNK_SIZE = 5200
     DEFAULT_CHUNK_OVERLAP = 200
     MAX_TRANSLATION_CHUNKS_PER_DOCUMENT = 3
+    GOOGLE_FALLBACK_CHUNK_SIZE = 2400
     GLOBAL_REQUESTS_PER_MINUTE = 30
     GLOBAL_MIN_INTERVAL_SECONDS = 2.0
     MAX_TRANSLATION_CHUNKS_PER_DOCUMENT = 3
@@ -48,6 +54,17 @@ class TranslationSummarizationService:
             "gemini": GeminiProvider(),
             "groq": GroqProvider(),
         }
+        self._provider_cooldowns: dict[str, float] = {}
+        self.translation_chunk_size = max(1200, min(6000, int(getattr(self.settings, "TS_TRANSLATION_CHUNK_SIZE", self.DEFAULT_CHUNK_SIZE))))
+        self.translation_chunk_overlap = max(0, min(self.translation_chunk_size - 1, int(getattr(self.settings, "TS_TRANSLATION_CHUNK_OVERLAP", self.DEFAULT_CHUNK_OVERLAP))))
+        self.max_translation_chunks_per_document = max(
+            1,
+            min(24, int(getattr(self.settings, "TS_TRANSLATION_MAX_CHUNKS_PER_DOCUMENT", self.MAX_TRANSLATION_CHUNKS_PER_DOCUMENT))),
+        )
+        self.google_fallback_chunk_size = max(
+            600,
+            min(self.translation_chunk_size, int(getattr(self.settings, "TS_GOOGLE_FALLBACK_CHUNK_SIZE", self.GOOGLE_FALLBACK_CHUNK_SIZE))),
+        )
         self.cache_client = self._build_cache_client()
         self.global_min_interval_seconds = self._resolve_global_min_interval_seconds()
         logger.info("TS Service initialized instance_id=%s", self.instance_id)
@@ -69,6 +86,63 @@ class TranslationSummarizationService:
             fallback = "groq" if primary == "gemini" else "gemini"
 
         return [primary, fallback]
+
+    def _provider_cooldown_remaining(self, provider_name: str) -> float:
+        cooldown_until = self._provider_cooldowns.get(provider_name, 0.0)
+        return max(0.0, cooldown_until - time.monotonic())
+
+    def _mark_provider_rate_limited(self, provider_name: str, exc: Exception) -> None:
+        retry_after = self._extract_retry_after_seconds(str(exc))
+        base_wait = max(10.0, float(self.settings.TS_RATE_LIMIT_BASE_DELAY_SECONDS))
+        max_wait = min(60.0, max(base_wait, float(self.settings.TS_RATE_LIMIT_MAX_WAIT_SECONDS)))
+        cooldown_seconds = retry_after if retry_after is not None else base_wait
+        cooldown_seconds = max(5.0, min(cooldown_seconds, max_wait))
+        self._provider_cooldowns[provider_name] = time.monotonic() + cooldown_seconds
+        logger.warning(
+            "TS provider %s cooling down for %.2fs after rate limit instance=%s",
+            provider_name,
+            cooldown_seconds,
+            self.instance_id,
+        )
+
+    @staticmethod
+    def _normalize_translation_lang(lang: str | None) -> str:
+        value = str(lang or "").strip().lower()
+        if not value:
+            return ""
+        if value == "auto":
+            return "auto"
+        if "-" in value:
+            value = value.split("-", 1)[0]
+        if "_" in value:
+            value = value.split("_", 1)[0]
+        return value
+
+    def _resolve_translation_chunk_size(self, *, source_language: str, target_language: str, text: str) -> int:
+        chunk_size = self.translation_chunk_size
+        normalized = {
+            self._normalize_translation_lang(source_language),
+            self._normalize_translation_lang(target_language),
+        }
+        normalized.discard("")
+        normalized.discard("auto")
+        if any(lang not in {"ar", "en", "fr"} for lang in normalized):
+            chunk_size = min(chunk_size, 2400)
+        if len(text or "") > 12000:
+            chunk_size = min(chunk_size, 2800)
+        return max(1200, chunk_size)
+
+    def _split_translation_chunks(self, *, text: str, source_language: str, target_language: str, max_chars: int | None = None) -> list[str]:
+        chunk_size = max_chars or self._resolve_translation_chunk_size(
+            source_language=source_language,
+            target_language=target_language,
+            text=text,
+        )
+        return self.smart_rechunk(
+            text,
+            chunk_size=chunk_size,
+            chunk_overlap=self.translation_chunk_overlap,
+        )
 
     async def translate(
         self,
@@ -116,8 +190,18 @@ class TranslationSummarizationService:
         target_language: str,
         user_id: str | None = None,
     ) -> tuple[str, str, bool]:
-        chunks = self._split_into_chunks(text)
-        chunks = self._rebalance_chunks(chunks, max_chunks=self.MAX_TRANSLATION_CHUNKS_PER_DOCUMENT)
+        chunk_size = self._resolve_translation_chunk_size(
+            source_language=source_language,
+            target_language=target_language,
+            text=text,
+        )
+        chunks = self._split_translation_chunks(
+            text=text,
+            source_language=source_language,
+            target_language=target_language,
+            max_chars=chunk_size,
+        )
+        chunks = self._rebalance_chunks(chunks, max_chunks=self.max_translation_chunks_per_document)
         order = self.provider_order()
         errors: list[str] = []
         # Track providers with persistent network failures so we skip them for
@@ -125,6 +209,10 @@ class TranslationSummarizationService:
         broken_providers: set[str] = set()
 
         for idx, name in enumerate(order):
+            cooldown_remaining = self._provider_cooldown_remaining(name)
+            if cooldown_remaining > 0:
+                errors.append(f"{name}: skipped (rate limited, cooling down {cooldown_remaining:.1f}s)")
+                continue
             if name in broken_providers:
                 errors.append(f"{name}: skipped (network unreachable)")
                 continue
@@ -164,6 +252,15 @@ class TranslationSummarizationService:
                     err_msg = self._sanitize_error_message(str(exc))
                     provider_errors.append(err_msg)
                     translated_piece = None
+                    if self._is_rate_limit_error(exc):
+                        self._mark_provider_rate_limited(name, exc)
+                        logger.warning(
+                            "TS provider %s rate-limited on %s, switching provider: %s",
+                            name,
+                            f"chunk_{i}",
+                            err_msg,
+                        )
+                        break
                     # If the very first chunk fails with a network error,
                     # mark this provider as broken and skip to fallback immediately.
                     if self._is_transient_network_error(exc):
@@ -191,6 +288,22 @@ class TranslationSummarizationService:
                 raise RuntimeError("provider output looks summarized/compressed, not full translation")
 
             return output, name, idx > 0
+
+        try:
+            output = await self._translate_with_google_fallback(
+                text=text,
+                source_language=source_language,
+                target_language=target_language,
+            )
+            logger.info(
+                "TS translation fallback provider=google user=%s text=%s instance=%s",
+                self._safe_log_user(user_id),
+                self._safe_log_text(text),
+                self.instance_id,
+            )
+            return output, "google", True
+        except Exception as exc:
+            errors.append(f"google: {self._sanitize_error_message(str(exc))}")
 
         raise RuntimeError("All providers failed: " + " | ".join(errors))
 
@@ -886,6 +999,51 @@ class TranslationSummarizationService:
         output = re.sub(r"([\(\[\{])\s+", r"\1", output)
         output = re.sub(r"\s+([\)\]\}])", r"\1", output)
         return output.strip()
+
+    async def _translate_with_google_fallback(self, *, text: str, source_language: str, target_language: str) -> str:
+        if GoogleTranslator is None:
+            raise RuntimeError("Google translation fallback is unavailable")
+
+        # Google Translate-style backends are more sensitive to oversized payloads,
+        # so keep the fallback chunks smaller than the LLM provider chunks.
+        chunk_size = min(
+            self.google_fallback_chunk_size,
+            self._resolve_translation_chunk_size(
+                source_language=source_language,
+                target_language=target_language,
+                text=text,
+            ),
+        )
+        chunks = self._split_translation_chunks(
+            text=text,
+            source_language=source_language,
+            target_language=target_language,
+            max_chars=chunk_size,
+        )
+        translated_chunks: list[str] = []
+        source = (source_language or "").strip() or "auto"
+        target = (target_language or "").strip() or "en"
+
+        for chunk in chunks:
+            clean_chunk = str(chunk or "").strip()
+            if not clean_chunk:
+                continue
+
+            translated_piece = await asyncio.to_thread(self._google_translate_chunk, clean_chunk, source, target)
+            translated_piece = self._post_process_translation(translated_piece)
+            if not translated_piece:
+                raise RuntimeError("Google translation fallback returned empty output")
+            translated_chunks.append(translated_piece)
+
+        if not translated_chunks:
+            raise RuntimeError("Google translation fallback returned empty output")
+
+        return self._merge_chunks(translated_chunks)
+
+    @staticmethod
+    def _google_translate_chunk(text: str, source_language: str, target_language: str) -> str:
+        translator = GoogleTranslator(source=source_language, target=target_language)
+        return str(translator.translate(text) or "")
 
     @staticmethod
     def _merge_chunks(chunks: list[str]) -> str:

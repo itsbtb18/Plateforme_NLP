@@ -67,6 +67,7 @@ class _AsyncFakeRedisQueue:
     def __init__(self) -> None:
         self.values: dict[str, str] = {}
         self.hashes: dict[str, dict[str, str]] = {}
+        self.lists: dict[str, list[str]] = {}
         self.expirations: dict[str, int] = {}
 
     async def incr(self, key: str) -> int:
@@ -82,10 +83,15 @@ class _AsyncFakeRedisQueue:
         if ex is not None:
             self.expirations[key] = ex
 
+    async def setex(self, key: str, ttl: int, value):
+        self.values[key] = str(value)
+        self.expirations[key] = ttl
+
     async def delete(self, *keys: str):
         for key in keys:
             self.values.pop(key, None)
             self.hashes.pop(key, None)
+            self.lists.pop(key, None)
             self.expirations.pop(key, None)
 
     async def expire(self, key: str, ttl: int):
@@ -97,6 +103,30 @@ class _AsyncFakeRedisQueue:
     async def hset(self, key: str, mapping: dict[str, str]):
         bucket = self.hashes.setdefault(key, {})
         bucket.update({k: str(v) for k, v in mapping.items()})
+
+    async def rpush(self, key: str, value: str) -> int:
+        items = self.lists.setdefault(key, [])
+        items.append(value)
+        return len(items)
+
+    async def lindex(self, key: str, index: int):
+        items = self.lists.get(key, [])
+        try:
+            return items[index]
+        except IndexError:
+            return None
+
+    async def lrem(self, key: str, count: int, value: str):
+        items = self.lists.get(key, [])
+        removed = 0
+        remaining: list[str] = []
+        for item in items:
+            if item == value and (count == 0 or removed < count):
+                removed += 1
+                continue
+            remaining.append(item)
+        self.lists[key] = remaining
+        return removed
 
 
 def test_provider_order_from_env(monkeypatch):
@@ -167,6 +197,135 @@ def test_translate_uses_local_fallback_on_rate_limit(monkeypatch):
     assert output == "fallback-translation"
     assert provider == "groq"
     assert fallback is False
+
+
+def test_translate_skips_rate_limited_provider_during_cooldown(monkeypatch):
+    monkeypatch.setenv("TS_PRIMARY_PROVIDER", "gemini")
+    monkeypatch.setenv("TS_FALLBACK_PROVIDER", "groq")
+    monkeypatch.setenv("TS_RATE_LIMIT_MAX_RETRIES", "0")
+
+    from app.config import get_settings
+    import app.service as service_module
+
+    get_settings.cache_clear()
+
+    current_time = {"value": 100.0}
+
+    def fake_monotonic() -> float:
+        return current_time["value"]
+
+    monkeypatch.setattr(service_module.time, "monotonic", fake_monotonic)
+
+    svc = TranslationSummarizationService()
+    svc.cache_client = _AsyncFakeRedisQueue()
+    svc.providers = {"gemini": _RateLimitedProvider(), "groq": _WorkingProvider()}
+
+    first = _run_async(
+        svc.translate(text="bonjour le monde", source_language="fr", target_language="en")
+    )
+    second = _run_async(
+        svc.translate(text="bonjour le monde encore", source_language="fr", target_language="en")
+    )
+
+    assert first[0] == "fallback-translation"
+    assert first[1] == "groq"
+    assert second[0] == "fallback-translation"
+    assert second[1] == "groq"
+    assert svc._provider_cooldown_remaining("gemini") > 0
+
+
+def test_resolve_translation_chunk_size_uses_smaller_chunks_for_other_languages(monkeypatch):
+    monkeypatch.setenv("TS_TRANSLATION_CHUNK_SIZE", "3200")
+
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
+    svc = TranslationSummarizationService()
+
+    assert svc._resolve_translation_chunk_size(
+        source_language="de",
+        target_language="ar",
+        text="x" * 14000,
+    ) == 2400
+
+
+def test_translate_uses_google_fallback_when_providers_fail(monkeypatch):
+    monkeypatch.setenv("TS_PRIMARY_PROVIDER", "gemini")
+    monkeypatch.setenv("TS_FALLBACK_PROVIDER", "groq")
+
+    from app.config import get_settings
+    import app.service as service_module
+
+    get_settings.cache_clear()
+
+    async def fake_google_fallback(self, *, text: str, source_language: str, target_language: str):
+        _ = (text, source_language, target_language)
+        return "google-translation"
+
+    monkeypatch.setattr(
+        service_module.TranslationSummarizationService,
+        "_translate_with_google_fallback",
+        fake_google_fallback,
+    )
+
+    svc = TranslationSummarizationService()
+    svc.providers = {"gemini": _FailingProvider(), "groq": _FailingProvider()}
+    svc.cache_client = _AsyncFakeRedisQueue()
+
+    output, provider, fallback = _run_async(
+        svc.translate(text="bonjour le monde", source_language="fr", target_language="en")
+    )
+
+    assert output == "google-translation"
+    assert provider == "google"
+    assert fallback is True
+
+
+def test_google_fallback_uses_smaller_chunk_size(monkeypatch):
+    monkeypatch.setenv("TS_PRIMARY_PROVIDER", "gemini")
+    monkeypatch.setenv("TS_FALLBACK_PROVIDER", "groq")
+
+    from app.config import get_settings
+    import app.service as service_module
+
+    get_settings.cache_clear()
+
+    observed: list[int] = []
+
+    def fake_split_translation_chunks(self, *, text: str, source_language: str, target_language: str, max_chars: int | None = None):
+        _ = (source_language, target_language)
+        observed.append(max_chars)
+        return [text, text]
+
+    def fake_google_translate_chunk(text: str, source_language: str, target_language: str) -> str:
+        _ = (source_language, target_language)
+        return f"translated:{text}"
+
+    monkeypatch.setattr(
+        service_module.TranslationSummarizationService,
+        "_split_translation_chunks",
+        fake_split_translation_chunks,
+    )
+    monkeypatch.setattr(
+        service_module.TranslationSummarizationService,
+        "_google_translate_chunk",
+        staticmethod(fake_google_translate_chunk),
+    )
+
+    svc = TranslationSummarizationService()
+    svc.providers = {"gemini": _FailingProvider(), "groq": _FailingProvider()}
+
+    output = _run_async(
+        svc._translate_with_google_fallback(
+            text="bonjour le monde",
+            source_language="fr",
+            target_language="en",
+        )
+    )
+
+    assert output == "translated:bonjour le monde\n\ntranslated:bonjour le monde"
+    assert observed and observed[0] == svc.google_fallback_chunk_size
 
 
 def test_translate_uses_cache_on_repeat_request(monkeypatch):
