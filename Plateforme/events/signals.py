@@ -46,14 +46,17 @@ def notify_event_registration(sender, instance, created, **kwargs):
         event_date = instance.event.start_date
         reminder_date = event_date - timedelta(days=1)
 
-        if reminder_date > timezone.now().date():
-            NotificationService.create_notification(
-                instance.user,
-                "EVENT_CREATED",
-                _("Reminder: %(title)s tomorrow") % {"title": instance.event.title},
-                _(
-                    "Reminder: The event %(title)s which you are registered for is scheduled for tomorrow."
-                )
-                % {"title": instance.event.title},
-                instance.event,
-            )
+        # DISABLED: This was sending reminders immediately upon registration
+        # even if the event was weeks away. Reminders should be handled by 
+        # a scheduled background task instead.
+        # if reminder_date > timezone.now().date():
+        #     NotificationService.create_notification(
+        #         instance.user,
+        #         "EVENT_CREATED",
+        #         _("Reminder: %(title)s tomorrow") % {"title": instance.event.title},
+        #         _(
+        #             "Reminder: The event %(title)s which you are registered for is scheduled for tomorrow."
+        #         )
+        #         % {"title": instance.event.title},
+        #         instance.event,
+        #     )

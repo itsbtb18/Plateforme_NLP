@@ -6,7 +6,7 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.schemas import SummarizeRequest, TaskResponse, TranslateRequest
+from app.schemas import ChatRequest, SummarizeRequest, TaskResponse, TranslateRequest
 from app.service import TranslationSummarizationService
 
 app = FastAPI(title="Translation & Summarization Service", version="1.0.0")
@@ -33,6 +33,12 @@ def _service_error_to_http(exc: Exception) -> None:
     message = str(exc or "").strip() or "Translation/Summarization provider failed"
     lowered = message.lower()
 
+    if "queue" in lowered and "too many" in lowered:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many tasks in queue. Please wait for previous tasks to finish before adding more.",
+        )
+
     if "429" in lowered or "rate limit" in lowered or "too many requests" in lowered:
         retry_after_match = re.search(r"(?:retry after|try again in|waiting)\s*(\d+(?:\.\d+)?)", message, flags=re.IGNORECASE)
         retry_hint = ""
@@ -41,7 +47,7 @@ def _service_error_to_http(exc: Exception) -> None:
             retry_hint = f" Please retry after {retry_seconds}s."
         raise HTTPException(
             status_code=429,
-            detail=f"AI provider rate limit reached.{retry_hint}",
+            detail=f"AI provider rate limit reached.{retry_hint} Please wait a moment and retry.",
         )
 
     if "api key" in lowered or "unauthorized" in lowered or "forbidden" in lowered:
@@ -70,6 +76,7 @@ async def translate(req: TranslateRequest, x_ts_api_key: str | None = Header(def
             text=req.text,
             source_language=req.source_language,
             target_language=req.target_language,
+            user_id=req.user_id,
         )
     except Exception as exc:
         _service_error_to_http(exc)
@@ -90,11 +97,32 @@ async def summarize(req: SummarizeRequest, x_ts_api_key: str | None = Header(def
             language=req.language,
             style=req.style,
             max_words=req.max_words,
+            user_id=req.user_id,
         )
     except Exception as exc:
         _service_error_to_http(exc)
     return TaskResponse(
         task="summarization",
+        output=output,
+        provider_used=provider_used,
+        fallback_used=fallback_used,
+    )
+
+
+@app.post("/chat", response_model=TaskResponse)
+async def chat(req: ChatRequest, x_ts_api_key: str | None = Header(default=None)) -> TaskResponse:
+    _authorize(x_ts_api_key)
+    try:
+        output, provider_used, fallback_used = await svc.chat(
+            system_prompt=req.system_prompt,
+            user_prompt=req.user_prompt,
+            provider_name=req.provider,
+            user_id=req.user_id,
+        )
+    except Exception as exc:
+        _service_error_to_http(exc)
+    return TaskResponse(
+        task="chat",
         output=output,
         provider_used=provider_used,
         fallback_used=fallback_used,

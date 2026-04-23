@@ -49,7 +49,7 @@ class GeminiProvider(Provider):
             "generationConfig": generation_config,
         }
         url = f"{self.base_url}/models/{self.model}:generateContent"
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             response = await client.post(url, params={"key": self.api_key}, json=payload)
             try:
                 response.raise_for_status()

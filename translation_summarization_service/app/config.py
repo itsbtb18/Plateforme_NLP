@@ -4,6 +4,8 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    REDIS_URL: str = "redis://redis:6379/0"
+
     TS_GEMINI_API_KEY: str = ""
     TS_GEMINI_MODEL: str = "gemini-2.0-flash"
 
@@ -18,15 +20,29 @@ class Settings(BaseSettings):
     # Optional simple auth between gateway/services
     TS_SERVICE_API_KEY: str = ""
 
-    # Resilience for large inputs: retry when provider returns rate-limit responses.
-    TS_RATE_LIMIT_MAX_RETRIES: int = 4
-    TS_RATE_LIMIT_BASE_DELAY_SECONDS: float = 1.0
-    TS_RATE_LIMIT_MAX_WAIT_SECONDS: float = 20.0
-    TS_INTER_CHUNK_DELAY_SECONDS: float = 1.1
+    # Cache for repeated translation/summarization requests.
+    TS_CACHE_TTL_SECONDS: int = 604800
+
+    # Request scheduling and stability.
+    TS_MAX_CONCURRENT_REQUESTS: int = 1
+    TS_RATE_LIMIT_BUCKET_CAPACITY: int = 20
+    TS_RATE_LIMIT_REFILL_WINDOW_SECONDS: int = 60
+    TS_QUEUE_MAX_SIZE_PER_USER: int = 20
+    TS_PROVIDER_GEMINI_BUCKET_CAPACITY: int = 1
+    TS_PROVIDER_GEMINI_BUCKET_WINDOW_SECONDS: int = 12
+    TS_PROVIDER_GROQ_BUCKET_CAPACITY: int = 1
+    TS_PROVIDER_GROQ_BUCKET_WINDOW_SECONDS: int = 12
+
+    # Resilience for large inputs: exponential retry when provider returns rate-limit responses.
+    TS_RATE_LIMIT_MAX_RETRIES: int = 5
+    TS_RATE_LIMIT_BASE_DELAY_SECONDS: float = 10.0
+    TS_RATE_LIMIT_MAX_WAIT_SECONDS: float = 60.0
+    TS_INTER_CHUNK_DELAY_SECONDS: float = 0.0
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
 @lru_cache

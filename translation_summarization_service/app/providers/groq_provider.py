@@ -18,7 +18,7 @@ class GroqProvider(Provider):
         self.api_key = settings.TS_GROQ_API_KEY
         self.model_translate = settings.TS_GROQ_TRANSLATION_MODEL
         self.model_summarize = settings.TS_GROQ_SUMMARIZATION_MODEL
-        self.client = Groq(api_key=self.api_key, timeout=15.0, max_retries=0) if self.api_key else None
+        self.client = Groq(api_key=self.api_key, timeout=300.0, max_retries=0) if self.api_key else None
 
     async def translate(self, *, text: str, source_language: str, target_language: str) -> str:
         prompt = PromptEngine.translation_prompt(

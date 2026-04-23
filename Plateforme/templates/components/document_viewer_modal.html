@@ -15,6 +15,8 @@
     data-resource-id="{{ doc_resource_id|default:'' }}"
     data-resource-title="{{ doc_resource_title|default:'' }}"
     data-convert-url="{% if doc_resource_id %}{% url 'resources:convert-to-text' doc_resource_id %}{% endif %}"
+    data-translate-proxy="{% url 'translate:api_ts_translate' %}"
+    data-summarize-proxy="{% url 'translate:api_ts_summarize' %}"
     data-ts-base="/ts-ai"
      style="display: none;">
     
@@ -1936,7 +1938,7 @@ html[dir="rtl"] .ctt-actions { flex-direction: row-reverse; }
 
 .ai-result-content {
     margin: 0;
-    padding: 20px 24px 22px;
+    padding: 20px 28px 22px 24px;
     white-space: pre-wrap;
     word-break: break-word;
     color: #ede9fe;
@@ -1946,6 +1948,17 @@ html[dir="rtl"] .ctt-actions { flex-direction: row-reverse; }
     font-weight: 400;
     text-align: left;
     letter-spacing: 0.01em;
+}
+
+.ai-result-content[dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+    unicode-bidi: plaintext;
+    padding: 20px 24px 22px 28px;
+}
+
+.ai-result-content[dir="rtl"] * {
+    text-align: right;
 }
 
 .ai-result-actions {
@@ -2128,13 +2141,21 @@ if (typeof pdfjsLib !== 'undefined') {
         },
         
         init() {
+            if (this._initialized) return;
+            console.log('DocViewer: Initializing components...');
+            
             this.modal = document.getElementById('documentViewerModal');
             this.backdrop = document.getElementById('docViewerBackdrop');
             
-            if (!this.modal) return;
+            if (!this.modal) {
+                console.error('DocViewer: Modal element not found during init!');
+                return;
+            }
             
             this.bindEvents();
             this.applyRuntimeTranslations();
+            this._initialized = true;
+            console.log('DocViewer: Initialization complete.');
         },
         
         bindEvents() {
@@ -2186,7 +2207,24 @@ if (typeof pdfjsLib !== 'undefined') {
         },
         
         open(url, fileType = null, resourceId = null, resourceTitle = null, convertUrl = null) {
-            if (!url || !this.modal) return;
+            console.log('DocViewer: Opening URL:', url);
+            if (!url) {
+                console.warn('DocViewer: No URL provided to open()');
+                return;
+            }
+            if (!this.modal) {
+                console.error('DocViewer: Cannot open, modal not initialized!');
+                // Try one last time to find it
+                this.modal = document.getElementById('documentViewerModal');
+                if (!this.modal) return;
+                this.init();
+            }
+
+            // Always reset buttons and cancel any previous document's AI tasks
+            this.cancelAiOperation(false);
+            this.setNlpButtonLoading('translateDocBtn', false);
+            this.setNlpButtonLoading('summarizeDocBtn', false);
+            this.setNlpButtonLoading('convertToTextBtn', false);
             
             this.currentUrl = url;
             this.currentType = fileType || this.getFileType(url);
@@ -2276,6 +2314,7 @@ if (typeof pdfjsLib !== 'undefined') {
             }
         },
 
+
         openAiResultOverlay() {
             if (!this.lastAiResult) return;
 
@@ -2285,16 +2324,19 @@ if (typeof pdfjsLib !== 'undefined') {
             const contentEl = document.getElementById('aiResultContent');
             if (!overlay || !titleEl || !metaEl || !contentEl) return;
 
-            titleEl.textContent = this.lastAiResult.title || this.t('ai_result', '{% trans "AI Result" %}');
-            metaEl.textContent = this.lastAiResult.meta || this.t('generated_in_page', '{% trans "Generated without leaving the current page." %}');
+            titleEl.textContent = this.lastAiResult.title || this.t('ai_result', '{% trans "AI Result"|escapejs %}');
+            metaEl.textContent = this.lastAiResult.meta || this.t('generated_in_page', '{% trans "Generated without leaving the current page."|escapejs %}');
             contentEl.textContent = this.formatAiResultDisplayText(
                 this.lastAiResult.output || '',
                 this.lastAiResult.task || 'result'
             );
-            contentEl.dir = String(this.lastAiResult.targetLanguage || '').startsWith('ar') ? 'rtl' : 'auto';
+            const isArabicTarget = String(this.lastAiResult.targetLanguage || '').trim().toLowerCase().startsWith('ar');
+            contentEl.dir = isArabicTarget ? 'rtl' : 'auto';
+            contentEl.style.direction = isArabicTarget ? 'rtl' : 'auto';
+            contentEl.style.textAlign = isArabicTarget ? 'right' : 'left';
             const copyBtn = document.getElementById('copyAiResultBtn');
             if (copyBtn) {
-                copyBtn.textContent = this.t('copy', '{% trans "Copy" %}');
+                copyBtn.textContent = this.t('copy', '{% trans "Copy"|escapejs %}');
             }
             overlay.style.display = 'flex';
         },
@@ -2344,9 +2386,9 @@ if (typeof pdfjsLib !== 'undefined') {
             try {
                 await navigator.clipboard.writeText(this.lastAiResult.output);
                 if (copyBtn) {
-                    copyBtn.textContent = this.t('copied', '{% trans "Copied!" %}');
+                    copyBtn.textContent = this.t('copied', '{% trans "Copied!"|escapejs %}');
                     setTimeout(() => {
-                        copyBtn.textContent = this.t('copy', '{% trans "Copy" %}');
+                        copyBtn.textContent = this.t('copy', '{% trans "Copy"|escapejs %}');
                     }, 1400);
                 }
             } catch (err) {
@@ -2469,10 +2511,9 @@ if (typeof pdfjsLib !== 'undefined') {
                 this.aiRequestController = null;
             }
 
-            const buttonId = this.activeAiJob?.buttonId || null;
-            if (buttonId) {
-                this.setNlpButtonLoading(buttonId, false);
-            }
+            // Always try to reset both buttons to prevent stuck "Preparing..." states
+            this.setNlpButtonLoading('translateDocBtn', false);
+            this.setNlpButtonLoading('summarizeDocBtn', false);
 
             const stoppedJobId = this.activeAiJob?.jobId || '';
             this.activeAiJob = null;
@@ -2480,10 +2521,20 @@ if (typeof pdfjsLib !== 'undefined') {
             if (showStatus) {
                 this.showAiStatus(
                     'info',
-                    this.t('operation_closed', '{% trans "Operation closed" %}'),
-                    this.t('tracking_stopped', '{% trans "Summarization/translation tracking stopped." %}'),
+                    this.t('operation_closed', '{% trans "Operation closed"|escapejs %}'),
+                    this.t('tracking_stopped', '{% trans "Summarization/translation tracking stopped."|escapejs %}'),
                     { jobId: stoppedJobId }
                 );
+            }
+        },
+
+        closeAiStatusOperation() {
+            console.log('DocViewer: Closing AI status operation and cancelling tasks...');
+            this.cancelAiOperation(false);
+            const box = document.getElementById('docviewerAiStatus');
+            if (box) {
+                box.style.display = 'none';
+                box.innerHTML = '';
             }
         },
 
@@ -2515,9 +2566,20 @@ if (typeof pdfjsLib !== 'undefined') {
             return normalized;
         },
 
+        getCsrfToken() {
+            return document.cookie.split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];
+        },
+
         getAiBaseCandidates() {
             const primary = this.getAiBaseUrl();
             const candidates = [primary];
+
+            // Prioritize the same-origin proxy views configured in translate/views.py.
+            // This avoids CORS and "localhost vs server" connectivity issues.
+            const djangoProxyBase = window.location.origin;
+            candidates.unshift(djangoProxyBase);
 
             // Same-origin proxy path via nginx (works when site is on port 80/443).
             candidates.push('/ts-ai');
@@ -2542,6 +2604,7 @@ if (typeof pdfjsLib !== 'undefined') {
             }
 
             // De-duplicate while preserving order.
+            console.log('AI Base Candidates:', candidates);
             return [...new Set(candidates.filter(Boolean).map((u) => u.replace(/\/$/, '')))];
         },
 
@@ -2623,15 +2686,33 @@ if (typeof pdfjsLib !== 'undefined') {
         setNlpButtonLoading(buttonId, loading, loadingText) {
             const btn = document.getElementById(buttonId);
             if (!btn) return;
+            
             btn.disabled = loading;
             btn.style.opacity = loading ? '0.7' : '1';
+            btn.style.cursor = loading ? 'not-allowed' : 'pointer';
+            btn.style.pointerEvents = loading ? 'none' : 'auto';
+            
             const desc = btn.querySelector('.docviewer-nlp-btn-desc');
             if (!desc) return;
+            
             if (loading) {
-                btn.dataset.originalDesc = desc.textContent;
-                desc.textContent = loadingText;
-            } else if (btn.dataset.originalDesc) {
-                desc.textContent = btn.dataset.originalDesc;
+                // Only capture description if it's not already a loading message
+                const currentText = desc.textContent;
+                const isAlreadyLoading = currentText.includes('...') || currentText.toLowerCase().includes('wait');
+                if (!btn.dataset.originalDesc && !isAlreadyLoading) {
+                    btn.dataset.originalDesc = currentText;
+                }
+                desc.textContent = loadingText || this.t('processing', '{% trans "Processing..."|escapejs %}');
+            } else {
+                // Restore original description or use a sane default based on the button
+                if (btn.dataset.originalDesc) {
+                    desc.textContent = btn.dataset.originalDesc;
+                } else {
+                    // Fallbacks if data-original-desc was lost or captured incorrectly
+                    if (buttonId === 'translateDocBtn') desc.textContent = '{% trans "AR ↔ EN translation"|escapejs %}';
+                    else if (buttonId === 'summarizeDocBtn') desc.textContent = '{% trans "AI-powered summary"|escapejs %}';
+                }
+                btn.removeAttribute('data-original-desc');
             }
         },
 
@@ -2716,27 +2797,90 @@ if (typeof pdfjsLib !== 'undefined') {
                 return existing;
             }
 
-            // Fall back to backend conversion endpoint for robust extraction.
+            // Prefer backend conversion endpoint for robust extraction with structural preservation.
             const apiUrl = this.modal?.dataset?.convertUrl || '';
-            if (!apiUrl) {
-                return '';
-            }
-
-            try {
-                const resp = await fetch(apiUrl, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                    credentials: 'same-origin'
-                });
-                const data = await resp.json();
-                if (resp.ok && data?.success && String(data.text || '').trim()) {
-                    this.currentText = String(data.text || '').trim();
-                    return this.currentText;
+            if (apiUrl) {
+                try {
+                    const resp = await fetch(apiUrl, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                        signal: this.aiRequestController?.signal
+                    });
+                    const data = await resp.json();
+                    if (resp.ok && data?.success && String(data.text || '').trim()) {
+                        this.currentText = String(data.text || '').trim();
+                        return this.currentText;
+                    }
+                } catch (err) {
+                    console.warn('DocViewer ensureDocumentTextForAi backend failed, falling back to local extraction:', err);
                 }
-            } catch (err) {
-                console.warn('DocViewer ensureDocumentTextForAi failed:', err);
             }
 
-            return '';
+            const localText = await this.extractDocumentTextFromViewer();
+            if (localText) {
+                this.currentText = localText;
+            }
+            return localText || '';
+        },
+
+        async extractDocumentTextFromViewer() {
+            const visibleText = [];
+
+            if (this.currentType === 'docx') {
+                const docxContainer = document.getElementById('docxContainer');
+                const docxText = String(docxContainer?.innerText || '').trim();
+                if (docxText) {
+                    visibleText.push(docxText);
+                }
+            }
+
+            if (this.currentType === 'pdf' && this.pdfDoc) {
+                try {
+                    const maxPages = Math.min(3, this.pdfDoc.numPages || 0);
+                    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+                        const page = await this.pdfDoc.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        
+                        let pageText = '';
+                        let lastY = -1;
+                        
+                        for (const item of textContent.items) {
+                            if (!item || typeof item.str !== 'string') continue;
+                            
+                            // Determine if we need a newline based on vertical position
+                            if (lastY !== -1 && Math.abs(item.transform[5] - lastY) > 5) {
+                                pageText += '\n';
+                            } else if (pageText && !pageText.endsWith(' ') && !pageText.endsWith('\n')) {
+                                pageText += ' ';
+                            }
+                            
+                            pageText += item.str;
+                            lastY = item.transform[5];
+                            
+                            if (item.hasEOL) {
+                                pageText += '\n';
+                            }
+                        }
+                        
+                        pageText = pageText.trim();
+                        if (pageText) {
+                            visibleText.push(pageText);
+                        }
+                    }
+                } catch (err) {
+                    console.warn('DocViewer extractDocumentTextFromViewer failed for PDF:', err);
+                }
+            }
+
+            if (this.currentType === 'text') {
+                const textViewer = document.getElementById('textViewer');
+                const text = String(textViewer?.textContent || '').trim();
+                if (text) {
+                    visibleText.push(text);
+                }
+            }
+
+            return visibleText.join('\n\n').trim();
         },
 
         detectDocumentLanguage() {
@@ -2783,6 +2927,11 @@ if (typeof pdfjsLib !== 'undefined') {
         },
 
         async askTranslationPair() {
+            // Cancel any pending resolver to avoid Promise leaks
+            if (this.translationPairResolver) {
+                this.closeTranslationPairOverlay(null);
+            }
+
             // Try to gather a language sample first so default pair matches document language.
             try {
                 await this.ensureLanguageSampleForDetection();
@@ -2856,6 +3005,7 @@ if (typeof pdfjsLib !== 'undefined') {
             const safeJobId = this.escapeHtml(meta.jobId || '');
             const safeOutput = this.escapeHtml(meta.output || '');
             const showActions = Boolean(meta.canCloseOperation);
+            const showRetry = typeof meta.retryHandler === 'function';
 
             box.style.display = 'block';
             box.innerHTML = `
@@ -2870,6 +3020,11 @@ if (typeof pdfjsLib !== 'undefined') {
                                 ${this.escapeHtml(this.t('close_operation', '{% trans "Close operation" %}'))}
                             </button>
                         ` : ''}
+                        ${showRetry ? `
+                            <button type="button" class="docviewer-ai-action-btn" id="docviewerRetryOperationBtn">
+                                ${this.escapeHtml(meta.retryLabel || this.t('retry', '{% trans "Retry" %}'))}
+                            </button>
+                        ` : ''}
                     </div>
                 ` : ''}
             `;
@@ -2882,7 +3037,12 @@ if (typeof pdfjsLib !== 'undefined') {
 
             if (meta.canCloseOperation) {
                 const closeBtn = box.querySelector('#docviewerCloseOperationBtn');
-                closeBtn?.addEventListener('click', () => this.closeAiOperationResult());
+                closeBtn?.addEventListener('click', () => this.closeAiStatusOperation());
+            }
+
+            if (showRetry) {
+                const retryBtn = box.querySelector('#docviewerRetryOperationBtn');
+                retryBtn?.addEventListener('click', () => meta.retryHandler());
             }
 
         },
@@ -2959,62 +3119,83 @@ if (typeof pdfjsLib !== 'undefined') {
             return chunks;
         },
 
+        async waitWithCountdown(seconds, titleText, labelText, retryHandler = null, requestController = null) {
+            const totalSeconds = Math.max(0, Math.round(seconds));
+            if (totalSeconds === 0) {
+                return;
+            }
+            for (let remaining = totalSeconds; remaining > 0; remaining--) {
+                if (requestController?.signal?.aborted) {
+                    const abortError = new Error('AbortError');
+                    abortError.name = 'AbortError';
+                    throw abortError;
+                }
+                this.showAiStatus(
+                    'info',
+                    titleText,
+                    `${labelText}: ${remaining}s`,
+                    {
+                        canCloseOperation: true,
+                        retryLabel: retryHandler ? this.t('retry_now', '{% trans "Retry now"|escapejs %}') : '',
+                        retryHandler,
+                    }
+                );
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        },
+
         async submitAiRequest(endpoint, payload, requestOptions = {}) {
-            const maxRateLimitRetries = 4;
-            const baseRetryDelayMs = 1500;
-            const maxClientRetryDelayMs = 20000;
-            const retryOnRateLimit = requestOptions.retryOnRateLimit !== false;
-
-            for (let attempt = 0; attempt <= maxRateLimitRetries; attempt++) {
-                const submitResult = await this.fetchAiWithFallback(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    signal: this.aiRequestController?.signal,
-                    timeoutMs: requestOptions.timeoutMs,
-                    body: JSON.stringify(payload),
-                });
-                const response = submitResult.response;
-                const responseText = await response.text();
-                let responseJson = {};
-                try {
-                    responseJson = responseText ? JSON.parse(responseText) : {};
-                } catch {
-                    responseJson = {};
-                }
-
-                if (response.ok) {
-                    return String(responseJson.output || '').trim();
-                }
-
-                const isRateLimited = response.status === 429;
-                if (isRateLimited && retryOnRateLimit && attempt < maxRateLimitRetries) {
-                    const detailMessage = String(responseJson.detail || responseText || '');
-                    const retryAfterMatch = detailMessage.match(/(?:retry after|try again in|waiting)\s*(\d+(?:\.\d+)?)/i);
-                    const hintedRetryMs = retryAfterMatch ? Math.round(parseFloat(retryAfterMatch[1]) * 1000) : 0;
-                    const retryDelayMs = Math.min(
-                        maxClientRetryDelayMs,
-                        Math.max(baseRetryDelayMs * (2 ** attempt), hintedRetryMs || 0)
-                    );
-                    this.showAiStatus(
-                        'info',
-                        this.t('ai_processing', '{% trans "AI Processing" %}'),
-                        `${this.t('ai_processing', '{% trans "AI Processing" %}')}: ${Math.round(retryDelayMs / 1000)}s...`,
-                        { canCloseOperation: true }
-                    );
-                    await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-                    continue;
-                }
-
-                const contentType = String(response.headers.get('content-type') || '').toLowerCase();
-                const looksLikeHtml = contentType.includes('text/html') || /<!doctype html|<html/i.test(responseText || '');
-                const msg = looksLikeHtml
-                    ? '{% trans "AI service endpoint was not found on this route. Please use nginx proxy or ensure the standalone service is reachable on port 8010." %}'
-                    : (responseJson.detail || responseText || '{% trans "Request failed." %}');
-                throw new Error(msg);
+            const isProxy = endpoint.includes('/api/ts/');
+            const headers = { 'Content-Type': 'application/json' };
+            
+            if (isProxy) {
+                const csrf = this.getCsrfToken();
+                if (csrf) headers['X-CSRFToken'] = csrf;
             }
 
-            throw new Error(this.t('unable_process', '{% trans "Unable to process request." %}'));
+            const submitResult = await this.fetchAiWithFallback(endpoint, {
+                method: 'POST',
+                headers: headers,
+                credentials: 'same-origin',
+                signal: this.aiRequestController?.signal,
+                timeoutMs: requestOptions.timeoutMs,
+                body: JSON.stringify(payload),
+            });
+            const response = submitResult.response;
+            const responseText = await response.text();
+            let responseJson = {};
+            try {
+                responseJson = responseText ? JSON.parse(responseText) : {};
+            } catch {
+                responseJson = {};
+            }
+
+            if (response.ok) {
+                // Proxy returns {ok: true, output: ...}, direct returns {output: ...}
+                return String(responseJson.output || '').trim();
+            }
+
+            const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+            const looksLikeHtml = contentType.includes('text/html') || /<!doctype html|<html/i.test(responseText || '');
+            const status = Number(response.status || 0);
+            
+            console.error(`DocViewer AI: Request to ${endpoint} failed with status ${status}`, { contentType });
+
+            let msg = '';
+            if (looksLikeHtml) {
+                if (status === 403) {
+                    msg = '{% trans "CSRF verification failed or session expired. Please refresh the page and try again."|escapejs %}';
+                } else if (status >= 500) {
+                    msg = '{% trans "Django backend server error (500). Please check server logs for details."|escapejs %}';
+                } else if (status === 404) {
+                    msg = '{% trans "AI proxy route not found (404). Please verify translate/urls.py is correctly included."|escapejs %}';
+                } else {
+                    msg = '{% trans "AI service route misconfigured or blocked by security policy."|escapejs %}';
+                }
+            } else {
+                msg = responseJson.detail || responseJson.error || responseText || '{% trans "Request failed."|escapejs %}';
+            }
+            throw new Error(msg);
         },
 
         async startAiJob(task, buttonElement = null, options = {}) {
@@ -3031,26 +3212,33 @@ if (typeof pdfjsLib !== 'undefined') {
                 jobId: '',
             };
             this.aiRequestController = new AbortController();
-            this.setNlpButtonLoading(buttonId, true, this.t('preparing', '{% trans "Preparing..." %}'));
+            this.setNlpButtonLoading(buttonId, true, this.t('preparing', '{% trans "Preparing..."|escapejs %}'));
             this.showAiStatus(
                 'info',
-                this.t('ai_processing', '{% trans "AI Processing" %}'),
-                this.t('preparing_document_text', '{% trans "Preparing document text..." %}'),
+                this.t('ai_processing', '{% trans "AI Processing"|escapejs %}'),
+                this.t('preparing_document_text', '{% trans "Preparing document text..."|escapejs %}'),
                 { canCloseOperation: true }
             );
 
             try {
                 const textForAi = await this.ensureDocumentTextForAi();
                 const finalPrompt = String(textForAi || '').trim();
-                const endpoint = isTranslation ? '/translate' : '/summarize';
                 const detectedLang = this.detectDocumentLanguage() || 'en';
                 const sourceWords = finalPrompt ? finalPrompt.split(/\s+/).filter(Boolean).length : 0;
                 const summaryTargetWords = Math.max(220, Math.min(1400, Math.round(sourceWords * 0.5)));
-                // Translation stays chunked to stay responsive, but summarization should use the full
-                // document so the backend can build a structured result with a real paragraph flow.
-                const chunks = isTranslation
-                    ? this.splitTextForAi(finalPrompt, 1600)
-                    : [finalPrompt];
+                
+                // Use proxy endpoints if available
+                const translateProxy = this.modal?.dataset?.translateProxy;
+                const summarizeProxy = this.modal?.dataset?.summarizeProxy;
+                const endpoint = isTranslation 
+                    ? (translateProxy || '/translate') 
+                    : (summarizeProxy || '/summarize');
+
+                // Use chunking for both translation and summarization to avoid timeouts.
+                // Summarization chunks are larger but still capped to keep requests under the timeout.
+                const chunks = isTranslation 
+                    ? this.splitTextForAi(finalPrompt, 2500) 
+                    : this.splitTextForAi(finalPrompt, 15000);
 
                 if (!finalPrompt || this.isInvalidAiInputText(finalPrompt)) {
                     this.activeAiJob = null;
@@ -3059,8 +3247,8 @@ if (typeof pdfjsLib !== 'undefined') {
                     console.error('INVALID INPUT DETECTED');
                     this.showAiStatus(
                         'error',
-                        this.t('ai_error', '{% trans "AI Error" %}'),
-                        this.t('no_document_text', '{% trans "No document text available. Unable to extract text from this file." %}')
+                        this.t('ai_error', '{% trans "AI Error"|escapejs %}'),
+                        this.t('no_document_text', '{% trans "No document text available. Unable to extract text from this file."|escapejs %}')
                     );
                     return;
                 }
@@ -3070,11 +3258,11 @@ if (typeof pdfjsLib !== 'undefined') {
                 console.log('LENGTH:', finalPrompt?.length);
                 console.log('CHUNKS:', chunks.length);
 
-                this.setNlpButtonLoading(buttonId, true, this.t('processing', '{% trans "Processing..." %}'));
+                this.setNlpButtonLoading(buttonId, true, this.t('processing', '{% trans "Processing..."|escapejs %}'));
                 this.showAiStatus(
                     'info',
-                    this.t('ai_processing', '{% trans "AI Processing" %}'),
-                    this.t('generating_output', '{% trans "Generating output..." %}'),
+                    this.t('ai_processing', '{% trans "AI Processing"|escapejs %}'),
+                    this.t('generating_output', '{% trans "Generating output..."|escapejs %}'),
                     { canCloseOperation: true }
                 );
 
@@ -3084,8 +3272,10 @@ if (typeof pdfjsLib !== 'undefined') {
                     const progress = `${i + 1}/${chunks.length}`;
                     this.showAiStatus(
                         'info',
-                        this.t('ai_processing', '{% trans "AI Processing" %}'),
-                        `${this.t('processing_part', '{% trans "Processing part" %}')} ${progress}...`,
+                        this.t('ai_processing', '{% trans "AI Processing"|escapejs %}'),
+                        isTranslation
+                            ? this.t('processing_document', '{% trans "Processing document..."|escapejs %}')
+                            : `${this.t('processing_part', '{% trans "Processing part"|escapejs %}')} ${progress}...`,
                         { canCloseOperation: true }
                     );
 
@@ -3103,8 +3293,7 @@ if (typeof pdfjsLib !== 'undefined') {
                         };
 
                     const partOutput = await this.submitAiRequest(endpoint, payload, {
-                        timeoutMs: isTranslation ? 90000 : 120000,
-                        retryOnRateLimit: !isTranslation,
+                        timeoutMs: isTranslation ? 120000 : 240000,
                     });
                     if (partOutput) {
                         chunkOutputs.push(partOutput);
@@ -3120,23 +3309,23 @@ if (typeof pdfjsLib !== 'undefined') {
                     if (chunks.length > 1 && combinedSummary) {
                         this.showAiStatus(
                             'info',
-                            this.t('ai_processing', '{% trans "AI Processing" %}'),
-                            this.t('generating_final_summary', '{% trans "Generating final summary..." %}'),
+                            this.t('ai_processing', '{% trans "AI Processing"|escapejs %}'),
+                            this.t('generating_final_summary', '{% trans "Generating final summary..."|escapejs %}'),
                             { canCloseOperation: true }
                         );
-                        output = await this.submitAiRequest('/summarize', {
+                        output = await this.submitAiRequest(summarizeProxy || '/summarize', {
                             text: combinedSummary,
                             language: detectedLang,
                             style: 'professional',
                             max_words: 420,
-                        });
+                        }, { timeoutMs: 240000 });
                     } else {
                         output = combinedSummary;
                     }
                 }
 
                 if (!output) {
-                    throw new Error(this.t('unable_generate_parts', '{% trans "Unable to generate output from processed parts." %}'));
+                    throw new Error(this.t('unable_generate_parts', '{% trans "Unable to generate output from processed parts."|escapejs %}'));
                 }
 
                 this.setNlpButtonLoading(buttonId, false);
@@ -3145,11 +3334,11 @@ if (typeof pdfjsLib !== 'undefined') {
                 this.lastAiResult = {
                     task: isTranslation ? 'translation' : 'summarization',
                     title: isTranslation
-                        ? this.t('translation', '{% trans "Translation" %}')
-                        : this.t('summarization', '{% trans "Summarization" %}'),
+                        ? this.t('translation', '{% trans "Translation"|escapejs %}')
+                        : this.t('summarization', '{% trans "Summarization"|escapejs %}'),
                     meta: isTranslation
-                        ? this.t('translation_completed', '{% trans "Translation completed in current page." %}')
-                        : this.t('summary_generated', '{% trans "Summary generated in current page." %}'),
+                        ? this.t('translation_completed', '{% trans "Translation completed in current page."|escapejs %}')
+                        : this.t('summary_generated', '{% trans "Summary generated in current page."|escapejs %}'),
                     targetLanguage: isTranslation ? String(options.targetLanguage || '').trim().toLowerCase() : '',
                     output,
                 };
@@ -3177,11 +3366,18 @@ if (typeof pdfjsLib !== 'undefined') {
                 const loweredErrorMessage = rawErrorMessage.toLowerCase();
                 const isRateLimited = loweredErrorMessage.includes('rate limit') || loweredErrorMessage.includes('too many requests') || loweredErrorMessage.includes('429');
                 const message = isNetworkFetchError
-                    ? this.t('service_unreachable', '{% trans "Translation/Summarization service is unreachable. Please verify the /ts-ai nginx route and network connectivity, then retry." %}')
+                    ? this.t('service_unreachable', '{% trans "Translation/Summarization service is unreachable. Please verify the /ts-ai nginx route and network connectivity, then retry."|escapejs %}')
                     : (isRateLimited
-                        ? this.t('rate_limit_reached', '{% trans "AI provider rate limit reached. Please wait a moment and retry." %}')
-                        : (rawErrorMessage || this.t('unable_process', '{% trans "Unable to process request." %}')));
-                this.showAiStatus('error', this.t('ai_error', '{% trans "AI Error" %}'), message);
+                        ? this.t('rate_limit_reached', '{% trans "AI provider rate limit reached. Please wait a moment and retry."|escapejs %}')
+                        : (rawErrorMessage || this.t('unable_process', '{% trans "Unable to process request."|escapejs %}')));
+                this.showAiStatus('error', this.t('ai_error', '{% trans "AI Error"|escapejs %}'), message, {
+                    canCloseOperation: true,
+                    retryLabel: this.t('retry_now', '{% trans "Retry now"|escapejs %}'),
+                    retryHandler: () => {
+                        this.cancelAiOperation(false);
+                        this.startAiJob(task, buttonElement, options);
+                    },
+                });
             }
         },
         
@@ -3453,7 +3649,7 @@ if (typeof pdfjsLib !== 'undefined') {
             spinner.style.display   = 'flex';
             resultBox.style.display = 'none';
             errorBox.style.display  = 'none';
-            if (copyBtn) copyBtn.textContent = '{% trans "Copy to Clipboard" %}';
+            if (copyBtn) copyBtn.textContent = '{% trans "Copy to Clipboard"|escapejs %}';
 
             const apiUrl = modal.dataset.convertUrl;
 
@@ -3469,15 +3665,15 @@ if (typeof pdfjsLib !== 'undefined') {
                     this.languageSampleText = this.currentText.slice(0, 6000);
                     textArea.value = data.text;
                     metaInfo.textContent = data.filename
-                        + '  •  ' + (data.word_count || 0).toLocaleString() + ' {% trans "words" %}'
-                        + '  •  ' + (data.char_count || 0).toLocaleString() + ' {% trans "chars" %}';
+                        + '  •  ' + (data.word_count || 0).toLocaleString() + ' {% trans "words"|escapejs %}'
+                        + '  •  ' + (data.char_count || 0).toLocaleString() + ' {% trans "chars"|escapejs %}';
                     resultBox.style.display = 'flex';
 
                     // Copy button
                     copyBtn.onclick = () => {
                         navigator.clipboard.writeText(data.text).then(() => {
-                            copyBtn.textContent = '{% trans "Copied!" %}';
-                            setTimeout(() => copyBtn.textContent = '{% trans "Copy to Clipboard" %}', 2000);
+                            copyBtn.textContent = '{% trans "Copied!"|escapejs %}';
+                            setTimeout(() => copyBtn.textContent = '{% trans "Copy to Clipboard"|escapejs %}', 2000);
                         });
                     };
 
@@ -3491,13 +3687,13 @@ if (typeof pdfjsLib !== 'undefined') {
                         URL.revokeObjectURL(a.href);
                     };
                 } else {
-                    errorMsg.textContent = data.error || '{% trans "Unknown error" %}';
+                    errorMsg.textContent = data.error || '{% trans "Unknown error"|escapejs %}';
                     errorBox.style.display = 'flex';
                 }
             })
             .catch(err => {
                 spinner.style.display = 'none';
-                errorMsg.textContent = '{% trans "Network error. Please try again." %}';
+                errorMsg.textContent = '{% trans "Network error. Please try again."|escapejs %}';
                 errorBox.style.display = 'flex';
                 console.error('Convert to text error:', err);
             });
@@ -3547,7 +3743,12 @@ if (typeof pdfjsLib !== 'undefined') {
     }
     
     // Global function for opening viewer
-    window.openDocumentViewer = (url, type, resourceId, resourceTitle, convertUrl) => DocViewer.open(url, type, resourceId, resourceTitle, convertUrl);
+    window.openDocumentViewer = (url, type, resourceId, resourceTitle, convertUrl) => {
+        if (window.DocViewer && typeof window.DocViewer.cancelAiOperation === 'function') {
+            window.DocViewer.cancelAiOperation(false);
+        }
+        return DocViewer.open(url, type, resourceId, resourceTitle, convertUrl);
+    };
     window.DocViewer = DocViewer;
     
 })();

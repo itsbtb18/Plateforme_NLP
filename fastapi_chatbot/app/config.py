@@ -121,6 +121,10 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: str = ""
     TAVILY_ENABLED: bool = False
 
+    # Translation/Summarization Service (Global Scheduler)
+    TS_SERVICE_URL: str = "http://translation_summarization:8010"
+    TS_SERVICE_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True
