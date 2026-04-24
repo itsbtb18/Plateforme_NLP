@@ -1,0 +1,1518 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ object.get_localized_title }} | {% translate "Course" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES - Modern Dark Theme ===== */
+:root {
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --bg-card-hover: rgba(167, 139, 250, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    --shadow-sm: 0 1px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 20px rgba(167, 139, 250, 0.1);
+    --shadow-lg: 0 10px 40px rgba(167, 139, 250, 0.15);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ===== PAGE LAYOUT - MODERN DESIGN ===== */
+.course-detail-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #0f1419 0%, #1a1a2e 50%, #0f1419 100%);
+    background-attachment: fixed;
+    padding: 0;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.course-detail-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 10% 40%, rgba(167, 139, 250, 0.15) 0%, transparent 35%),
+        radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.1) 0%, transparent 35%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ===== HERO SECTION - MODERN STYLE ===== */
+.tool-hero {
+    background: transparent;
+    padding: 3.5rem 2rem 2rem;
+    position: relative;
+    margin: 0;
+    border-radius: 0;
+    backdrop-filter: none;
+    box-shadow: none;
+    overflow: visible;
+    z-index: 1;
+}
+
+.hero-container {
+    max-width: 100%;
+    margin: 0;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 2;
+}
+
+/* Breadcrumb - Minimal Style */
+.breadcrumb-nav {
+    margin-bottom: 1.5rem;
+}
+
+.breadcrumb-list {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-list li {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.breadcrumb-list li a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+}
+
+.breadcrumb-list li a:hover {
+    color: var(--accent-cyan);
+    transform: translateX(2px);
+}
+
+.breadcrumb-list li.active {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.breadcrumb-separator {
+    margin: 0 0.25rem;
+    opacity: 0.2;
+    color: var(--text-muted);
+}
+
+/* Hero Content - Horizontal with Icon and Title */
+.hero-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+    justify-content: flex-start;
+}
+
+.hero-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    flex-shrink: 0;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--primary-color);
+}
+
+.hero-icon::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.hero-icon:hover {
+    transform: translateY(-10px) rotate(8deg) scale(1.05);
+    box-shadow: 0 28px 80px rgba(167, 139, 250, 0.6);
+}
+
+.hero-icon:hover::before {
+    opacity: 1;
+}
+
+.hero-text {
+    flex: 1;
+}
+
+.hero-text h1 {
+    color: var(--text-primary);
+    font-size: 2.4rem;
+    font-weight: 900;
+    margin: 0 0 1rem;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+}
+
+.hero-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    color: var(--primary-color);
+}
+
+.status-badge {
+    padding: 0.25rem 0.7rem;
+    border-radius: 50px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-badge.approved {
+    background: rgba(52, 211, 153, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.status-badge.pending {
+    background: rgba(236, 72, 153, 0.2);
+    color: var(--accent-pink);
+    border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.status-badge.rejected {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.hero-author {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.hero-author a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.hero-author a:hover {
+    color: var(--accent-cyan);
+}
+
+/* ACTION BAR - Clean Minimal Style */
+.action-bar {
+    background: transparent;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+    position: relative;
+    z-index: 10;
+    box-shadow: none;
+    margin: 0;
+    top: auto;
+}
+
+.action-bar-container {
+    max-width: 100%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 0;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+    backdrop-filter: none;
+    position: relative;
+    background: rgba(167, 139, 250, 0.15);
+    color: var(--primary-color);
+}
+
+.btn-action:hover {
+    background: rgba(167, 139, 250, 0.25);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.btn-download {
+    background: rgba(167, 139, 250, 0.15);
+    color: var(--primary-color);
+    box-shadow: none;
+}
+
+.btn-download:hover {
+    transform: translateY(-2px);
+    box-shadow: none;
+    background: rgba(167, 139, 250, 0.25);
+}
+
+.btn-view {
+    background: transparent;
+    border: none;
+    color: var(--primary-color);
+}
+
+.btn-view:hover {
+    background: rgba(167, 139, 250, 0.1);
+    box-shadow: none;
+}
+
+.btn-edit {
+    background: transparent;
+    border: none;
+    color: var(--accent-cyan);
+}
+
+.btn-edit:hover {
+    background: rgba(6, 182, 212, 0.1);
+    box-shadow: none;
+}
+
+.btn-delete {
+    background: transparent;
+    border: none;
+    color: var(--accent-pink);
+}
+
+.btn-delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+    box-shadow: none;
+}
+
+.btn-docs {
+    background: transparent;
+    border: none;
+    color: var(--primary-color);
+}
+
+.btn-docs:hover {
+    background: rgba(167, 139, 250, 0.1);
+    box-shadow: none;
+}
+
+.btn-repo {
+    background: transparent;
+    border: none;
+    color: var(--primary-color);
+}
+
+.btn-repo:hover {
+    background: rgba(167, 139, 250, 0.1);
+    box-shadow: none;
+}
+
+.view-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.7rem 1.3rem;
+    background: transparent;
+    border: none;
+}
+
+/* ===== CONTENT CONTAINER - FULL WIDTH ===== */
+.content-container {
+    max-width: 100%;
+    margin: 0;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.content-grid {
+    display: block;
+}
+
+.card-header {
+    padding: 1.5rem 1.5rem 1rem 1.5rem;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: transparent;
+}
+
+.card-header i {
+    font-size: 1.4rem;
+    color: var(--primary-color);
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Description */
+.description-content {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+}
+
+.description-content p {
+    margin-bottom: 1rem;
+}
+
+.description-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Code Block */
+.code-section {
+    margin-top: 1.5rem;
+}
+
+.code-section h4 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.code-block {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.code-lang {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.code-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--primary-color);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.code-copy:hover {
+    background: var(--primary-dark);
+    color: white;
+    border-color: var(--primary-dark);
+}
+
+.code-content {
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.code-content pre {
+    margin: 0;
+    font-family: 'Fira Code', 'SF Mono', 'Monaco', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.code-content .comment { color: var(--text-muted); }
+.code-content .keyword { color: var(--accent-pink); }
+.code-content .string { color: var(--accent-cyan); }
+.code-content .function { color: var(--primary-color); }
+
+/* Keywords */
+.keywords-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.keyword-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.6rem 1.1rem;
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    transition: all 0.2s ease;
+}
+
+.keyword-tag:hover {
+    background: var(--primary-dark);
+    color: white;
+    border-color: var(--primary-dark);
+}
+
+.keyword-tag i {
+    font-size: 0.75rem;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar-column {
+    display: flex;
+    flex-direction: row;
+    gap: 2rem;
+    margin-top: 0;
+    width: 100%;
+}
+
+/* Specifications Grid - RESPONSIVE LAYOUT */
+.specs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+}
+
+/* ===== RTL SUPPORT ===== */
+[dir="rtl"] .hero-content,
+html[dir="rtl"] .hero-content {
+    flex-direction: row-reverse;
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .hero-icon,
+html[dir="rtl"] .hero-icon {
+    order: 2;
+}
+
+[dir="rtl"] .hero-text,
+html[dir="rtl"] .hero-text {
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .hero-title,
+html[dir="rtl"] .hero-title {
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .hero-author,
+html[dir="rtl"] .hero-author {
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .hero-badges,
+html[dir="rtl"] .hero-badges {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    direction: rtl;
+}
+
+[dir="rtl"] .type-badge,
+html[dir="rtl"] .type-badge {
+    text-align: center;
+}
+
+[dir="rtl"] .status-badge,
+html[dir="rtl"] .status-badge {
+    text-align: center;
+}
+
+[dir="rtl"] .breadcrumb-list,
+html[dir="rtl"] .breadcrumb-list {
+    flex-direction: row-reverse;
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .breadcrumb-list li,
+html[dir="rtl"] .breadcrumb-list li {
+    text-align: right;
+}
+
+[dir="rtl"] .breadcrumb-separator,
+html[dir="rtl"] .breadcrumb-separator {
+    margin: 0 0.25rem;
+}
+
+[dir="rtl"] .content-grid,
+html[dir="rtl"] .content-grid {
+    direction: rtl;
+}
+
+[dir="rtl"] .action-bar-container,
+html[dir="rtl"] .action-bar-container {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .spec-item,
+html[dir="rtl"] .spec-item {
+    flex-direction: row-reverse;
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .spec-icon,
+html[dir="rtl"] .spec-icon {
+    flex-shrink: 0;
+    margin-left: 1rem;
+    margin-right: 0;
+    order: -1;
+}
+
+[dir="rtl"] .spec-info,
+html[dir="rtl"] .spec-info {
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .spec-label,
+html[dir="rtl"] .spec-label {
+    text-align: right;
+}
+
+
+[dir="rtl"] .spec-value,
+html[dir="rtl"] .spec-value {
+    text-align: right;
+}
+
+[dir="rtl"] .section-title,
+html[dir="rtl"] .section-title {
+    text-align: right;
+}
+
+[dir="rtl"] section,
+html[dir="rtl"] section {
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] section p,
+html[dir="rtl"] section p {
+    text-align: right;
+}
+
+[dir="rtl"] ul,
+[dir="rtl"] ol,
+html[dir="rtl"] ul,
+html[dir="rtl"] ol {
+    text-align: right;
+    direction: rtl;
+    padding-right: 1.5rem;
+    padding-left: 0;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp {
+    from { 
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from { 
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.content-card {
+    animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.content-card:nth-child(1) { animation-delay: 0.1s; }
+.content-card:nth-child(2) { animation-delay: 0.2s; }
+.content-card:nth-child(3) { animation-delay: 0.3s; }
+
+/* Course Information Frame */
+.course-info-frame {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(167, 139, 250, 0.05);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.course-info-frame .content-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    animation: none;
+    margin-bottom: 0;
+}
+
+.course-info-frame .card-header {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .course-info-frame {
+        grid-template-columns: 1fr;
+    }
+}
+
+.specs-card, .lang-card {
+    animation: slideInRight 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation-delay: 0.2s;
+}
+
+/* ===== ACTION CARD (MODERN DESIGN) ===== */
+.course-action-card {
+    flex: 1;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+    position: relative;
+    transition: all 0.3s ease;
+    padding-bottom: 0;
+}
+
+.course-action-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 50%, var(--accent-pink) 100%);
+    opacity: 1;
+}
+
+.course-action-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.2);
+    background: rgba(167, 139, 250, 0.12);
+    transform: translateY(-2px);
+}
+
+.course-action-header {
+    padding: 0.8rem 1rem 0.5rem 1rem;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    position: relative;
+    overflow: visible;
+    border-bottom: none;
+}
+
+.tool-action-header::before {
+    content: '';
+    display: none;
+}
+
+.course-action-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.8;
+    margin: 0 0 0.2rem;
+    display: block;
+    color: var(--text-muted);
+}
+
+.course-action-title {
+    font-size: 1rem;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.3px;
+    position: relative;
+    z-index: 2;
+    color: var(--text-primary);
+}
+
+.course-action-body {
+    padding: 0.8rem;
+    position: relative;
+    z-index: 1;
+}
+
+.course-action-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+    margin-bottom: 0.8rem;
+}
+
+.course-action-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.6rem;
+    background: rgba(167, 139, 250, 0.06);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 8px;
+    text-align: left;
+    transition: all 0.3s ease;
+    position: relative;
+    gap: 0.15rem;
+}
+
+.course-action-stat:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(167, 139, 250, 0.15);
+}
+
+.course-action-stat i {
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin-bottom: 0.1rem;
+    flex-shrink: 0;
+}
+
+.course-action-stat-value {
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: var(--text-primary);
+}
+
+.course-action-stat-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 0;
+    font-weight: 600;
+}
+
+/* Action Buttons */
+.course-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    width: 100%;
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    backdrop-filter: none;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 0.3rem;
+}
+
+.course-action-btn::before {
+    content: '';
+    display: none;
+}
+
+.course-action-btn.primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    color: white;
+    box-shadow: 0 6px 18px rgba(167, 139, 250, 0.3);
+}
+
+.course-action-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(167, 139, 250, 0.4);
+}
+
+.course-action-btn.secondary {
+    background: rgba(167, 139, 250, 0.12);
+    border: 1px solid rgba(167, 139, 250, 0.25);
+    color: var(--primary-color);
+}
+
+.course-action-btn.secondary:hover {
+    background: rgba(167, 139, 250, 0.2);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.course-action-btn.ai-chatbot {
+    background: rgba(6, 182, 212, 0.12);
+    border: 1px solid rgba(6, 182, 212, 0.25);
+    color: var(--accent-cyan);
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+}
+
+.course-action-btn.ai-chatbot:hover {
+    transform: translateY(-2px);
+    background: rgba(6, 182, 212, 0.2);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+}
+
+.course-action-btn i {
+    font-size: 1rem;
+}
+
+/* Print Button Styling */
+.course-action-btn.print-btn {
+    background: rgba(236, 72, 153, 0.12);
+    border: 1px solid rgba(236, 72, 153, 0.25);
+    color: var(--accent-pink);
+    margin-top: 0.3rem;
+    margin-bottom: 0;
+}
+
+.course-action-btn.print-btn:hover {
+    background: rgba(236, 72, 153, 0.2);
+    border-color: var(--accent-pink);
+    color: var(--accent-pink);
+    transform: translateY(-2px);
+}
+
+
+.course-action-btn.ai-chatbot i {
+    color: var(--accent-cyan);
+}
+
+/* Info Cards Container - Side by Side Layout */
+.info-cards-container {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .info-cards-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* METADATA CARD - Modern Design */
+.metadata-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    position: static;
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+    padding-bottom: 0;
+    margin-bottom: 1rem;
+    max-height: fit-content;
+}
+
+.metadata-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 50%, var(--accent-pink) 100%);
+    opacity: 1;
+}
+
+.metadata-card:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: var(--primary-color);
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.2);
+}
+
+.metadata-card:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: var(--primary-color);
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.2);
+}
+
+.metadata-header {
+    padding: 0.75rem 1rem 0.6rem 1rem;
+    background: transparent;
+    border-bottom: none;
+}
+
+.metadata-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: -0.3px;
+}
+
+.metadata-header h3 i {
+    color: var(--primary-color);
+    font-size: 1rem;
+}
+
+.metadata-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.metadata-item {
+    padding: 0.6rem 1rem;
+    border-bottom: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.05);
+}
+
+.metadata-item:last-child {
+    border-bottom: none;
+}
+
+.metadata-item:hover {
+    background: rgba(167, 139, 250, 0.08);
+    transform: translateX(2px);
+}
+
+.metadata-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.metadata-label i {
+    width: 16px;
+    color: var(--primary-color);
+    font-size: 0.85rem;
+}
+
+.metadata-value {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    margin-left: 1.6rem;
+}
+
+.metadata-value a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-weight: 800;
+}
+
+.metadata-value a:hover {
+    color: var(--accent-cyan);
+    text-shadow: 0 0 14px rgba(6, 182, 212, 0.5);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .course-hero {
+        padding: 1.5rem 0 2rem;
+    }
+    
+    .hero-content {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+    }
+    
+    .hero-icon {
+        width: 64px;
+        height: 64px;
+        font-size: 1.5rem;
+    }
+    
+    .hero-title {
+        font-size: 1.5rem;
+    }
+    
+    .hero-badges {
+        justify-content: center;
+    }
+    
+    .action-bar-container {
+        flex-direction: column;
+    }
+    
+    .action-group {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="course-detail-page">
+    
+    <!-- ===== HERO HEADER ===== -->
+    <section class="tool-hero">
+        <div class="hero-container">
+            <!-- Breadcrumb -->
+            <nav class="breadcrumb-nav" aria-label="breadcrumb">
+                <ol class="breadcrumb-list">
+                    <li>
+                        <a href="{% url 'resources:list' %}">
+                            <i class="bi bi-archive"></i> {% trans "Resources" %}
+                        </a>
+                    </li>
+                    <span class="breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+                    <li>
+                        <a href="{% url 'resources:course_list' %}">{% trans "Courses" %}</a>
+                    </li>
+                    <span class="breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+                    <li class="active">{{ object.get_localized_title|truncatechars:30 }}</li>
+                </ol>
+            </nav>
+            
+            <!-- Hero Content -->
+            <div class="hero-content">
+                <div class="hero-icon">
+                    <i class="bi bi-book-half"></i>
+                </div>
+                
+                <div class="hero-text">
+                    <div class="hero-badges">
+                        <span class="type-badge">
+                            <i class="bi bi-graduates"></i>
+                            {{ object.get_academic_level_display }}
+                        </span>
+                        {% if object.language %}
+                        <span class="type-badge">
+                            <i class="bi bi-translate"></i>
+                            {{ object.get_language_display }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <h1 class="hero-title">{{ object.get_localized_title }}</h1>
+                    
+                    <p class="hero-author">
+                        {% trans "From" %} 
+                        <strong>{{ object.institution.name|default:_("Institution") }}</strong>
+                    </p>
+                    
+                    <!-- Install Command Box -->
+                    {% if object.academic_year %}
+                    <div class="install-box">
+                        <div class="install-header">
+                            <span class="install-label">{% trans "Academic Year" %}</span>
+                        </div>
+                        <code class="install-command">
+                            <span class="prompt">→</span> {{ object.academic_year }}
+                        </code>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- ===== ACTION BAR ===== -->
+    <div class="action-bar">
+        <div class="action-bar-container">
+            <div class="action-group">
+                {% if object.uploaded_file %}
+                <button type="button" 
+                        class="btn-action btn-view" 
+                        onclick="openDocumentViewer('{{ object.uploaded_file.url }}', null, '{{ object.pk }}', '{{ object.title|escapejs }}')">
+                    <i class="bi bi-eye"></i>
+                    <span>{% trans "View Materials" %}</span>
+                </button>
+                <a href="{{ object.uploaded_file.url }}" class="btn-action btn-download" download>
+                    <i class="bi bi-cloud-download"></i>
+                    <span>{% trans "Download Course" %}</span>
+                </a>
+                {% else %}
+                <button type="button" 
+                        class="btn-action btn-view" 
+                        style="opacity: 0.5; cursor: not-allowed;"
+                        disabled>
+                    <i class="bi bi-eye"></i>
+                    <span>{% trans "View Materials" %}</span>
+                </button>
+                <button type="button" 
+                        class="btn-action btn-download" 
+                        style="opacity: 0.5; cursor: not-allowed;"
+                        disabled>
+                    <i class="bi bi-cloud-download"></i>
+                    <span>{% trans "Download Course" %}</span>
+                </button>
+                {% endif %}
+                
+                {% if request.user.is_staff %}
+                <a href="{% url 'resources:resource-update' type='course' pk=object.pk %}" class="btn-action btn-edit">
+                    <i class="bi bi-pencil"></i>
+                    <span>{% trans "Edit" %}</span>
+                </a>
+                <a href="{% url 'resources:resource-delete' type='course' pk=object.pk %}" class="btn-action btn-delete">
+                    <i class="bi bi-trash"></i>
+                    <span>{% trans "Delete" %}</span>
+                </a>
+                {% endif %}
+            </div>
+            
+            <div class="view-counter">
+                <i class="bi bi-eye"></i>
+                <span>{{ object.views_count }} {% trans "views" %}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="content-container">
+        <div class="content-grid">
+            
+            <!-- Main Column -->
+            <div class="main-column">
+                
+                <!-- Course Overview & Information Frame -->
+                <div class="course-info-frame">
+                    <!-- Description Card -->
+                    <article class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <h2>{% trans "Course Overview" %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="description-content">
+                            {{ object.get_localized_description|linebreaks }}
+                        </div>
+                    </div>
+                </article>
+                
+                    <!-- Course Information Card -->
+                    <article class="content-card">
+                        <div class="card-header">
+                            <i class="bi bi-info-circle"></i>
+                            <h2>{% trans "Course Information" %}</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="description-content">
+                                <p><strong>{% trans "Institution:" %}</strong> {{ object.institution.name|default:_("Not specified") }}</p>
+                                <p><strong>{% trans "Academic Level:" %}</strong> {{ object.get_academic_level_display }}</p>
+                                <p><strong>{% trans "Field of Study:" %}</strong> {{ object.get_field_display|default:_("Not specified") }}</p>
+                                {% if object.language %}
+                                <p><strong>{% trans "Language:" %}</strong> {{ object.get_language_display }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                
+                <!-- Keywords -->
+                {% if object.keywords %}
+                <article class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-tags"></i>
+                        <h2>{% trans "Keywords" %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="keywords-list">
+                            {% for keyword in object.get_keywords_list %}
+                            <span class="keyword-tag">
+                                <i class="bi bi-hash"></i>
+                                {{ keyword }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </article>
+                {% endif %}
+                
+            </div>
+            
+            <!-- Sidebar -->
+            <aside class="sidebar-column">
+                
+                <!-- Action Card (Course Style) -->
+                <div class="course-action-card">
+                    <div class="course-action-header">
+                        <p class="course-action-label">{% trans "Course Details" %}</p>
+                        <h3 class="course-action-title">{{ object.get_academic_level_display }}</h3>
+                    </div>
+                    <div class="course-action-body">
+                        <div class="course-action-stats">
+                            <div class="course-action-stat">
+                                <i class="bi bi-book"></i>
+                                <span class="course-action-stat-value">{{ object.get_field_display|truncatewords:1 }}</span>
+                                <span class="course-action-stat-label">{% trans "Field" %}</span>
+                            </div>
+                            <div class="course-action-stat">
+                                <i class="bi bi-calendar"></i>
+                                <span class="course-action-stat-value">{{ object.academic_year|default:"N/A" }}</span>
+                                <span class="course-action-stat-label">{% trans "Year" %}</span>
+                            </div>
+                        </div>
+                        
+                        <a href="{% url 'chatbot:chatbot_interface' %}?context=course&id={{ object.id }}" class="course-action-btn ai-chatbot">
+                            <i class="bi bi-robot"></i>
+                            {% trans "Ask Course AI" %}
+                        </a>
+                        
+                        <button type="button" class="course-action-btn print-btn" onclick="window.print()">
+                            <i class="bi bi-printer"></i>
+                            {% trans "Print Info" %}
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Metadata Card -->
+                <div class="info-cards-container">
+                    <div class="metadata-card">
+                        <div class="metadata-header">
+                            <h3>
+                                <i class="bi bi-info-circle"></i>
+                                {% trans "Additional Info" %}
+                            </h3>
+                        </div>
+                        <ul class="metadata-list">
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-building"></i>
+                                    {% trans "Institution" %}
+                                </span>
+                                <span class="metadata-value">{{ object.institution.name|default:_("Not specified") }}</span>
+                            </li>
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-mortarboard"></i>
+                                    {% trans "Level" %}
+                                </span>
+                                <span class="metadata-value">{{ object.get_academic_level_display }}</span>
+                            </li>
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-calendar3"></i>
+                                    {% trans "Created" %}
+                                </span>
+                                <span class="metadata-value">{{ object.creation_date|date:"M d, Y" }}</span>
+                            </li>
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-eye"></i>
+                                    {% trans "Views" %}
+                                </span>
+                                <span class="metadata-value">{{ object.views_count }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="metadata-card">
+                        <div class="metadata-header">
+                            <h3>
+                                <i class="bi bi-info-circle"></i>
+                                {% trans "Tool Information" %}
+                            </h3>
+                        </div>
+                        <ul class="metadata-list">
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-person"></i>
+                                    {% trans "Author" %}
+                                </span>
+                                <span class="metadata-value">
+                                    {% if object.author %}
+                                        <a href="{% url 'accounts:profile' object.author.id %}">
+                                            {{ object.author.get_full_name_display }}
+                                        </a>
+                                    {% else %}
+                                        {% trans "Unknown" %}
+                                    {% endif %}
+                                </span>
+                            </li>
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-calendar-plus"></i>
+                                    {% trans "Created" %}
+                                </span>
+                                <span class="metadata-value">{{ object.creation_date|date:"M d, Y" }}</span>
+                            </li>
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-calendar-check"></i>
+                                    {% trans "Updated" %}
+                                </span>
+                                <span class="metadata-value">
+                                    {% if object.last_updated %}
+                                        {{ object.last_updated|date:"M d, Y" }}
+                                    {% else %}
+                                        <em class="text-muted">{% trans "Never" %}</em>
+                                    {% endif %}
+                                </span>
+                            </li>
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-tools"></i>
+                                    {% trans "Type" %}
+                                </span>
+                                <span class="metadata-value">{{ object.get_tool_type_display }}</span>
+                            </li>
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-translate"></i>
+                                    {% trans "Language" %}
+                                </span>
+                                <span class="metadata-value">{{ object.get_language_display }}</span>
+                            </li>
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-tag"></i>
+                                    {% trans "Version" %}
+                                </span>
+                                <span class="metadata-value">{{ object.version|default:"1.0" }}</span>
+                            </li>
+                            <li class="metadata-item">
+                                <span class="metadata-label">
+                                    <i class="bi bi-eye"></i>
+                                    {% trans "Views" %}
+                            </span>
+                            <span class="metadata-value">{{ object.views_count }}</span>
+                        </li>
+                    </ul>
+                </div>
+                </div>
+            </aside>
+            
+        </div>
+    </div>
+    
+</div>
+
+<script>
+function copyInstallCommand(button) {
+    const command = button.closest('.install-box').querySelector('.install-command').textContent.trim().replace('$', '').trim();
+    navigator.clipboard.writeText(command).then(() => {
+        button.classList.add('copied');
+        button.innerHTML = '<i class="bi bi-check2"></i> <span>{% trans "Copied!" %}</span>';
+        setTimeout(() => {
+            button.classList.remove('copied');
+            button.innerHTML = '<i class="bi bi-clipboard"></i> <span>{% trans "Copy" %}</span>';
+        }, 2000);
+    });
+}
+
+function copyCode(button) {
+    const codeBlock = button.closest('.code-block').querySelector('pre').textContent;
+    navigator.clipboard.writeText(codeBlock).then(() => {
+        button.innerHTML = '<i class="bi bi-check2"></i> {% trans "Copied!" %}';
+        setTimeout(() => {
+            button.innerHTML = '<i class="bi bi-clipboard"></i> {% trans "Copy" %}';
+        }, 2000);
+    });
+}
+</script>
+
+{% include "components/document_viewer_modal.html" %}
+{% endblock %}

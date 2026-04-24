@@ -1,0 +1,534 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{% translate "Discussion Hub" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+/* ===== FORUM TOPIC LIST CSS - MATCHING FEED DESIGN ===== */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.forum-shell{position:relative;padding:3rem 0 2.5rem;color:#fff;overflow:hidden}
+.forum-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.forum-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.forum-wrap>*{position:relative;z-index:1}
+.forum-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.forum-filter-grid{display:grid;grid-template-columns:auto 1fr 0.8fr auto auto;gap:1rem;align-items:center}
+.forum-stat-badge{background:transparent;border:none;padding:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;white-space:nowrap}
+.forum-stat-number{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.forum-stat-label{font-size:0.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.4rem;font-weight:700}
+.forum-input-wrapper{position:relative;display:flex;align-items:center}
+.forum-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none;box-shadow:none !important}
+.forum-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.forum-input:-webkit-autofill,.forum-input:-webkit-autofill:hover,.forum-input:-webkit-autofill:focus,.forum-input:-webkit-autofill:active{-webkit-text-fill-color:#fff !important;-webkit-box-shadow:0 0 0 1000px #1a1a2e inset !important;box-shadow:0 0 0 1000px #1a1a2e inset !important;transition:background-color 9999s ease-in-out 0s;caret-color:#a78bfa;}
+.forum-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background-color:#1a1a2e;color:#fff;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
+.forum-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
+.forum-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
+.forum-select:hover{border-color:rgba(167,139,250,.24);background-color:#1a1a2e;box-shadow:0 4px 12px rgba(167,139,250,.15);transform:translateY(-2px)}
+.forum-select:focus{outline:none;border-color:rgba(167,139,250,.24) !important;box-shadow:none;background-color:#1a1a2e}
+.forum-select:active{background-color:#1a1a2e}
+.forum-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.forum-btn:hover{transform:translateY(-3px);box-shadow:none;background:#a78bfa}
+.forum-btn:active{transform:translateY(-1px);box-shadow:0 6px 16px rgba(167,139,250,.2)}
+.forum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,340px));gap:1rem;justify-content:start}
+.forum-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:420px}
+.forum-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.forum-accent{height:4px;width:100%;flex-shrink:0;background:linear-gradient(90deg,#a78bfa 0%,#7c3aed 50%,#ec4899 100%)}
+.forum-card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem .85rem;gap:.8rem;border-bottom:1px solid rgba(167,139,250,.15)}
+.forum-card-avatar{width:60px;min-width:60px;background:linear-gradient(135deg,#a78bfa,#7c3aed);border-radius:12px;text-align:center;padding:.6rem .4rem;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(167,139,250,.2);overflow:hidden;color:#0f1419;font-weight:700;font-size:1.4rem;line-height:1}
+.forum-card-header-info{flex:1;min-width:0}
+.forum-card-badges{display:flex;gap:.35rem;margin-bottom:.3rem;flex-wrap:wrap}
+.forum-card-badge{display:inline-flex;align-items:center;gap:.2rem;padding:.25rem .5rem;font-size:.65rem;font-weight:700;border-radius:999px;text-transform:uppercase;letter-spacing:.03em;background:rgba(52,211,153,.15);color:#34d399}
+.forum-card-badge.pending{background:rgba(245,158,11,.15);color:#f59e0b}
+.forum-card-title{margin:.2rem 0;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.forum-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
+.forum-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem;margin-top:.4rem}
+.forum-info{display:flex;flex-direction:column;gap:.45rem;margin-top:.5rem;font-size:.8rem}
+.forum-info-row{display:flex;align-items:center;gap:.4rem;color:#cbd5e1}
+.forum-info-row i{color:#a78bfa;font-size:.85rem;width:14px;text-align:center}
+.forum-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
+.forum-link:hover{background:rgba(255,255,255,.04)}
+.forum-actions{display:flex;align-items:center;justify-content:space-around;padding:1rem .85rem;border-top:1px solid rgba(167,139,250,.16);gap:.5rem;margin-top:auto}
+.forum-action-btn{display:flex;align-items:center;justify-content:center;gap:.4rem;flex:1;padding:.7rem .7rem;background:transparent;border:1px solid rgba(167,139,250,.2);border-radius:12px;color:#9ca3af;cursor:pointer;transition:all .3s ease;font-size:.85rem;font-weight:600;text-decoration:none;white-space:nowrap}
+.forum-action-btn:hover{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.4);color:#a78bfa;transform:translateY(-2px)}
+.forum-action-btn i{font-size:.95rem;width:16px;text-align:center;flex-shrink:0}
+.forum-action-btn.success{color:#10b981}
+.forum-action-btn.success:hover{background:rgba(16,185,129,.1);border-color:#10b981;color:#10b981}
+.forum-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.forum-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.forum-empty-inner{position:relative;z-index:1}
+.forum-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem;display:block;animation:float-empty 3s ease-in-out infinite}
+.forum-empty h3{margin:1rem 0 .75rem;font-family:'Inter',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.01em}
+.forum-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+.forum-empty-actions{display:flex;flex-direction:column;gap:.75rem;align-items:center;margin-top:1.5rem}
+.forum-empty-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+.forum-empty-btn:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+@keyframes float-empty{0%,100%{transform:translateY(0px);}50%{transform:translateY(-12px);}}
+.forum-hero{position:relative;padding:2rem 0;margin:1rem auto 1.5rem;text-align:left;display:flex;align-items:flex-start;gap:2.5rem;justify-content:flex-start;background:transparent;border:none;box-shadow:none}
+.forum-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.forum-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-left:2rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.forum-hero h1{margin:0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.forum-hero p{margin:0;font-family:'Inter',sans-serif;font-size:20.8px;color:#a78bfa;line-height:1.7;font-weight:600;text-align:left}
+.forum-hero-stats{display:flex;align-items:center;justify-content:flex-start;gap:2rem;flex-shrink:0;margin-left:0}
+.forum-stat-card{display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center;width:180px}
+.forum-stat-empty-message{font-size:.9rem;color:#9ca3af;font-weight:500;margin-top:.3rem;padding-top:.35rem;border-top:1.5px solid #9ca3af;width:100%}
+@media (max-width:1000px){.forum-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}}
+@media (max-width:768px){.forum-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center;align-items:center}.forum-hero h1{font-size:2rem;text-align:center}.forum-hero p{font-size:1rem;text-align:center}.forum-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.forum-stat-card{width:140px}}
+@media (max-width:480px){.forum-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.forum-hero h1{font-size:1.5rem}.forum-hero p{font-size:.9rem}.forum-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.forum-stat-card{width:130px;padding:1rem}.forum-stat-number{font-size:2.5rem}}
+
+html[dir="rtl"] .forum-search-input { 
+    padding: 0.875rem 3rem 0.875rem 1rem; 
+}
+
+.forum-search-input::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+}
+
+.forum-search-input:focus {
+    outline: none;
+    border-color: #a78bfa;
+    background: rgba(167, 139, 250, 0.1);
+    box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.2);
+}
+
+.forum-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 1.1rem;
+    pointer-events: none;
+}
+
+html[dir="rtl"] .forum-search-icon { 
+    left: auto; 
+    right: 1rem; 
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ft-page">
+    
+    <header class="ft-hero">
+        <div class="ft-hero-container">
+            <div class="ft-hero-row">
+                <div class="ft-hero-content">
+                    <div class="ft-hero-icon">
+                        <i class="bi bi-chat-square-quote"></i>
+                    </div>
+                    <div class="ft-hero-text">
+                        <h1>{% translate "Discussion Hub" %}</h1>
+                        <p>{% translate "Connect, share knowledge, and collaborate with Arabic NLP researchers." %}</p>
+                    </div>
+                </div>
+                
+                <div class="ft-hero-stats">
+                    <div class="ft-stat">
+                        <div class="ft-stat-value">{{ total_topics|default:"0" }}</div>
+                        <div class="ft-stat-label">{% translate "Topics" %}</div>
+                    </div>
+                    <div class="ft-stat">
+                        <div class="ft-stat-value">{{ total_chatrooms|default:"0" }}</div>
+                        <div class="ft-stat-label">{% translate "Rooms" %}</div>
+                    </div>
+                </div>
+
+                {% if user.is_authenticated %}
+                <a href="{% url 'forum:topic-new' %}" class="ft-hero-btn">
+                    <i class="bi bi-plus-circle"></i>
+                    {% translate "Start a Discussion" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+    
+    <main class="ft-content">
+        
+        <div class="ft-toolbar">
+            <!-- Filter Pills -->
+            <div class="ft-filter-pills" id="filterPills">
+                <!-- All Topics -->
+                <button type="button"
+                   class="ft-filter-pill {% if not my_topics and not current_sort %}active{% endif %}"
+                   data-filter="all"
+                   data-url="{% url 'forum:topic-list' %}{% if search_query %}?q={{ search_query }}{% endif %}">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكل{% else %}{% translate "All" %}{% endif %}
+                </button>
+                
+                {% if user.is_authenticated %}
+                <!-- My Topics -->
+                <button type="button"
+                   class="ft-filter-pill {% if my_topics %}active{% endif %}"
+                   data-filter="my_topics"
+                   data-url="?my_topics=1{% if search_query %}&q={{ search_query }}{% endif %}">
+                    <i class="bi bi-person"></i>
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مواضيعي{% else %}{% translate "My Topics" %}{% endif %}
+                </button>
+                {% endif %}
+                
+                <!-- Newest -->
+                <button type="button"
+                   class="ft-filter-pill {% if current_sort == 'newest' %}active{% endif %}"
+                   data-filter="newest"
+                   data-url="?sort=newest{% if search_query %}&q={{ search_query }}{% endif %}">
+                    <i class="bi bi-clock"></i>
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأحدث{% else %}{% translate "Newest" %}{% endif %}
+                </button>
+                
+                <!-- Oldest -->
+                <button type="button"
+                   class="ft-filter-pill {% if current_sort == 'oldest' %}active{% endif %}"
+                   data-filter="oldest"
+                   data-url="?sort=oldest{% if search_query %}&q={{ search_query }}{% endif %}">
+                    <i class="bi bi-clock-history"></i>
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأقدم{% else %}{% translate "Oldest" %}{% endif %}
+                </button>
+                
+                <!-- Most viewed -->
+                <button type="button"
+                   class="ft-filter-pill {% if current_sort == 'popular' %}active{% endif %}"
+                   data-filter="popular"
+                   data-url="?sort=popular{% if search_query %}&q={{ search_query }}{% endif %}">
+                    <i class="bi bi-star"></i>
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأكثر مشاهدة{% else %}{% translate "Most viewed" %}{% endif %}
+                </button>
+            </div>
+            
+            <form method="get" action="" class="ft-search-box" id="topicSearchForm">
+                {% if my_topics %}<input type="hidden" name="my_topics" value="1">{% endif %}
+                {% if current_sort %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
+               
+                <input type="text" name="q" class="ft-search-input" placeholder="{% translate 'Search discussions...' %}" id="topicSearch" value="{{ search_query|default:'' }}" autocomplete="off">
+                <span class="ft-search-spinner" id="searchSpinner">
+                    <i class="bi bi-arrow-repeat spin"></i>
+                </span>
+            </form>
+        </div>
+        
+        {% if topics %}
+        <div class="ft-topic-list" id="topicList">
+            {% for topic in topics %}
+            <article class="ft-topic-card {% if topic.approval_status == 'pending' and topic.creator == user %}is-pending{% endif %}" data-title="{{ topic.get_localized_title|lower }}">
+                
+                <!-- User Meta - LEFT SIDE -->
+                <div class="ft-meta-col">
+                    <div class="ft-user-meta">
+                        <a href="{% url 'accounts:profile' topic.creator.pk %}" class="ft-user-avatar" style="text-decoration: none;">
+                            {% if topic.creator.avatar %}
+                            <img src="{{ topic.creator.avatar.url }}" alt="{{ topic.creator.get_full_name_display }}">
+                            {% else %}
+                            <i class="bi bi-person"></i>
+                            {% endif %}
+                        </a>
+                        <div class="ft-user-info">
+                            <div class="ft-user-name-row">
+                                <p class="ft-user-name"><a href="{% url 'accounts:profile' topic.creator.pk %}" style="color: inherit; text-decoration: none;">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</a></p>
+                                {% if topic.approval_status == 'pending' and topic.creator == user %}
+                                <span class="ft-pending-badge">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    {% translate "Pending Approval" %}
+                                </span>
+                                {% endif %}
+                                <div class="ft-topic-tags">
+                                    <span class="ft-tag">
+                                        <i class="bi bi-tag"></i>
+                                        {% translate "NLP" %}
+                                    </span>
+                                    <span class="ft-tag">
+                                        <i class="bi bi-globe2"></i>
+                                        {% translate "Arabic" %}
+                                    </span>
+                                </div>
+                            </div>
+                            <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
+                            <div class="ft-user-topic-row">
+                                <h3 class="ft-topic-title">
+                                    <a href="{% url 'forum:topic-detail' topic.id %}">{{ topic.get_localized_title }}</a>
+                                </h3>
+                                <p class="ft-inline-excerpt">{{ topic.get_localized_description|truncatechars:120 }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="ft-card-actions">
+                        <a href="{% url 'forum:topic-detail' topic.id %}" class="ft-open-topic-btn" title="{% translate 'View topic' %}">
+                            <i class="bi bi-eye"></i>
+                            {% translate "View topic" %}
+                        </a>
+                        <a href="{% url 'forum:chatroom-new' topic.id %}" class="ft-action-btn success" title="{% translate 'Create Chat Room' %}">
+                            <i class="bi bi-chat-dots"></i>
+                        </a>
+                        {% if topic.creator == user or user.is_staff %}
+                        <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% if topic.approval_status == 'pending' %}{% translate 'Edit Form' %}{% else %}{% translate 'Edit' %}{% endif %}">
+                            <i class="bi {% if topic.approval_status == 'pending' %}bi-file-earmark-text{% else %}bi-pencil{% endif %}"></i>
+                        </a>
+                        <a href="{% url 'forum:topic-delete' topic.id %}" class="ft-action-btn danger" title="{% translate 'Delete' %}">
+                            <i class="bi bi-trash3"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="ft-content-col">
+                    <div class="ft-content-actions">
+                        {% include "includes/card_top_actions.html" with content_type="topic" object_id=topic.id title=topic.get_localized_title description=topic.get_localized_description|truncatewords:40 category=topic.category author=topic.creator.get_full_name_display url=request.build_absolute_uri %}
+                    </div>
+                </div>
+                
+                <!-- Stats - RIGHT SIDE -->
+                <div class="ft-stats-col">
+                    <div class="ft-stat-item">
+                        <div class="ft-stat-num replies">{{ topic.comment_count|default:"0" }}</div>
+                        <div class="ft-stat-txt">{% translate "Comments" %}</div>
+                    </div>
+                    <div class="ft-stat-item">
+                        <div class="ft-stat-num replies">{{ topic.chatroom_count|default:topic.chatrooms.count }}</div>
+                        <div class="ft-stat-txt">{% translate "Rooms" %}</div>
+                    </div>
+                    <div class="ft-stat-item">
+                        <div class="ft-stat-num views">{{ topic.views|default:"0" }}</div>
+                        <div class="ft-stat-txt">{% translate "Views" %}</div>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
+        
+        {% else %}
+        <div class="ft-topic-list" id="topicList">
+            <div class="ft-empty">
+                <div class="ft-empty-icon">
+                    <i class="bi bi-chat-square-quote"></i>
+                </div>
+                <h2 class="ft-empty-title">{% translate "No discussions yet" %}</h2>
+                <p class="ft-empty-text">{% translate "Be the first to start a conversation in our community!" %}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+    </main>
+</div>
+
+<script>
+(function() {
+    'use strict';
+    
+    // ==================== Debounce Function ====================
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // ==================== DOM Elements ====================
+    const searchInput = document.getElementById('topicSearch');
+    const searchForm = document.getElementById('topicSearchForm');
+    const topicList = document.getElementById('topicList');
+    const searchSpinner = document.getElementById('searchSpinner');
+    const filterPills = document.getElementById('filterPills');
+    const topicCountElement = document.querySelector('.ft-stat-value');
+    
+    // ==================== State ====================
+    let currentRequest = null;
+    let currentSort = '{{ current_sort|default:"" }}';
+    let myTopics = {% if my_topics %}'1'{% else %}''{% endif %};
+    
+    // ==================== Helper Functions ====================
+    function getFilterParams() {
+        const params = new URLSearchParams();
+        
+        // Search query
+        const query = searchInput ? searchInput.value.trim() : '';
+        if (query) {
+            params.set('q', query);
+        }
+        
+        // Sort parameter
+        if (currentSort) {
+            params.set('sort', currentSort);
+        }
+        
+        // My topics filter
+        if (myTopics) {
+            params.set('my_topics', '1');
+        }
+        
+        return params;
+    }
+    
+    function showLoading() {
+        if (topicList) {
+            topicList.classList.add('loading');
+        }
+        if (searchSpinner) {
+            searchSpinner.classList.add('visible');
+        }
+    }
+    
+    function hideLoading() {
+        if (topicList) {
+            topicList.classList.remove('loading');
+        }
+        if (searchSpinner) {
+            searchSpinner.classList.remove('visible');
+        }
+    }
+    
+    function updateTopicCount(html) {
+        // Count topic cards in the returned HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        const cardCount = tempDiv.querySelectorAll('.ft-topic-card').length;
+        
+        if (topicCountElement) {
+            topicCountElement.textContent = cardCount;
+        }
+    }
+    
+    function updateBrowserUrl(params) {
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        window.history.replaceState(null, '', newUrl);
+    }
+    
+    function updateActiveFilter(filterType) {
+        // Update active state on filter pills
+        if (filterPills) {
+            const pills = filterPills.querySelectorAll('.ft-filter-pill');
+            pills.forEach(pill => {
+                const pillFilter = pill.getAttribute('data-filter');
+                pill.classList.remove('active');
+                
+                if (filterType === 'all' && pillFilter === 'all' && !currentSort && !myTopics) {
+                    pill.classList.add('active');
+                } else if (filterType === 'my_topics' && pillFilter === 'my_topics') {
+                    pill.classList.add('active');
+                } else if (currentSort && pillFilter === currentSort && !myTopics) {
+                    pill.classList.add('active');
+                }
+            });
+        }
+    }
+    
+    // ==================== AJAX Search Function ====================
+    function performSearch() {
+        // Cancel previous request if still pending
+        if (currentRequest) {
+            currentRequest.abort();
+        }
+        
+        const params = getFilterParams();
+        const url = window.location.pathname + '?' + params.toString();
+        
+        showLoading();
+        
+        // Create AbortController for request cancellation
+        const controller = new AbortController();
+        currentRequest = controller;
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html',
+            },
+            signal: controller.signal,
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text();
+        })
+        .then(html => {
+            // Update the topic list with new content
+            if (topicList) {
+                topicList.innerHTML = html;
+            }
+            
+            // Update topic count
+            updateTopicCount(html);
+            
+            // Update browser URL without reload
+            updateBrowserUrl(params);
+            
+            hideLoading();
+            currentRequest = null;
+        })
+        .catch(error => {
+            if (error.name === 'AbortError') {
+                // Request was cancelled, ignore
+                return;
+            }
+            console.error('Search error:', error);
+            hideLoading();
+            currentRequest = null;
+        });
+    }
+    
+    // ==================== Debounced Search ====================
+    const debouncedSearch = debounce(performSearch, 300);
+    
+    // ==================== Event Listeners ====================
+    
+    // Search input with debounce
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            debouncedSearch();
+        });
+        
+        // Prevent form submission on Enter, use AJAX instead
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+    }
+    
+    // Form submission via AJAX
+    if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            performSearch();
+        });
+    }
+    
+    // Filter pills click handlers (robust fallback: normal navigation)
+    if (filterPills) {
+        const pills = filterPills.querySelectorAll('.ft-filter-pill');
+        pills.forEach(pill => {
+            pill.addEventListener('click', function(e) {
+                // Let browser navigation handle filters reliably.
+                // Keep Ctrl/Cmd-click and middle-click behavior untouched.
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
+                    return;
+                }
+                e.preventDefault();
+                const targetUrl = this.getAttribute('data-url');
+                if (targetUrl) {
+                    window.location.href = targetUrl;
+                }
+            });
+        });
+    }
+    
+})();
+</script>
+{% endblock %}

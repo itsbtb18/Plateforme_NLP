@@ -1,0 +1,748 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{{ chatroom.get_localized_name }} | {% translate "Chat Room" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<style>
+/* ===== CHATROOM DETAIL CSS ===== */
+:root {
+    --cd-primary: #3B82F6;
+    --cd-primary-dark: #2563eb;
+    --cd-primary-light: #60a5fa;
+    --cd-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --cd-deep: #0f172a;
+    --cd-navy: #1e3a5f;
+    --cd-white: #ffffff;
+    --cd-bg: #f8fafc;
+    --cd-muted: #f1f5f9;
+    --cd-subtle: #e2e8f0;
+    
+    --cd-text: #0f172a;
+    --cd-text-secondary: #475569;
+    --cd-text-muted: #94a3b8;
+    
+    --cd-border: #e2e8f0;
+    --cd-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --cd-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    
+    --cd-success: #10b981;
+    --cd-success-bg: rgba(16, 185, 129, 0.1);
+    
+    --cd-warning: #f59e0b;
+    --cd-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --cd-danger: #ef4444;
+    --cd-danger-bg: rgba(239, 68, 68, 0.1);
+    
+    --cd-radius-sm: 6px;
+    --cd-radius-md: 10px;
+    --cd-radius-lg: 14px;
+    --cd-radius-xl: 20px;
+    --cd-radius-full: 9999px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.cd-page {
+    min-height: 100vh;
+    background: var(--cd-bg);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Chat Header */
+.cd-header {
+    background: var(--cd-white);
+    border-bottom: 1px solid var(--cd-border);
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.cd-header-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.cd-header-left { display: flex; align-items: center; gap: 1rem; }
+
+.cd-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--cd-muted);
+    border: 1px solid var(--cd-border);
+    border-radius: var(--cd-radius-md);
+    color: var(--cd-text-secondary);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.cd-back-btn:hover { background: var(--cd-subtle); color: var(--cd-text); }
+
+.cd-room-info { display: flex; align-items: center; gap: 0.75rem; }
+
+.cd-room-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--cd-primary-glow);
+    border-radius: var(--cd-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cd-primary);
+    font-size: 1.25rem;
+}
+
+.cd-room-name { font-size: 1.1rem; font-weight: 700; color: var(--cd-text); margin: 0; }
+.cd-room-topic { font-size: 0.8rem; color: var(--cd-text-muted); margin: 0.125rem 0 0; }
+.cd-room-topic a { color: var(--cd-primary); text-decoration: none; }
+.cd-room-topic a:hover { text-decoration: underline; }
+
+.cd-header-actions { display: flex; align-items: center; gap: 0.75rem; }
+
+.cd-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--cd-muted);
+    border: 1px solid var(--cd-border);
+    border-radius: var(--cd-radius-md);
+    color: var(--cd-text-muted);
+    text-decoration: none;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cd-action-btn:hover { background: var(--cd-subtle); color: var(--cd-text); }
+.cd-action-btn.danger:hover { background: var(--cd-danger-bg); color: var(--cd-danger); border-color: var(--cd-danger); }
+
+/* Main Layout */
+.cd-main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    height: calc(100vh - 76px);
+}
+
+/* Chat Container */
+.cd-chat-container {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--cd-border);
+    background: var(--cd-white);
+}
+
+.cd-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Message Bubbles */
+.cd-message {
+    display: flex;
+    gap: 0.75rem;
+    max-width: 75%;
+}
+
+.cd-message.own { align-self: flex-end; flex-direction: row-reverse; }
+html[dir="rtl"] .cd-message.own { flex-direction: row; }
+html[dir="rtl"] .cd-message:not(.own) { flex-direction: row-reverse; }
+
+.cd-message-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--cd-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.cd-message-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cd-message-avatar i { font-size: 0.9rem; color: var(--cd-text-muted); }
+
+.cd-message-bubble {
+    padding: 0.75rem 1rem;
+    border-radius: var(--cd-radius-lg);
+    position: relative;
+}
+
+.cd-message:not(.own) .cd-message-bubble {
+    background: var(--cd-muted);
+    border-bottom-left-radius: var(--cd-radius-sm);
+}
+
+html[dir="rtl"] .cd-message:not(.own) .cd-message-bubble {
+    border-bottom-left-radius: var(--cd-radius-lg);
+    border-bottom-right-radius: var(--cd-radius-sm);
+}
+
+.cd-message.own .cd-message-bubble {
+    background: var(--cd-primary);
+    color: var(--cd-white);
+    border-bottom-right-radius: var(--cd-radius-sm);
+}
+
+html[dir="rtl"] .cd-message.own .cd-message-bubble {
+    border-bottom-right-radius: var(--cd-radius-lg);
+    border-bottom-left-radius: var(--cd-radius-sm);
+}
+
+.cd-message-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.cd-message-name { font-size: 0.8rem; font-weight: 600; }
+.cd-message:not(.own) .cd-message-name { color: var(--cd-text); }
+.cd-message.own .cd-message-name { color: rgba(255, 255, 255, 0.9); }
+
+.cd-message-time { font-size: 0.7rem; }
+.cd-message:not(.own) .cd-message-time { color: var(--cd-text-muted); }
+.cd-message.own .cd-message-time { color: rgba(255, 255, 255, 0.7); }
+
+.cd-message-text { font-size: 0.9rem; line-height: 1.5; margin: 0; word-wrap: break-word; }
+
+.cd-message-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.cd-message:hover .cd-message-actions { opacity: 1; }
+
+.cd-msg-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--cd-radius-sm);
+    font-size: 0.75rem;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+}
+
+.cd-message:not(.own) .cd-msg-action {
+    background: var(--cd-white);
+    color: var(--cd-text-muted);
+    border: 1px solid var(--cd-border);
+}
+
+.cd-message:not(.own) .cd-msg-action:hover { color: var(--cd-text); background: var(--cd-subtle); }
+
+.cd-message.own .cd-msg-action {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--cd-white);
+}
+
+.cd-message.own .cd-msg-action:hover { background: rgba(255, 255, 255, 0.3); }
+
+.cd-msg-action.danger:hover { color: var(--cd-danger); }
+
+.cd-message-replies {
+    margin-top: 0.6rem;
+    margin-left: 1.5rem;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--cd-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+html[dir="rtl"] .cd-message-replies {
+    margin-left: 0;
+    margin-right: 1.5rem;
+    padding-left: 0;
+    padding-right: 0.75rem;
+    border-left: none;
+    border-right: 2px solid var(--cd-subtle);
+}
+
+/* Message Input */
+.cd-input-container {
+    padding: 1rem 2rem 1.5rem;
+    background: var(--cd-white);
+    border-top: 1px solid var(--cd-border);
+}
+
+.cd-input-form {
+    display: flex;
+    gap: 0.75rem;
+    flex-direction: column;
+    align-items: stretch;
+    background: var(--cd-muted);
+    border: 2px solid transparent;
+    border-radius: var(--cd-radius-lg);
+    padding: 0.75rem 1rem;
+    transition: all 0.2s;
+}
+
+.cd-input-form:focus-within {
+    background: var(--cd-white);
+    border-color: var(--cd-primary);
+    box-shadow: 0 0 0 4px var(--cd-primary-glow);
+}
+
+.cd-message-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--cd-text);
+    resize: none;
+    min-height: 24px;
+    max-height: 120px;
+}
+
+.cd-message-input:focus { outline: none; }
+.cd-message-input::placeholder { color: var(--cd-text-muted); }
+
+.cd-reply-indicator {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0.55rem 0.7rem;
+    border-radius: var(--cd-radius-md);
+    background: var(--cd-white);
+    border: 1px solid var(--cd-subtle);
+    color: var(--cd-text-secondary);
+    font-size: 0.85rem;
+}
+
+.cd-reply-indicator.show {
+    display: flex;
+}
+
+.cd-reply-cancel {
+    border: none;
+    background: transparent;
+    color: var(--cd-danger);
+    cursor: pointer;
+    font-weight: 700;
+    padding: 0.15rem 0.35rem;
+}
+
+.cd-input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+.cd-send-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--cd-primary);
+    color: var(--cd-white);
+    border: none;
+    border-radius: var(--cd-radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.cd-send-btn:hover { background: var(--cd-primary-dark); }
+.cd-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Sidebar */
+.cd-sidebar {
+    background: var(--cd-white);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.cd-sidebar-section { border-bottom: 1px solid var(--cd-border); }
+.cd-sidebar-section:last-child { border-bottom: none; }
+
+.cd-sidebar-header {
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cd-sidebar-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--cd-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+}
+
+.cd-sidebar-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--cd-primary);
+    background: var(--cd-primary-glow);
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--cd-radius-full);
+}
+
+.cd-user-list {
+    padding: 0 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.cd-user-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border-radius: var(--cd-radius-sm);
+    transition: background 0.2s;
+}
+
+.cd-user-item:hover { background: var(--cd-muted); }
+
+.cd-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--cd-primary-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.cd-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cd-user-avatar i { font-size: 0.8rem; color: var(--cd-primary); }
+
+.cd-online-dot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    background: var(--cd-success);
+    border: 2px solid var(--cd-white);
+    border-radius: 50%;
+}
+
+.cd-user-name { font-size: 0.85rem; font-weight: 500; color: var(--cd-text); }
+
+.cd-room-desc {
+    padding: 0 1.25rem 1.25rem;
+    font-size: 0.85rem;
+    color: var(--cd-text-secondary);
+    line-height: 1.6;
+}
+
+.cd-banned-list { padding: 0 1rem 1rem; }
+
+.cd-banned-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: var(--cd-danger-bg);
+    border-radius: var(--cd-radius-sm);
+    margin-bottom: 0.5rem;
+}
+
+.cd-banned-item:last-child { margin-bottom: 0; }
+
+.cd-banned-name { font-size: 0.8rem; font-weight: 500; color: var(--cd-danger); }
+
+.cd-unban-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--cd-white);
+    border: 1px solid var(--cd-danger);
+    border-radius: var(--cd-radius-sm);
+    color: var(--cd-danger);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cd-unban-btn:hover { background: var(--cd-danger); color: var(--cd-white); }
+
+/* Empty State */
+.cd-empty-messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+}
+
+.cd-empty-icon {
+    width: 64px;
+    height: 64px;
+    background: var(--cd-muted);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    color: var(--cd-text-muted);
+    font-size: 1.5rem;
+}
+
+.cd-empty-text { font-size: 0.9rem; color: var(--cd-text-muted); margin: 0; }
+
+/* Responsive */
+@media (max-width: 900px) {
+    .cd-main { grid-template-columns: 1fr; height: auto; }
+    .cd-sidebar { display: none; }
+    .cd-chat-container { border-right: none; min-height: calc(100vh - 76px); }
+}
+
+@media (max-width: 640px) {
+    .cd-header-container { padding: 0 1rem; }
+    .cd-messages { padding: 1rem; }
+    .cd-input-container { padding: 0.75rem 1rem 1rem; }
+    .cd-message { max-width: 85%; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cd-page">
+    
+    <header class="cd-header">
+        <div class="cd-header-container">
+            <div class="cd-header-left">
+                <a href="{% url 'forum:chatroom-list' chatroom.topic.pk %}" class="cd-back-btn">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div class="cd-room-info">
+                    <div class="cd-room-icon">
+                        <i class="bi bi-chat-dots"></i>
+                    </div>
+                    <div>
+                        <h1 class="cd-room-name">{{ chatroom.get_localized_name }}</h1>
+                        <p class="cd-room-topic">
+                            <a href="{% url 'forum:chatroom-list' chatroom.topic.pk %}">{{ chatroom.topic.get_localized_title }}</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="cd-header-actions">
+                {% if user.is_staff or user == chatroom.creator %}
+                <a href="{% url 'forum:chatroom-update' chatroom.pk %}" class="cd-action-btn" title="{% translate 'Edit Room' %}">
+                    <i class="bi bi-gear"></i>
+                </a>
+                <a href="{% url 'forum:chatroom-delete' chatroom.pk %}" class="cd-action-btn danger" title="{% translate 'Delete Room' %}">
+                    <i class="bi bi-trash3"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+    
+    <main class="cd-main">
+        
+        <div class="cd-chat-container">
+            
+            <div class="cd-messages" id="messagesContainer">
+                {% if messages %}
+                {% for message in top_level_messages %}
+                {% include "forum/partials/message_item.html" with message=message user=user %}
+                {% endfor %}
+                {% else %}
+                <div class="cd-empty-messages">
+                    <div class="cd-empty-icon">
+                        <i class="bi bi-chat-dots"></i>
+                    </div>
+                    <p class="cd-empty-text">{% translate "No messages yet. Start the conversation!" %}</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="cd-input-container">
+                <form method="post" class="cd-input-form" id="messageForm">
+                    {% csrf_token %}
+                    <div class="cd-reply-indicator" id="replyIndicator">
+                        <span id="replyIndicatorText"></span>
+                        <button type="button" class="cd-reply-cancel" id="clearReplyBtn">{% translate "Cancel" %}</button>
+                    </div>
+                    <input type="hidden" name="parent_id" id="replyParentId" value="">
+                    <div class="cd-input-row">
+                        <textarea name="message" class="cd-message-input" id="messageInput" 
+                                  placeholder="{% translate 'Type your message...' %}" 
+                                  rows="1" required></textarea>
+                        <button type="submit" class="cd-send-btn" id="sendBtn">
+                            <i class="bi bi-send"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <aside class="cd-sidebar">
+            
+            <div class="cd-sidebar-section">
+                <div class="cd-sidebar-header">
+                    <h3 class="cd-sidebar-title">{% translate "About" %}</h3>
+                </div>
+                <p class="cd-room-desc">{{ chatroom.get_localized_description }}</p>
+            </div>
+            
+            <div class="cd-sidebar-section">
+                <div class="cd-sidebar-header">
+                    <h3 class="cd-sidebar-title">{% translate "Room Creator" %}</h3>
+                </div>
+                <div class="cd-user-list">
+                    <div class="cd-user-item">
+                        <div class="cd-user-avatar">
+                            {% if chatroom.creator.avatar %}
+                            <img src="{{ chatroom.creator.avatar.url }}" alt="{{ chatroom.creator.get_full_name_display }}">
+                            {% else %}
+                            <i class="bi bi-person"></i>
+                            {% endif %}
+                            <span class="cd-online-dot"></span>
+                        </div>
+                        <span class="cd-user-name">{{ chatroom.creator.get_full_name_display|default:chatroom.creator.username }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            {% if banned_users and user.is_staff %}
+            <div class="cd-sidebar-section">
+                <div class="cd-sidebar-header">
+                    <h3 class="cd-sidebar-title">{% translate "Banned Users" %}</h3>
+                    <span class="cd-sidebar-count">{{ banned_users|length }}</span>
+                </div>
+                <div class="cd-banned-list">
+                    {% for ban in banned_users %}
+                    <div class="cd-banned-item">
+                        <span class="cd-banned-name">{{ ban.user.username }}</span>
+                        <form method="post" action="{% url 'forum:unban-user' ban.pk %}" style="margin: 0;">
+                            {% csrf_token %}
+                            <button type="submit" class="cd-unban-btn" title="{% translate 'Unban' %}">
+                                <i class="bi bi-person-check"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+        </aside>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('messagesContainer');
+    const form = document.getElementById('messageForm');
+    const input = document.getElementById('messageInput');
+    const replyParentInput = document.getElementById('replyParentId');
+    const replyIndicator = document.getElementById('replyIndicator');
+    const replyIndicatorText = document.getElementById('replyIndicatorText');
+    const clearReplyBtn = document.getElementById('clearReplyBtn');
+    
+    // Scroll to bottom
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function clearReplyTarget() {
+        if (replyParentInput) replyParentInput.value = '';
+        if (replyIndicator) replyIndicator.classList.remove('show');
+        if (replyIndicatorText) replyIndicatorText.textContent = '';
+    }
+
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.js-reply-btn');
+        if (!btn) return;
+        const parentId = btn.getAttribute('data-message-id') || '';
+        const author = btn.getAttribute('data-message-author') || '';
+        if (replyParentInput) replyParentInput.value = parentId;
+        if (replyIndicatorText) replyIndicatorText.textContent = `Replying to ${author}`;
+        if (replyIndicator) replyIndicator.classList.add('show');
+        if (input) input.focus();
+    });
+
+    if (clearReplyBtn) {
+        clearReplyBtn.addEventListener('click', clearReplyTarget);
+    }
+    
+    // Auto-resize textarea
+    if (input) {
+        input.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+        
+        // Submit on Enter (Shift+Enter for newline)
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (this.value.trim()) {
+                    form.submit();
+                }
+            }
+        });
+    }
+
+    if (window.renderMathInElement) {
+        renderMathInElement(document.getElementById('messagesContainer'), {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+            ],
+            throwOnError: false
+        });
+    }
+});
+</script>
+{% endblock %}

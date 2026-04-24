@@ -1,0 +1,1557 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+{% get_current_language as CURRENT_LANGUAGE %}
+
+{% block title %}{% if is_create_mode %}{% if CURRENT_LANGUAGE == 'ar' %}إنشاء حدث{% else %}{% translate "Create Event" %}{% endif %}{% else %}{% if CURRENT_LANGUAGE == 'ar' %}تعديل الحدث{% else %}{% translate "Edit Event" %}{% endif %}{% endif %} | {% if CURRENT_LANGUAGE == 'ar' %}الفعاليات{% else %}{% translate "Events" %}{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
+<style>
+/* ===== EVENT FORM CSS ===== */
+:root {
+    --ef-primary: #8B5CF6;
+    --ef-primary-dark: #7c3aed;
+    --ef-primary-light: #A78BFA;
+    --ef-primary-glow: rgba(139, 92, 246, 0.12);
+    
+    --ef-deep: #120f2a;
+    --ef-navy: #32185d;
+    --ef-white: #ffffff;
+    --ef-bg: #0a0b18;
+    --ef-muted: rgba(255,255,255,0.05);
+    --ef-subtle: rgba(255,255,255,0.1);
+    
+    --ef-text: #f8fafc;
+    --ef-text-secondary: #cbd5e1;
+    --ef-text-muted: #94a3b8;
+    
+    --ef-border: rgba(196,181,253,0.16);
+    --ef-input-border-dark-violet: rgba(76, 29, 149, 0.86);
+    --ef-input-border-dark-violet-soft: rgba(109, 40, 217, 0.75);
+    --ef-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --ef-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --ef-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    --ef-shadow-focus: 0 0 0 4px rgba(139, 92, 246, 0.16);
+    
+    --ef-success: #10b981;
+    --ef-success-bg: rgba(16, 185, 129, 0.1);
+    
+    --ef-warning: #f59e0b;
+    --ef-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --ef-danger: #ef4444;
+    --ef-danger-bg: rgba(239, 68, 68, 0.1);
+    
+    --ef-purple: #a78bfa;
+    --ef-purple-bg: rgba(167, 139, 250, 0.12);
+    
+    --ef-radius-sm: 6px;
+    --ef-radius-md: 10px;
+    --ef-radius-lg: 14px;
+    --ef-radius-xl: 20px;
+    --ef-radius-full: 9999px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.ef-page {
+    min-height: 100vh;
+    background: radial-gradient(circle at top left, rgba(139,92,246,0.14), transparent 24%), linear-gradient(180deg, #0a0b18 0%, #120f2a 52%, #0a0b18 100%);
+}
+
+/* Header */
+.ef-header {
+    background: linear-gradient(135deg, var(--ef-deep) 0%, #21143f 52%, var(--ef-navy) 100%);
+    padding: 2.5rem 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.ef-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
+}
+
+.ef-header-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.ef-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    margin-bottom: 1rem;
+    transition: color 0.2s;
+}
+
+.ef-back-link:hover { color: var(--ef-white); }
+
+.ef-title-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ef-icon-box {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+    border-radius: var(--ef-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ef-white);
+    font-size: 1.5rem;
+}
+
+.ef-header-info { flex: 1; }
+
+.ef-page-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--ef-white);
+    margin: 0 0 0.25rem;
+}
+
+.ef-page-subtitle {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.82);
+    margin: 0;
+}
+
+/* Main Form Container */
+.ef-main {
+    max-width: 900px;
+    margin: -2rem auto 2rem;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 2;
+}
+
+.ef-form-card {
+    background: linear-gradient(180deg, rgba(24,18,52,.98) 0%, rgba(14,12,32,.98) 100%);
+    border: 1px solid var(--ef-border);
+    border-radius: var(--ef-radius-xl);
+    box-shadow: var(--ef-shadow-lg);
+    overflow: hidden;
+}
+
+/* Progress Indicator */
+.ef-progress {
+    display: flex;
+    background: rgba(255,255,255,0.04);
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--ef-border);
+}
+
+.ef-progress-step {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ef-progress-step-num {
+    width: 32px;
+    height: 32px;
+    background: var(--ef-subtle);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ef-text-muted);
+    transition: all 0.2s;
+}
+
+.ef-progress-step.active .ef-progress-step-num {
+    background: var(--ef-primary);
+    color: var(--ef-white);
+}
+
+.ef-progress-step.completed .ef-progress-step-num {
+    background: var(--ef-success);
+    color: var(--ef-white);
+}
+
+.ef-progress-step-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ef-text-muted);
+    transition: color 0.2s;
+}
+
+.ef-progress-step.active .ef-progress-step-label { color: var(--ef-primary); }
+.ef-progress-step.completed .ef-progress-step-label { color: var(--ef-success); }
+
+@media (max-width: 640px) {
+    .ef-progress-step-label { display: none; }
+    .ef-progress { justify-content: center; gap: 1.5rem; }
+}
+
+/* Form Section */
+.ef-section {
+    padding: 2rem;
+    border-bottom: 1px solid var(--ef-border);
+}
+
+.ef-section:last-of-type { border-bottom: none; }
+
+.ef-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.ef-section-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--ef-primary-glow);
+    border-radius: var(--ef-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ef-primary);
+    font-size: 1.1rem;
+}
+
+.ef-section-info { flex: 1; }
+
+.ef-section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ef-text);
+    margin: 0 0 0.125rem;
+}
+
+.ef-section-desc {
+    font-size: 0.8rem;
+    color: var(--ef-text-muted);
+    margin: 0;
+}
+
+/* Form Grid */
+.ef-form-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.ef-form-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .ef-form-grid-2 { grid-template-columns: 1fr; }
+}
+
+/* Form Group */
+.ef-form-group {
+    position: relative;
+}
+
+.ef-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ef-text);
+    margin-bottom: 0.5rem;
+}
+
+.ef-label .required {
+    color: var(--ef-danger);
+    margin-left: 0.25rem;
+}
+
+.ef-input,
+.ef-select,
+.ef-textarea {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--ef-text);
+    background: var(--ef-white);
+    border: 2px solid var(--ef-input-border-dark-violet);
+    border-radius: var(--ef-radius-md);
+    transition: all 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.ef-input:focus,
+.ef-select:focus,
+.ef-textarea:focus {
+    outline: none;
+    border-color: var(--ef-input-border-dark-violet-soft);
+    box-shadow: var(--ef-shadow-focus);
+}
+
+.ef-input:hover,
+.ef-select:hover,
+.ef-textarea:hover {
+    border-color: var(--ef-input-border-dark-violet-soft);
+}
+
+.ef-input::placeholder { color: var(--ef-text-muted); }
+
+.ef-input.error,
+.ef-select.error,
+.ef-textarea.error {
+    border-color: var(--ef-danger);
+}
+
+.ef-textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+/* Speaker formset fields may come without the shared classes, so style them explicitly */
+.ef-section[data-section="4"] .ef-form-group {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.ef-section[data-section="4"] input:not([type="checkbox"]):not([type="file"]),
+.ef-section[data-section="4"] textarea,
+.ef-section[data-section="4"] select {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--ef-text);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--ef-input-border-dark-violet);
+    border-radius: var(--ef-radius-md);
+    transition: all 0.2s;
+}
+
+.ef-section[data-section="4"] input:not([type="checkbox"]):not([type="file"]):focus,
+.ef-section[data-section="4"] textarea:focus,
+.ef-section[data-section="4"] select:focus {
+    outline: none;
+    border-color: var(--ef-input-border-dark-violet-soft);
+    box-shadow: var(--ef-shadow-focus);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ef-section[data-section="4"] input::placeholder,
+.ef-section[data-section="4"] textarea::placeholder {
+    color: var(--ef-text-muted);
+}
+
+.ef-section[data-section="4"] input[type="file"] {
+    width: 100%;
+    color: var(--ef-text-secondary);
+    background: transparent;
+}
+
+.ef-section[data-section="4"] input[type="file"]::file-selector-button {
+    margin-right: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(196, 181, 253, 0.28);
+    border-radius: var(--ef-radius-md);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--ef-text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ef-section[data-section="4"] input[type="file"]::file-selector-button:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(167, 139, 250, 0.45);
+}
+
+.ef-section[data-section="4"] input[type="checkbox"] {
+    accent-color: var(--ef-primary);
+}
+
+.ef-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+}
+
+html[dir="rtl"] .ef-select {
+    background-position: left 1rem center;
+    padding-right: 1rem;
+    padding-left: 2.5rem;
+}
+
+.ef-select[multiple] {
+    background-image: none;
+    padding-right: 1rem;
+    height: auto;
+    min-height: 100px;
+}
+
+.ef-domain-native {
+    display: none;
+}
+
+.ef-domain-picker {
+    position: relative;
+}
+
+.ef-domain-toggle {
+    width: 100%;
+    min-height: 48px;
+    border: 2px solid var(--ef-input-border-dark-violet);
+    border-radius: var(--ef-radius-md);
+    background: linear-gradient(180deg, rgba(36, 26, 74, 0.96) 0%, rgba(24, 18, 52, 0.98) 100%);
+    padding: 0.55rem 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.ef-domain-toggle:focus {
+    outline: none;
+    border-color: var(--ef-input-border-dark-violet-soft);
+    box-shadow: var(--ef-shadow-focus);
+}
+
+.ef-domain-toggle:hover {
+    border-color: var(--ef-input-border-dark-violet-soft);
+    background: linear-gradient(180deg, rgba(42, 30, 87, 0.96) 0%, rgba(28, 20, 58, 0.98) 100%);
+}
+
+.ef-domain-picker.error .ef-domain-toggle {
+    border-color: var(--ef-danger);
+}
+
+.ef-domain-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    flex: 1;
+}
+
+.ef-domain-placeholder {
+    font-size: 0.9rem;
+    color: var(--ef-text-muted);
+}
+
+.ef-domain-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: var(--ef-primary-glow);
+    color: var(--ef-primary-dark);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.ef-domain-chip button {
+    border: none;
+    background: transparent;
+    color: inherit;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.ef-domain-chip button:hover {
+    background: rgba(139, 92, 246, 0.14);
+}
+
+.ef-domain-caret {
+    color: var(--ef-text-muted);
+    transition: transform 0.2s;
+}
+
+.ef-domain-picker.open .ef-domain-caret {
+    transform: rotate(180deg);
+}
+
+.ef-domain-dropdown {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    left: 0;
+    right: 0;
+    border: 1px solid rgba(196,181,253,0.16);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(24,18,52,.98) 0%, rgba(14,12,32,.98) 100%);
+    box-shadow: 0 14px 38px rgba(15, 23, 42, 0.14);
+    z-index: 40;
+    display: none;
+    overflow: hidden;
+}
+
+.ef-domain-picker.open .ef-domain-dropdown {
+    display: block;
+}
+
+.ef-domain-search {
+    display: none;
+}
+
+.ef-domain-options {
+    max-height: 190px;
+    overflow: auto;
+    padding: 0.3rem;
+    background: linear-gradient(180deg, rgba(24,18,52,.98) 0%, rgba(14,12,32,.98) 100%);
+}
+
+.ef-domain-options::-webkit-scrollbar {
+    width: 8px;
+}
+
+.ef-domain-options::-webkit-scrollbar-thumb {
+    background: rgba(196,181,253,0.28);
+    border-radius: 999px;
+}
+
+.ef-domain-options::-webkit-scrollbar-thumb:hover {
+    background: rgba(196,181,253,0.4);
+}
+
+.ef-domain-option {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--ef-text);
+    text-align: left;
+    border-radius: 10px;
+    padding: 0.6rem 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--ef-text);
+    transition: background 0.18s, color 0.18s;
+}
+
+.ef-domain-option:hover {
+    background: #f1f5fb;
+}
+
+.ef-domain-option.is-selected {
+    background: #e8f1ff;
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+.ef-domain-option-check {
+    opacity: 0;
+    font-size: 0.95rem;
+}
+
+.ef-domain-option.is-selected .ef-domain-option-check {
+    opacity: 1;
+}
+
+html[dir="rtl"] .ef-domain-option {
+    text-align: right;
+}
+
+html[dir="rtl"] .ef-domain-search i {
+    left: auto;
+    right: 1.25rem;
+}
+
+html[dir="rtl"] .ef-domain-search input {
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+}
+
+/* Help Text */
+.ef-help-text {
+    font-size: 0.75rem;
+    color: var(--ef-text-muted);
+    margin-top: 0.375rem;
+}
+
+/* Error Messages */
+.ef-error {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8rem;
+    color: var(--ef-danger);
+    margin-top: 0.5rem;
+}
+
+.ef-error i { font-size: 0.9rem; }
+
+/* Non-field Errors */
+.ef-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: var(--ef-danger-bg);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--ef-radius-md);
+    margin: 1.5rem 2rem;
+}
+
+.ef-alert-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--ef-white);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ef-danger);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.ef-alert-content { flex: 1; }
+
+.ef-alert-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--ef-danger);
+    margin: 0 0 0.25rem;
+}
+
+.ef-alert-text {
+    font-size: 0.85rem;
+    color: var(--ef-text-secondary);
+    margin: 0;
+}
+
+/* Date Input Container */
+.ef-date-container {
+    position: relative;
+}
+
+.ef-date-container input {
+    padding-right: 2.5rem;
+}
+
+html[dir="rtl"] .ef-date-container input {
+    padding-right: 1rem;
+    padding-left: 2.5rem;
+}
+
+/* File Upload */
+.ef-file-zone {
+    position: relative;
+    border: 1px solid var(--ef-input-border-dark-violet);
+    border-radius: var(--ef-radius-md);
+    padding: 2rem 1.5rem;
+    text-align: center;
+    transition: all 0.2s ease;
+    background: linear-gradient(180deg, rgba(36, 26, 74, 0.96) 0%, rgba(22, 16, 48, 0.98) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    cursor: pointer;
+}
+
+.ef-file-zone:hover {
+    border-color: var(--ef-input-border-dark-violet-soft);
+    background: linear-gradient(180deg, rgba(44, 31, 92, 0.96) 0%, rgba(28, 20, 59, 0.98) 100%);
+}
+
+.ef-file-zone input[type="file"] {
+    display: none;
+}
+
+.ef-file-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--ef-primary-glow);
+    border-radius: var(--ef-radius-md);
+    margin: 0 auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ef-primary);
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.ef-file-zone:hover .ef-file-icon {
+    background: rgba(139, 92, 246, 0.15);
+}
+
+.ef-file-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ef-text);
+    margin: 0 0 0.5rem 0;
+}
+
+.ef-file-desc {
+    font-size: 0.75rem;
+    color: var(--ef-text-muted);
+    margin: 0 0 1.25rem 0;
+    display: block;
+}
+
+.ef-file-current {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: var(--ef-muted);
+    border-radius: var(--ef-radius-md);
+    margin-top: 1rem;
+    border-left: 3px solid var(--ef-primary);
+}
+
+.ef-file-current-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--ef-primary-glow);
+    border-radius: var(--ef-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ef-primary);
+    flex-shrink: 0;
+}
+
+.ef-file-current-name {
+    flex: 1;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ef-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Checkbox Group */
+.ef-checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.ef-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ef-checkbox-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--ef-border);
+    border-radius: var(--ef-radius-sm);
+    cursor: pointer;
+    accent-color: var(--ef-primary);
+}
+
+.ef-checkbox-item label {
+    font-size: 0.9rem;
+    color: var(--ef-text-secondary);
+    cursor: pointer;
+}
+
+/* Form Actions */
+.ef-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.5rem 2rem;
+    background: var(--ef-muted);
+    border-top: 1px solid var(--ef-border);
+}
+
+.ef-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.95rem 1.75rem;
+    min-width: 190px;
+    min-height: 60px;
+    font-family: inherit;
+    font-size: 0.98rem;
+    font-weight: 700;
+    border: 2px solid transparent;
+    border-radius: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.25s;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.ef-btn-primary {
+    background: var(--ef-primary);
+    color: var(--ef-white);
+}
+
+.ef-btn-primary:hover {
+    background: var(--ef-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+}
+
+.ef-btn-success {
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: var(--ef-white);
+    border-color: transparent;
+}
+
+.ef-btn-success:hover {
+    background: linear-gradient(135deg, #047857, #059669);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(5, 150, 105, 0.35);
+}
+
+.ef-btn-danger {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    color: var(--ef-white);
+    border-color: transparent;
+}
+
+.ef-btn-danger:hover {
+    background: linear-gradient(135deg, #b91c1c, #dc2626);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.35);
+}
+
+.ef-btn-ghost {
+    background: transparent;
+    color: #274c77;
+    border-color: var(--ef-border);
+    box-shadow: 0 8px 24px rgba(148, 163, 184, 0.14);
+}
+
+.ef-btn-ghost:hover {
+    border-color: #bfd0e6;
+    background: #f8fbff;
+    color: #1d4f91;
+    transform: translateY(-1px);
+}
+
+.ef-admin-actions {
+    display: flex;
+    gap: 0.9rem;
+    align-items: center;
+    direction: ltr;
+}
+
+@media (max-width: 500px) {
+    .ef-actions {
+        flex-direction: column;
+    }
+    .ef-btn { width: 100%; }
+}
+
+/* 🔥 Supprimer complètement le bouton "Choose file" / "No file chosen" */
+#attachmentInput {
+    display: none !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ef-page">
+    
+    <!-- Header -->
+    <header class="ef-header">
+        <div class="ef-header-content">
+            <a href="{% url 'events:event_list' %}" class="ef-back-link">
+                <i class="bi bi-arrow-left"></i>
+                {% if CURRENT_LANGUAGE == 'ar' %}العودة إلى الفعاليات{% else %}{% translate "Back to Events" %}{% endif %}
+            </a>
+            <div class="ef-title-row">
+                <div class="ef-icon-box">
+                    <i class="bi bi-calendar-plus"></i>
+                </div>
+                <div class="ef-header-info">
+                    <h1 class="ef-page-title">
+                        {% if is_create_mode %}
+                            {% if CURRENT_LANGUAGE == 'ar' %}إنشاء حدث{% else %}{% translate "Create Event" %}{% endif %}
+                        {% else %}
+                            {% if CURRENT_LANGUAGE == 'ar' %}تعديل الحدث{% else %}{% translate "Edit Event" %}{% endif %}
+                        {% endif %}
+                    </h1>
+                    <p class="ef-page-subtitle">
+                        {% if is_create_mode %}
+                            {% if CURRENT_LANGUAGE == 'ar' %}شارك المؤتمرات وورش العمل ودعوات الأوراق العلمية مع المجتمع{% else %}{% translate "Share conferences, workshops, and calls for papers with the community" %}{% endif %}
+                        {% else %}
+                            {% if CURRENT_LANGUAGE == 'ar' %}حدّث تفاصيل فعاليتك العلمية{% else %}{% translate "Update the details of your scientific event" %}{% endif %}
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Form -->
+    <main class="ef-main">
+        <form method="post" enctype="multipart/form-data" class="ef-form-card">
+            {% csrf_token %}
+            {{ speaker_formset.management_form }}
+
+            {% if form.instance.pk %}
+            <div class="site-status-panel" style="margin:1.25rem 1.25rem 0;">
+                <div class="site-status-panel-meta">
+                    <span class="site-approval-badge site-approval-pending">
+                        <i class="bi bi-calendar-event-fill"></i>
+                        {% translate "Event" %}
+                    </span>
+                    <span class="site-approval-badge {% if form.instance.approval_status == 'approved' %}site-approval-approved{% elif form.instance.approval_status == 'pending' %}site-approval-pending{% else %}site-approval-rejected{% endif %}">
+                        <i class="bi {% if form.instance.approval_status == 'approved' %}bi-check-circle-fill{% elif form.instance.approval_status == 'pending' %}bi-hourglass-split{% else %}bi-x-circle-fill{% endif %}"></i>
+                        {% if form.instance.approval_status == 'approved' %}{% translate "Approved" %}
+                        {% elif form.instance.approval_status == 'pending' %}{% translate "Pending Review" %}
+                        {% else %}{% translate "Rejected" %}{% endif %}
+                    </span>
+                </div>
+                <p class="site-status-panel-note">
+                    {% if form.instance.approval_status == 'approved' %}
+                    {% translate "This event is approved and shown with the platform design." %}
+                    {% elif form.instance.approval_status == 'pending' %}
+                    {% translate "This event is still pending moderation before publication." %}
+                    {% else %}
+                    {% translate "This event is not currently approved for public display." %}
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+            
+            <!-- Progress Indicator -->
+            <div class="ef-progress">
+                <div class="ef-progress-step active" data-section="1">
+                    <span class="ef-progress-step-num">1</span>
+                    <span class="ef-progress-step-label">{% if CURRENT_LANGUAGE == 'ar' %}الهوية{% else %}{% translate "Identity" %}{% endif %}</span>
+                </div>
+                <div class="ef-progress-step" data-section="2">
+                    <span class="ef-progress-step-num">2</span>
+                    <span class="ef-progress-step-label">{% if CURRENT_LANGUAGE == 'ar' %}الوقت والمكان{% else %}{% translate "Time & Place" %}{% endif %}</span>
+                </div>
+                <div class="ef-progress-step" data-section="3">
+                    <span class="ef-progress-step-num">3</span>
+                    <span class="ef-progress-step-label">{% if CURRENT_LANGUAGE == 'ar' %}التفاصيل{% else %}{% translate "Details" %}{% endif %}</span>
+                </div>
+            </div>
+            
+            <!-- Non-field Errors -->
+            {% if form.non_field_errors %}
+            <div class="ef-alert">
+                <div class="ef-alert-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="ef-alert-content">
+                    <h4 class="ef-alert-title">{% if CURRENT_LANGUAGE == 'ar' %}يرجى تصحيح الأخطاء التالية{% else %}{% translate "Please fix the following errors" %}{% endif %}</h4>
+                    {% for error in form.non_field_errors %}
+                    <p class="ef-alert-text">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Section 1: Event Identity -->
+            <div class="ef-section" data-section="1">
+                <div class="ef-section-header">
+                    <div class="ef-section-icon">
+                        <i class="bi bi-card-heading"></i>
+                    </div>
+                    <div class="ef-section-info">
+                        <h2 class="ef-section-title">{% if CURRENT_LANGUAGE == 'ar' %}هوية الفعالية{% else %}{% translate "Event Identity" %}{% endif %}</h2>
+                        <p class="ef-section-desc">{% if CURRENT_LANGUAGE == 'ar' %}المعلومات الأساسية حول فعاليتك{% else %}{% translate "Basic information about your event" %}{% endif %}</p>
+                    </div>
+                </div>
+                
+                <div class="ef-form-grid">
+                    <!-- Title EN -->
+                    <div class="ef-form-group">
+                        <label class="ef-label">
+                            {% if CURRENT_LANGUAGE == 'ar' %}عنوان الحدث (بالإنجليزية){% else %}{% translate "Title (English)" %}{% endif %}
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" name="title_en" class="ef-input {% if form.title_en.errors %}error{% endif %}"
+                               value="{{ form.title_en.value|default_if_none:'' }}"
+                               placeholder="{% if CURRENT_LANGUAGE == 'ar' %}أدخل عنوان الحدث بالإنجليزية{% else %}{% translate 'Enter event title in English' %}{% endif %}">
+                        {% for error in form.title_en.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Title AR -->
+                    <div class="ef-form-group">
+                        <label class="ef-label">{% if CURRENT_LANGUAGE == 'ar' %}عنوان الحدث (بالعربية){% else %}{% translate "Title (Arabic)" %}{% endif %}</label>
+                        <input type="text" name="title_ar" class="ef-input {% if form.title_ar.errors %}error{% endif %}"
+                               value="{{ form.title_ar.value|default_if_none:'' }}"
+                               placeholder="{% if CURRENT_LANGUAGE == 'ar' %}أدخل عنوان الحدث بالعربية{% else %}{% translate 'Enter event title in Arabic' %}{% endif %}"
+                               dir="rtl">
+                        {% for error in form.title_ar.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="ef-form-grid-2">
+                        <!-- Event Type -->
+                        <div class="ef-form-group">
+                            <label class="ef-label">
+                                {% if CURRENT_LANGUAGE == 'ar' %}نوع الحدث{% else %}{% translate "Event Type" %}{% endif %}
+                                <span class="required">*</span>
+                            </label>
+                            <select name="event_type" class="ef-select {% if form.event_type.errors %}error{% endif %}">
+                                {% for value, label in form.fields.event_type.choices %}
+                                {% if value %}
+                                <option value="{{ value }}" {% if form.event_type.value == value %}selected{% endif %}>{{ label }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                            {% for error in form.event_type.errors %}
+                            <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Organizer -->
+                        <div class="ef-form-group">
+                            <label class="ef-label">
+                                {% if CURRENT_LANGUAGE == 'ar' %}المنظّم{% else %}{% translate "Organizer" %}{% endif %}
+                                <span class="required">*</span>
+                            </label>
+                            <select name="organizer" class="ef-select {% if form.organizer.errors %}error{% endif %}">
+                                {% for value, label in form.fields.organizer.choices %}
+                                {% if value %}
+                                <option value="{{ value }}" {% if form.organizer.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                            {% for error in form.organizer.errors %}
+                            <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Domains -->
+                    <div class="ef-form-group">
+                        <label class="ef-label">{% translate "Research Domains" %}</label>
+                        <div class="ef-domain-picker {% if form.domains.errors %}error{% endif %}"
+                             id="domainPicker"
+                             data-placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}اختر مجالات البحث{% else %}{% translate 'Select research domains' %}{% endif %}">
+                            <button type="button" class="ef-domain-toggle" id="domainToggle" aria-expanded="false">
+                                <div class="ef-domain-chips" id="domainChips">
+                                    <span class="ef-domain-placeholder">{% if LANGUAGE_CODE|slice:":2" == "ar" %}اختر مجالات البحث{% else %}{% translate "Select research domains" %}{% endif %}</span>
+                                </div>
+                                <i class="bi bi-chevron-down ef-domain-caret"></i>
+                            </button>
+                            <div class="ef-domain-dropdown" id="domainDropdown">
+                                <div class="ef-domain-options" id="domainOptions">
+                                    {% for value, label in form.fields.domains.choices %}
+                                    <button type="button"
+                                            class="ef-domain-option {% if form.domains.value and value in form.domains.value %}is-selected{% endif %}"
+                                            data-value="{{ value }}"
+                                            data-label="{{ label }}">
+                                        <span>{{ label }}</span>
+                                        <i class="bi bi-check2 ef-domain-option-check"></i>
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        <select name="domains" id="domainNativeSelect" class="ef-select ef-domain-native {% if form.domains.errors %}error{% endif %}" multiple>
+                            {% for value, label in form.fields.domains.choices %}
+                            <option value="{{ value }}" {% if form.domains.value and value in form.domains.value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="ef-help-text">{% if LANGUAGE_CODE|slice:":2" == "ar" %}استخدم القائمة لاختيار المجالات، واضغط × لإزالة أي مجال محدد.{% else %}{% translate "Use the dropdown and click × to remove selected domains." %}{% endif %}</p>
+                        {% for error in form.domains.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Section 2: Time & Place -->
+            <div class="ef-section" data-section="2">
+                <div class="ef-section-header">
+                    <div class="ef-section-icon">
+                        <i class="bi bi-calendar-event"></i>
+                    </div>
+                    <div class="ef-section-info">
+                        <h2 class="ef-section-title">{% if CURRENT_LANGUAGE == 'ar' %}الوقت والمكان{% else %}{% translate "Time & Place" %}{% endif %}</h2>
+                        <p class="ef-section-desc">{% if CURRENT_LANGUAGE == 'ar' %}متى وأين ستقام الفعالية{% else %}{% translate "When and where the event will take place" %}{% endif %}</p>
+                    </div>
+                </div>
+                
+                <div class="ef-form-grid">
+                    <div class="ef-form-grid-2">
+                        <!-- Start Date -->
+                        <div class="ef-form-group">
+                            <label class="ef-label">
+                                {% if CURRENT_LANGUAGE == 'ar' %}تاريخ البدء{% else %}{% translate "Start Date" %}{% endif %}
+                                <span class="required">*</span>
+                            </label>
+                            <div class="ef-date-container">
+                                <input type="date" name="start_date" class="ef-input {% if form.start_date.errors %}error{% endif %}"
+                                       value="{{ form.start_date.value|date:'Y-m-d'|default_if_none:'' }}">
+                            </div>
+                            {% for error in form.start_date.errors %}
+                            <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- End Date -->
+                        <div class="ef-form-group">
+                            <label class="ef-label">
+                                {% if CURRENT_LANGUAGE == 'ar' %}تاريخ الانتهاء{% else %}{% translate "End Date" %}{% endif %}
+                                <span class="required">*</span>
+                            </label>
+                            <div class="ef-date-container">
+                                <input type="date" name="end_date" class="ef-input {% if form.end_date.errors %}error{% endif %}"
+                                       value="{{ form.end_date.value|date:'Y-m-d'|default_if_none:'' }}">
+                            </div>
+                            {% for error in form.end_date.errors %}
+                            <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Submission Deadline -->
+                    <div class="ef-form-group">
+                        <label class="ef-label">{% if CURRENT_LANGUAGE == 'ar' %}الموعد النهائي للتقديم{% else %}{% translate "Submission Deadline" %}{% endif %}</label>
+                        <div class="ef-date-container">
+                            <input type="date" name="submission_deadline" class="ef-input {% if form.submission_deadline.errors %}error{% endif %}"
+                                   value="{{ form.submission_deadline.value|date:'Y-m-d'|default_if_none:'' }}">
+                        </div>
+                        <p class="ef-help-text">{% if CURRENT_LANGUAGE == 'ar' %}اختياري: لدعوات الأوراق العلمية أو إرسال الملخصات{% else %}{% translate "Optional: For calls for papers or abstract submissions" %}{% endif %}</p>
+                        {% for error in form.submission_deadline.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Location EN -->
+                    <div class="ef-form-group">
+                           <label class="ef-label">{% if CURRENT_LANGUAGE == 'ar' %}المكان (بالإنجليزية){% else %}{% translate "Location (English)" %}{% endif %}</label>
+                        <input type="text" name="location_en" class="ef-input {% if form.location_en.errors %}error{% endif %}"
+                               value="{{ form.location_en.value|default_if_none:'' }}"
+                               placeholder="{% if CURRENT_LANGUAGE == 'ar' %}المدينة، الدولة أو عبر الإنترنت{% else %}{% translate 'City, Country or Online' %}{% endif %}">
+                        {% for error in form.location_en.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Location AR -->
+                    <div class="ef-form-group">
+                           <label class="ef-label">{% if CURRENT_LANGUAGE == 'ar' %}المكان (بالعربية){% else %}{% translate "Location (Arabic)" %}{% endif %}</label>
+                        <input type="text" name="location_ar" class="ef-input {% if form.location_ar.errors %}error{% endif %}"
+                               value="{{ form.location_ar.value|default_if_none:'' }}"
+                               placeholder="{% if CURRENT_LANGUAGE == 'ar' %}أدخل المكان بالعربية{% else %}{% translate 'Enter location in Arabic' %}{% endif %}"
+                               dir="rtl">
+                        {% for error in form.location_ar.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Section 3: Details & Content -->
+            <div class="ef-section" data-section="3">
+                <div class="ef-section-header">
+                    <div class="ef-section-icon">
+                        <i class="bi bi-file-richtext"></i>
+                    </div>
+                    <div class="ef-section-info">
+                        <h2 class="ef-section-title">{% if CURRENT_LANGUAGE == 'ar' %}التفاصيل والمحتوى{% else %}{% translate "Details & Content" %}{% endif %}</h2>
+                        <p class="ef-section-desc">{% if CURRENT_LANGUAGE == 'ar' %}صف فعاليتك وأضف المعلومات المهمة{% else %}{% translate "Describe your event and add relevant information" %}{% endif %}</p>
+                    </div>
+                </div>
+                
+                <div class="ef-form-grid">
+                    <!-- Description EN -->
+                    <div class="ef-form-group">
+                        <label class="ef-label">
+                            {% if CURRENT_LANGUAGE == 'ar' %}الوصف (بالإنجليزية){% else %}{% translate "Description (English)" %}{% endif %}
+                            <span class="required">*</span>
+                        </label>
+                        <textarea name="description_en" class="ef-textarea {% if form.description_en.errors %}error{% endif %}"
+                                  placeholder="{% if CURRENT_LANGUAGE == 'ar' %}قدّم وصفًا مفصلًا للفعالية...{% else %}{% translate 'Provide a detailed description of the event...' %}{% endif %}">{{ form.description_en.value|default_if_none:'' }}</textarea>
+                        {% for error in form.description_en.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Description AR -->
+                    <div class="ef-form-group">
+                        <label class="ef-label">{% if CURRENT_LANGUAGE == 'ar' %}الوصف (بالعربية){% else %}{% translate "Description (Arabic)" %}{% endif %}</label>
+                        <textarea name="description_ar" class="ef-textarea {% if form.description_ar.errors %}error{% endif %}"
+                                  placeholder="{% if CURRENT_LANGUAGE == 'ar' %}أدخل الوصف بالعربية{% else %}{% translate 'Enter description in Arabic' %}{% endif %}"
+                                  dir="rtl">{{ form.description_ar.value|default_if_none:'' }}</textarea>
+                        {% for error in form.description_ar.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="ef-form-grid-2">
+                        <!-- Website -->
+                        <div class="ef-form-group">
+                            <label class="ef-label">{% if CURRENT_LANGUAGE == 'ar' %}الموقع الإلكتروني{% else %}{% translate "Website" %}{% endif %}</label>
+                            <input type="url" name="website" class="ef-input {% if form.website.errors %}error{% endif %}"
+                                   value="{{ form.website.value|default_if_none:'' }}"
+                                   placeholder="https://example.com/event">
+                            {% for error in form.website.errors %}
+                            <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Contact Email -->
+                        <div class="ef-form-group">
+                            <label class="ef-label">{% if CURRENT_LANGUAGE == 'ar' %}البريد الإلكتروني للتواصل{% else %}{% translate "Contact Email" %}{% endif %}</label>
+                            <input type="email" name="contact_email" class="ef-input {% if form.contact_email.errors %}error{% endif %}"
+                                   value="{{ form.contact_email.value|default_if_none:'' }}"
+                                   placeholder="contact@example.com">
+                            {% for error in form.contact_email.errors %}
+                            <div class="ef-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Attachment -->
+                    <div class="ef-form-group">
+                        <label class="ef-label">{% if CURRENT_LANGUAGE == 'ar' %}المرفق / الملصق{% else %}{% translate "Attachment / Poster" %}{% endif %}</label>
+
+                        <div class="ef-file-zone" id="fileZone">
+                            <input
+                                type="file"
+                                name="attachment"
+                                id="attachmentInput"
+                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            >
+
+                            <div class="ef-file-icon">
+                                <i class="bi bi-upload"></i>
+                            </div>
+
+                            <p class="ef-file-title" id="fileTitle">
+                                {% if CURRENT_LANGUAGE == 'ar' %}رفع ملف{% else %}{% translate "Upload file" %}{% endif %}
+                            </p>
+
+                            <p class="ef-file-desc">
+                                {% if CURRENT_LANGUAGE == 'ar' %}PDF أو Word أو صورة (الحد الأقصى 10MB){% else %}{% translate "PDF, Word, or Image (Max 10MB)" %}{% endif %}
+                            </p>
+                        </div>
+
+                        {% if form.instance.attachment %}
+                        <div class="ef-file-current">
+                            <div class="ef-file-current-icon">
+                                <i class="bi bi-file-earmark-check"></i>
+                            </div>
+                            <span class="ef-file-current-name">
+                                {{ form.instance.attachment.name|truncatechars:40 }}
+                            </span>
+                        </div>
+                        {% endif %}
+
+                        {% for error in form.attachment.errors %}
+                        <div class="ef-error">
+                            <i class="bi bi-exclamation-circle"></i> {{ error }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="ef-section" data-section="4">
+                <div class="ef-section-header">
+                    <div class="ef-section-icon">
+                        <i class="bi bi-mic"></i>
+                    </div>
+                    <div class="ef-section-info">
+                        <h2 class="ef-section-title">
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتحدثون{% else %}{% translate "Speakers" %}{% endif %}
+                        </h2>
+                        <p class="ef-section-desc">
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أضف المتحدثين وتفاصيل المداخلة (اختياري){% else %}{% translate "Add presenters and talk details (optional)" %}{% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="ef-form-grid">
+                    {% for sform in speaker_formset %}
+                    <div class="ef-form-group" style="border:1px solid var(--ef-border); border-radius:12px; padding:1rem;">
+                        {{ sform.id }}
+                        <div class="ef-form-grid-2">
+                            <div>
+                                <label class="ef-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسم المتحدث{% else %}{% translate "Speaker Name" %}{% endif %}</label>
+                                {{ sform.name }}
+                            </div>
+                            <div>
+                                <label class="ef-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الانتماء{% else %}{% translate "Affiliation" %}{% endif %}</label>
+                                {{ sform.affiliation }}
+                            </div>
+                        </div>
+                        <div class="ef-form-grid-2" style="margin-top:0.9rem;">
+                            <div>
+                                <label class="ef-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عنوان المداخلة{% else %}{% translate "Talk Title" %}{% endif %}</label>
+                                {{ sform.talk_title }}
+                            </div>
+                            <div>
+                                <label class="ef-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ترتيب العرض{% else %}{% translate "Display Order" %}{% endif %}</label>
+                                {{ sform.order }}
+                            </div>
+                        </div>
+                        <div style="margin-top:0.9rem;">
+                            <label class="ef-label">
+                                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نبذة{% else %}{% translate "Biography" %}{% endif %}
+                            </label>
+                            {{ sform.bio }}
+                        </div>
+                        <div class="ef-form-grid-2" style="margin-top:0.9rem;">
+                            <div>
+                                <label class="ef-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الموقع الإلكتروني{% else %}{% translate "Website" %}{% endif %}</label>
+                                {{ sform.website }}
+                            </div>
+                            <div>
+                                <label class="ef-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الصورة الشخصية{% else %}{% translate "Avatar" %}{% endif %}</label>
+                                {{ sform.avatar }}
+                            </div>
+                        </div>
+                        {% if sform.instance.pk %}
+                        <div style="margin-top:0.8rem;">
+                            <label class="ef-label">{{ sform.DELETE }} {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إزالة هذا المتحدث{% else %}{% translate "Remove this speaker" %}{% endif %}</label>
+                        </div>
+                        {% endif %}
+                        {% if sform.non_field_errors %}
+                        <div class="ef-error">
+                            <i class="bi bi-exclamation-circle"></i> {{ sform.non_field_errors|join:", " }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Form Actions -->
+            <div class="ef-actions">
+                {% if is_pending and review_mode or is_pending and request.GET.edit_only == "1" %}
+                    <a href="{% url 'pages:admin_calls' %}?tab=pending" class="ef-btn ef-btn-ghost">
+                        <i class="bi bi-x-lg"></i>
+                        {% if CURRENT_LANGUAGE == 'ar' %}إلغاء{% else %}{% translate "Cancel" %}{% endif %}
+                    </a>
+                    <div class="ef-admin-actions">
+                        <button type="submit" class="ef-btn ef-btn-primary">
+                            <i class="bi bi-check-lg"></i>
+                            {% translate "Save Changes" %}
+                        </button>
+                        {% if request.GET.review_model and request.GET.review_pk %}
+                        <button type="submit"
+                                class="ef-btn ef-btn-danger"
+                                formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
+                            <i class="bi bi-x-circle"></i>
+                            {% translate "Reject" %}
+                        </button>
+                        <button type="submit"
+                                class="ef-btn ef-btn-success"
+                                formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
+                            <i class="bi bi-check-circle"></i>
+                            {% translate "Accept" %}
+                        </button>
+                        {% else %}
+                        <button type="submit"
+                                class="ef-btn ef-btn-danger"
+                                formaction="{% url 'pages:admin_reject_item' model_type='event' pk=form.instance.pk %}">
+                            <i class="bi bi-x-circle"></i>
+                            {% translate "Reject" %}
+                        </button>
+                        <button type="submit"
+                                class="ef-btn ef-btn-success"
+                                formaction="{% url 'pages:admin_approve_item' model_type='event' pk=form.instance.pk %}">
+                            <i class="bi bi-check-circle"></i>
+                            {% translate "Accept" %}
+                        </button>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <a href="{% url 'events:event_list' %}" class="ef-btn ef-btn-ghost">
+                        <i class="bi bi-x-lg"></i>
+                        {% if CURRENT_LANGUAGE == 'ar' %}إلغاء{% else %}{% translate "Cancel" %}{% endif %}
+                    </a>
+                    <button type="submit" class="ef-btn ef-btn-primary">
+                        <i class="bi bi-check-lg"></i>
+                        {% if is_create_mode %}
+                            {% if CURRENT_LANGUAGE == 'ar' %}إنشاء الحدث{% else %}{% translate "Create Event" %}{% endif %}
+                        {% else %}
+                            {% if CURRENT_LANGUAGE == 'ar' %}تحديث الحدث{% else %}{% translate "Update Event" %}{% endif %}
+                        {% endif %}
+                    </button>
+                {% endif %}
+            </div>
+        </form>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const fileInput = document.getElementById('attachmentInput');
+    const fileZone  = document.getElementById('fileZone');
+    const fileTitle = document.getElementById('fileTitle');
+
+    fileZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            fileTitle.textContent = fileInput.files[0].name;
+        }
+    });
+
+    // Progress steps click handlers
+    const progressSteps = document.querySelectorAll('.ef-progress-step');
+    
+    progressSteps.forEach(step => {
+        step.addEventListener('click', function() {
+            const sectionNum = this.dataset.section;
+            const section = document.querySelector(`.ef-section[data-section="${sectionNum}"]`);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+    
+    // Update progress on scroll
+    const sections = document.querySelectorAll('.ef-section');
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const sectionNum = entry.target.dataset.section;
+                
+                progressSteps.forEach(step => {
+                    const stepNum = parseInt(step.dataset.section);
+                    const currentNum = parseInt(sectionNum);
+                    
+                    step.classList.remove('active', 'completed');
+                    if (stepNum === currentNum) {
+                        step.classList.add('active');
+                    } else if (stepNum < currentNum) {
+                        step.classList.add('completed');
+                    }
+                });
+            }
+        });
+    }, { threshold: 0.5 });
+    
+    sections.forEach(section => observer.observe(section));
+
+    // Custom multi-select UI for research domains.
+    const domainPicker = document.getElementById('domainPicker');
+    const domainToggle = document.getElementById('domainToggle');
+    const domainDropdown = document.getElementById('domainDropdown');
+    const domainNativeSelect = document.getElementById('domainNativeSelect');
+    const domainOptions = document.querySelectorAll('.ef-domain-option');
+    const domainChips = document.getElementById('domainChips');
+
+    if (domainPicker && domainToggle && domainDropdown && domainNativeSelect && domainChips) {
+        const nativeOptions = Array.from(domainNativeSelect.options);
+
+        function getSelectedValues() {
+            return nativeOptions.filter(opt => opt.selected).map(opt => opt.value);
+        }
+
+        const placeholderText = domainPicker.dataset.placeholder || 'Select research domains';
+
+        function renderChips() {
+            const selected = nativeOptions.filter(opt => opt.selected);
+            if (!selected.length) {
+                domainChips.innerHTML = `<span class="ef-domain-placeholder">${placeholderText}</span>`;
+                return;
+            }
+
+            domainChips.innerHTML = '';
+            selected.forEach((opt) => {
+                const chip = document.createElement('span');
+                chip.className = 'ef-domain-chip';
+                chip.innerHTML = `
+                    <span>${opt.text}</span>
+                    <button type="button" data-remove-domain="${opt.value}" aria-label="Remove ${opt.text}">
+                        <i class="bi bi-x"></i>
+                    </button>
+                `;
+                domainChips.appendChild(chip);
+            });
+        }
+
+        function syncOptionButtons() {
+            const selectedSet = new Set(getSelectedValues());
+            domainOptions.forEach((btn) => {
+                const value = btn.getAttribute('data-value');
+                btn.classList.toggle('is-selected', selectedSet.has(value));
+            });
+        }
+
+        function setSelected(value, selected) {
+            const option = nativeOptions.find(opt => opt.value === value);
+            if (!option) return;
+            option.selected = selected;
+            syncOptionButtons();
+            renderChips();
+        }
+
+        domainToggle.addEventListener('click', () => {
+            const isOpen = domainPicker.classList.toggle('open');
+            domainToggle.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        domainOptions.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const value = btn.getAttribute('data-value');
+                if (!value) return;
+                setSelected(value, !btn.classList.contains('is-selected'));
+            });
+        });
+
+        domainChips.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('[data-remove-domain]');
+            if (!removeBtn) return;
+            const value = removeBtn.getAttribute('data-remove-domain');
+            if (!value) return;
+            setSelected(value, false);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!domainPicker.contains(e.target)) {
+                domainPicker.classList.remove('open');
+                domainToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        syncOptionButtons();
+        renderChips();
+    }
+});
+</script>
+{% endblock %}

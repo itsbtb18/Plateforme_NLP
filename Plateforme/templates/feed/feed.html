@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+{% block title %}{% translate "Community Feed" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.feed-shell{position:relative;padding:3rem 0 2.5rem;color:#fff;overflow:hidden}
+.feed-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.feed-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.feed-wrap>*{position:relative;z-index:1}
+.feed-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.feed-filter-grid{display:grid;grid-template-columns:auto 1fr 0.8fr auto auto;gap:1rem;align-items:center}
+.feed-stat-badge{background:transparent;border:none;padding:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;white-space:nowrap}
+.feed-stat-number{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.feed-stat-label{font-size:0.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.4rem;font-weight:700}
+.feed-input-wrapper{position:relative;display:flex;align-items:center}
+.feed-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none;box-shadow:none !important}
+.feed-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.feed-input:-webkit-autofill,.feed-input:-webkit-autofill:hover,.feed-input:-webkit-autofill:focus,.feed-input:-webkit-autofill:active{-webkit-text-fill-color:#fff !important;-webkit-box-shadow:0 0 0 1000px #1a1a2e inset !important;box-shadow:0 0 0 1000px #1a1a2e inset !important;transition:background-color 9999s ease-in-out 0s;caret-color:#a78bfa;}
+.feed-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.feed-btn:hover{transform:translateY(-3px);box-shadow:none;background:#a78bfa}
+.feed-btn:active{transform:translateY(-1px);box-shadow:0 6px 16px rgba(167,139,250,.2)}
+.feed-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,340px));gap:1rem;justify-content:start}
+.feed-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:420px}
+.feed-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.feed-accent{height:4px;width:100%;flex-shrink:0;background:#a78bfa}
+.feed-card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem .85rem;gap:.8rem;border-bottom:1px solid rgba(167,139,250,.15)}
+.feed-card-avatar{width:60px;min-width:60px;background:linear-gradient(135deg,#a78bfa,#7c3aed);border-radius:12px;text-align:center;padding:.6rem .4rem;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(167,139,250,.2);overflow:hidden;color:#0f1419;font-weight:700;font-size:1.4rem;line-height:1}
+.feed-card-header-info{flex:1;min-width:0}
+.feed-card-badges{display:flex;gap:.35rem;margin-bottom:.3rem;flex-wrap:wrap}
+.feed-card-badge{display:inline-flex;align-items:center;gap:.2rem;padding:.25rem .5rem;font-size:.65rem;font-weight:700;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
+.feed-card-title{margin:.2rem 0;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.feed-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
+.feed-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem;margin-top:.4rem}
+.feed-info{display:flex;flex-direction:column;gap:.45rem;margin-top:.5rem;font-size:.8rem}
+.feed-info-row{display:flex;align-items:center;gap:.4rem;color:#cbd5e1}
+.feed-info-row i{color:#a78bfa;font-size:.85rem;width:14px;text-align:center}
+.feed-file-link{display:flex;align-items:center;gap:.45rem;margin-top:.6rem;padding:.5rem .65rem;border:1px solid rgba(167,139,250,.28);border-radius:10px;background:rgba(124,58,237,.08);color:#ddd6fe;text-decoration:none;font-size:.78rem;font-weight:700;min-width:0}
+.feed-file-link:hover{background:rgba(124,58,237,.16);border-color:rgba(167,139,250,.5);color:#f5f3ff}
+.feed-file-link i{font-size:.9rem;flex-shrink:0}
+.feed-file-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.feed-file-actions{display:flex;flex-direction:column;gap:.55rem;margin-top:.6rem}
+.feed-file-action-btn{display:flex;align-items:center;justify-content:center;gap:.45rem;padding:.55rem .7rem;border:1px solid rgba(167,139,250,.34);border-radius:10px;background:rgba(124,58,237,.12);color:#ede9fe;text-decoration:none;font-size:.78rem;font-weight:800;cursor:pointer;transition:all .2s ease}
+.feed-file-action-btn:hover{background:rgba(124,58,237,.22);border-color:rgba(167,139,250,.55);color:#fff}
+.feed-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
+.feed-link:hover{background:rgba(255,255,255,.04)}
+.feed-actions{display:flex;align-items:center;justify-content:space-around;padding:1rem .85rem;border-top:1px solid rgba(167,139,250,.16);gap:.5rem}
+.feed-action-btn{display:flex;align-items:center;justify-content:center;gap:.4rem;flex:1;padding:.7rem .7rem;background:transparent;border:1px solid rgba(167,139,250,.2);border-radius:12px;color:#9ca3af;cursor:pointer;transition:all .3s ease;font-size:.85rem;font-weight:600;text-decoration:none;white-space:nowrap}
+.feed-action-btn:hover{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.4);color:#a78bfa;transform:translateY(-2px)}
+.feed-action-btn i{font-size:.95rem;width:16px;text-align:center;flex-shrink:0}
+.feed-action-btn.liked{color:#ef4444;border-color:#ef4444}
+.feed-action-btn.liked i{color:#ef4444}
+.feed-action-btn.liked:hover{background:rgba(239,68,68,.1);border-color:#ef4444}
+.feed-card-tools{display:flex;justify-content:flex-end;padding:0 .85rem 1rem}
+.feed-card-tools .card-action-icon{border-color:rgba(167,139,250,.2);color:#9ca3af}
+.feed-card-tools .card-action-icon:hover{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.4);color:#a78bfa;box-shadow:0 4px 12px rgba(167,139,250,.18)}
+.feed-open-details-bar{display:flex;align-items:center;justify-content:center;gap:.45rem;padding:.8rem .9rem;border-top:1px solid rgba(167,139,250,.24);color:#ddd6fe;text-decoration:none;font-weight:800;font-size:.88rem;letter-spacing:.01em;background:rgba(91,33,182,.12);transition:all .2s ease}
+.feed-open-details-bar i{font-size:.95rem;transition:transform .2s ease}
+.feed-open-details-bar:hover{background:rgba(91,33,182,.22);color:#f5f3ff}
+.feed-open-details-bar:hover i{transform:translateX(-2px)}
+html[dir="rtl"] .feed-open-details-bar{flex-direction:row-reverse}
+html[dir="rtl"] .feed-open-details-bar:hover i{transform:translateX(2px)}
+.feed-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.feed-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.feed-empty-inner{position:relative;z-index:1}
+.feed-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem;display:block;animation:float-empty 3s ease-in-out infinite}
+.feed-empty h3{margin:1rem 0 .75rem;font-family:'Inter',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.01em}
+.feed-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+.feed-empty-actions{display:flex;flex-direction:column;gap:.75rem;align-items:center;margin-top:1.5rem}
+.feed-empty-reset{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+.feed-empty-reset:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+@keyframes float-empty{0%,100%{transform:translateY(0px);}50%{transform:translateY(-12px);}}
+.feed-hero{position:relative;padding:2rem 0;margin:1rem auto 1.5rem;text-align:left;display:flex;align-items:flex-start;gap:2.5rem;justify-content:flex-start;background:transparent;border:none;box-shadow:none}
+.feed-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.feed-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-left:2rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.feed-hero h1{margin:0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.feed-hero p{margin:0;font-family:'Inter',sans-serif;font-size:20.8px;color:#a78bfa;line-height:1.7;font-weight:600;text-align:left}
+@media (max-width:1000px){.feed-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}}
+@media (max-width:768px){.feed-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center;align-items:center}.feed-hero h1{font-size:2rem;text-align:center}.feed-hero p{font-size:1rem;text-align:center}.feed-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}}
+@media (max-width:480px){.feed-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.feed-hero h1{font-size:1.5rem}.feed-hero p{font-size:.9rem}.feed-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.feed-stat-number{font-size:2.5rem}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="feed-shell">
+  <div class="feed-wrap">
+    <div class="feed-hero">
+      <span class="feed-hero-icon"><i class="bi bi-chat-left-text"></i></span>
+      <div class="feed-hero-inner">
+        <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات والنقاشات{% else %}Community Feed <br>& Discussions{% endif %}</h1>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف أحدث المنشورات والأفكار والنقاشات من المجتمع.{% else %}Discover recent posts, ideas, <br>and discussions from the community.{% endif %}</p>
+      </div>
+    </div>
+
+    <div class="feed-filter-card">
+      <form method="get" class="feed-filter-grid">
+        <div class="feed-stat-badge">
+          <div class="feed-stat-number">{{ page_obj.paginator.count|default:"0" }}</div>
+          <div class="feed-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Posts{% endif %}</div>
+        </div>
+        <div class="feed-input-wrapper">
+          <input class="feed-input" type="text" name="q" value="{{ search_query|default:'' }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث...{% else %}Search...{% endif %}">
+        </div>
+        <button class="feed-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}تطبيق الفلاتر{% else %}Apply filters{% endif %}</button>
+        <a href="{% url 'feed:create_post' %}" class="feed-btn" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;padding:1rem 1.2rem;font-size:0.9rem">
+          <i class="bi bi-plus"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء منشور{% else %}Create Post{% endif %}
+        </a>
+      </form>
+    </div>
+
+    {% if posts %}
+    <div class="feed-grid">
+      {% for post in posts %}
+      <article class="feed-card">
+        <div class="feed-accent"></div>
+        <div class="feed-card-header">
+          <div class="feed-card-avatar" title="{{ post.author.get_full_name_display }}">
+            {{ post.author.get_full_name_display|slice:":1"|upper }}
+          </div>
+          <div class="feed-card-header-info">
+            <div class="feed-card-badges">
+              <span class="feed-card-badge site-approval-badge {% if post.approval_status == 'approved' %}site-approval-approved{% elif post.approval_status == 'pending' %}site-approval-pending{% else %}site-approval-rejected{% endif %}">
+                <i class="bi {% if post.approval_status == 'approved' %}bi-check-circle-fill{% elif post.approval_status == 'pending' %}bi-hourglass-split{% else %}bi-x-circle-fill{% endif %}"></i>
+                {{ post.get_approval_status_display }}
+              </span>
+            </div>
+            <h2 class="feed-card-title">{{ post.title|default:post.content|truncatechars:100 }}</h2>
+          </div>
+        </div>
+        <div class="feed-body">
+          <p class="feed-excerpt">{{ post.content|truncatechars:150 }}</p>
+          {% if post.file %}
+          <div class="feed-file-actions">
+            <a class="feed-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+              <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+              <span class="feed-file-name">{{ post.file.name|cut:'posts/files/' }}</span>
+            </a>
+          </div>
+          {% endif %}
+          <div class="feed-info">
+            <div class="feed-info-row"><i class="bi bi-person"></i><span>{{ post.author.get_full_name_display }}</span></div>
+            <div class="feed-info-row"><i class="bi bi-chat-dots"></i><span>{{ post.comments.count }} {% if LANGUAGE_CODE|slice:":2" == "ar" %}تعليق{% else %}comments{% endif %}</span></div>
+            <div class="feed-info-row"><i class="bi bi-calendar-range"></i><span>{{ post.created_at|date:"SHORT_DATE_FORMAT" }}</span></div>
+          </div>
+        </div>
+        <div class="feed-actions">
+          <button class="feed-action-btn like-btn" data-post-id="{{ post.id }}" title="{% if LANGUAGE_CODE|slice:":2" == "ar" %}أعجبني{% else %}Like{% endif %}">
+            <i class="bi bi-heart"></i>
+            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}أعجبني{% else %}Like{% endif %}</span>
+          </button>
+          <a href="{% url 'feed:post_detail' post.slug %}#comments" class="feed-action-btn comment-btn" title="{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعليق{% else %}Comment{% endif %}">
+            <i class="bi bi-chat-left"></i>
+            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعليق{% else %}Comment{% endif %}</span>
+          </a>
+        </div>
+        <div class="feed-card-tools">
+          {% include "includes/card_top_actions.html" with content_type="post" object_id=post.id title=post.title|default:post.content|truncatechars:100 description=post.content|striptags|truncatewords:40 category='post' author=post.author.get_full_name_display url=post.get_absolute_url|default:'' %}
+        </div>
+        <a href="{% url 'feed:post_detail' post.slug %}" class="feed-open-details-bar" title="{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}Open details{% endif %}">
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}Open details{% endif %}</span>
+          <i class="bi {% if LANGUAGE_CODE|slice:":2" == "ar" %}bi-arrow-left{% else %}bi-arrow-right{% endif %}"></i>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
+    {% else %}
+    <div class="feed-empty">
+      <div class="feed-empty-inner">
+        <i class="bi bi-chat-x feed-empty-icon"></i>
+        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد منشورات{% else %}No posts found{% endif %}</h3>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تغيير الفلاتر أو كلمات البحث للعثور على ما تبحث عنه.{% else %}Try adjusting your filters or search keywords to find what you're looking for.{% endif %}</p>
+        <div class="feed-empty-actions">
+          <a href="?" class="feed-empty-reset">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إعادة تعيين الفلاتر{% else %}Reset filters{% endif %}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% include "components/document_viewer_modal.html" %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const filterForm = document.querySelector('.feed-filter-grid');
+  if (!filterForm) return;
+
+  const searchInput = filterForm.querySelector('input[name="q"]');
+  if (searchInput) {
+    searchInput.addEventListener('change', function() {
+      filterForm.submit();
+    });
+  }
+
+  document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      this.classList.toggle('liked');
+      this.style.opacity = '0.8';
+      setTimeout(() => {
+        this.style.opacity = '1';
+      }, 200);
+    });
+  });
+});
+</script>
+{% endblock %}

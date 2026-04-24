@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}دعوات المشاريع{% else %}Project Invitations{% endif %}{% endblock %}
+
+{% block content %}
+{% get_current_language as LANGUAGE_CODE %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.pi-page{padding:0;margin:0}
+.pi-shell{position:relative;padding:3rem 0 2.5rem;color:#fff;overflow:hidden}
+.pi-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.pi-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto;position:relative;z-index:1}
+.pi-head{margin-bottom:2rem;padding:0 2rem 0 2rem}
+.pi-title{margin:0;font-size:clamp(1.8rem,5vw,2.8rem);color:#fff;font-weight:800;letter-spacing:-.01em}
+.pi-sub{margin:.5rem 0 0;color:#a78bfa;font-size:1.15rem;font-weight:600}
+.pi-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem 2rem;margin:1.5rem 2rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.pi-filter-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:stretch}
+.pi-input-wrapper{position:relative;display:flex;align-items:center}
+.pi-input,.pi-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none;box-shadow:none !important}
+.pi-input::placeholder{color:rgba(255,255,255,.6)}
+.pi-input:focus,.pi-select:focus{outline:none;border-color:#fff !important;box-shadow:none !important}
+.pi-select{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
+.pi-select option{background:#1a1a2e;color:#fff;padding:.5rem;font-weight:500}
+.pi-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.pi-btn:hover{transform:translateY(-3px);box-shadow:0 6px 16px rgba(167,139,250,.2)}
+.pi-btn:active{transform:translateY(-1px)}
+.pi-btn.outline{background:transparent;border:1.5px solid #a78bfa;color:#a78bfa;text-transform:none}
+.pi-btn.outline:hover{background:rgba(167,139,250,.1)}
+.pi-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin:2rem 2rem;position:relative;z-index:1}
+.pi-card{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;padding:1.5rem;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease}
+.pi-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.pi-card h2{margin:0 0 1.2rem;font-size:1.3rem;color:#fff;font-weight:800;letter-spacing:-.01em}
+.pi-controls{display:grid;gap:.8rem}
+.pi-controls label{font-size:.85rem;font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:.02em}
+.pi-search-row{display:grid;grid-template-columns:1fr auto;gap:.75rem}
+.pi-feedback{margin-top:.75rem;font-size:.9rem;color:#a78bfa;font-weight:500}
+.pi-feedback.error{color:#f87171}
+.pi-results{margin-top:1rem;display:grid;gap:.75rem;max-height:400px;overflow-y:auto}
+.pi-result{background:rgba(167,139,250,.08);border:1.5px solid rgba(167,139,250,.24);border-radius:14px;padding:1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;transition:all .2s ease}
+.pi-result:hover{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.4)}
+.pi-user{display:inline-flex;align-items:center;gap:1rem}
+.pi-avatar{width:40px;height:40px;border-radius:999px;overflow:hidden;border:1.5px solid rgba(167,139,250,.3);background:rgba(167,139,250,.1);color:#a78bfa;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.pi-avatar img{width:100%;height:100%;object-fit:cover}
+.pi-user-info{min-width:0}
+.pi-name{font-weight:700;color:#fff}
+.pi-email{font-size:.8rem;color:#cbd5e1;margin-top:.2rem}
+.pi-list{display:grid;gap:.75rem}
+.pi-item{background:rgba(167,139,250,.08);border:1.5px solid rgba(167,139,250,.24);border-radius:14px;padding:1.2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;transition:all .2s ease}
+.pi-item:hover{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.4)}
+.pi-item-content{min-width:0;flex:1}
+.pi-project{font-weight:800;color:#fff;margin-bottom:.3rem}
+.pi-meta{color:#cbd5e1;font-size:.85rem;line-height:1.4}
+.pi-actions{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;min-width:fit-content}
+.pi-actions form{display:inline-flex}
+.pi-actions .pi-btn{padding:.75rem 1.2rem;font-size:.85rem;margin:0}
+.pi-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px dashed rgba(167,139,250,.3);border-radius:22px;padding:3rem 1.5rem;color:#cbd5e1;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pi-empty i{font-size:2.5rem;color:#a78bfa;margin-bottom:1rem}
+.pi-empty h3{margin:.5rem 0;color:#fff;font-size:1.2rem;font-weight:800}
+.pi-empty p{margin:.5rem 0;font-size:.95rem}
+.pi-inv-tabs{display:inline-flex;gap:.5rem;padding:.5rem;border:1.5px solid rgba(167,139,250,.3);border-radius:999px;background:rgba(167,139,250,.05);margin-bottom:1.2rem;width:100%}
+.pi-inv-tab{flex:1;border:none;border-radius:999px;padding:.85rem 1rem;background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer;transition:all .3s ease;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;font-size:.95rem}
+.pi-inv-tab.active{background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;box-shadow:0 4px 12px rgba(167,139,250,.25)}
+.pi-tab-count{min-width:22px;height:22px;border-radius:999px;background:rgba(255,255,255,.2);color:#fff;font-size:.75rem;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;font-weight:800}
+.pi-inv-tab.active .pi-tab-count{background:rgba(255,255,255,.3)}
+.pi-pane{display:none}
+.pi-pane.active{display:block}
+.pi-status{border-radius:999px;padding:.4rem .8rem;font-size:.8rem;font-weight:700;display:inline-flex;align-items:center;gap:.35rem}
+.pi-status.pending{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.pi-status.accepted{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)}
+.pi-status.rejected{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+@media (max-width:1000px){.pi-grid{grid-template-columns:1fr}}
+@media (max-width:768px){.pi-filter-grid{grid-template-columns:1fr}.pi-item{flex-direction:column;align-items:stretch}.pi-actions{width:100%;justify-content:stretch}.pi-actions form{flex:1}.pi-actions .pi-btn{width:100%}}
+@media (max-width:480px){.pi-head{padding:0 1rem}.pi-filter-card{margin:1rem;padding:1rem}.pi-grid{margin:1rem;grid-template-columns:1fr}.pi-actions form button{font-size:.75rem;padding:.6rem .9rem}}
+</style>
+
+<div class="pi-page">
+  <input type="hidden" id="piCsrfToken" value="{{ csrf_token }}">
+  <input type="hidden" id="piBaseUrl" value="{% url 'projects:project_invitations' %}">
+
+  <div class="pi-shell">
+    <div class="pi-wrap">
+      <div class="pi-head">
+        <h1 class="pi-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}دعوات المشاريع{% else %}Project Invitations{% endif %}</h1>
+        <p class="pi-sub">{% if LANGUAGE_CODE|slice:":2" == "ar" %}إدارة و تتبع دعوات المشاريع{% else %}Manage & track your project invitations{% endif %}</p>
+      </div>
+
+      <div class="pi-grid">
+        <section class="pi-card">
+          <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}دعوة مستخدم إلى مشروع{% else %}Invite User to Project{% endif %}</h2>
+
+          {% if manageable_projects %}
+            <div class="pi-controls">
+              <label for="piProjectSelect">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المشروع{% else %}Project{% endif %}</label>
+              <select id="piProjectSelect" class="pi-input">
+                {% for p in manageable_projects %}
+                  <option value="{{ p.id }}">{{ p.get_localized_title }}</option>
+                {% endfor %}
+              </select>
+
+              <label for="piSearchInput">{% if LANGUAGE_CODE|slice:":2" == "ar" %}البحث{% else %}Search{% endif %}</label>
+              <div class="pi-search-row">
+                <input type="text" id="piSearchInput" class="pi-input" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث باسم المستخدم أو البريد...{% else %}Search by username or email...{% endif %}">
+                <button type="button" class="pi-btn" id="piSearchBtn">{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث{% else %}Search{% endif %}</button>
+              </div>
+            </div>
+
+            <div class="pi-feedback" id="piFeedback">{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتب حرفين على الأقل للبحث.{% else %}Type at least 2 characters to search.{% endif %}</div>
+            <div class="pi-results" id="piResults"></div>
+          {% else %}
+            <div class="pi-empty">
+              <i class="fas fa-lock"></i>
+              <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد صلاحيات{% else %}No Access{% endif %}</h3>
+              <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا يوجد مشروع متاح للدعوات. يجب أن تكون منسق المشروع أو عضواً مسؤولاً.{% else %}No project available for invitations. You must be the project coordinator or an admin member.{% endif %}</p>
+            </div>
+          {% endif %}
+        </section>
+
+        <section class="pi-card">
+          <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إدارة الدعوات{% else %}Invitations{% endif %}</h2>
+
+          <div class="pi-inv-tabs" role="tablist" aria-label="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}تبويبات الدعوات{% else %}Invitation tabs{% endif %}">
+            <button type="button" class="pi-inv-tab active" data-target="pi-received" role="tab" aria-selected="true">
+              {% if LANGUAGE_CODE|slice:":2" == "ar" %}الواردة{% else %}Received{% endif %}
+              <span class="pi-tab-count">{{ received_total_count }}</span>
+            </button>
+            <button type="button" class="pi-inv-tab" data-target="pi-sent" role="tab" aria-selected="false">
+              {% if LANGUAGE_CODE|slice:":2" == "ar" %}المرسلة{% else %}Sent{% endif %}
+              <span class="pi-tab-count">{{ sent_invitations|length }}</span>
+            </button>
+          </div>
+
+          <div class="pi-pane active" id="pi-received">
+            <div class="pi-list">
+              {% for invitation in invitations %}
+                <article class="pi-item">
+                  <div class="pi-item-content">
+                    <div class="pi-project">{{ invitation.project.get_localized_title }}</div>
+                    <div class="pi-meta">
+                      {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                        دعوة من {{ invitation.invited_by.get_full_name_display }}
+                      {% else %}
+                        {% blocktranslate with inviter=invitation.invited_by.get_full_name_display %}Invited by {{ inviter }}{% endblocktranslate %}
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="pi-actions">
+                    <form method="post" action="{% url 'projects:project_invitation_accept' invitation.id %}">
+                      {% csrf_token %}
+                      <button type="submit" class="pi-btn">{% if LANGUAGE_CODE|slice:":2" == "ar" %}قبول{% else %}Accept{% endif %}</button>
+                    </form>
+                    <form method="post" action="{% url 'projects:project_invitation_reject' invitation.id %}">
+                      {% csrf_token %}
+                      <button type="submit" class="pi-btn outline">{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}Reject{% endif %}</button>
+                    </form>
+                  </div>
+                </article>
+              {% endfor %}
+
+              {% for legacy in legacy_received_member_invites %}
+                <article class="pi-item">
+                  <div class="pi-item-content">
+                    <div class="pi-project">{{ legacy.project.get_localized_title }}</div>
+                    <div class="pi-meta">
+                      {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                        دعوة من {{ legacy.project.coordinator.get_full_name_display }}
+                      {% else %}
+                        {% blocktranslate with inviter=legacy.project.coordinator.get_full_name_display %}Invited by {{ inviter }}{% endblocktranslate %}
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="pi-actions">
+                    <form method="post" action="{% url 'accounts:respond_project_invite' legacy.project.id %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="response" value="accept">
+                      <button type="submit" class="pi-btn">{% if LANGUAGE_CODE|slice:":2" == "ar" %}قبول{% else %}Accept{% endif %}</button>
+                    </form>
+                    <form method="post" action="{% url 'accounts:respond_project_invite' legacy.project.id %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="response" value="reject">
+                      <button type="submit" class="pi-btn outline">{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}Reject{% endif %}</button>
+                    </form>
+                  </div>
+                </article>
+              {% endfor %}
+
+              {% for req in incoming_join_requests %}
+                <article class="pi-item">
+                  <div class="pi-item-content">
+                    <div class="pi-project">{{ req.project.get_localized_title }}</div>
+                    <div class="pi-meta">
+                      {% if LANGUAGE_CODE|slice:":2" == "ar" %}
+                        {{ req.member.get_full_name_display }} طلب الانضمام - {{ req.member.email }}
+                      {% else %}
+                        {{ req.member.get_full_name_display }} requested to join - {{ req.member.email }}
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="pi-actions">
+                    <form method="post" action="{% url 'projects:respond_to_request' req.project.id req.id %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="response" value="accept">
+                      <button type="submit" class="pi-btn">{% if LANGUAGE_CODE|slice:":2" == "ar" %}قبول{% else %}Accept{% endif %}</button>
+                    </form>
+                    <form method="post" action="{% url 'projects:respond_to_request' req.project.id req.id %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="response" value="reject">
+                      <button type="submit" class="pi-btn outline">{% if LANGUAGE_CODE|slice:":2" == "ar" %}رفض{% else %}Reject{% endif %}</button>
+                    </form>
+                  </div>
+                </article>
+              {% endfor %}
+
+              {% if not invitations and not legacy_received_member_invites and not incoming_join_requests %}
+                <div class="pi-empty">
+                  <i class="fas fa-inbox"></i>
+                  <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد دعوات{% else %}No Invitations{% endif %}</h3>
+                  <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد دعوات واردة معلقة.{% else %}No pending received invitations.{% endif %}</p>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="pi-pane" id="pi-sent">
+            <div class="pi-list">
+              {% for invitation in sent_invitations %}
+                <article class="pi-item">
+                  <div class="pi-item-content">
+                    <div class="pi-project">{{ invitation.project.get_localized_title }}</div>
+                    <div class="pi-meta">{{ invitation.invited_user.get_full_name_display }} - {{ invitation.invited_user.email }}</div>
+                  </div>
+                  <div class="pi-actions">
+                    {% if invitation.status == 'pending' %}
+                      <span class="pi-status pending"><i class="fas fa-clock"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}معلقة{% else %}Pending{% endif %}</span>
+                    {% elif invitation.status == 'accepted' %}
+                      <span class="pi-status accepted"><i class="fas fa-check"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مقبولة{% else %}Accepted{% endif %}</span>
+                    {% elif invitation.status == 'rejected' %}
+                      <span class="pi-status rejected"><i class="fas fa-times"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مرفوضة{% else %}Rejected{% endif %}</span>
+                    {% else %}
+                      <span class="pi-status pending">{{ invitation.status }}</span>
+                    {% endif %}
+                  </div>
+                </article>
+              {% empty %}
+                <div class="pi-empty">
+                  <i class="fas fa-send"></i>
+                  <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد دعوات مرسلة{% else %}No Sent Invitations{% endif %}</h3>
+                  <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد دعوات مرسلة بعد.{% else %}No sent invitations yet.{% endif %}</p>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const isAr = "{% if LANGUAGE_CODE|slice:':2' == 'ar' %}1{% else %}0{% endif %}" === "1";
+  const txtTypeMin = isAr ? "اكتب حرفين على الأقل للبحث." : "Type at least 2 characters to search.";
+  const txtSearching = isAr ? "جار البحث..." : "Searching...";
+  const txtNoUsers = isAr ? "لا توجد نتائج." : "No users found.";
+  const txtErr = isAr ? "حدث خطأ أثناء البحث." : "Error during search.";
+  const txtInvite = isAr ? "إرسال الدعوة" : "Send Invitation";
+  const txtSent = isAr ? "تم الإرسال" : "Sent";
+  const txtAlready = isAr ? "مدعو مسبقاً" : "Already invited";
+
+  document.querySelectorAll('.pi-inv-tab').forEach((tab) => {
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.pi-inv-tab').forEach((x) => x.classList.remove('active'));
+      document.querySelectorAll('.pi-pane').forEach((x) => x.classList.remove('active'));
+      tab.classList.add('active');
+      const pane = document.getElementById(tab.getAttribute('data-target'));
+      if (pane) pane.classList.add('active');
+    });
+  });
+
+  const projectSelect = document.getElementById('piProjectSelect');
+  const searchInput = document.getElementById('piSearchInput');
+  const searchBtn = document.getElementById('piSearchBtn');
+  const feedback = document.getElementById('piFeedback');
+  const resultsEl = document.getElementById('piResults');
+
+  if (!projectSelect || !searchInput || !searchBtn || !feedback || !resultsEl) return;
+
+  function projectBasePath() {
+    const baseInput = document.getElementById('piBaseUrl');
+    const invitationsUrl = (baseInput && baseInput.value) ? baseInput.value : '/projects/invitations/';
+    return invitationsUrl.replace(/invitations\/?$/, '');
+  }
+
+  function openInvitationsTab(targetId) {
+    document.querySelectorAll('.pi-inv-tab').forEach((x) => {
+      const isActive = x.getAttribute('data-target') === targetId;
+      x.classList.toggle('active', isActive);
+      x.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    document.querySelectorAll('.pi-pane').forEach((x) => {
+      x.classList.toggle('active', x.id === targetId);
+    });
+  }
+  function csrf() {
+    const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    const hidden = document.getElementById('piCsrfToken');
+    return hidden ? (hidden.value || '') : '';
+  }
+
+  function setFeedback(msg, isError) {
+    feedback.textContent = msg || '';
+    feedback.classList.toggle('error', !!isError);
+  }
+
+  function avatarHtml(user) {
+    if (user.avatar) return `<span class="pi-avatar"><img src="${user.avatar}" alt="${user.name || user.email}"></span>`;
+    return `<span class="pi-avatar">${(user.name || user.email || 'U').trim().charAt(0).toUpperCase()}</span>`;
+  }
+
+  function rowHtml(user) {
+    const disabled = user.already_invited ? 'disabled' : '';
+    const label = user.already_invited ? txtAlready : txtInvite;
+    return `
+      <div class="pi-result" data-user-id="${user.id}">
+        <div class="pi-user">
+          ${avatarHtml(user)}
+          <div>
+            <div class="pi-name">${user.name || user.username || user.email}</div>
+            <div class="pi-email">${user.email || ''}</div>
+          </div>
+        </div>
+        <button type="button" class="pi-btn primary" data-invite-user="${user.id}" ${disabled}>${label}</button>
+      </div>
+    `;
+  }
+
+  async function runSearch() {
+    const q = (searchInput.value || '').trim();
+    if (q.length < 2) {
+      resultsEl.innerHTML = '';
+      setFeedback(txtTypeMin, false);
+      return;
+    }
+    const projectId = projectSelect.value;
+    if (!projectId) {
+      setFeedback(txtErr, true);
+      return;
+    }
+
+    setFeedback(txtSearching, false);
+    resultsEl.innerHTML = '';
+
+    const url = `${projectBasePath()}${projectId}/invite/search-users/?q=${encodeURIComponent(q)}`;
+    try {
+      const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'search error');
+      const results = data.results || [];
+      if (!results.length) {
+        setFeedback(txtNoUsers, false);
+        return;
+      }
+      setFeedback(isAr ? `${results.length} نتيجة` : `${results.length} result(s)`, false);
+      resultsEl.innerHTML = results.map(rowHtml).join('');
+    } catch (_) {
+      setFeedback(txtErr, true);
+    }
+  }
+
+  searchBtn.addEventListener('click', runSearch);
+  searchInput.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      runSearch();
+    }
+  });
+
+  resultsEl.addEventListener('click', async function(e){
+    const btn = e.target.closest('[data-invite-user]');
+    if (!btn || btn.disabled) return;
+    const userId = btn.getAttribute('data-invite-user');
+    const projectId = projectSelect.value;
+    if (!userId || !projectId) return;
+
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${projectBasePath()}${projectId}/invite/`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'X-CSRFToken': csrf(),
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `invited_users[]=${encodeURIComponent(userId)}`,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'invite error');
+      btn.textContent = txtSent;
+      setFeedback(data.message || txtSent, false);
+      openInvitationsTab('pi-sent');
+      setTimeout(() => window.location.reload(), 350);
+    } catch (err) {
+      btn.disabled = false;
+      const msg = (err && err.message) ? err.message : txtErr;
+      setFeedback(msg, true);
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{% translate "Edit Message" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== MESSAGE UPDATE CSS ===== */
+:root {
+    --mu-primary: #3B82F6;
+    --mu-primary-dark: #2563eb;
+    --mu-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --mu-deep: #0f172a;
+    --mu-white: #ffffff;
+    --mu-bg: #f8fafc;
+    --mu-muted: #f1f5f9;
+    --mu-subtle: #e2e8f0;
+    
+    --mu-text: #0f172a;
+    --mu-text-secondary: #475569;
+    --mu-text-muted: #94a3b8;
+    
+    --mu-border: #e2e8f0;
+    --mu-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    
+    --mu-warning: #f59e0b;
+    --mu-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --mu-radius-sm: 6px;
+    --mu-radius-md: 10px;
+    --mu-radius-lg: 14px;
+    --mu-radius-xl: 20px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.mu-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--mu-bg) 0%, var(--mu-muted) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+}
+
+.mu-container {
+    max-width: 520px;
+    width: 100%;
+}
+
+/* Card */
+.mu-card {
+    background: var(--mu-white);
+    border: 1px solid var(--mu-border);
+    border-radius: var(--mu-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--mu-shadow-lg);
+}
+
+.mu-card-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--mu-border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.mu-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--mu-warning-bg);
+    border-radius: var(--mu-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mu-warning);
+    font-size: 1.25rem;
+}
+
+.mu-header-text h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--mu-text);
+    margin: 0 0 0.25rem;
+}
+
+.mu-header-text p {
+    font-size: 0.85rem;
+    color: var(--mu-text-muted);
+    margin: 0;
+}
+
+.mu-card-body { padding: 2rem; }
+
+/* Original Message */
+.mu-original {
+    background: var(--mu-muted);
+    border-radius: var(--mu-radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.mu-original-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--mu-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.mu-original-text {
+    font-size: 0.9rem;
+    color: var(--mu-text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Form */
+.mu-form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--mu-text);
+    margin-bottom: 0.5rem;
+}
+
+.mu-textarea {
+    width: 100%;
+    padding: 1rem;
+    background: var(--mu-muted);
+    border: 2px solid transparent;
+    border-radius: var(--mu-radius-md);
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--mu-text);
+    min-height: 120px;
+    resize: vertical;
+    transition: all 0.2s;
+}
+
+.mu-textarea:focus {
+    outline: none;
+    background: var(--mu-white);
+    border-color: var(--mu-primary);
+    box-shadow: 0 0 0 4px var(--mu-primary-glow);
+}
+
+.mu-textarea::placeholder { color: var(--mu-text-muted); }
+
+.mu-char-count {
+    font-size: 0.75rem;
+    color: var(--mu-text-muted);
+    text-align: right;
+    margin-top: 0.5rem;
+}
+
+/* Actions */
+.mu-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.mu-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--mu-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.mu-btn-secondary {
+    background: var(--mu-muted);
+    color: var(--mu-text-secondary);
+    border-color: var(--mu-border);
+}
+
+.mu-btn-secondary:hover { background: var(--mu-subtle); color: var(--mu-text); }
+
+.mu-btn-primary {
+    background: var(--mu-primary);
+    color: var(--mu-white);
+}
+
+.mu-btn-primary:hover {
+    background: var(--mu-primary-dark);
+    transform: translateY(-1px);
+}
+
+/* Errors */
+.mu-errors {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--mu-radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.mu-errors ul { margin: 0; padding-left: 1.25rem; }
+.mu-errors li { color: #dc2626; font-size: 0.875rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mu-page">
+    <div class="mu-container">
+        
+        <div class="mu-card">
+            <div class="mu-card-header">
+                <div class="mu-icon">
+                    <i class="bi bi-pencil"></i>
+                </div>
+                <div class="mu-header-text">
+                    <h1>{% translate "Edit Message" %}</h1>
+                    <p>{% translate "Update your message content" %}</p>
+                </div>
+            </div>
+            
+            <div class="mu-card-body">
+                <div class="mu-original">
+                    <div class="mu-original-label">{% translate "Original Message" %}</div>
+                    <p class="mu-original-text">{{ message.content }}</p>
+                </div>
+                
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                    <div class="mu-errors">
+                        <ul>
+                            {% for field in form %}
+                            {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <label for="id_content" class="mu-form-label">{% translate "New Message" %}</label>
+                    <textarea name="content" id="id_content" class="mu-textarea" 
+                              placeholder="{% translate 'Enter your updated message...' %}"
+                              required>{{ form.content.value|default:message.content }}</textarea>
+                    <div class="mu-char-count">
+                        <span id="charCount">0</span> {% translate "characters" %}
+                    </div>
+                    
+                    <div class="mu-actions">
+                        <a href="{% url 'forum:chatroom-detail' message.chatroom.pk %}" class="mu-btn mu-btn-secondary">
+                            <i class="bi bi-x-lg"></i>
+                            {% translate "Cancel" %}
+                        </a>
+                        <button type="submit" class="mu-btn mu-btn-primary">
+                            <i class="bi bi-check-lg"></i>
+                            {% translate "Save Changes" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.getElementById('id_content');
+    const charCount = document.getElementById('charCount');
+    
+    function updateCount() {
+        charCount.textContent = textarea.value.length;
+    }
+    
+    if (textarea && charCount) {
+        updateCount();
+        textarea.addEventListener('input', updateCount);
+    }
+});
+</script>
+{% endblock %}

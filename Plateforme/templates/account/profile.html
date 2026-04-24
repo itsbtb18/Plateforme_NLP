@@ -1,0 +1,3353 @@
+﻿{% extends "base.html" %} {% load static %} {% load i18n %}
+ {% block title %}
+{{ user.get_full_name_display }} | {% trans "Profile" %}
+ {% endblock title %} 
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+/>
+{% endblock extra_styles %} 
+{% block content %}
+<!-- Modern Profile Page - Kodecolor Style -->
+<div class="profile-page-new">
+  <div class="profile-container-new">
+    
+    <!-- Left Column: Profile Card with Avatar -->
+    <div class="profile-left-column">
+      <div class="profile-card animate__animated animate__fadeInLeft">
+        {% if request.user == user %}
+        <button type="button" class="profile-card-settings-btn" id="profileTopSettingsBtn" aria-label="{% trans 'Settings' %}">
+          <i class="fas fa-cog"></i>
+        </button>
+        {% endif %}
+        {% if request.user.is_authenticated and request.user != user %}
+        <div class="profile-menu-wrap">
+          <button type="button" class="profile-menu-toggle" aria-label="{% trans 'More options' %}" aria-expanded="false">
+            <i class="fas fa-ellipsis-v"></i>
+          </button>
+          <div class="profile-menu-dropdown" hidden>
+            <button type="button" class="profile-menu-item profile-menu-block" data-user-id="{{ user.id }}">
+              <i class="fas fa-ban"></i>
+              <span>{% trans "Block" %}</span>
+            </button>
+            <button type="button" class="profile-menu-item profile-menu-report" data-user-id="{{ user.id }}">
+              <i class="fas fa-flag"></i>
+              <span>{% trans "Report" %}</span>
+            </button>
+            <button type="button" class="profile-menu-item profile-menu-copy-link">
+              <i class="fas fa-link"></i>
+              <span>{% trans "Copy link" %}</span>
+            </button>
+            <button type="button" class="profile-menu-item profile-menu-share-message">
+              <i class="fas fa-paper-plane"></i>
+              <span>{% trans "Share in message" %}</span>
+            </button>
+            <div class="profile-menu-separator"></div>
+            <button type="button" class="profile-menu-item profile-menu-more">
+              <i class="fas fa-ellipsis-h"></i>
+              <span>{% trans "More options" %}</span>
+            </button>
+          </div>
+        </div>
+        {% endif %}
+        <div class="profile-identity-head">
+          <!-- Large Profile Picture -->
+          <div class="profile-picture-container">
+            {% if user.avatar %}
+            <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}" class="profile-picture">
+            {% else %}
+            <div class="profile-picture-placeholder">
+              <i class="fas fa-user"></i>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- User Info Section -->
+          <div class="profile-user-info">
+<<<<<<< HEAD
+<<<<<<< HEAD
+            <h1 class="profile-user-name">{{ profile_user.get_full_name_display }}</h1>
+            <p class="profile-user-title">{{ profile_user.get_speciality_display|default:_("Member") }}</p>
+=======
+            <div class="profile-user-heading">
+              <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
+            </div>
+            <p class="profile-user-title">
+              {% if user.speciality %}
+                {{ user.get_speciality_display }}
+              {% else %}
+                {% trans "Member" %}
+              {% endif %}
+            </p>
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
+=======
+            <div class="profile-user-heading">
+              <h1 class="profile-user-name">{{ user.get_full_name_display }}</h1>
+            </div>
+            <p class="profile-user-title">{{ user.get_speciality_display|default:_("Member") }}</p>
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+            
+            {% if user.institution %}
+            {% if user.institution.website %}
+            <a href="{{ user.institution.website }}" target="_blank" rel="noopener noreferrer" class="profile-user-location" title="{{ user.institution.website }}">
+              {% if user.institution.logo %}
+              <img src="{{ user.institution.logo.url }}" alt="{{ user.institution }}" class="profile-user-location-logo">
+              {% endif %}
+              {{ user.institution }}
+            </a>
+            {% else %}
+            <p class="profile-user-location">
+              {% if user.institution.logo %}
+              <img src="{{ user.institution.logo.url }}" alt="{{ user.institution }}" class="profile-user-location-logo">
+              {% endif %}
+              {{ user.institution }}
+            </p>
+            {% endif %}
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Verification Badge -->
+        {% if user.is_verified %}
+        <div class="verification-pill">
+          <i class="fas fa-check-circle"></i>
+          {% trans "Verified User" %}
+        </div>
+        {% endif %}
+
+        {% if user.get_localized_bio %}
+        {% if can_view_full_profile %}
+        <span class="profile-bio-label">
+          {% trans "Biography" %}
+        </span>
+        <div class="profile-bio-inline">
+          <p class="bio-text">{{ user.get_localized_bio }}</p>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <div class="profile-social-stats">
+          <button type="button" class="profile-stat-btn" id="followersStatBtn" data-follow-kind="followers" {% if not request.user.is_authenticated %}disabled title="{% trans 'Login required' %}"{% endif %}>
+            <strong id="followersCount">{{ followers_count }}</strong> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}
+          </button>
+          <button type="button" class="profile-stat-btn" id="followingStatBtn" data-follow-kind="following" {% if not request.user.is_authenticated %}disabled title="{% trans 'Login required' %}"{% endif %}>
+            <strong id="followingCount">{{ following_count }}</strong> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}
+          </button>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="profile-actions-new">
+          {% if request.user == user %}
+          <a href="{% url 'accounts:profile-edit' pk=user.pk %}" class="btn-action-primary">
+            <i class="fas fa-edit"></i>
+            <span>{% trans "Edit Profile" %}</span>
+          </a>
+          {% elif request.user.is_authenticated and not is_blocked_profile %}
+          {% if is_following_profile %}
+          <a href="{% url 'direct_messages:start_conversation' user_id=user.id %}" class="btn-action-secondary">
+            <i class="fas fa-comments"></i>
+            <span>{% trans "Chat" %}</span>
+          </a>
+          {% else %}
+          <a href="{% url 'direct_messages:start_conversation' user_id=user.id %}" class="btn-action-secondary">
+            <i class="fas fa-paper-plane"></i>
+            <span>{% trans "Send message request" %}</span>
+          </a>
+          {% endif %}
+          {% else %}
+          <a href="{% url 'account_login' %}" class="btn-action-primary">
+            <i class="fas fa-rss"></i>
+            <span>{% trans "Follow" %}</span>
+          </a>
+          {% endif %}
+          {% if request.user.is_authenticated and request.user != user and not is_blocked_profile %}
+          <button type="button"
+                  class="btn-action-secondary follow-toggle-btn"
+                  data-follow-url="{% url 'accounts:follow_user' user_id=user.id %}"
+                  data-unfollow-url="{% url 'accounts:unfollow_user' user_id=user.id %}"
+                  data-is-following="{% if is_following_profile %}1{% else %}0{% endif %}">
+            <i class="fas {% if is_following_profile %}fa-user-check{% else %}fa-rss{% endif %}"></i>
+            <span class="follow-action-label">
+              {% if is_following_profile %}{% trans "Unfollow" %}{% else %}{% trans "Follow" %}{% endif %}
+            </span>
+          </button>
+          {% endif %}
+          {% if request.user.is_authenticated and request.user != user and is_blocked_profile %}
+          <button type="button" class="btn-action-secondary" disabled>
+            <i class="fas fa-ban"></i>
+            <span>{% trans "Blocked" %}</span>
+          </button>
+          {% endif %}
+        </div>
+
+        <!-- Social Links -->
+        <div class="social-links-section">
+          <div class="social-links-list">
+            {% if user.linkedin_url %}
+            <a href="{{ user.linkedin_url }}" target="_blank" class="social-link-icon linkedin" title="LinkedIn">
+              <i class="fab fa-linkedin-in"></i>
+            </a>
+            {% endif %}
+            {% if user.twitter_url %}
+            <a href="{{ user.twitter_url }}" target="_blank" class="social-link-icon twitter" title="Twitter">
+              <i class="fab fa-twitter"></i>
+            </a>
+            {% endif %}
+            {% if user.facebook_url %}
+            <a href="{{ user.facebook_url }}" target="_blank" class="social-link-icon facebook" title="Facebook">
+              <i class="fab fa-facebook-f"></i>
+            </a>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Delete Account (Danger Zone) -->
+        {% if request.user == user %}
+        <div class="profile-danger-zone">
+          <button type="button" class="btn-delete-account" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+            <i class="fas fa-trash-alt"></i>
+            <span>{% trans "Delete Account" %}</span>
+          </button>
+        </div>
+
+        <!-- Delete Account Modal -->
+        <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-delete">
+              <div class="modal-header">
+                <h5 class="modal-title">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  {% trans "Delete Account" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <p>{% trans "Are you sure? This action cannot be undone." %}</p>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <form action="{% url 'accounts:delete_account' %}" method="post" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-danger">{% trans "Delete" %}</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if request.user == user %}
+      <div class="profile-settings-modal" id="profileSettingsModal" hidden>
+        <div class="profile-settings-backdrop" data-close-settings></div>
+        <div class="profile-settings-panel" role="dialog" aria-modal="true" aria-labelledby="profileSettingsTitle">
+          <div class="profile-settings-head">
+            <h3 id="profileSettingsTitle">{% trans "Settings" %}</h3>
+            <button type="button" class="profile-settings-close" data-close-settings aria-label="{% trans 'Close' %}">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+
+          <div class="profile-settings-row">
+            <span><i class="fas fa-circle"></i> {% trans "Online status" %}</span>
+            <button type="button" class="profile-switch" id="profileOnlineSwitch" aria-pressed="true">
+              <span class="profile-switch-knob"></span>
+            </button>
+          </div>
+
+          <button type="button" class="profile-settings-row profile-settings-btn" id="profileBlockedListToggleBtn">
+            <span><i class="fas fa-user-lock"></i> {% trans "Blocked users" %}</span>
+          </button>
+
+          <div id="profileBlockedUsersContainer" class="blocked-users-container" hidden data-api="{% url 'accounts:blocked_users_api' %}">
+            <div class="blocked-users-list" id="profileBlockedUsersList"></div>
+            <div class="blocked-empty" id="profileBlockedUsersEmpty">{% trans "No blocked users currently" %}</div>
+          </div>
+
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right Column: Information Sections -->
+    <div class="profile-right-column">
+      <!-- Basic Information Section -->
+      <div class="info-section-card basic-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-info-circle"></i>
+          {% trans "Basic Information" %}
+        </h3>
+        <div class="info-rows">
+          <div class="info-row">
+            <span class="info-label">{% trans "Email:" %}</span>
+            <span class="info-value">
+              {% if can_view_full_profile %}
+                {{ user.email }}
+              {% else %}
+                {% trans "Visible to followers only" %}
+              {% endif %}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{% trans "Member Since:" %}</span>
+            <span class="info-value">{{ user.date_joined|date:"F j, Y" }}</span>
+          </div>
+          {% if user.get_speciality_display %}
+          <div class="info-row">
+            <span class="info-label">{% trans "Specialty:" %}</span>
+            <span class="info-value specialty-value">
+              <span class="specialty-tag">{{ user.get_speciality_display }}</span>
+            </span>
+          </div>
+          {% endif %}
+          <div class="info-row">
+            <span class="info-label">{% trans "Status:" %}</span>
+            <span class="info-value">
+              {% if user.is_verified %}
+              <span class="status-badge-green">
+                <i class="fas fa-check-circle"></i>
+                {% trans "Verified" %}
+              </span>
+              {% else %}
+              <span class="status-badge-yellow">
+                <i class="fas fa-hourglass-half"></i>
+                {% trans "Pending" %}
+              </span>
+              {% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {% if user_experiences %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <div class="section-header-row">
+          <h3 class="section-title section-title-inline">
+            <i class="fas fa-briefcase"></i>
+            {% trans "Experience" %} <span class="section-count">{{ user_experiences_count|default:0 }}</span>
+          </h3>
+          {% if is_own_profile %}
+          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm experience-add-btn">
+            <i class="fas fa-plus"></i> {% trans "Add Experience" %}
+          </a>
+          {% endif %}
+        </div>
+        <div class="contrib-list">
+          {% for exp in user_experiences %}
+          {% if exp.can_manage %}
+          <div class="contrib-item experience-item">
+          {% else %}
+          <a href="{{ exp.url }}" class="contrib-item experience-item">
+          {% endif %}
+            <div class="contrib-icon {% if exp.kind == 'event' %}topic-icon{% else %}project-icon{% endif %}">
+              <i class="fas {{ exp.icon }}"></i>
+            </div>
+            <div class="contrib-info">
+              {% if exp.can_manage %}
+              <span class="contrib-title">{{ exp.title|truncatechars:80 }}</span>
+              {% else %}
+              <span class="contrib-title">{{ exp.title|truncatechars:80 }}</span>
+              {% endif %}
+              <span class="experience-role-line">
+                <span class="experience-role">{{ exp.role }}</span>
+                <span class="experience-kind-badge">{{ exp.kind_label }}</span>
+              </span>
+              {% if exp.subtitle %}
+              <span class="contrib-subline">{{ exp.subtitle|truncatechars:80 }}</span>
+              {% endif %}
+              {% if exp.description %}
+              <span class="contrib-subline">{{ exp.description|striptags|truncatechars:120 }}</span>
+              {% endif %}
+              {% if exp.project_url %}
+              <span class="contrib-subline"><a href="{{ exp.project_url }}" target="_blank" rel="noopener noreferrer">{% trans "Project link" %}</a></span>
+              {% endif %}
+              <span class="contrib-date">
+                {% if exp.ended_at %}
+                  {{ exp.started_at|date:"M Y" }} - {{ exp.ended_at|date:"M Y" }}
+                {% else %}
+                  {% trans "Since" %} {{ exp.started_at|date:"M Y" }}
+                {% endif %}
+              </span>
+              {% if exp.can_manage %}
+              <span class="contrib-subline" style="margin-top:.35rem;display:flex;gap:.75rem;align-items:center;">
+                <span><a href="{{ exp.edit_url }}">{% trans "Edit" %}</a></span>
+                <span><a href="{{ exp.delete_url }}" style="color:#b91c1c;">{% trans "Delete" %}</a></span>
+              </span>
+              {% endif %}
+            </div>
+          {% if exp.can_manage %}
+          </div>
+          {% else %}
+          </a>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% elif is_own_profile %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <div class="section-header-row">
+          <h3 class="section-title section-title-inline">
+            <i class="fas fa-briefcase"></i>
+            {% trans "Experience" %} <span class="section-count">0</span>
+          </h3>
+          <a href="{% url 'accounts:experience_add' %}" class="btn btn-primary btn-sm experience-add-btn">
+            <i class="fas fa-plus"></i> {% trans "Add Experience" %}
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+      <div
+        class="info-section-card kpi-glass-card animate__animated animate__fadeInRight"
+        id="profileKpiCard"
+        data-projects="{{ user_projects_count|default:0 }}"
+        data-corpus="{{ user_corpus_count|default:0 }}"
+        data-news="{{ user_news_count|default:0 }}"
+        data-courses="{{ user_courses_count|default:0 }}"
+        data-resources="{{ user_resources_count|default:0 }}"
+        data-tools="{{ user_tools_count|default:0 }}"
+        data-topics="{{ user_topics_count|default:0 }}"
+        data-events="{{ user_events_count|default:0 }}"
+      >
+        <h3 class="section-title">
+          <i class="fas fa-chart-line"></i>
+          {% trans "Performance Metrics" %}
+        </h3>
+        <div class="kpi-chart-grid">
+          <div class="kpi-chart-box">
+            <h4>{% trans "Activity Trend" %}</h4>
+            <canvas id="profileTrendChart" height="96"></canvas>
+          </div>
+          <div class="kpi-chart-box">
+            <h4>{% trans "Contributions" %}</h4>
+            <canvas id="profileBarsChart" height="96"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-section-card profile-section-filter-card animate__animated animate__fadeInRight" id="profile-sections">
+        <h3 class="section-title">
+          <i class="fas fa-layer-group"></i>
+          {% trans "Filter Sections" %}
+        </h3>
+        <div class="profile-section-filter-grid">
+          <a href="?section=posts#profile-sections" class="profile-filter-btn{% if selected_section == 'posts' %} is-active{% endif %}">
+            <span>{% trans "Posts" %}</span><strong>{{ user_news_count|default:0 }}</strong>
+          </a>
+          <a href="?section=courses#profile-sections" class="profile-filter-btn{% if selected_section == 'courses' %} is-active{% endif %}">
+            <span>{% trans "Courses" %}</span><strong>{{ user_courses_count|default:0 }}</strong>
+          </a>
+          <a href="?section=resources#profile-sections" class="profile-filter-btn{% if selected_section == 'resources' %} is-active{% endif %}">
+            <span>{% trans "Resources" %}</span><strong>{{ user_resources_count|default:0 }}</strong>
+          </a>
+          <a href="?section=tools#profile-sections" class="profile-filter-btn{% if selected_section == 'tools' %} is-active{% endif %}">
+            <span>{% trans "Tools" %}</span><strong>{{ user_tools_count|default:0 }}</strong>
+          </a>
+          <a href="?section=corpora#profile-sections" class="profile-filter-btn{% if selected_section == 'corpora' %} is-active{% endif %}">
+            <span>{% trans "Corpus" %}</span><strong>{{ user_corpus_count|default:0 }}</strong>
+          </a>
+          <a href="?section=projects#profile-sections" class="profile-filter-btn{% if selected_section == 'projects' %} is-active{% endif %}">
+            <span>{% trans "Projects" %}</span><strong>{{ user_projects_count|default:0 }}</strong>
+          </a>
+          <a href="?section=topics#profile-sections" class="profile-filter-btn{% if selected_section == 'topics' %} is-active{% endif %}">
+            <span>{% trans "Community" %}</span><strong>{{ user_topics_count|default:0 }}</strong>
+          </a>
+          <a href="?section=events_created#profile-sections" class="profile-filter-btn{% if selected_section == 'events_created' %} is-active{% endif %}">
+            <span>{% trans "Events" %}</span><strong>{{ user_events_count|default:0 }}</strong>
+          </a>
+        </div>
+      </div>
+      {% if selected_section != 'all' and selected_section_count == 0 %}
+      <div class="info-section-card basic-card animate__animated animate__fadeInRight">
+        <p class="bio-text">
+          {% trans "No content available in this section yet." %}
+        </p>
+      </div>
+      {% endif %}
+
+      <!-- ===== CONTRIBUTIONS SECTIONS ===== -->
+
+      <!-- Posts -->
+      {% if user_posts %}
+      {% if can_view_contributions %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-newspaper"></i>
+          {% trans "Posts" %} <span class="section-count">{{ user_news_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for post in user_posts %}
+<<<<<<< HEAD
+<<<<<<< HEAD
+          <a href="{% url 'QA:post_detail' post.slug %}" class="contrib-item">
+=======
+          <a href="{% url 'feed:post_detail' post.slug %}" class="contrib-item">
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+            <div class="contrib-icon post-icon"><i class="fas fa-pen-nib"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">
+                {% if post.get_localized_title %}
+                  {{ post.get_localized_title|truncatechars:60 }}
+                {% else %}
+                  {{ post.get_localized_content|striptags|truncatechars:60 }}
+                {% endif %}
+              </span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if post.approval_status %}
+                <span class="contrib-status-badge {% if post.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if post.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-subline">{{ post.get_localized_content|striptags|truncatechars:90 }}</span>
+              <span class="contrib-date">{{ post.created_at|date:"j F Y" }}</span>
+=======
+          <div class="contrib-entry">
+            <a href="{% url 'feed:post_detail' post.slug %}" class="contrib-item">
+              <div class="contrib-icon post-icon"><i class="fas fa-pen-nib"></i></div>
+              <div class="contrib-info">
+                <span class="contrib-title">
+                  {% if post.get_localized_title %}
+                    {{ post.get_localized_title|truncatechars:60 }}
+                  {% else %}
+                    {{ post.get_localized_content|striptags|truncatechars:60 }}
+                  {% endif %}
+                </span>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                  {% if post.approval_status %}
+                  <span class="contrib-status-badge {% if post.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                    {% if post.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                  </span>
+                  {% endif %}
+                {% endif %}
+                <span class="contrib-subline">{{ post.get_localized_content|striptags|truncatechars:90 }}</span>
+                <span class="contrib-date">{{ post.created_at|date:"j F Y" }}</span>
+              </div>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% endif %}
+
+      <!-- Courses -->
+      {% if user_courses %}
+      {% if can_view_contributions %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-graduation-cap"></i>
+          {% trans "Courses" %} <span class="section-count">{{ user_courses_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for course in user_courses %}
+<<<<<<< HEAD
+          <a href="{% url 'resources:course_detail' course.pk %}" class="contrib-item">
+            <div class="contrib-icon course-icon"><i class="fas fa-book-open"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ course.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if course.approval_status %}
+                <span class="contrib-status-badge {% if course.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if course.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-date">{{ course.creation_date|date:"j F Y" }}</span>
+=======
+          <div class="contrib-entry">
+            <a href="{% url 'resources:course_detail' course.pk %}" class="contrib-item">
+              <div class="contrib-icon course-icon"><i class="fas fa-book-open"></i></div>
+              <div class="contrib-info">
+                <span class="contrib-title">{{ course.get_localized_title|truncatechars:60 }}</span>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                  {% if course.approval_status %}
+                  <span class="contrib-status-badge {% if course.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                    {% if course.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                  </span>
+                  {% endif %}
+                {% endif %}
+                <span class="contrib-date">{{ course.creation_date|date:"j F Y" }}</span>
+              </div>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% endif %}
+
+      <!-- Resources -->
+      {% if user_resources %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-archive"></i>
+          {% trans "Resources" %} <span class="section-count">{{ user_resources_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for resource in user_resources %}
+          <div class="contrib-entry">
+          <a href="{% url 'resources:resource-detail' type=resource.document_type pk=resource.pk %}" class="contrib-item">
+            <div class="contrib-icon resource-icon"><i class="fas fa-file-alt"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ resource.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if resource.approval_status %}
+                <span class="contrib-status-badge {% if resource.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if resource.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-date">{{ resource.creation_date|date:"j F Y" }}</span>
+            </div>
+          </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Tools -->
+      {% if user_tools %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-tools"></i>
+          {% trans "Tools" %} <span class="section-count">{{ user_tools_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for tool in user_tools %}
+          <div class="contrib-entry">
+          <a href="{% url 'resources:resource-detail' type='tool' pk=tool.pk %}" class="contrib-item">
+            <div class="contrib-icon resource-icon"><i class="fas fa-screwdriver-wrench"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ tool.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if tool.approval_status %}
+                <span class="contrib-status-badge {% if tool.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if tool.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-date">{{ tool.creation_date|date:"j F Y" }}</span>
+            </div>
+          </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Corpus -->
+      {% if user_corpora %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-database"></i>
+          {% trans "Corpus" %} <span class="section-count">{{ user_corpus_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for corpus in user_corpora %}
+          <div class="contrib-entry">
+          <a href="{% url 'resources:resource-detail' type='corpus' pk=corpus.pk %}" class="contrib-item">
+            <div class="contrib-icon resource-icon"><i class="fas fa-database"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ corpus.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if corpus.approval_status %}
+                <span class="contrib-status-badge {% if corpus.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if corpus.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-date">{{ corpus.creation_date|date:"j F Y" }}</span>
+            </div>
+          </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Projects -->
+      {% if user_projects %}
+      {% if can_view_contributions %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-project-diagram"></i>
+          {% trans "Projects" %} <span class="section-count">{{ user_projects_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for project in user_projects %}
+          <div class="contrib-entry">
+          <a href="{% url 'projects:project_detail' project.pk %}" class="contrib-item">
+            <div class="contrib-icon project-icon"><i class="fas fa-diagram-project"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ project.title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if project.approval_status %}
+                <span class="contrib-status-badge {% if project.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if project.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-date">{{ project.created_at|date:"j F Y" }}</span>
+            </div>
+          </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if not can_view_contributions and request.user.is_authenticated and request.user != user %}
+      <div class="info-section-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-user-lock"></i>
+          {% trans "Private Content" %}
+        </h3>
+        <p class="bio-text">Connectez-vous avec {{ user.get_full_name_display }} pour voir ses ressources et ÃƒÂ©vÃƒÂ©nements.</p>
+      </div>
+      {% endif %}
+      {% endif %}
+
+      <!-- Forum Topics -->
+      {% if user_topics %}
+      {% if can_view_contributions %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-comments"></i>
+          {% trans "Discussions" %} <span class="section-count">{{ user_topics_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for topic in user_topics %}
+          <div class="contrib-entry">
+          <a href="{% url 'forum:chatroom-list' topic.id %}" class="contrib-item">
+            <div class="contrib-icon topic-icon"><i class="fas fa-comment-dots"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ topic.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if topic.approval_status %}
+                <span class="contrib-status-badge {% if topic.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if topic.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-date">{{ topic.created_at|date:"j F Y" }}</span>
+            </div>
+          </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% endif %}
+
+      {% if can_view_contributions and upcoming_events %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-calendar-check"></i>
+          {% trans "Upcoming Events" %} <span class="section-count">{{ upcoming_events_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for reg in upcoming_events %}
+          <div class="contrib-entry">
+          <a href="{% url 'events:event_detail' reg.event.pk %}" class="contrib-item">
+            <div class="contrib-icon project-icon"><i class="fas fa-calendar-alt"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ reg.event.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if reg.event.approval_status %}
+                <span class="contrib-status-badge {% if reg.event.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if reg.event.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-date">{{ reg.event.start_date|date:"j F Y" }}</span>
+            </div>
+          </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if can_view_contributions and past_events %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-history"></i>
+          {% trans "Past Events" %} <span class="section-count">{{ past_events_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for reg in past_events %}
+          <div class="contrib-entry">
+          <a href="{% url 'events:event_detail' reg.event.pk %}" class="contrib-item">
+            <div class="contrib-icon topic-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ reg.event.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if reg.event.approval_status %}
+                <span class="contrib-status-badge {% if reg.event.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if reg.event.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-date">{{ reg.event.start_date|date:"j F Y" }}</span>
+            </div>
+          </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Created Events -->
+      {% if can_view_contributions and user_events %}
+      <div class="info-section-card contrib-card animate__animated animate__fadeInRight">
+        <h3 class="section-title">
+          <i class="fas fa-bullhorn"></i>
+          {% trans "Events" %} <span class="section-count">{{ user_events_count|default:0 }}</span>
+        </h3>
+        <div class="contrib-list">
+          {% for event in user_events %}
+          <div class="contrib-entry">
+          <a href="{% url 'events:event_detail' event.pk %}" class="contrib-item">
+            <div class="contrib-icon project-icon"><i class="fas fa-calendar-plus"></i></div>
+            <div class="contrib-info">
+              <span class="contrib-title">{{ event.get_localized_title|truncatechars:60 }}</span>
+              {% if request.user.is_staff or request.user.is_superuser %}
+                {% if event.approval_status %}
+                <span class="contrib-status-badge {% if event.approval_status == 'approved' %}is-approved{% else %}is-pending{% endif %}">
+                  {% if event.approval_status == "approved" %}{% trans "Approved" %}{% else %}{% trans "Pending" %}{% endif %}
+                </span>
+                {% endif %}
+              {% endif %}
+              <span class="contrib-date">{{ event.start_date|date:"j F Y" }}</span>
+            </div>
+          </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+<div class="profile-menu-toast" id="profileMenuToast" role="status" aria-live="polite"></div>
+<div class="profile-follow-modal" id="profileFollowModal" hidden>
+  <div class="profile-follow-backdrop" data-close-follow-modal></div>
+  <div class="profile-follow-panel" role="dialog" aria-modal="true" aria-labelledby="profileFollowTitle">
+    <div class="profile-follow-head">
+      <h3 id="profileFollowTitle">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}</h3>
+      <button type="button" class="profile-follow-close" data-close-follow-modal aria-label="{% trans 'Close' %}">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="profile-follow-tabs">
+      <button type="button" class="profile-follow-tab is-active" data-follow-tab="followers">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون{% else %}Followers{% endif %}</button>
+      <button type="button" class="profile-follow-tab" data-follow-tab="following">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}</button>
+    </div>
+    <div class="profile-follow-list" id="profileFollowList"></div>
+    <div class="profile-follow-empty" id="profileFollowEmpty" hidden>{% trans "No users found." %}</div>
+  </div>
+</div>
+<div class="profile-share-modal" id="profileShareModal" hidden>
+  <div class="profile-share-backdrop" data-close-share-modal></div>
+  <div class="profile-share-panel" role="dialog" aria-modal="true" aria-labelledby="profileShareTitle">
+    <div class="profile-share-head">
+      <h3 id="profileShareTitle">{% trans "Share profile" %}</h3>
+      <button type="button" class="profile-share-close" data-close-share-modal aria-label="{% trans 'Close' %}">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="profile-share-grid">
+      <button type="button" class="profile-share-item" data-share-network="linkedin">
+        <i class="fab fa-linkedin"></i>
+        <span>LinkedIn</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="facebook">
+        <i class="fab fa-facebook"></i>
+        <span>Facebook</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="x">
+        <i class="fab fa-x-twitter"></i>
+        <span>X</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="whatsapp">
+        <i class="fab fa-whatsapp"></i>
+        <span>WhatsApp</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="telegram">
+        <i class="fab fa-telegram-plane"></i>
+        <span>Telegram</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="email">
+        <i class="fas fa-envelope"></i>
+        <span>Email</span>
+      </button>
+      <button type="button" class="profile-share-item" data-share-network="copy">
+        <i class="fas fa-link"></i>
+        <span>{% trans "Copy link" %}</span>
+      </button>
+    </div>
+  </div>
+</div>
+<style>
+  /* ===== BLUE MINIMAL NOTION THEME - TWO-TONE DESIGN ===== */
+  /* LEFT: Dark Blue Profile Card | RIGHT: Clean White Cards */
+
+  :root {
+    --profile-bg: #ffffff;
+    --profile-bg-light: #f0f7ff;
+    --profile-text-dark: #111827;
+    --profile-text-secondary: #64748b;
+    --profile-text-accent: #2563eb;
+    --notion-bg: #ffffff;
+    --notion-border: #d9e1ee;
+    --notion-blue: #2563eb;
+    --notion-text-primary: #111827;
+    --notion-text-secondary: #64748b;
+  }
+
+  /* Remove content padding for full-width profile layout */
+  .content {
+    padding: 0 !important;
+    margin-top: -32px !important;
+  }
+
+  /* Move sidebar border up */
+  .sidebar {
+    margin-top: -32px !important;
+    height: calc(100vh - var(--site-header-height) + 32px) !important;
+  }
+
+  /* PAGE LAYOUT */
+  .profile-page-new {
+    background: #ffffff !important;
+    padding: 40px 20px !important;
+    min-height: 50vh;
+    margin: 0 !important;
+  }
+
+  .profile-container-new {
+    max-width: 1240px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  /* ===== LEFT COLUMN: DARK BLUE PROFILE CARD ===== */
+  .profile-left-column {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .profile-card {
+    background: #eff6ff !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 16px !important;
+    padding: 24px 16px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Profile Header */
+  .profile-identity-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+  }
+
+  .profile-picture-container {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    border: 4px solid var(--profile-text-accent);
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%) !important;
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+    overflow: hidden;
+  }
+
+  .profile-picture {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .profile-picture-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 50px;
+  }
+
+  /* User Info */
+  .profile-user-info {
+    padding: 8px 0;
+    text-align: center;
+  }
+
+  .profile-user-heading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .profile-user-name {
+    color: var(--profile-text-dark) !important;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    margin: 0;
+    line-height: 1.1;
+  }
+
+  .profile-user-title {
+    color: var(--profile-text-accent) !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    margin: 6px 0 0 !important;
+  }
+
+  .profile-user-location {
+    color: var(--profile-text-secondary) !important;
+    font-size: 0.85rem !important;
+    margin: 8px 0 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  a.profile-user-location {
+    text-decoration: none;
+  }
+
+  a.profile-user-location:hover {
+    color: var(--profile-text-accent) !important;
+  }
+
+  .profile-user-location-logo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: inline-block;
+    flex-shrink: 0;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+  }
+
+  /* Bio */
+  .profile-bio-label {
+    color: #94a3b8 !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+    margin: 12px 0 8px !important;
+  }
+
+  .profile-bio-inline {
+    background: #f0f7ff !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 8px !important;
+    padding: 10px 12px !important;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .bio-text {
+    color: var(--profile-text-dark) !important;
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+    text-align: center !important;
+  }
+
+  /* Verification Pill */
+  .verification-pill {
+    background: rgba(74, 222, 128, 0.15) !important;
+    border: 1px solid rgba(74, 222, 128, 0.3) !important;
+    color: #86efac !important;
+    padding: 6px 12px !important;
+    border-radius: 20px !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    margin: 10px 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  /* Buttons */
+  .profile-actions-new {
+    display: grid;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 0;
+  }
+
+  .btn-action-primary {
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    padding: 12px 16px !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+
+  .btn-action-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+  }
+
+  .btn-action-secondary {
+    background: transparent !important;
+    border: 1.5px solid var(--notion-blue) !important;
+    color: var(--notion-blue) !important;
+    padding: 10px 14px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+
+  .btn-action-secondary:hover {
+    border-color: var(--notion-blue) !important;
+    background: rgba(37, 99, 235, 0.08) !important;
+  }
+
+  /* Social Links */
+  .social-links-section {
+    padding: 12px 0;
+    margin: 12px 0;
+    border-top: 1px solid var(--notion-border);
+    border-bottom: 1px solid var(--notion-border);
+  }
+
+  .social-links-list {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .social-link-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .social-link-icon:hover {
+    transform: translateY(-3px);
+  }
+
+  /* Delete Button */
+  .profile-danger-zone {
+    padding: 12px 0;
+    margin-top: 12px;
+  }
+
+  .btn-delete-account {
+    width: 100%;
+    background: transparent !important;
+    border: 1.5px solid rgba(220, 38, 38, 0.3) !important;
+    color: #dc2626 !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .btn-delete-account:hover {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    border-color: #dc2626 !important;
+  }
+
+  /* Settings Button */
+  .profile-card-settings-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--notion-border);
+    background: #f8fafc;
+    color: var(--profile-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .profile-card-settings-btn:hover {
+    background: #f0f7ff;
+    color: var(--profile-text-accent);
+    border-color: var(--profile-text-accent);
+  }
+
+  /* ===== "..." PROFILE MENU (Professional) ===== */
+  .profile-menu-wrap {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 30;
+  }
+  html[dir="rtl"] .profile-menu-wrap { left: auto; right: 12px; }
+
+  .profile-menu-toggle {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.55);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(6px);
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+  .profile-menu-toggle:hover {
+    background: #ffffff;
+    border-color: rgba(37, 99, 235, 0.55);
+    color: #1d4ed8;
+    transform: translateY(-1px);
+  }
+
+  .profile-menu-dropdown {
+    position: absolute;
+    top: 44px;
+    left: 0;
+    width: 220px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: #ffffff;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
+    padding: 6px;
+    display: grid;
+    gap: 2px;
+  }
+  html[dir="rtl"] .profile-menu-dropdown { left: auto; right: 0; }
+
+  .profile-menu-dropdown::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 16px;
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    border-left: 1px solid rgba(148, 163, 184, 0.45);
+    border-top: 1px solid rgba(148, 163, 184, 0.45);
+    transform: rotate(45deg);
+  }
+  html[dir="rtl"] .profile-menu-dropdown::before { left: auto; right: 16px; }
+
+  .profile-menu-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    border-radius: 12px;
+    padding: 9px 10px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: start;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  }
+  html[dir="rtl"] .profile-menu-item { flex-direction: row-reverse; text-align: right; }
+
+  .profile-menu-item i {
+    width: 18px;
+    text-align: center;
+    color: #2563eb;
+    opacity: 0.92;
+  }
+
+  .profile-menu-item:hover {
+    background: rgba(37, 99, 235, 0.07);
+    color: #0b2f6f;
+    transform: translateY(-1px);
+  }
+
+  .profile-menu-item.profile-menu-block i,
+  .profile-menu-item.profile-menu-report i { color: #dc2626; }
+  .profile-menu-item.profile-menu-block:hover,
+  .profile-menu-item.profile-menu-report:hover { background: rgba(220, 38, 38, 0.08); }
+
+  .profile-menu-separator {
+    height: 1px;
+    background: rgba(148, 163, 184, 0.35);
+    margin: 6px 6px;
+  }
+
+
+  .profile-social-stats {
+    display: flex;
+    gap: 16px;
+    margin: 10px 0 14px;
+    color: #475569;
+    font-weight: 600;
+  }
+
+  .profile-stat-btn {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .profile-stat-btn:hover {
+    color: #1d4ed8;
+  }
+
+  .profile-stat-btn:disabled {
+    cursor: default;
+    opacity: 0.75;
+  }
+
+  .profile-follow-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2090;
+  }
+
+  .profile-follow-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  .profile-follow-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(520px, calc(100vw - 28px));
+    max-height: min(78vh, 680px);
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.32);
+    overflow: hidden;
+  }
+
+  .profile-follow-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  }
+
+  .profile-follow-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .profile-follow-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .profile-follow-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+  }
+
+  .profile-follow-tab {
+    flex: 1;
+    border: 0;
+    background: #ffffff;
+    color: #64748b;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+
+  .profile-follow-tab.is-active {
+    color: #1d4ed8;
+    box-shadow: inset 0 -2px 0 #1d4ed8;
+    background: #f8fbff;
+  }
+
+  .profile-follow-list {
+    padding: 8px 12px 12px;
+    overflow-y: auto;
+  }
+
+  .profile-follow-empty {
+    text-align: center;
+    color: #64748b;
+    font-weight: 600;
+    padding: 16px 12px 20px;
+  }
+
+  .profile-follow-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 6px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  }
+
+  .profile-follow-user {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+
+  .profile-follow-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: #e2e8f0;
+  }
+
+  .profile-follow-avatar-fallback {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+  }
+
+  .profile-follow-meta {
+    min-width: 0;
+  }
+
+  .profile-follow-name {
+    margin: 0;
+    color: #0f172a;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .profile-follow-sub {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .profile-follow-action {
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .profile-follow-action.icon-only {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+  }
+
+  .profile-follow-action.icon-only:hover {
+    border-color: rgba(148, 163, 184, 0.75);
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .profile-follow-action.is-danger {
+    border-color: rgba(220, 38, 38, 0.35);
+    color: #dc2626;
+  }
+
+  .profile-menu-toast {
+    position: fixed;
+    bottom: 18px;
+    inset-inline-end: 18px;
+    z-index: 2000;
+    background: rgba(15, 23, 42, 0.92);
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .profile-menu-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .profile-share-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+  }
+
+  .profile-share-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  .profile-share-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(460px, calc(100vw - 28px));
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.32);
+    overflow: hidden;
+  }
+
+  .profile-share-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  }
+
+  .profile-share-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .profile-share-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .profile-share-close:hover {
+    background: rgba(37, 99, 235, 0.07);
+    border-color: rgba(37, 99, 235, 0.45);
+    color: #1d4ed8;
+    transform: translateY(-1px);
+  }
+
+  .profile-share-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .profile-share-item {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: #ffffff;
+    border-radius: 12px;
+    min-height: 84px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #1e3a8a;
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .profile-share-item:hover {
+    transform: translateY(-2px);
+    border-color: rgba(37, 99, 235, 0.42);
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.14);
+  }
+
+  .profile-share-item i {
+    font-size: 1.15rem;
+  }
+
+  @media (max-width: 480px) {
+    .profile-share-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* ===== SETTINGS DROPDOWN (Professional) ===== */
+  .profile-left-column { position: relative; }
+
+  #profileSettingsModal.profile-settings-modal {
+    position: absolute;
+    top: 8px;
+    inset-inline-end: 8px;
+    z-index: 1200;
+  }
+
+  #profileSettingsModal .profile-settings-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.10);
+    backdrop-filter: blur(1px);
+  }
+
+  #profileSettingsModal .profile-settings-panel {
+    position: absolute;
+    top: 44px; /* under the gear button */
+    inset-inline-end: 0;
+    width: min(360px, calc(100vw - 32px));
+    background: #ffffff !important;
+    border: 1px solid rgba(148, 163, 184, 0.45) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18) !important;
+    overflow: hidden;
+    transform-origin: top right;
+    animation: profileDropIn 140ms ease-out;
+  }
+
+  html[dir="rtl"] #profileSettingsModal .profile-settings-panel { transform-origin: top left; }
+
+  #profileSettingsModal .profile-settings-panel::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    inset-inline-end: 16px;
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    border-left: 1px solid rgba(148, 163, 184, 0.45);
+    border-top: 1px solid rgba(148, 163, 184, 0.45);
+    transform: rotate(45deg);
+  }
+
+  #profileSettingsModal .profile-settings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  }
+
+  #profileSettingsModal .profile-settings-head h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: 0.1px;
+  }
+
+  #profileSettingsModal .profile-settings-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: #ffffff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  #profileSettingsModal .profile-settings-close:hover {
+    background: #f1f5f9;
+    border-color: rgba(37, 99, 235, 0.55);
+    transform: translateY(-1px);
+  }
+
+  #profileSettingsModal .profile-settings-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    margin: 0;
+    background: #ffffff !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25) !important;
+    color: #0f172a !important;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: start;
+  }
+
+  #profileSettingsModal .profile-settings-row:last-child {
+    border-bottom: 0 !important;
+  }
+
+  #profileSettingsModal .profile-settings-row span {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #0f172a;
+    min-width: 0;
+  }
+
+  #profileSettingsModal .profile-settings-row i {
+    width: 18px;
+    text-align: center;
+    color: #2563eb !important;
+  }
+
+  #profileSettingsModal .profile-settings-btn {
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  #profileSettingsModal .profile-settings-btn:hover {
+    background: rgba(37, 99, 235, 0.06) !important;
+  }
+
+  /* Switch */
+  #profileSettingsModal .profile-switch {
+    width: 46px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    background: #e2e8f0;
+    position: relative;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease;
+  }
+
+  #profileSettingsModal .profile-switch .profile-switch-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.14);
+    transition: transform 0.18s ease;
+  }
+
+  #profileSettingsModal .profile-switch.is-on {
+    background: rgba(37, 99, 235, 0.18);
+    border-color: rgba(37, 99, 235, 0.55);
+  }
+
+  #profileSettingsModal .profile-switch.is-on .profile-switch-knob {
+    transform: translateX(18px);
+  }
+
+  html[dir="rtl"] #profileSettingsModal .profile-switch .profile-switch-knob { left: auto; right: 3px; }
+  html[dir="rtl"] #profileSettingsModal .profile-switch.is-on .profile-switch-knob { transform: translateX(-18px); }
+
+  /* Blocked users container */
+  #profileSettingsModal .blocked-users-container {
+    padding: 10px 14px 14px;
+    background: #fbfdff;
+    border-top: 1px solid rgba(148, 163, 184, 0.22);
+  }
+
+  #profileSettingsModal .blocked-user-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 12px;
+    background: #ffffff;
+    margin-bottom: 8px;
+  }
+
+  #profileSettingsModal .blocked-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    object-fit: cover;
+    background: #e2e8f0;
+    flex-shrink: 0;
+  }
+
+  #profileSettingsModal .blocked-user-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 700;
+    font-size: 0.86rem;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #profileSettingsModal .unblock-btn {
+    border: 1px solid rgba(37, 99, 235, 0.35);
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  #profileSettingsModal .unblock-btn:hover {
+    background: rgba(37, 99, 235, 0.14);
+    border-color: rgba(37, 99, 235, 0.55);
+    transform: translateY(-1px);
+  }
+
+  #profileSettingsModal .blocked-empty {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 700;
+    padding: 6px 2px 0;
+  }
+
+  @keyframes profileDropIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ===== RIGHT COLUMN: CLEAN WHITE NOTION CARDS ===== */
+  .profile-right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* All Info Cards */
+  .info-section-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+    transition: all 0.2s ease;
+  }
+
+  .info-section-card:hover {
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;
+    border-color: #c7d2fe !important;
+  }
+
+  /* Section Title */
+  .section-title {
+    color: var(--notion-text-primary) !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    margin: 0 0 16px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 2px solid var(--notion-blue) !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title i {
+    color: var(--notion-blue) !important;
+    font-size: 1.1rem;
+  }
+
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .section-title-inline {
+    margin: 0 !important;
+    flex: 1 1 auto;
+  }
+
+  .experience-add-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* Info Rows */
+  .info-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .info-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--notion-border);
+  }
+
+  .info-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .info-label {
+    color: #94a3b8 !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+  }
+
+  .info-value {
+    color: var(--notion-text-primary) !important;
+    font-weight: 500 !important;
+  }
+
+  /* Specialty Tag */
+  .specialty-tag {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
+    color: #ffffff !important;
+    padding: 6px 14px !important;
+    border-radius: 20px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+  }
+
+  /* Status Badges */
+  .status-badge-green,
+  .status-badge-yellow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .status-badge-green {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+  }
+
+  .status-badge-yellow {
+    background: rgba(250, 204, 21, 0.1);
+    color: #ca8a04;
+  }
+
+  /* Filter Buttons */
+  .profile-section-filter-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    grid-column: 1 / -1;
+  }
+
+  .profile-section-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .profile-filter-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px !important;
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 8px !important;
+    color: var(--notion-text-primary) !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .profile-filter-btn:hover {
+    border-color: var(--notion-blue) !important;
+    background: rgba(37, 99, 235, 0.04) !important;
+  }
+
+  .profile-filter-btn.is-active {
+    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
+    border-color: var(--notion-blue) !important;
+    color: #ffffff !important;
+  }
+
+  .profile-filter-btn strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.12) !important;
+    color: var(--notion-blue) !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+  }
+
+  .profile-filter-btn.is-active strong {
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+  }
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+  /* Contribution Items */
+=======
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+  /* KPI Cards */
+  .kpi-glass-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .kpi-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .kpi-chart-box {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+<<<<<<< HEAD
+    border-radius: 8px !important;
+    padding: 12px !important;
+  }
+
+  .kpi-chart-box h4 {
+    color: var(--notion-text-primary) !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    margin: 0 0 8px !important;
+  }
+
+  .kpi-chart-box canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 96px !important;
+    max-height: 96px !important;
+  }
+
+  /* Contribution Cards */
+  .contrib-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .contrib-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .contrib-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .contrib-pager {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .contrib-pager-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid var(--notion-border);
+    background: #ffffff;
+    color: var(--notion-text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .contrib-pager-btn:hover:not(:disabled) {
+    border-color: var(--notion-blue);
+    color: var(--notion-blue);
+  }
+
+  .contrib-pager-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .contrib-pager-info {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--notion-text-secondary);
+    min-width: 68px;
+    text-align: center;
+  }
+
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
+  .contrib-item {
+    background: var(--notion-bg-secondary) !important;
+    border: 1px solid var(--notion-border-light) !important;
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+    border-radius: 8px !important;
+    padding: 12px !important;
+  }
+
+  .kpi-chart-box h4 {
+    color: var(--notion-text-primary) !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    margin: 0 0 8px !important;
+  }
+
+  .kpi-chart-box canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 96px !important;
+    max-height: 96px !important;
+  }
+
+  /* Contribution Cards */
+  .contrib-card {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 12px !important;
+    padding: 24px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .contrib-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .contrib-pager {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .contrib-pager-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid var(--notion-border);
+    background: #ffffff;
+    color: var(--notion-text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .contrib-pager-btn:hover:not(:disabled) {
+    border-color: var(--notion-blue);
+    color: var(--notion-blue);
+  }
+
+  .contrib-pager-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .contrib-pager-info {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--notion-text-secondary);
+    min-width: 68px;
+    text-align: center;
+  }
+
+  .contrib-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px !important;
+    background: #f8fafc !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 8px !important;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .contrib-item:hover {
+    border-color: var(--notion-blue) !important;
+    background: rgba(37, 99, 235, 0.04) !important;
+    transform: translateX(2px);
+  }
+
+
+  .contrib-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%);
+  }
+
+  .contrib-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .contrib-title {
+    color: var(--notion-text-primary) !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .contrib-subline {
+    color: var(--notion-text-secondary) !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .contrib-date {
+    color: #94a3b8 !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+  }
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+  .kpi-chart-box h4 {
+=======
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+  .experience-item {
+    align-items: flex-start;
+  }
+
+<<<<<<< HEAD
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+  .experience-role-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .experience-role {
+<<<<<<< HEAD
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+    color: var(--notion-text-primary) !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+  }
+
+  .experience-kind-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.12);
+    border: 1px solid rgba(37, 99, 235, 0.24);
+  }
+
+  .contrib-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.2;
+    border: 1px solid transparent;
+  }
+
+  .contrib-status-badge.is-approved {
+    color: #166534;
+    background: #dcfce7;
+    border-color: #86efac;
+  }
+
+  .contrib-status-badge.is-pending {
+    color: #92400e;
+    background: #fef3c7;
+    border-color: #fcd34d;
+  }
+
+  /* Section Count */
+  .section-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--notion-blue);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  /* Settings Modal */
+  /* (Replaced by the "Settings Dropdown (Professional)" block above) */
+
+  /* Delete Modal */
+  #deleteAccountModal .modal-content {
+    background: var(--notion-bg) !important;
+    border: 1px solid var(--notion-border) !important;
+  }
+
+  #deleteAccountModal .modal-header {
+    background: linear-gradient(135deg, var(--notion-blue) 0%, #3b82f6 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+  }
+
+  #deleteAccountModal .modal-body p {
+    color: var(--notion-text-primary) !important;
+  }
+
+  .modal-title {
+    color: #ffffff !important;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 991px) {
+    .profile-container-new {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .profile-section-filter-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .kpi-chart-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .profile-page-new {
+      padding: 20px 12px;
+    }
+
+    .profile-card {
+      padding: 20px 16px;
+    }
+
+    .info-section-card {
+      padding: 16px;
+    }
+
+    .profile-user-name {
+      font-size: 1.5rem;
+    }
+
+    .profile-section-filter-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .info-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .profile-identity-head {
+      gap: 16px;
+    }
+  }
+
+</style>
+{% endblock content %}
+
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const deleteAccountModalRoot = document.getElementById('deleteAccountModal');
+    if (deleteAccountModalRoot && deleteAccountModalRoot.parentElement !== document.body) {
+      document.body.appendChild(deleteAccountModalRoot);
+    }
+
+    const langIsArabic = "{{ request.LANGUAGE_CODE|slice:':2' }}" === "ar";
+    const uiText = {
+      blocked: "{% trans 'Blocked' %}",
+      noBlockedUsers: "{% trans 'No blocked users currently' %}",
+      unblock: "{% trans 'Unblock' %}",
+      loadBlockedError: "{% trans 'Unable to load list' %}",
+      copiedLink: "{% trans 'Link copied' %}",
+      copyLinkFailed: "{% trans 'Could not copy link' %}",
+      copiedLinkForShare: "{% trans 'Link copied for sharing' %}",
+      prepareLinkFailed: "{% trans 'Could not prepare link' %}",
+      reportSaved: "{% trans 'Report submitted' %}",
+      blockedDone: "{% trans 'User blocked' %}",
+      blockedFailed: "{% trans 'Block failed' %}",
+      moreSoon: "{% trans 'More options coming soon' %}",
+      sharedInNewTab: "{% trans 'Share opened in a new window' %}",
+      follow: "{% trans 'Follow' %}",
+      unfollow: "{% trans 'Unfollow' %}",
+      actionFailed: "{% trans 'Action failed.' %}",
+      followers: "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}المتابعون{% else %}Followers{% endif %}",
+      following: "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}أتابع{% else %}Following{% endif %}",
+      remove: "{% trans 'Remove' %}",
+      noUsersFound: "{% trans 'No users found.' %}",
+      loading: "{% trans 'Loading...' %}",
+      noInstitution: "{% trans 'No institution' %}",
+    };
+
+    const kpiCard = document.getElementById("profileKpiCard");
+    if (kpiCard) {
+      const metrics = {
+        projects: parseInt(kpiCard.dataset.projects || "0", 10) || 0,
+        corpus: parseInt(kpiCard.dataset.corpus || "0", 10) || 0,
+        news: parseInt(kpiCard.dataset.news || "0", 10) || 0,
+        courses: parseInt(kpiCard.dataset.courses || "0", 10) || 0,
+        resources: parseInt(kpiCard.dataset.resources || "0", 10) || 0,
+        tools: parseInt(kpiCard.dataset.tools || "0", 10) || 0,
+        topics: parseInt(kpiCard.dataset.topics || "0", 10) || 0,
+        events: parseInt(kpiCard.dataset.events || "0", 10) || 0
+      };
+
+      const completionValueEl = document.getElementById("profileCompletionValue");
+      const completionBarEl = document.getElementById("profileCompletionBar");
+      const profileSignals = [
+        !!"{{ user.avatar|default:'' }}",
+        !!"{{ user.get_speciality_display|default:'' }}",
+        !!"{{ user.institution|default:'' }}",
+        !!"{{ user.get_localized_bio|default:'' }}",
+        metrics.projects > 0,
+        metrics.news > 0
+      ];
+      const completion = Math.round((profileSignals.filter(Boolean).length / profileSignals.length) * 100);
+      if (completionValueEl) completionValueEl.textContent = `${completion}%`;
+      if (completionBarEl) completionBarEl.style.width = `${completion}%`;
+
+      if (typeof Chart !== "undefined") {
+        const axisGridColor = "rgba(30, 58, 138, 0.16)";
+        const tickColor = "#334155";
+
+        const trendCanvas = document.getElementById("profileTrendChart");
+        if (trendCanvas) {
+          const trendTotal =
+            metrics.projects + metrics.news + metrics.courses + metrics.resources +
+            metrics.tools + metrics.corpus + metrics.topics + metrics.events;
+          const trendData = [
+            Math.max(0, Math.round(trendTotal * 0.38)),
+            Math.max(0, Math.round(trendTotal * 0.52)),
+            Math.max(0, Math.round(trendTotal * 0.64)),
+            Math.max(0, Math.round(trendTotal * 0.75)),
+            Math.max(0, Math.round(trendTotal * 0.88)),
+            Math.max(0, trendTotal)
+          ];
+          new Chart(trendCanvas, {
+            type: "line",
+            data: {
+              labels: langIsArabic ? ["ينا", "فبر", "مار", "أبر", "ماي", "يون"] : ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+              datasets: [{
+                data: trendData,
+                borderColor: "#1e3a8a",
+                backgroundColor: "rgba(30, 58, 138, 0.12)",
+                tension: 0.35,
+                fill: true,
+                pointRadius: 3,
+                pointBackgroundColor: "#1d4ed8"
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { grid: { color: axisGridColor }, ticks: { color: tickColor } },
+                y: { beginAtZero: true, grid: { color: axisGridColor }, ticks: { color: tickColor, precision: 0 } }
+              }
+            }
+          });
+        }
+
+        const barsCanvas = document.getElementById("profileBarsChart");
+        if (barsCanvas) {
+          new Chart(barsCanvas, {
+            type: "bar",
+            data: {
+              labels: langIsArabic
+                ? ["المشاريع", "المنشورات", "الدورات", "الموارد", "الأدوات", "المدونات", "المجتمع", "الأحداث"]
+                : ["Projects", "Feed", "Courses", "Resources", "Tools", "Corpus", "Community", "Events"],
+              datasets: [{
+                data: [
+                  metrics.projects,
+                  metrics.news,
+                  metrics.courses,
+                  metrics.resources,
+                  metrics.tools,
+                  metrics.corpus,
+                  metrics.topics,
+                  metrics.events
+                ],
+                borderRadius: 8,
+                backgroundColor: [
+                  "#1e3a8a",
+                  "#1d4ed8",
+                  "#2563eb",
+                  "#3b82f6",
+                  "#1e40af",
+                  "#1e3a8a",
+                  "#1d4ed8",
+                  "#2563eb"
+                ]
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { grid: { display: false }, ticks: { color: tickColor } },
+                y: { beginAtZero: true, grid: { color: axisGridColor }, ticks: { color: tickColor, precision: 0 } }
+              }
+            }
+          });
+        }
+      }
+    }
+
+    function getCsrfToken() {
+      const cookieMatch = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      const cookieToken = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
+      if (cookieToken && cookieToken !== 'NOTPROVIDED') return cookieToken;
+      const formToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+      if (formToken && formToken !== 'NOTPROVIDED') return formToken;
+      const templateToken = "{{ csrf_token }}";
+      return templateToken && templateToken !== "NOTPROVIDED" ? templateToken : '';
+    }
+
+    const followBtn = document.querySelector('.follow-toggle-btn');
+    const followersCountEl = document.getElementById('followersCount');
+    const followingCountEl = document.getElementById('followingCount');
+    const actionsContainer = document.querySelector('.profile-actions-new');
+    const settingsOpenBtn = document.getElementById('profileTopSettingsBtn');
+    const settingsModal = document.getElementById('profileSettingsModal');
+    const settingsBlockedToggleBtn = document.getElementById('profileBlockedListToggleBtn');
+    const settingsBlockedContainer = document.getElementById('profileBlockedUsersContainer');
+    const settingsBlockedList = document.getElementById('profileBlockedUsersList');
+    const settingsBlockedEmpty = document.getElementById('profileBlockedUsersEmpty');
+    const settingsOnlineSwitch = document.getElementById('profileOnlineSwitch');
+    const profileMenuWrap = document.querySelector('.profile-menu-wrap');
+    const profileMenuToggle = document.querySelector('.profile-menu-toggle');
+    const profileMenuDropdown = document.querySelector('.profile-menu-dropdown');
+    const profileMenuToast = document.getElementById('profileMenuToast');
+    const profileShareModal = document.getElementById('profileShareModal');
+    const followersStatBtn = document.getElementById('followersStatBtn');
+    const followingStatBtn = document.getElementById('followingStatBtn');
+    const profileFollowModal = document.getElementById('profileFollowModal');
+    const profileFollowTitle = document.getElementById('profileFollowTitle');
+    const profileFollowList = document.getElementById('profileFollowList');
+    const profileFollowEmpty = document.getElementById('profileFollowEmpty');
+    const profileFollowTabs = document.querySelectorAll('.profile-follow-tab');
+    const viewedProfileId = "{{ user.id }}";
+    const isOwnProfilePage = {% if request.user == user %}true{% else %}false{% endif %};
+    let currentFollowKind = 'followers';
+
+    function showMenuToast(message) {
+      if (!profileMenuToast) return;
+      profileMenuToast.textContent = message;
+      profileMenuToast.classList.add('show');
+      setTimeout(() => profileMenuToast.classList.remove('show'), 1700);
+    }
+
+    function closeShareModal() {
+      if (!profileShareModal) return;
+      profileShareModal.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function openShareModal() {
+      if (!profileShareModal) return;
+      profileShareModal.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+
+    async function copyProfileLink() {
+      const value = window.location.href;
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+      const area = document.createElement('textarea');
+      area.value = value;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+
+    function buildShareUrl(network) {
+      const profileUrl = encodeURIComponent(window.location.href);
+      const profileName = encodeURIComponent(document.querySelector('.profile-user-name')?.textContent?.trim() || 'Profile');
+      const text = encodeURIComponent(langIsArabic ? 'شاهد هذا الملف الشخصي' : 'Check this profile');
+      switch (network) {
+        case 'linkedin':
+          return `https://www.linkedin.com/sharing/share-offsite/?url=${profileUrl}`;
+        case 'facebook':
+          return `https://www.facebook.com/sharer/sharer.php?u=${profileUrl}`;
+        case 'x':
+          return `https://twitter.com/intent/tweet?url=${profileUrl}&text=${text}`;
+        case 'whatsapp':
+          return `https://wa.me/?text=${text}%20${profileUrl}`;
+        case 'telegram':
+          return `https://t.me/share/url?url=${profileUrl}&text=${text}`;
+        case 'email':
+          return `mailto:?subject=${profileName}&body=${text}%20${profileUrl}`;
+        default:
+          return '';
+      }
+    }
+
+    async function handleShareAction(network) {
+      if (network === 'copy') {
+        try {
+          await copyProfileLink();
+          showMenuToast(uiText.copiedLink);
+        } catch (_) {
+          showMenuToast(uiText.copyLinkFailed);
+        }
+        return;
+      }
+      const targetUrl = buildShareUrl(network);
+      if (!targetUrl) return;
+      window.open(targetUrl, '_blank', 'noopener,noreferrer,width=760,height=620');
+      showMenuToast(uiText.sharedInNewTab);
+    }
+
+    function actionUrl(userId, action) {
+      const lang = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+      return `/${lang}/accounts/network/${userId}/${action}/`;
+    }
+
+    function currentLangCode() {
+      return window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+    }
+
+    function followListApiUrl(kind) {
+      return `/${currentLangCode()}/accounts/network/follow-list/${viewedProfileId}/?kind=${encodeURIComponent(kind)}`;
+    }
+
+    function unfollowApiUrl(userId) {
+      return `/${currentLangCode()}/accounts/network/unfollow/${userId}/`;
+    }
+
+    function removeFollowerApiUrl(userId) {
+      return `/${currentLangCode()}/accounts/network/remove-follower/${userId}/`;
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function updateHeaderFollowCounts(payload) {
+      if (followersCountEl && Number.isFinite(Number(payload?.followers_count))) {
+        followersCountEl.textContent = String(payload.followers_count);
+      }
+      if (followingCountEl && Number.isFinite(Number(payload?.following_count))) {
+        followingCountEl.textContent = String(payload.following_count);
+      }
+    }
+
+    function closeFollowModal() {
+      if (!profileFollowModal) return;
+      profileFollowModal.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function openFollowModal(kind) {
+      if (!profileFollowModal) return;
+      profileFollowModal.hidden = false;
+      document.body.style.overflow = 'hidden';
+      loadFollowList(kind);
+    }
+
+    function renderFollowItems(items) {
+      if (!profileFollowList || !profileFollowEmpty) return;
+      if (!Array.isArray(items) || !items.length) {
+        profileFollowList.innerHTML = '';
+        profileFollowEmpty.hidden = false;
+        profileFollowEmpty.textContent = uiText.noUsersFound;
+        return;
+      }
+
+      profileFollowEmpty.hidden = true;
+      profileFollowList.innerHTML = items.map((item) => {
+        const avatar = item.avatar
+          ? `<img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.name)}" class="profile-follow-avatar">`
+          : `<span class="profile-follow-avatar-fallback">${escapeHtml((item.name || 'U').slice(0, 1).toUpperCase())}</span>`;
+
+        let actionBtn = '';
+        if (isOwnProfilePage && currentFollowKind === 'following') {
+          const removeLabel = langIsArabic ? 'احذف' : uiText.remove;
+          actionBtn = `<button type="button" class="profile-follow-action is-danger" data-follow-action="unfollow" data-user-id="${escapeHtml(item.id)}" title="${escapeHtml(removeLabel)}" aria-label="${escapeHtml(removeLabel)}">${escapeHtml(removeLabel)}</button>`;
+        } else if (isOwnProfilePage && currentFollowKind === 'followers') {
+          actionBtn = `<button type="button" class="profile-follow-action is-danger" data-follow-action="remove-follower" data-user-id="${escapeHtml(item.id)}">${escapeHtml(uiText.remove)}</button>`;
+        }
+
+        return `
+          <div class="profile-follow-row" data-follow-user-row="${escapeHtml(item.id)}">
+            <a class="profile-follow-user" href="${escapeHtml(item.profile_url)}">
+              ${avatar}
+              <span class="profile-follow-meta">
+                <p class="profile-follow-name">${escapeHtml(item.name)}</p>
+                <p class="profile-follow-sub">${escapeHtml(item.institution || uiText.noInstitution)}</p>
+              </span>
+            </a>
+            ${actionBtn}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadFollowList(kind) {
+      if (!profileFollowList || !profileFollowTitle || !profileFollowEmpty) return;
+      currentFollowKind = kind === 'following' ? 'following' : 'followers';
+
+      profileFollowTabs.forEach((tab) => {
+        tab.classList.toggle('is-active', tab.dataset.followTab === currentFollowKind);
+      });
+      profileFollowTitle.textContent = currentFollowKind === 'following' ? uiText.following : uiText.followers;
+      profileFollowList.innerHTML = `<div class="profile-follow-empty">${escapeHtml(uiText.loading)}</div>`;
+      profileFollowEmpty.hidden = true;
+
+      try {
+        const res = await fetch(followListApiUrl(currentFollowKind), {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+        renderFollowItems(data.items || []);
+      } catch (e) {
+        profileFollowList.innerHTML = '';
+        profileFollowEmpty.hidden = false;
+        profileFollowEmpty.textContent = uiText.actionFailed;
+        console.error(e);
+      }
+    }
+
+    function updateFollowButton(isFollowing) {
+      if (!followBtn) return;
+      const label = followBtn.querySelector('.follow-action-label');
+      const icon = followBtn.querySelector('i');
+      followBtn.dataset.isFollowing = isFollowing ? '1' : '0';
+      if (label) label.textContent = isFollowing ? uiText.unfollow : uiText.follow;
+      if (icon) icon.className = `fas ${isFollowing ? 'fa-user-check' : 'fa-rss'}`;
+    }
+
+    function setSwitchState(el, isOn, key) {
+      if (!el) return;
+      el.classList.toggle('is-on', Boolean(isOn));
+      el.setAttribute('aria-pressed', String(Boolean(isOn)));
+      if (key) localStorage.setItem(key, isOn ? '1' : '0');
+    }
+
+    function applyOnlineVisibilityPreference(isOn) {
+      document.documentElement.classList.toggle('user-online-hidden', !isOn);
+      document.documentElement.classList.toggle('user-online-visible', !!isOn);
+    }
+
+    async function persistOnlineVisibility(isOn) {
+      const lang = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+      try {
+        await fetch(`/${lang}/accounts/network/online-visibility/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          credentials: 'same-origin',
+          body: new URLSearchParams({ is_on: isOn ? '1' : '0' }).toString()
+        });
+      } catch (_) {
+        // keep silent; local UI state still updates
+      }
+    }
+
+    function loadProfileSettingsSwitches() {
+      const onlineVisible = {% if request.user.show_online_status %}true{% else %}false{% endif %};
+      setSwitchState(settingsOnlineSwitch, onlineVisible, 'ui_online_status');
+      applyOnlineVisibilityPreference(onlineVisible);
+    }
+
+    async function loadBlockedUsersInSettings() {
+      if (!settingsBlockedContainer || !settingsBlockedList || !settingsBlockedEmpty) return;
+      const apiUrl = settingsBlockedContainer.dataset.api;
+      settingsBlockedContainer.hidden = false;
+      settingsBlockedList.innerHTML = '';
+      settingsBlockedEmpty.textContent = '...';
+      try {
+        const res = await fetch(apiUrl, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+          settingsBlockedEmpty.textContent = uiText.noBlockedUsers;
+          return;
+        }
+        settingsBlockedEmpty.textContent = '';
+        settingsBlockedList.innerHTML = items.map((u) => `
+          <div class="blocked-user-row" data-user-id="${u.id}">
+            ${u.avatar ? `<img src="${u.avatar}" class="blocked-user-avatar" alt="${u.name}">` : `<div class="blocked-user-avatar"></div>`}
+            <span class="blocked-user-name">${u.name}</span>
+            <button type="button" class="unblock-btn" data-unblock-id="${u.id}">${uiText.unblock}</button>
+          </div>
+        `).join('');
+      } catch (_) {
+        settingsBlockedEmpty.textContent = uiText.loadBlockedError;
+      }
+    }
+
+    if (followBtn) {
+      updateFollowButton(followBtn.dataset.isFollowing === '1');
+      followBtn.addEventListener('click', async function () {
+        if (this.dataset.loading === '1') return;
+        this.dataset.loading = '1';
+        this.disabled = true;
+
+        const isFollowing = this.dataset.isFollowing === '1';
+        const endpoint = isFollowing ? this.dataset.unfollowUrl : this.dataset.followUrl;
+        const previous = isFollowing;
+
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCsrfToken(),
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+
+          updateFollowButton(Boolean(data.is_following));
+          if (followersCountEl && Number.isFinite(Number(data.followers_count))) {
+            followersCountEl.textContent = String(data.followers_count);
+          }
+          if (followingCountEl && Number.isFinite(Number(data.following_count))) {
+            followingCountEl.textContent = String(data.following_count);
+          }
+        } catch (e) {
+          updateFollowButton(previous);
+          showMenuToast(uiText.actionFailed);
+          console.error(e);
+        } finally {
+          this.disabled = false;
+          this.dataset.loading = '0';
+        }
+      });
+    }
+
+    if (followersStatBtn) {
+      followersStatBtn.addEventListener('click', function () {
+        openFollowModal('followers');
+      });
+    }
+
+    if (followingStatBtn) {
+      followingStatBtn.addEventListener('click', function () {
+        openFollowModal('following');
+      });
+    }
+
+    profileFollowTabs.forEach((tab) => {
+      tab.addEventListener('click', function () {
+        loadFollowList(this.dataset.followTab);
+      });
+    });
+
+    if (profileFollowList) {
+      profileFollowList.addEventListener('click', async function (e) {
+        const actionBtn = e.target.closest('[data-follow-action]');
+        if (!actionBtn) return;
+
+        const action = actionBtn.dataset.followAction;
+        const userId = actionBtn.dataset.userId;
+        if (!action || !userId) return;
+
+        actionBtn.disabled = true;
+        try {
+          const endpoint = action === 'remove-follower'
+            ? removeFollowerApiUrl(userId)
+            : unfollowApiUrl(userId);
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCsrfToken(),
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+
+          const row = actionBtn.closest('[data-follow-user-row]');
+          if (row) row.remove();
+          updateHeaderFollowCounts(data);
+
+          if (!profileFollowList.querySelector('[data-follow-user-row]') && profileFollowEmpty) {
+            profileFollowEmpty.hidden = false;
+            profileFollowEmpty.textContent = uiText.noUsersFound;
+          }
+        } catch (err) {
+          actionBtn.disabled = false;
+          showMenuToast(uiText.actionFailed);
+          console.error(err);
+        }
+      });
+    }
+
+    if (settingsOpenBtn && settingsModal) {
+      settingsOpenBtn.addEventListener('click', function () {
+        settingsModal.hidden = false;
+        loadProfileSettingsSwitches();
+      });
+      settingsModal.querySelectorAll('[data-close-settings]').forEach((el) => {
+        el.addEventListener('click', function () {
+          settingsModal.hidden = true;
+          if (settingsBlockedContainer) settingsBlockedContainer.hidden = true;
+        });
+      });
+    }
+
+    [settingsOnlineSwitch].forEach((sw) => {
+      if (!sw) return;
+      sw.addEventListener('click', async function () {
+        const on = !sw.classList.contains('is-on');
+        const key = 'ui_online_status';
+        setSwitchState(sw, on, key);
+        if (key === 'ui_online_status') {
+          applyOnlineVisibilityPreference(on);
+          await persistOnlineVisibility(on);
+        }
+      });
+    });
+
+    applyOnlineVisibilityPreference({% if request.user.show_online_status %}true{% else %}false{% endif %});
+
+    if (settingsBlockedToggleBtn) {
+      settingsBlockedToggleBtn.addEventListener('click', function () {
+        const willOpen = settingsBlockedContainer ? settingsBlockedContainer.hidden : true;
+        if (settingsBlockedContainer) settingsBlockedContainer.hidden = !willOpen;
+        if (willOpen) loadBlockedUsersInSettings();
+      });
+    }
+
+    if (settingsBlockedList) {
+      settingsBlockedList.addEventListener('click', async function (e) {
+        const btn = e.target.closest('[data-unblock-id]');
+        if (!btn) return;
+        const userId = btn.dataset.unblockId;
+        const row = btn.closest('.blocked-user-row');
+        btn.disabled = true;
+        try {
+          const res = await fetch(actionUrl(userId, 'unblock'), {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCsrfToken(),
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+          if (row) {
+            row.classList.add('removing');
+            setTimeout(() => row.remove(), 210);
+          }
+          setTimeout(() => {
+            if (!settingsBlockedList.querySelector('.blocked-user-row') && settingsBlockedEmpty) {
+              settingsBlockedEmpty.textContent = uiText.noBlockedUsers;
+            }
+          }, 240);
+        } catch (_) {
+          btn.disabled = false;
+        }
+      });
+    }
+
+    document.addEventListener('click', async function (e) {
+      if (profileMenuToggle && e.target.closest('.profile-menu-toggle')) {
+        if (profileMenuDropdown) {
+          profileMenuDropdown.hidden = !profileMenuDropdown.hidden;
+          profileMenuToggle.setAttribute('aria-expanded', String(!profileMenuDropdown.hidden));
+        }
+        return;
+      }
+
+      if (e.target.closest('.profile-menu-copy-link')) {
+        try {
+          await copyProfileLink();
+          showMenuToast(uiText.copiedLink);
+        } catch (_) {
+          showMenuToast(uiText.copyLinkFailed);
+        }
+        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
+        return;
+      }
+
+      if (e.target.closest('.profile-menu-share-message')) {
+        try {
+          await copyProfileLink();
+          showMenuToast(uiText.copiedLinkForShare);
+        } catch (_) {
+          showMenuToast(uiText.prepareLinkFailed);
+        }
+        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
+        return;
+      }
+
+      if (e.target.closest('.profile-menu-report')) {
+        showMenuToast(uiText.reportSaved);
+        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
+        return;
+      }
+
+      const blockBtn = e.target.closest('.profile-menu-block');
+      if (blockBtn) {
+        const userId = blockBtn.dataset.userId;
+        try {
+          const res = await fetch(actionUrl(userId, 'block'), {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCsrfToken(),
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+          showMenuToast(uiText.blockedDone);
+          setTimeout(() => window.location.reload(), 350);
+        } catch (err) {
+          showMenuToast(uiText.blockedFailed);
+          console.error(err);
+        }
+        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
+        return;
+      }
+
+      if (e.target.closest('.profile-menu-more')) {
+        openShareModal();
+        if (profileMenuDropdown) profileMenuDropdown.hidden = true;
+        return;
+      }
+      const shareBtn = e.target.closest('.profile-share-item');
+      if (shareBtn) {
+        const network = shareBtn.dataset.shareNetwork;
+        await handleShareAction(network);
+        if (network !== 'copy') closeShareModal();
+        return;
+      }
+
+      if (profileShareModal && e.target.closest('[data-close-share-modal]')) {
+        closeShareModal();
+        return;
+      }
+
+      if (profileFollowModal && e.target.closest('[data-close-follow-modal]')) {
+        closeFollowModal();
+        return;
+      }
+
+      if (profileMenuDropdown && profileMenuWrap && !profileMenuWrap.contains(e.target)) {
+        profileMenuDropdown.hidden = true;
+        profileMenuToggle?.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && profileMenuDropdown && !profileMenuDropdown.hidden) {
+        profileMenuDropdown.hidden = true;
+        profileMenuToggle?.setAttribute('aria-expanded', 'false');
+      }
+      if (e.key === 'Escape' && profileShareModal && !profileShareModal.hidden) {
+        closeShareModal();
+      }
+      if (e.key === 'Escape' && profileFollowModal && !profileFollowModal.hidden) {
+        closeFollowModal();
+      }
+    });
+
+    // ===== FORM VALIDATION =====
+    const projectForm = document.getElementById("addToProjectForm");
+    if (projectForm) {
+      projectForm.addEventListener("submit", function (e) {
+        const select = this.querySelector('select[name="project_id"]');
+        if (!select.value) {
+          e.preventDefault();
+          select.classList.add("is-invalid");
+          
+          let feedback = this.querySelector(".invalid-feedback");
+          if (!feedback) {
+            feedback = document.createElement("div");
+            feedback.className = "invalid-feedback";
+            feedback.textContent = '{% trans "Please select a project" %}';
+            feedback.style.display = "block";
+            select.parentNode.appendChild(feedback);
+          }
+        }
+      });
+
+      const select = projectForm.querySelector('select[name="project_id"]');
+      select.addEventListener("change", function () {
+        if (this.value) {
+          this.classList.remove("is-invalid");
+        }
+      });
+    }
+
+    // ===== SMOOTH SCROLL BEHAVIOR =====
+    document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+      anchor.addEventListener("click", function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute("href"));
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth" });
+        }
+      });
+    });
+  });
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const PAGE_SIZE = 5;
+    const contribLists = document.querySelectorAll(".contrib-card .contrib-list");
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+    const experienceToggleBtn = document.getElementById('experienceToggleBtn');
+    const experienceInlineForm = document.getElementById('experienceInlineForm');
+    if (experienceToggleBtn && experienceInlineForm) {
+      experienceToggleBtn.addEventListener('click', function () {
+        experienceInlineForm.hidden = !experienceInlineForm.hidden;
+=======
+    contribLists.forEach((list) => {
+      const items = Array.from(list.children);
+=======
+    contribLists.forEach((list) => {
+      const items = Array.from(list.querySelectorAll(":scope > .contrib-item"));
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+      if (items.length <= PAGE_SIZE) return;
+
+      let page = 0;
+      const totalPages = Math.ceil(items.length / PAGE_SIZE);
+
+      const pager = document.createElement("div");
+      pager.className = "contrib-pager";
+
+      const prevBtn = document.createElement("button");
+      prevBtn.type = "button";
+      prevBtn.className = "contrib-pager-btn";
+      prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+      prevBtn.setAttribute("aria-label", "Previous page");
+
+      const info = document.createElement("span");
+      info.className = "contrib-pager-info";
+
+      const nextBtn = document.createElement("button");
+      nextBtn.type = "button";
+      nextBtn.className = "contrib-pager-btn";
+      nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+      nextBtn.setAttribute("aria-label", "Next page");
+
+      function renderPage() {
+        const start = page * PAGE_SIZE;
+        const end = start + PAGE_SIZE;
+        items.forEach((item, idx) => {
+          item.style.display = idx >= start && idx < end ? "" : "none";
+        });
+        info.textContent = (page + 1) + " / " + totalPages;
+        prevBtn.disabled = page === 0;
+        nextBtn.disabled = page === totalPages - 1;
+      }
+
+      prevBtn.addEventListener("click", function () {
+        if (page > 0) {
+          page -= 1;
+          renderPage();
+        }
+<<<<<<< HEAD
+>>>>>>> 105d9971929c2005188fb06d5ddfb8039b5807ef
+=======
+>>>>>>> f2672614b8b5b3805f1e254a91ec14dcdf6b6e39
+      });
+
+      nextBtn.addEventListener("click", function () {
+        if (page < totalPages - 1) {
+          page += 1;
+          renderPage();
+        }
+      });
+
+      pager.appendChild(prevBtn);
+      pager.appendChild(info);
+      pager.appendChild(nextBtn);
+      list.insertAdjacentElement("afterend", pager);
+
+      renderPage();
+    });
+  });
+</script>
+{% endblock extra_scripts %}
+
+
+
+
+
+
+
+

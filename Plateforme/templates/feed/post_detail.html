@@ -1,0 +1,1463 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Publication details" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES - Modern Dark Theme (Feed Style) ===== */
+:root {
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --bg-card-hover: rgba(167, 139, 250, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    --shadow-sm: 0 1px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 20px rgba(167, 139, 250, 0.1);
+    --shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.18);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 22px;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.pd-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #0f1419 0%, #1a1a2e 50%, #0f1419 100%);
+    background-attachment: fixed;
+    padding: 3rem 1rem 2rem;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.pd-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 10% 40%, rgba(167, 139, 250, 0.15) 0%, transparent 35%),
+        radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.1) 0%, transparent 35%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.pd-container {
+    max-width: 720px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.pd-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    transition: all 0.3s ease;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-md);
+}
+.pd-back-link:hover { 
+    color: var(--primary-color);
+    background: rgba(167, 139, 250, 0.1);
+    transform: translateX(-4px);
+}
+
+/* Post Card */
+.pd-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.pd-card:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: var(--primary-color);
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.2);
+    transform: translateY(-2px);
+}
+
+.pd-card.pd-share-open,
+.pd-card.pd-share-open:hover {
+    transform: none !important;
+}
+
+.pd-card-accent {
+    height: 4px;
+    width: 100%;
+    flex-shrink: 0;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 100%);
+}
+
+.pd-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    gap: .8rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+}
+
+.pd-author {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.pd-avatar {
+    width: 60px;
+    min-width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0f1419;
+    font-weight: 700;
+    font-size: 1.4rem;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
+}
+
+.pd-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pd-author-name {
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 0.3rem;
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.pd-author-time {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.pd-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pd-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.pd-action-btn:hover {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.pd-action-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+.pd-card-body {
+    padding: 0.8rem 0.85rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.pd-content {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0 0 1rem;
+}
+
+.pd-image {
+    width: 100%;
+    border-radius: var(--radius-md);
+    margin-top: 1rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
+}
+
+.pd-file-link {
+    margin-top: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgba(167, 139, 250, 0.28);
+    background: rgba(124, 58, 237, 0.1);
+    color: #ddd6fe;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 700;
+    max-width: 100%;
+}
+
+.pd-file-actions {
+    margin-top: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.pd-view-doc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.62rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid rgba(167, 139, 250, 0.34);
+    background: rgba(124, 58, 237, 0.13);
+    color: #ede9fe;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pd-view-doc-btn:hover {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: rgba(167, 139, 250, 0.5);
+    color: #f5f3ff;
+}
+
+.pd-file-link:hover {
+    color: #f5f3ff;
+    border-color: rgba(167, 139, 250, 0.48);
+    background: rgba(124, 58, 237, 0.18);
+}
+
+.pd-file-link-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.pd-stats {
+    display: flex;
+    gap: 1.5rem;
+    padding: 1rem 0.85rem;
+    border-top: 1px solid rgba(167, 139, 250, 0.16);
+}
+
+.pd-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.pd-stat i { 
+    font-size: 1rem;
+    color: var(--primary-color);
+}
+
+.pd-post-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 1rem 0.85rem;
+    border-top: 1px solid rgba(167, 139, 250, 0.16);
+    gap: 0.5rem;
+    margin-top: auto;
+}
+
+.pd-post-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    flex: 1;
+    padding: 0.7rem 0.7rem;
+    background: transparent;
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.pd-post-action:hover {
+    background: rgba(167, 139, 250, .1);
+    border-color: rgba(167, 139, 250, .4);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.pd-post-action.liked { 
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+.pd-post-action.liked i {
+    color: #ef4444;
+}
+
+.pd-post-action.liked:hover { 
+    background: rgba(239, 68, 68, .1);
+    border-color: #ef4444;
+}
+
+.pd-post-action i {
+    font-size: 0.95rem;
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.pd-share-dropdown {
+    position: relative;
+}
+
+.pd-share-menu {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    min-width: 240px;
+    background: linear-gradient(135deg, rgba(26,26,46,.95), rgba(26,26,46,.98));
+    border: 1.5px solid rgba(167,139,250,.2);
+    border-radius: 14px;
+    padding: 0.75rem;
+    box-shadow: 0 12px 32px rgba(0,0,0,.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, -50%) scale(.95);
+    transition: all .3s ease;
+    z-index: 9999;
+}
+
+.pd-share-dropdown.open .pd-share-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.pd-share-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.pd-share-item {
+    width: 100%;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-align: start;
+    color: var(--text-secondary);
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.pd-share-item:hover {
+    background: rgba(167, 139, 250, .12);
+    border-color: rgba(167, 139, 250, .3);
+    color: var(--primary-color);
+}
+
+.pd-share-item i {
+    font-size: 1rem;
+    color: var(--primary-color);
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.pd-share-social {
+    display: flex;
+    gap: 0.4rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid rgba(167, 139, 250, .15);
+    margin-top: 0.4rem;
+}
+
+.pd-share-social-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 0.6rem;
+    background: rgba(167, 139, 250, .08);
+    border: 1px solid rgba(167, 139, 250, .2);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.78rem;
+    font-weight: 500;
+    justify-content: center;
+}
+.pd-share-social-btn:hover {
+    background: rgba(167, 139, 250, .15);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.pd-share-social-btn i {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+html[dir="rtl"] .pd-share-menu {
+    inset-inline-start: auto;
+    inset-inline-end: auto;
+}
+
+/* Comments Section */
+.pd-comments-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+    margin-bottom: 1.5rem;
+}
+
+.pd-comments-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+}
+
+.pd-comments-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.pd-comments-body {
+    padding: 1.5rem;
+}
+
+/* Comment Form */
+.pd-comment-form {
+    margin-bottom: 2rem;
+}
+
+.pd-textarea {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: rgba(167, 139, 250, 0.05);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    resize: vertical;
+    min-height: 90px;
+    transition: all 0.3s ease;
+}
+
+.pd-textarea:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    background: rgba(167, 139, 250, 0.08);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
+}
+
+.pd-textarea::placeholder { color: var(--text-muted); }
+
+.pd-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.pd-btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.pd-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(167, 139, 250, 0.4);
+}
+
+.pd-btn-secondary {
+    background: rgba(167, 139, 250, 0.12);
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+}
+
+.pd-btn-secondary:hover {
+    background: rgba(167, 139, 250, 0.2);
+    color: var(--text-primary);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+/* Comment Item */
+.pd-comment {
+    display: flex;
+    gap: 1rem;
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.pd-comment:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.pd-comment-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-cyan) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.2);
+}
+
+.pd-comment-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pd-comment-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.pd-comment-bubble {
+    background: rgba(167, 139, 250, 0.06);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.pd-comment-bubble:hover {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: var(--border-color);
+}
+
+.pd-comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.pd-comment-author {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.pd-comment-time {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.pd-comment-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.pd-comment-actions {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-left: 0.75rem;
+}
+
+.pd-comment-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.pd-comment-action:hover { 
+    color: var(--primary-color);
+}
+
+.pd-comment-action.liked { 
+    color: var(--accent-pink);
+}
+
+.pd-comment-action.danger:hover { 
+    color: var(--accent-pink);
+}
+
+/* Reply Form */
+.pd-reply-form {
+    margin-top: 1rem;
+    margin-left: 0.75rem;
+    display: none;
+}
+
+.pd-reply-form.show { display: block; }
+
+.pd-reply-textarea {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    background: rgba(167, 139, 250, 0.05);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    resize: none;
+    min-height: 65px;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.pd-reply-textarea:focus {
+    outline: none !important;
+    background: rgba(167, 139, 250, 0.08);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
+}
+
+.pd-reply-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Replies */
+.pd-replies {
+    margin-top: 1rem;
+    margin-left: 1.25rem;
+    padding-left: 1.25rem;
+    border-left: 2px solid var(--border-light);
+}
+
+.pd-reply {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.pd-reply:last-child { margin-bottom: 0; }
+
+.pd-reply-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-color) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(6, 182, 212, 0.2);
+}
+
+.pd-reply-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pd-reply-bubble {
+    background: rgba(167, 139, 250, 0.06);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+}
+
+.pd-reply-author {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.pd-reply-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin: 0.25rem 0 0;
+}
+
+.pd-reply-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+/* Empty State */
+.pd-empty {
+    text-align: center;
+    padding: 4rem 1.5rem;
+}
+
+.pd-empty-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid var(--border-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+}
+
+.pd-empty-icon i {
+    font-size: 2rem;
+    color: var(--text-muted);
+}
+
+.pd-empty-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+}
+
+.pd-empty-text {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* Research News - RTL Support */
+.pd-research-abstract {
+    padding: 1.25rem;
+    border-inline-start: 4px solid var(--primary-color);
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    margin: 1.5rem 0;
+}
+
+.pd-research-abstract h4 { 
+    margin: 0 0 0.75rem 0; 
+    font-size: 0.95rem; 
+    font-weight: 700; 
+    color: var(--primary-color);
+    text-transform: uppercase; 
+    letter-spacing: 0.05em;
+}
+
+.pd-research-abstract p { 
+    margin: 0; 
+    font-size: 1rem; 
+    color: var(--text-secondary); 
+    line-height: 1.7; 
+    white-space: pre-wrap;
+}
+
+html[dir="rtl"] .pd-research-abstract { 
+    border-inline-start: none; 
+    border-inline-end: 4px solid var(--primary-color);
+}
+
+html[dir="rtl"] .pd-card-body { 
+    font-family: 'Tajawal', 'Inter', sans-serif; 
+    text-align: start;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pd-page">
+    <div class="pd-container">
+        
+        <a href="{% url 'feed:feed' %}" class="pd-back-link">
+            <i class="bi bi-arrow-left"></i>
+            {% trans "Back to Feed" %}
+        </a>
+        
+        <!-- Post Card -->
+        <div class="pd-card">
+            <div class="pd-card-header">
+                <div class="pd-author">
+                    <div class="pd-avatar">
+                        {% if post.author.avatar %}
+                            <img src="{{ post.author.avatar.url }}" alt="{{ post.author.get_full_name_display }}">
+                        {% else %}
+                            {{ post.author.get_full_name_display|slice:":1"|upper }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <p class="pd-author-name">{{ post.author.get_full_name_display }}</p>
+                        <div class="pd-author-time">
+                            <i class="bi bi-clock"></i>
+                            {{ post.created_at|timesince }} {% trans "ago" %}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if post.author == request.user %}
+                <div class="pd-actions">
+                    <a href="{% url 'feed:edit_post' post.id %}" class="pd-action-btn primary" title="{% trans 'Edit' %}">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <a href="{% url 'feed:delete_post' post.id %}" class="pd-action-btn danger" title="{% trans 'Delete' %}"
+                       onclick="return confirm('{% trans "Are you sure you want to delete this post?" %}')">
+                        <i class="bi bi-trash3"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="pd-card-body">
+                <!-- Display News metadata if available -->
+                {% if post.news_meta.title or post.news_meta.abstract %}
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <!-- Title -->
+                    {% if post.news_meta.title %}
+                    <h2 style="margin:0;font-size:1.5rem;font-weight:700;line-height:1.35;color:var(--pd-text);">
+                        {{ post.news_meta.title }}
+                    </h2>
+                    {% endif %}
+                    
+                    <!-- Authors -->
+                    {% if post.news_meta.all_authors %}
+                    <div style="display:flex;align-items:center;gap:.5rem;font-size:.95rem;color:var(--pd-text-secondary);">
+                        <i style="color:var(--pd-primary);" class="bi bi-person"></i>
+                        <span>{{ post.news_meta.all_authors }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Year -->
+                    {% if post.news_meta.year %}
+                    <div style="display:flex;align-items:center;gap:.5rem;">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;padding:.4rem .8rem;border-radius:999px;background:rgba(37, 99, 235, 0.1);color:var(--pd-primary);font-size:.85rem;font-weight:600;">
+                            <i style="margin-inline-end:.4rem;" class="bi bi-calendar"></i>
+                            {{ post.news_meta.year }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Abstract -->
+                    {% if post.news_meta.abstract %}
+                    <div class="pd-research-abstract">
+                        <h4>{% trans "Abstract" %}</h4>
+                        <p>{{ post.news_meta.abstract }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- External Link -->
+                    {% if post.news_meta.link %}
+                    <div style="margin-top:.5rem;">
+                        <a href="{{ post.news_meta.link }}" target="_blank" rel="noopener noreferrer" class="pd-btn pd-btn-primary">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                            {% trans "Read the full paper" %}
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    {% if post.file %}
+                    <div class="pd-file-actions">
+                        <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+                            <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+                            <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
+                        </a>
+                        <button type="button"
+                                class="pd-view-doc-btn"
+                                onclick="openDocumentViewer('{{ post.file.url|escapejs }}', null, '{{ post.id }}', '{{ post.get_localized_title|default:post.content|truncatechars:100|escapejs }}', '{% url 'feed:convert-post-to-text' post.id %}')">
+                            <i class="bi bi-eye"></i>
+                            <span>{% trans "View Document" %}</span>
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <!-- Fallback to regular post content -->
+                <p class="pd-content">{{ post.content }}</p>
+                {% if post.image %}
+                <img src="{{ post.image.url }}" alt="{% trans 'Post image' %}" class="pd-image">
+                {% endif %}
+                {% if post.file %}
+                <div class="pd-file-actions">
+                    <a class="pd-file-link" href="{{ post.file.url }}" target="_blank" rel="noopener noreferrer">
+                        <i class="bi {% if '.pdf' in post.file.name|lower %}bi-file-earmark-pdf{% else %}bi-file-earmark-arrow-down{% endif %}"></i>
+                        <span class="pd-file-link-name">{{ post.file.name|cut:'posts/files/' }}</span>
+                    </a>
+                    <button type="button"
+                            class="pd-view-doc-btn"
+                            onclick="openDocumentViewer('{{ post.file.url|escapejs }}', null, '{{ post.id }}', '{{ post.get_localized_title|default:post.content|truncatechars:100|escapejs }}', '{% url 'feed:convert-post-to-text' post.id %}')">
+                        <i class="bi bi-eye"></i>
+                        <span>{% trans "View Document" %}</span>
+                    </button>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+            
+            <div class="pd-stats">
+                <div class="pd-stat">
+                    <i class="bi bi-heart-fill"></i>
+                    <span>{{ post.total_likes }} {% trans "likes" %}</span>
+                </div>
+                <div class="pd-stat">
+                    <i class="bi bi-chat-dots"></i>
+                    <span>{{ post.total_comments }} {% trans "comments" %}</span>
+                </div>
+            </div>
+            
+            <div class="pd-post-actions">
+                <button type="button" class="pd-post-action pd-action-like {% if request.user in post.likes.all %}liked{% endif %}" id="likePostBtn" data-post-id="{{ post.id }}" data-like-url="{% url 'feed:like_post' post.id %}">
+                    <i class="bi {% if request.user in post.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+                    <span>{% trans "Like" %}</span>
+                </button>
+                <a href="#comments" class="pd-post-action pd-action-comment">
+                    <i class="bi bi-chat-dots"></i>
+                    <span>{% trans "Comment" %}</span>
+                </a>
+                <button type="button" class="pd-post-action pd-share-trigger" id="shareBtn" onclick="togglePostShareMenu(this)" data-post-id="{{ post.id }}" data-post-title="{{ post.content|striptags|truncatechars:80|escape }}">
+                    <i class="bi bi-share"></i>
+                    <span>{% trans "Share" %}</span>
+                </button>
+            </div>
+            
+            <!-- Share dropdown menu positioned outside the flex container -->
+            <div class="pd-share-dropdown" id="shareDropdown">
+                <div class="pd-share-menu">
+                    <button type="button" class="pd-share-item" onclick="sendPostDetailToFriends(this)">
+                        <i class="bi bi-people-fill"></i>
+                        <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إرسال إلى الأصدقاء{% else %}{% trans "Send to Friends" %}{% endif %}</span>
+                    </button>
+                    <button type="button" class="pd-share-item" onclick="copyPostDetailLink(this)">
+                        <i class="bi bi-link-45deg"></i>
+                        <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}نسخ الرابط{% else %}{% trans "Copy Link" %}{% endif %}</span>
+                    </button>
+                    <div class="pd-share-social">
+                        <a href="#" class="pd-share-social-btn" onclick="sharePostDetailSocial('whatsapp', this); return false;">
+                            <i class="bi bi-whatsapp"></i>
+                            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}واتساب{% else %}WhatsApp{% endif %}</span>
+                        </a>
+                        <a href="#" class="pd-share-social-btn" onclick="sharePostDetailSocial('linkedin', this); return false;">
+                            <i class="bi bi-linkedin"></i>
+                                <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لينكدإن{% else %}LinkedIn{% endif %}</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Comments Section -->
+        <div class="pd-comments-card" id="comments">
+            <div class="pd-comments-header">
+                <h2 class="pd-comments-title">{% trans "Comments" %}</h2>
+            </div>
+            
+            <div class="pd-comments-body">
+                <!-- Comment Form -->
+                <form method="post" action="{% url 'feed:add_comment' post.id %}" class="pd-comment-form">
+                    {% csrf_token %}
+                    <textarea name="content" class="pd-textarea" placeholder="{% trans 'Write a comment...' %}" required></textarea>
+                    <button type="submit" class="pd-btn pd-btn-primary">
+                        <i class="bi bi-send"></i>
+                        {% trans "Comment" %}
+                    </button>
+                </form>
+                
+                <!-- Comments List -->
+                <div class="pd-comments-list">
+                    {% for comment in post.comments.all %}
+                        {% if not comment.parent %}
+                        <div class="pd-comment" data-comment-id="{{ comment.id }}">
+                            <div class="pd-comment-avatar">
+                                {% if comment.author.avatar %}
+                                    <img src="{{ comment.author.avatar.url }}" alt="{{ comment.author.get_full_name_display }}">
+                                {% else %}
+                                    {{ comment.author.get_full_name_display|slice:":1"|upper }}
+                                {% endif %}
+                            </div>
+                            
+                            <div class="pd-comment-content">
+                                <div class="pd-comment-bubble">
+                                    <div class="pd-comment-header">
+                                        <span class="pd-comment-author">{{ comment.author.get_full_name_display }}</span>
+                                        <span class="pd-comment-time">{{ comment.created_at|timesince }} {% trans "ago" %}</span>
+                                    </div>
+                                    <p class="pd-comment-text">{{ comment.content }}</p>
+                                </div>
+                                
+                                <div class="pd-comment-actions">
+                                    <button type="button" class="pd-comment-action like-comment-btn {% if request.user in comment.likes.all %}liked{% endif %}" data-comment-id="{{ comment.id }}">
+                                        <i class="bi {% if request.user in comment.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+                                        <span class="likes-count">{{ comment.total_likes }}</span>
+                                    </button>
+                                    <button type="button" class="pd-comment-action reply-btn" data-comment-id="{{ comment.id }}">
+                                        <i class="bi bi-reply"></i>
+                                        {% trans "Reply" %}
+                                    </button>
+                                    {% if comment.author == request.user %}
+                                    <button type="button" class="pd-comment-action edit-comment-btn" data-comment-id="{{ comment.id }}">
+                                        <i class="bi bi-pencil"></i>
+                                        {% trans "Edit" %}
+                                    </button>
+                                    <a href="{% url 'feed:delete_comment' comment.id %}" class="pd-comment-action danger"
+                                       onclick="return confirm('{% trans "Are you sure you want to delete this comment?" %}')">
+                                        <i class="bi bi-trash3"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Reply Form -->
+                                <div class="pd-reply-form" id="reply-form-{{ comment.id }}">
+                                    <form method="post" action="{% url 'feed:add_comment' post.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                        <textarea name="content" class="pd-reply-textarea" placeholder="{% trans 'Write your reply...' %}" required></textarea>
+                                        <div class="pd-reply-actions">
+                                            <button type="submit" class="pd-btn pd-btn-primary">
+                                                <i class="bi bi-send"></i>
+                                                {% trans "Send" %}
+                                            </button>
+                                            <button type="button" class="pd-btn pd-btn-secondary cancel-reply-btn" data-comment-id="{{ comment.id }}">
+                                                {% trans "Cancel" %}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                                
+                                <!-- Edit Form -->
+                                <div class="pd-reply-form" id="edit-form-{{ comment.id }}">
+                                    <form method="post" action="{% url 'feed:edit_comment' comment.id %}">
+                                        {% csrf_token %}
+                                        <textarea name="content" class="pd-reply-textarea" required>{{ comment.content }}</textarea>
+                                        <div class="pd-reply-actions">
+                                            <button type="submit" class="pd-btn pd-btn-primary">
+                                                <i class="bi bi-check-lg"></i>
+                                                {% trans "Save" %}
+                                            </button>
+                                            <button type="button" class="pd-btn pd-btn-secondary cancel-edit-btn" data-comment-id="{{ comment.id }}">
+                                                {% trans "Cancel" %}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                                
+                                <!-- Replies -->
+                                {% if comment.replies.exists %}
+                                <div class="pd-replies">
+                                    {% for reply in comment.replies.all %}
+                                    <div class="pd-reply" data-reply-id="{{ reply.id }}">
+                                        <div class="pd-reply-avatar">
+                                            {% if reply.author.avatar %}
+                                                <img src="{{ reply.author.avatar.url }}" alt="{{ reply.author.get_full_name_display }}">
+                                            {% else %}
+                                                {{ reply.author.get_full_name_display|slice:":1"|upper }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="pd-reply-content">
+                                            <div class="pd-reply-bubble">
+                                                <span class="pd-reply-author">{{ reply.author.get_full_name_display }}</span>
+                                                <p class="pd-reply-text">{{ reply.content }}</p>
+                                            </div>
+                                            <div class="pd-comment-actions" style="margin-left: 0; margin-top: 0.25rem;">
+                                                <button type="button" class="pd-comment-action like-comment-btn {% if request.user in reply.likes.all %}liked{% endif %}" data-comment-id="{{ reply.id }}">
+                                                    <i class="bi {% if request.user in reply.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+                                                    <span class="likes-count">{{ reply.total_likes }}</span>
+                                                </button>
+                                                <span class="pd-reply-time">{{ reply.created_at|timesince }} {% trans "ago" %}</span>
+                                                {% if reply.author == request.user %}
+                                                <a href="{% url 'feed:delete_comment' reply.id %}" class="pd-comment-action danger"
+                                                   onclick="return confirm('{% trans "Are you sure you want to delete this reply?" %}')">
+                                                    <i class="bi bi-trash3"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% empty %}
+                    <div class="pd-empty">
+                        <div class="pd-empty-icon">
+                            <i class="bi bi-chat-square-text"></i>
+                        </div>
+                        <h3 class="pd-empty-title">{% trans "No comments yet" %}</h3>
+                        <p class="pd-empty-text">{% trans "Be the first to comment!" %}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% include "components/document_viewer_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// CSRF Token helper
+function getCsrfToken() {
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) return csrfInput.value;
+    const cookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+    return cookie ? cookie.split('=')[1] : '';
+}
+
+function getPostDetailUrl() {
+    return window.location.href;
+}
+
+// Global functions for share menu and actions - MUST be outside DOMContentLoaded
+window.togglePostShareMenu = function(btn) {
+    const menu = document.querySelector('#shareDropdown .pd-share-menu');
+    const shareDropdown = document.getElementById('shareDropdown');
+    const card = btn?.closest('.pd-card');
+    
+    if (!menu || !shareDropdown) {
+        const url = getPostDetailUrl();
+        const title = btn?.dataset?.postTitle || document.title;
+        if (navigator.share) {
+            navigator.share({ title, url }).catch(() => {});
+            return;
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('{% trans "Link copied to clipboard!" %}');
+            });
+        }
+        return;
+    }
+    
+    const wasOpen = shareDropdown.classList.contains('open');
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.pd-share-dropdown.open').forEach(d => {
+        if (d !== shareDropdown) d.classList.remove('open');
+    });
+    document.querySelectorAll('.pd-card.pd-share-open').forEach(c => c.classList.remove('pd-share-open'));
+    
+    if (!wasOpen) {
+        if (card) card.classList.add('pd-share-open');
+        // Keep the share frame fixed at exact viewport center.
+        shareDropdown.classList.add('open');
+        menu.style.left = '50%';
+        menu.style.top = '50%';
+        menu.style.right = 'auto';
+        menu.style.insetInlineStart = 'auto';
+        menu.style.insetInlineEnd = 'auto';
+    } else {
+        shareDropdown.classList.remove('open');
+        if (card) card.classList.remove('pd-share-open');
+    }
+};
+
+window.sendPostDetailToFriends = function(node) {
+    const shareDropdown = document.getElementById('shareDropdown');
+    const shareBtn = document.getElementById('shareBtn');
+    
+    if (!shareDropdown || !shareBtn) return;
+
+    document.dispatchEvent(new CustomEvent('openShareModal', {
+        detail: {
+            type: 'post',
+            id: shareBtn.dataset.postId || '',
+            title: shareBtn.dataset.postTitle || ''
+        }
+    }));
+
+    shareDropdown.classList.remove('open');
+};
+
+window.copyPostDetailLink = function() {
+    const url = getPostDetailUrl();
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(() => {
+            alert('{% trans "Link copied to clipboard!" %}');
+        });
+        return;
+    }
+    const tmp = document.createElement('input');
+    tmp.value = url;
+    document.body.appendChild(tmp);
+    tmp.select();
+    document.execCommand('copy');
+    document.body.removeChild(tmp);
+    alert('{% trans "Link copied to clipboard!" %}');
+};
+
+window.sharePostDetailSocial = function(platform) {
+    const url = encodeURIComponent(getPostDetailUrl());
+    let targetUrl = '';
+    if (platform === 'whatsapp') {
+        targetUrl = `https://wa.me/?text=${url}`;
+    } else if (platform === 'linkedin') {
+        targetUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
+    }
+    if (targetUrl) window.open(targetUrl, '_blank', 'noopener,noreferrer');
+};
+
+// Initialize event listeners when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Like Post
+    const likePostBtn = document.getElementById('likePostBtn');
+    if (likePostBtn) {
+        likePostBtn.addEventListener('click', async function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const postId = this.dataset.postId;
+            const likeUrl = this.dataset.likeUrl;
+            const btn = this;
+            
+            console.log('[LIKE] Starting like request for post:', postId);
+            console.log('[LIKE] URL:', likeUrl);
+            
+            try {
+                const csrfToken = getCsrfToken();
+                console.log('[LIKE] CSRF token obtained:', csrfToken ? '✓' : '✗');
+                
+                const response = await fetch(likeUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                console.log('[LIKE] Response status:', response.status);
+                
+                // Handle specific error status codes
+                if (response.status === 403) {
+                    console.error('[LIKE] Forbidden - CSRF token issue or permission denied');
+                    alert('Permission denied. Please refresh the page.');
+                    return;
+                } else if (response.status === 404) {
+                    console.error('[LIKE] Post not found');
+                    alert('Post not found.');
+                    return;
+                } else if (response.status === 405) {
+                    console.error('[LIKE] Invalid request method');
+                    alert('Invalid request.');
+                    return;
+                } else if (!response.ok) {
+                    console.error('[LIKE] Server error:', response.status);
+                    alert('An error occurred. Please try again.');
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('[LIKE] Response data:', data);
+                
+                // Verify response data
+                if (data.hasOwnProperty('liked') && data.hasOwnProperty('total_likes')) {
+                    // Update button UI
+                    const icon = btn.querySelector('i');
+                    if (icon) {
+                        btn.classList.toggle('liked', data.liked);
+                        icon.className = data.liked ? 'bi bi-heart-fill' : 'bi bi-heart';
+                        console.log('[LIKE] Button updated - liked:', data.liked);
+                    } else {
+                        console.warn('[LIKE] Icon element not found');
+                    }
+                    
+                    // Update likes count - more robust selector
+                    const likesSpans = document.querySelectorAll('.pd-stats .pd-stat span');
+                    if (likesSpans.length > 0) {
+                        likesSpans[0].textContent = `${data.total_likes} {% trans "likes" %}`;
+                        console.log('[LIKE] Likes count updated:', data.total_likes);
+                    } else {
+                        console.warn('[LIKE] Likes count element not found');
+                    }
+                } else {
+                    console.error('[LIKE] Invalid response format:', data);
+                    alert('Invalid server response.');
+                }
+                
+            } catch (error) {
+                console.error('[LIKE] Network or parsing error:', error);
+                alert('An error occurred. Please check the console.');
+            }
+        });
+    }
+    
+    // Like Comments
+    document.querySelectorAll('.like-comment-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const commentId = this.dataset.commentId;
+            try {
+                const response = await fetch(`/feed/comment/${commentId}/like/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    const icon = this.querySelector('i');
+                    const count = this.querySelector('.likes-count');
+                    this.classList.toggle('liked', data.liked);
+                    icon.className = data.liked ? 'bi bi-heart-fill' : 'bi bi-heart';
+                    count.textContent = data.total_likes;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+    });
+    
+    // Reply toggling
+    document.querySelectorAll('.reply-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            document.querySelectorAll('.pd-reply-form').forEach(f => f.classList.remove('show'));
+            const replyForm = document.getElementById(`reply-form-${commentId}`);
+            replyForm.classList.add('show');
+            replyForm.querySelector('textarea').focus();
+        });
+    });
+    
+    document.querySelectorAll('.cancel-reply-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            document.getElementById(`reply-form-${commentId}`).classList.remove('show');
+        });
+    });
+    
+    // Edit toggling
+    document.querySelectorAll('.edit-comment-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            document.querySelectorAll('.pd-reply-form').forEach(f => f.classList.remove('show'));
+            const editForm = document.getElementById(`edit-form-${commentId}`);
+            editForm.classList.add('show');
+            editForm.querySelector('textarea').focus();
+        });
+    });
+    
+    document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            document.getElementById(`edit-form-${commentId}`).classList.remove('show');
+        });
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const shareBtn = document.getElementById('shareBtn');
+        const shareDropdown = document.getElementById('shareDropdown');
+        
+        if (shareBtn && shareDropdown && !e.target.closest('#shareBtn') && !e.target.closest('#shareDropdown')) {
+            shareDropdown.classList.remove('open');
+            document.querySelectorAll('.pd-card.pd-share-open').forEach(c => c.classList.remove('pd-share-open'));
+        }
+    });
+});
+</script>
+{% endblock %}

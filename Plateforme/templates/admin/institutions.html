@@ -1,0 +1,149 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Institution Management" %}{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1><i class="fas fa-university"></i> {% trans "Institution Management" %}</h1>
+    <p class="pg-sub">{% trans "Easily manage all your academic institutions and partners" %}</p>
+  </div>
+  <a href="{% url 'institutions:institution_create' %}" class="n-btn n-btn-primary">
+    <i class="fas fa-plus"></i> {% trans "New Institution" %}
+  </a>
+</div>
+
+<!-- Filter -->
+<div class="n-card mb-3">
+  <div class="n-card-body">
+    <form method="get">
+      <div class="n-filter">
+        <div class="n-form-group" style="flex:1;">
+          <div class="position-relative">
+            <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3" style="color:var(--n-text-3);"></i>
+            <input type="text" class="n-input ps-5" name="search" value="{{ request.GET.search }}" placeholder="{% trans "Institution name or acronym…" %}">
+          </div>
+        </div>
+        <button type="submit" class="n-btn n-btn-primary">
+          <i class="fas fa-search"></i> {% trans "Search" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Approval Tabs -->
+{% if has_approval %}
+<div class="n-tabs">
+  <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}"
+     class="n-tab {% if active_tab != 'pending' %}active{% endif %}">
+    <i class="fas fa-check-circle"></i> {% trans "Approved" %}
+    <span class="pg-badge">{{ approved_count }}</span>
+  </a>
+  <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}"
+     class="n-tab {% if active_tab == 'pending' %}active{% endif %}">
+    <i class="fas fa-clock"></i> {% trans "Pending Review" %}
+    <span class="pg-badge" style="background:var(--n-amber);color:#fff;">{{ pending_count }}</span>
+  </a>
+</div>
+
+{% if active_tab == 'pending' %}
+<!-- Pending Institutions Table -->
+<div class="n-card">
+  <div class="table-responsive">
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "Institution" %}</th>
+          <th>{% trans "Acronym" %}</th>
+          <th>{% trans "Country" %}</th>
+          <th>{% trans "Submitted by" %}</th>
+          <th class="text-center">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for institution in pending_institutions %}
+        <tr>
+          <td class="fw-semibold">{{ institution.get_localized_name }}</td>
+          <td>{{ institution.acronym }}</td>
+          <td><span class="n-status n-status-amber"><i class="fas fa-flag"></i> {{ institution.country.get_localized_name }}</span></td>
+          <td>{{ institution.created_by.get_full_name_display|default:institution.created_by.email|default:"—" }}</td>
+          <td>
+            <div class="n-acts">
+              {% translate "Approve this institution?" as confirm_approve_inst %}
+              <form method="post" action="{% url 'pages:admin_approve_item' model_type='institution' pk=institution.pk %}" style="display:inline;" onsubmit="return confirm('{{ confirm_approve_inst }}');">
+                {% csrf_token %}
+                <button type="submit" class="n-act n-act-green" title="{% trans 'Approve' %}"><i class="fas fa-check"></i></button>
+              </form>
+              {% translate "Reject and delete this institution?" as confirm_rej_inst %}
+              <form method="post" action="{% url 'pages:admin_reject_item' model_type='institution' pk=institution.pk %}" style="display:inline;" onsubmit="return confirm('{{ confirm_rej_inst }}');">
+                {% csrf_token %}
+                <button type="submit" class="n-act n-act-red" title="{% trans 'Reject' %}"><i class="fas fa-times"></i></button>
+              </form>
+              <a href="{% url 'institutions:institution_detail' institution.pk %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5">
+            <div class="n-empty">
+              <i class="fas fa-check-circle"></i>
+              <h3>{% trans "No institutions pending review." %}</h3>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Approved / All Institutions Table -->
+{% if not has_approval or active_tab != 'pending' %}
+<div class="n-card">
+  <div class="table-responsive">
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "Institution" %}</th>
+          <th>{% trans "Acronym" %}</th>
+          <th>{% trans "Country" %}</th>
+          <th class="text-center">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for institution in institutions %}
+        <tr>
+          <td class="fw-semibold">{{ institution.get_localized_name }}</td>
+          <td>{{ institution.acronym }}</td>
+          <td><span class="n-status n-status-amber"><i class="fas fa-flag"></i> {{ institution.country.get_localized_name }}</span></td>
+          <td>
+            <div class="n-acts">
+              <a href="{% url 'institutions:institution_detail' institution.pk %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
+              <a href="{% url 'institutions:institution_update' institution.pk %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'institutions:institution_delete' institution.pk %}" class="n-act n-act-red" title="{% trans 'Delete' %}"><i class="fas fa-trash"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4">
+            <div class="n-empty">
+              <i class="fas fa-university"></i>
+              <h3>{% trans "No institutions found" %}</h3>
+              <p>{% trans "Try adjusting your filters or adding a new institution." %}</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
+{% endblock %}

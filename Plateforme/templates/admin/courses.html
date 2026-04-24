@@ -1,0 +1,94 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Course Management" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding-top:.5rem;">
+
+  <div class="pg-head">
+    <div><h1><i class="fas fa-graduation-cap"></i> {% trans "Course Management" %}</h1></div>
+    <a href="{% url 'resources:course-create' %}" class="n-btn n-btn-blue"><i class="fas fa-plus"></i> {% trans "Add Course" %}</a>
+  </div>
+
+  <!-- Stats -->
+  <div class="n-st-grid">
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Total Courses" %}</p>
+        <p class="n-st-num">{{ total_courses_count }}</p>
+      </div>
+      <div class="n-st-icon i1"><i class="fas fa-graduation-cap"></i></div>
+    </div>
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Created this month" %}</p>
+        <p class="n-st-num">{{ courses_this_month_count }}</p>
+        <span class="n-st-grow {% if courses_growth >= 0 %}up{% else %}down{% endif %}"><i class="fas fa-arrow-{% if courses_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ courses_growth }}%</span>
+      </div>
+      <div class="n-st-icon i2"><i class="fas fa-calendar-plus"></i></div>
+    </div>
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Pending Review" %}</p>
+        <p class="n-st-num">{{ pending_count|default:0 }}</p>
+      </div>
+      <div class="n-st-icon i4"><i class="fas fa-clock"></i></div>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="n-card">
+    <div class="n-filter">
+      <form method="get" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+        <div class="n-search-wrap" style="flex:1;min-width:200px;">
+          <i class="fas fa-search"></i>
+          <input type="text" name="search" class="n-search" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث حسب العنوان أو المؤلف...{% else %}{% trans 'Search by title, author...' %}{% endif %}" value="{{ search }}">
+        </div>
+        <select name="level" class="n-select">
+          <option value="">{% trans "All Levels" %}</option>
+          <option value="beginner" {% if filter_level == 'beginner' %}selected{% endif %}>{% trans "Beginner" %}</option>
+          <option value="intermediate" {% if filter_level == 'intermediate' %}selected{% endif %}>{% trans "Intermediate" %}</option>
+          <option value="advanced" {% if filter_level == 'advanced' %}selected{% endif %}>{% trans "Advanced" %}</option>
+        </select>
+        <button type="submit" class="n-btn n-btn-blue"><i class="fas fa-filter"></i> {% trans "Filter" %}</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Courses Table -->
+  {% if approved_courses %}
+  <div class="n-card" style="margin-bottom:0;">
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th style="min-width:200px;">{% trans "Title" %}</th>
+          <th>{% trans "Level" %}</th>
+          <th>{% trans "Creation date" %}</th>
+          <th style="text-align:center;">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% translate "Delete this course?" as confirm_delete_course %}
+        {% for course in approved_courses %}
+        <tr>
+          <td><a href="{% url 'resources:course_detail' course.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;">{{ course.title }}</a></td>
+          <td><span class="n-status-pill pending" style="background:var(--n-blue-soft);color:var(--n-blue);">{{ course.get_academic_level_display }}</span></td>
+          <td><span class="n-dt">{{ course.creation_date|date:"d M Y" }} {{ course.creation_date|date:"H:i" }}</span></td>
+          <td>
+            <div class="n-acts" style="justify-content:center;">
+              <a href="{% url 'resources:course_detail' course.id %}" class="n-act" title="{% trans 'Preview' %}"><i class="fas fa-eye"></i></a>
+              <a href="{% url 'resources:resource-update' type='course' pk=course.id %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'resources:resource-delete' type='course' pk=course.id %}" class="n-act n-act-red" onclick="return confirm('{{ confirm_delete_course }}');" title="{% trans 'Delete' %}"><i class="fas fa-trash"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
+  {% else %}
+  <div class="n-card"><div class="n-empty"><i class="fas fa-graduation-cap"></i><h3>{% trans "No courses found." %}</h3></div></div>
+  {% endif %}
+</div>
+{% endblock %}

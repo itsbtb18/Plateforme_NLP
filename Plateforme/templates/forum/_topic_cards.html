@@ -1,0 +1,110 @@
+{% load i18n %}
+
+{% if topics %}
+{% for topic in topics %}
+<article class="ft-topic-card {% if topic.approval_status == 'pending' and topic.creator == user %}is-pending{% endif %}" data-title="{{ topic.get_localized_title|lower }}">
+    
+    <!-- User Meta - LEFT SIDE -->
+    <div class="ft-meta-col">
+        <div class="ft-user-meta">
+            <div class="ft-user-avatar">
+                {% if topic.creator.avatar %}
+                <img src="{{ topic.creator.avatar.url }}" alt="{{ topic.creator.get_full_name_display }}">
+                {% else %}
+                <i class="bi bi-person"></i>
+                {% endif %}
+            </div>
+            <div class="ft-user-info">
+                <div class="ft-user-name-row">
+                    <p class="ft-user-name">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</p>
+                    {% if topic.approval_status == 'pending' and topic.creator == user %}
+                    <span class="ft-pending-badge site-approval-badge site-approval-pending">
+                        <i class="bi bi-hourglass-split"></i>
+                        {% translate "Pending Approval" %}
+                    </span>
+                    {% endif %}
+                    <div class="ft-topic-tags">
+                        <span class="ft-tag">
+                            <i class="bi bi-tag"></i>
+                            {% translate "NLP" %}
+                        </span>
+                        <span class="ft-tag">
+                            <i class="bi bi-globe2"></i>
+                            {% translate "Arabic" %}
+                        </span>
+                    </div>
+                </div>
+                <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
+                <div class="ft-user-topic-row">
+                    <h3 class="ft-topic-title">
+                        <a href="{% url 'forum:topic-detail' topic.id %}">{{ topic.get_localized_title }}</a>
+                    </h3>
+                    <p class="ft-inline-excerpt">{{ topic.get_localized_description|truncatechars:120 }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ft-card-actions">
+            <a href="{% url 'forum:topic-detail' topic.id %}" class="ft-open-topic-btn" title="{% translate 'View topic' %}">
+                <i class="bi bi-eye"></i>
+                {% translate "View topic" %}
+            </a>
+            <a href="{% url 'forum:chatroom-new' topic.id %}" class="ft-action-btn success" title="{% translate 'Create Chat Room' %}">
+                <i class="bi bi-chat-dots"></i>
+            </a>
+            {% if topic.creator == user or user.is_staff %}
+            <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% if topic.approval_status == 'pending' %}{% translate 'Edit Form' %}{% else %}{% translate 'Edit' %}{% endif %}">
+                <i class="bi {% if topic.approval_status == 'pending' %}bi-file-earmark-text{% else %}bi-pencil{% endif %}"></i>
+            </a>
+            <a href="{% url 'forum:topic-delete' topic.id %}" class="ft-action-btn danger" title="{% translate 'Delete' %}">
+                <i class="bi bi-trash3"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="ft-content-col">
+        <div class="ft-content-actions">
+            {% include "includes/card_top_actions.html" with content_type="topic" object_id=topic.id title=topic.get_localized_title description=topic.get_localized_description|truncatewords:40 category=topic.category author=topic.creator.get_full_name_display url=request.build_absolute_uri %}
+        </div>
+    </div>
+    
+    <!-- Stats - RIGHT SIDE -->
+    <div class="ft-stats-col">
+        <div class="ft-stat-item">
+            <div class="ft-stat-num replies">{{ topic.chatroom_count|default:topic.chatrooms.count }}</div>
+            <div class="ft-stat-txt">{% translate "Rooms" %}</div>
+        </div>
+        <div class="ft-stat-item">
+            <div class="ft-stat-num views">{{ topic.views|default:"0" }}</div>
+            <div class="ft-stat-txt">{% translate "Views" %}</div>
+        </div>
+    </div>
+</article>
+{% endfor %}
+{% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
+{% else %}
+<div class="ft-empty">
+    <div class="ft-empty-icon">
+        <i class="bi bi-chat-square-quote"></i>
+    </div>
+    <h2 class="ft-empty-title">
+        {% if search_query %}
+        {% translate "No discussions found" %}
+        {% else %}
+        {% translate "No discussions yet" %}
+        {% endif %}
+    </h2>
+    <p class="ft-empty-text">
+        {% if search_query %}
+        {% translate "Try adjusting your search terms." %}
+        {% else %}
+        {% translate "Be the first to start a conversation in our community!" %}
+        {% endif %}
+    </p>
+    <a href="{% url 'forum:topic-new' %}" class="ft-btn ft-btn-primary">
+        <i class="bi bi-plus-lg"></i>
+        {% translate "Start a Discussion" %}
+    </a>
+</div>
+{% endif %}

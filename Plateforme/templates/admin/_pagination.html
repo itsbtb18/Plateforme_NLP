@@ -1,0 +1,32 @@
+{% load i18n %}
+{% if page_obj %}
+{% with page_key=page_param|default:'page' %}
+<div class="sec-pagination">
+  <ul class="pagination pagination-sm">
+    {% if page_obj.has_previous %}
+    <li class="page-item">
+      <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% else %}{% for key, value in request.GET.items %}{% if key != page_key %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}{% endif %}{{ page_key }}={{ page_obj.previous_page_number }}">
+        <span class="sr-only">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}السابق{% else %}{% trans "Previous" %}{% endif %}</span>
+        <svg class="pg-arrow" viewBox="0 0 20 20" aria-hidden="true">
+          <path fill="currentColor" d="M12.78 15.53a.75.75 0 0 1-1.06 0l-5-5a.75.75 0 0 1 0-1.06l5-5a.75.75 0 1 1 1.06 1.06L8.31 10l4.47 4.47a.75.75 0 0 1 0 1.06z"/>
+        </svg>
+      </a>
+    </li>
+    {% endif %}
+    <li class="page-item disabled">
+      <span class="page-link current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    </li>
+    {% if page_obj.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% else %}{% for key, value in request.GET.items %}{% if key != page_key %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}{% endif %}{{ page_key }}={{ page_obj.next_page_number }}">
+        <span class="sr-only">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}التالي{% else %}{% trans "Next" %}{% endif %}</span>
+        <svg class="pg-arrow" viewBox="0 0 20 20" aria-hidden="true">
+          <path fill="currentColor" d="M7.22 4.47a.75.75 0 0 1 1.06 0l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 1 1-1.06-1.06L11.69 10 7.22 5.53a.75.75 0 0 1 0-1.06z"/>
+        </svg>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+</div>
+{% endwith %}
+{% endif %}

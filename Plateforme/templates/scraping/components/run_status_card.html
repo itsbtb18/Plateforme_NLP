@@ -1,0 +1,19 @@
+{% load i18n %}
+<div style="border:1px solid #dbe3ef;border-radius:12px;background:#ffffff;padding:.62rem .66rem;display:grid;gap:.34rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;">
+    {% include "scraping/components/category_badge.html" with category=run.category %}
+    {% include "scraping/components/status_badge.html" with status=run.status %}
+  </div>
+  <div style="font-size:.72rem;color:#334155;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:.45rem;">
+    <span>
+      {% if run.started_at %}
+      {{ run.started_at|date:"Y-m-d H:i" }}
+      {% else %}
+      {% trans "No start time" %}
+      {% endif %}
+    </span>
+    <span>
+      {% blocktrans with created=run.items_created skipped=run.items_skipped %}{{ created }} created · {{ skipped }} skipped{% endblocktrans %}
+    </span>
+  </div>
+</div>

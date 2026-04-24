@@ -1,0 +1,143 @@
+{% extends "base_admin.html" %}
+{% load static %}
+{% load i18n %}
+{% block title %}{% trans "New User" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.nu-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.nu-fg{margin-bottom:1.25rem;}
+.nu-fg label{display:block;margin-bottom:.4rem;font-weight:600;font-size:.875rem;color:var(--n-text);}
+.nu-fg .req{color:var(--n-red);margin-inline-start:.2rem;}
+.nu-fg input{width:100%;padding:.65rem .85rem;border:1px solid var(--n-border);border-radius:8px;font-size:.9rem;background:var(--n-bg);transition:border-color .2s;}
+.nu-fg input:focus{outline:none;border-color:var(--n-blue);box-shadow:0 0 0 3px rgba(59,130,246,.08);}
+.nu-fg input.is-invalid{border-color:var(--n-red);}
+.nu-fg .help{margin-top:.3rem;font-size:.8rem;color:var(--n-text-3);}
+.nu-strength{margin-top:.5rem;}
+.nu-strength .bar{height:5px;border-radius:4px;background:var(--n-border);}
+.nu-strength .fill{height:100%;border-radius:4px;transition:width .3s;}
+.nu-strength .txt{font-size:.8rem;font-weight:500;margin-top:.3rem;}
+.nu-acts{display:flex;justify-content:space-between;gap:.75rem;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--n-border);}
+@media(max-width:600px){.nu-row{grid-template-columns:1fr;}.nu-acts{flex-direction:column-reverse;}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1><i class="fas fa-user-plus"></i> {% trans "Create New User" %}</h1>
+    <p class="pg-sub">
+      <a href="{% url 'pages:admin_dashboard' %}" style="color:var(--n-text-3);text-decoration:none;">{% trans "Dashboard" %}</a>
+      <span style="color:var(--n-text-3);margin:0 .35rem;">/</span>
+      <a href="{% url 'pages:admin_users' %}" style="color:var(--n-text-3);text-decoration:none;">{% trans "Users" %}</a>
+      <span style="color:var(--n-text-3);margin:0 .35rem;">/</span>
+      {% trans "New" %}
+    </p>
+  </div>
+</div>
+
+<!-- Alerts -->
+{% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" style="border-radius:var(--n-radius);border:none;">
+    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}"></i>
+    <strong>{{ message }}</strong>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<!-- Form -->
+<div class="n-card">
+  <div class="n-card-body">
+    <form method="POST" action="{% url 'pages:admin_users_new' %}" id="newUserForm">
+      {% csrf_token %}
+
+      <div class="nu-fg">
+        <label for="full_name">{% trans "Full Name" %}<span class="req">*</span></label>
+        <input type="text" id="full_name" name="full_name" placeholder="{% trans 'Enter full name' %}" required>
+      </div>
+
+      <div class="nu-fg">
+        <label for="email">{% trans "Email" %}<span class="req">*</span></label>
+        <input type="email" id="email" name="email" placeholder="example@usthb.dz" required>
+        <p class="help">{% trans "Email must end with @usthb.dz" %}</p>
+      </div>
+
+      <div class="nu-fg">
+        <label for="institution">{% trans "Institution" %}<span class="req">*</span></label>
+        <input type="text" id="institution" name="institution" placeholder="{% trans 'Enter institution name' %}" required>
+      </div>
+
+      <div class="nu-row">
+        <div class="nu-fg">
+          <label for="password1">{% trans "Password" %}<span class="req">*</span></label>
+          <input type="password" id="password1" name="password1" placeholder="{% trans 'Enter password' %}" required>
+          <div class="nu-strength d-none">
+            <div class="bar"><div class="fill" style="width:0%;"></div></div>
+            <small class="txt"></small>
+          </div>
+        </div>
+        <div class="nu-fg">
+          <label for="password2">{% trans "Password Confirmation" %}<span class="req">*</span></label>
+          <input type="password" id="password2" name="password2" placeholder="{% trans 'Confirm password' %}" required>
+        </div>
+      </div>
+
+      <div class="nu-acts">
+        <a href="{% url 'pages:admin_users' %}" class="n-btn">
+          <i class="fas fa-times"></i> {% trans "Cancel" %}
+        </a>
+        <button type="submit" class="n-btn n-btn-primary">
+          <i class="fas fa-user-plus"></i> {% trans "Create User" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const form=document.getElementById('newUserForm');
+  const pw=document.getElementById('password1');
+  const pw2=document.getElementById('password2');
+  const email=document.getElementById('email');
+  const bar=document.querySelector('.nu-strength .fill');
+  const txt=document.querySelector('.nu-strength .txt');
+  const sc=document.querySelector('.nu-strength');
+
+  pw.addEventListener('input',function(){
+    const v=this.value;sc.classList.remove('d-none');
+    let s=0,f='';
+    if(v.length){
+      if(v.length>=8)s+=25;if(/\d/.test(v))s+=25;
+      if(/[a-z]/.test(v)&&/[A-Z]/.test(v))s+=25;if(/[^A-Za-z0-9]/.test(v))s+=25;
+      if(s<25){f='{% trans "Very Weak" %}';bar.style.background='var(--n-red)';}
+      else if(s<50){f='{% trans "Weak" %}';bar.style.background='var(--n-amber)';}
+      else if(s<75){f='{% trans "Medium" %}';bar.style.background='var(--n-blue)';}
+      else{f='{% trans "Strong" %}';bar.style.background='var(--n-green)';}
+    }else{sc.classList.add('d-none');}
+    bar.style.width=s+'%';txt.textContent=f;
+  });
+
+  form.addEventListener('submit',function(e){
+    let ok=true;
+    document.querySelectorAll('.nu-fg input').forEach(i=>i.classList.remove('is-invalid'));
+    if(pw.value.length<8){ok=false;pw.classList.add('is-invalid');showErr('{% trans "Password must contain at least 8 characters" %}');}
+    if(pw.value!==pw2.value){ok=false;pw2.classList.add('is-invalid');showErr('{% trans "Passwords do not match" %}');}
+    if(email.value&&!email.value.toLowerCase().endsWith('@usthb.dz')){ok=false;email.classList.add('is-invalid');showErr('{% trans "Email must end with @usthb.dz" %}');}
+    if(!ok)e.preventDefault();
+  });
+
+  function showErr(m){
+    document.querySelectorAll('.alert-danger').forEach(a=>a.remove());
+    form.insertAdjacentHTML('afterbegin','<div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius:var(--n-radius);border:none;"><i class="fas fa-exclamation-triangle"></i> <strong>'+m+'</strong><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  document.querySelectorAll('.nu-fg input').forEach(i=>{i.addEventListener('input',function(){this.classList.remove('is-invalid');});});
+});
+</script>
+{% endblock %}

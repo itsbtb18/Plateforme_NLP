@@ -1,0 +1,1991 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Create Account" %} - {% trans "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    *, *::before, *::after {
+        box-sizing: border-box;
+    }
+
+    /* ===== GATEKEEPER MODAL ===== */
+    .cv-gatekeeper-modal {
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(10px);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .cv-gatekeeper-modal.hidden {
+        display: none;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    .cv-gatekeeper-content {
+        background: white;
+        border-radius: 20px;
+        padding: 3rem;
+        max-width: 600px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.4s ease-out;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(40px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .cv-gatekeeper-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .cv-gatekeeper-header h2 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .cv-gatekeeper-header p {
+        font-size: 1rem;
+        color: #6b7280;
+    }
+
+    .cv-gatekeeper-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    .cv-option-card {
+        padding: 2rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 15px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f9fafb;
+    }
+
+    .cv-option-card:hover {
+        border-color: #a78bfa;
+        background: #f3f0ff;
+        transform: translateY(-4px);
+        box-shadow: 0 10px 30px rgba(167, 139, 250, 0.1);
+    }
+
+    .cv-option-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #a78bfa;
+    }
+
+    .cv-option-card h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .cv-option-card p {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+
+    .cv-option-button {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+
+    .cv-option-button.manual {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .cv-option-button.manual:hover {
+        background: #e5e7eb;
+    }
+
+    .cv-option-button.cv {
+        background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+        color: white;
+    }
+
+    .cv-option-button.cv:hover {
+        transform: scale(1.05);
+    }
+
+    /* ===== CV UPLOAD AREA ===== */
+    .cv-upload-container {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(10px);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .cv-upload-container.active {
+        display: flex;
+    }
+
+    .cv-upload-modal {
+        background: white;
+        border-radius: 20px;
+        padding: 3rem;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.4s ease-out;
+    }
+
+    .cv-upload-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .cv-upload-header h2 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .cv-upload-header p {
+        font-size: 0.9rem;
+        color: #6b7280;
+    }
+
+    .cv-upload-zone {
+        border: 2px dashed #a78bfa;
+        border-radius: 15px;
+        padding: 3rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f3f0ff;
+        margin-bottom: 1.5rem;
+    }
+
+    .cv-upload-zone:hover {
+        border-color: #7c3aed;
+        background: #ede9fe;
+    }
+
+    .cv-upload-zone.dragging {
+        border-color: #7c3aed;
+        background: #ede9fe;
+    }
+
+    .cv-upload-icon {
+        font-size: 2.5rem;
+        color: #a78bfa;
+        margin-bottom: 1rem;
+    }
+
+    .cv-upload-text h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+
+    .cv-upload-text p {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    #cv-file-input {
+        display: none;
+    }
+
+    .cv-file-info {
+        padding: 1rem;
+        background: #f3f4f6;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        display: none;
+    }
+
+    .cv-file-info.active {
+        display: block;
+    }
+
+    .cv-file-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .cv-progress-bar {
+        width: 100%;
+        height: 4px;
+        background: #e5e7eb;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .cv-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #a78bfa, #7c3aed);
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+
+    .cv-upload-buttons {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .cv-upload-buttons button {
+        flex: 1;
+        padding: 0.75rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .cv-upload-cancel {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .cv-upload-cancel:hover {
+        background: #e5e7eb;
+    }
+
+    .cv-upload-submit {
+        background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+        color: white;
+    }
+
+    .cv-upload-submit:hover {
+        transform: scale(1.02);
+    }
+
+    .cv-upload-submit:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .cv-loading {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .cv-loading.active {
+        display: block;
+    }
+
+    .cv-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #e5e7eb;
+        border-top-color: #a78bfa;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .cv-loading-text {
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    .content {
+        padding: 0 !important;
+        margin: 0 !important;
+        min-height: calc(100vh - var(--site-header-height));
+    }
+
+    .main-container {
+        min-height: calc(100vh - var(--site-header-height)) !important;
+    }
+
+    /* ===== AUTH PAGE LAYOUT ===== */
+    .auth-page-wrapper {
+        min-height: calc(100vh - var(--site-header-height));
+        height: calc(100vh - var(--site-header-height));
+        display: flex;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 0;
+        background: linear-gradient(to bottom, #0f1419, #1a1a2e);
+        overflow-x: hidden;
+        width: 100%;
+        margin: 0;
+    }
+
+    .auth-container {
+        display: grid;
+        grid-template-columns: 1fr 1.1fr;
+        width: 100%;
+        min-height: 100%;
+        height: 100%;
+        max-width: none;
+        background: transparent;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: hidden;
+        animation: fadeInScale 0.5s ease-out;
+    }
+
+    @keyframes fadeInScale {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    /* ===== VISUAL SIDE ===== */
+    .visual-side {
+        background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 50%, #16213e 100%);
+        background-attachment: fixed;
+        padding: 3rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .visual-side::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 25% 35%, rgba(167, 139, 250, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 75% 70%, rgba(124, 58, 237, 0.12) 0%, transparent 50%),
+            radial-gradient(circle at 50% 10%, rgba(59, 130, 246, 0.08) 0%, transparent 40%);
+        z-index: 1;
+        animation: gradientShift 8s ease-in-out infinite;
+    }
+
+    .visual-side::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle at 30% 40%, rgba(167, 139, 250, 0.05), transparent 70%);
+        border-radius: 50%;
+        z-index: 0;
+        animation: float 18s ease-in-out infinite;
+    }
+
+    @keyframes gradientShift {
+        0%, 100% {
+            opacity: 0.8;
+        }
+        50% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        50% {
+            transform: translate(-45%, -55%) scale(1.05);
+        }
+    }
+
+    .visual-content {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        margin-top: 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .visual-icon {
+        width: 140px;
+        height: 140px;
+        margin-bottom: 2rem;
+        background: linear-gradient(135deg, rgba(167, 139, 250, 0.25) 0%, rgba(124, 58, 237, 0.15) 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(20px);
+        border: 2px solid rgba(167, 139, 250, 0.35);
+        box-shadow: 0 0 30px rgba(167, 139, 250, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.05);
+        animation: iconFloat 4s ease-in-out infinite;
+    }
+
+    @keyframes iconFloat {
+        0%, 100% {
+            transform: translateY(0) scale(1);
+        }
+        50% {
+            transform: translateY(-15px) scale(1.05);
+        }
+    }
+
+    .visual-icon svg {
+        width: 80px;
+        height: 80px;
+        filter: drop-shadow(0 0 15px rgba(167, 139, 250, 0.4));
+    }
+
+    .visual-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        background: linear-gradient(to right, #ffffff 0%, #a78bfa 50%, #7c3aed 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.75rem;
+        line-height: 1.3;
+        text-align: center;
+    }
+
+    .visual-subtitle {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.6;
+        max-width: 320px;
+        margin-bottom: 2.5rem;
+        text-align: center;
+    }
+
+    .visual-features {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: left;
+    }
+
+    .visual-feature {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        color: white;
+        background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(124, 58, 237, 0.08) 100%);
+        padding: 0.75rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(167, 139, 250, 0.15);
+        transition: all 0.3s ease;
+        animation: slideInUp 0.6s ease-out forwards;
+        opacity: 0;
+    }
+
+    .visual-feature:nth-child(1) { animation-delay: 0.1s; }
+    .visual-feature:nth-child(2) { animation-delay: 0.2s; }
+    .visual-feature:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .visual-feature:hover {
+        background: linear-gradient(135deg, rgba(167, 139, 250, 0.18) 0%, rgba(124, 58, 237, 0.12) 100%);
+        border-color: rgba(167, 139, 250, 0.3);
+        transform: translateX(8px);
+    }
+
+    html[dir="rtl"] .visual-feature:hover {
+        transform: translateX(-8px);
+    }
+
+    .visual-feature-icon {
+        width: 32px;
+        height: 32px;
+        background: rgba(167, 139, 250, 0.2);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        color: #a78bfa;
+    }
+
+    .visual-feature-text h4 {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+    }
+
+    .visual-feature-text p {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.75);
+        margin: 0;
+    }
+
+    /* ===== FORM SIDE ===== */
+    .form-side {
+        padding: 3.5rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        max-height: none;
+        overflow-y: auto;
+        background: white;
+        box-shadow: -10px 0 40px rgba(0, 0, 0, 0.1);
+        animation: slideInRight 0.6s ease-out;
+        min-height: 100%;
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .form-side::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .form-side::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .form-side::-webkit-scrollbar-thumb {
+        background: rgba(124, 58, 237, 0.2);
+        border-radius: 3px;
+    }
+
+    .form-side::-webkit-scrollbar-thumb:hover {
+        background: rgba(124, 58, 237, 0.4);
+    }
+
+    .form-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .form-header h1 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-header p {
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
+
+    /* ===== FORM STYLING ===== */
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        font-weight: 700;
+        color: #1f2937;
+        font-size: 0.85rem;
+        text-align: start;
+    }
+
+    .form-group label .required {
+        color: #ef4444;
+    }
+
+    .input-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .input-wrapper input,
+    .input-wrapper select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        padding-inline-start: 45px !important;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        background: #f9fafb;
+        color: #111827;
+        min-height: 56px;
+    }
+
+    .input-wrapper select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        color: #111827 !important;
+        background-color: #f9fafb !important;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 20px;
+        padding-right: 40px !important;
+    }
+
+    .input-wrapper select option,
+    .input-wrapper select optgroup {
+        color: #111827 !important;
+        background-color: #ffffff !important;
+    }
+
+    .input-wrapper select option:first-child {
+        color: #9ca3af !important;
+    }
+
+    .input-wrapper select option:checked:first-child {
+        color: #9ca3af !important;
+    }
+
+    .input-wrapper select option:checked,
+    .input-wrapper select option:hover {
+        color: #ffffff !important;
+        background: linear-gradient(#a78bfa, #a78bfa) !important;
+    }
+
+    .input-wrapper input:focus,
+    .input-wrapper select:focus {
+        border-color: #a78bfa !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15) !important;
+        background-color: #ffffff !important;
+    }
+
+    .input-wrapper input::placeholder {
+        color: #9ca3af;
+        opacity: 1;
+    }
+
+    .input-icon {
+        position: absolute;
+        inset-inline-start: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 0.9rem;
+        pointer-events: none;
+        transition: color 0.2s ease;
+    }
+
+    .input-wrapper input:focus ~ .input-icon,
+    .input-wrapper select:focus ~ .input-icon {
+        color: #a78bfa;
+    }
+
+    .password-wrapper input:focus ~ .input-icon {
+        color: #a78bfa;
+    }
+
+    /* Password field with toggle */
+    .password-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .password-wrapper input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        padding-inline-start: 45px !important;
+        padding-inline-end: 2.5rem !important;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        background: #f9fafb;
+        color: #111827;
+        min-height: 56px;
+    }
+
+    .password-wrapper input:focus {
+        border-color: #a78bfa !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15) !important;
+        background-color: #ffffff !important;
+    }
+
+    .password-toggle {
+        position: absolute;
+        inset-inline-end: 0.875rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        padding: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s ease;
+        z-index: 2;
+    }
+
+    .password-toggle:hover {
+        color: #a78bfa;
+    }
+
+    /* Password requirements */
+    .password-requirements {
+        background: #f3f4f6;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-top: 0.5rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .password-requirements p {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin: 0 0 0.5rem 0;
+        font-weight: 600;
+    }
+
+    .password-requirements ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.25rem;
+    }
+
+    .password-requirements li {
+        font-size: 0.75rem;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .password-requirements li i {
+        font-size: 0.65rem;
+    }
+
+    .password-requirements li.valid {
+        color: #10b981;
+    }
+
+    /* ===== TERMS CHECKBOX ===== */
+    .terms-checkbox {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .terms-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin-top: 2px;
+        border: 2px solid #d1d5db;
+        border-radius: 4px;
+        cursor: pointer;
+        accent-color: #7c3aed;
+        flex-shrink: 0;
+    }
+
+    .terms-checkbox label {
+        font-size: 0.85rem;
+        color: #6b7280;
+        line-height: 1.4;
+    }
+
+    .terms-checkbox label a {
+        color: #a78bfa;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .terms-checkbox label a:hover {
+        text-decoration: underline;
+    }
+
+    /* ===== SUBMIT BUTTON ===== */
+    .btn-submit {
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+        background: linear-gradient(to right, #a78bfa, #7c3aed);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        margin-top: 0.75rem;
+    }
+
+    .btn-submit:hover {
+        box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+    }
+
+    .btn-submit:active {
+        transform: translateY(0);
+    }
+
+    .btn-submit .spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    .btn-submit.loading .spinner {
+        display: block;
+    }
+
+    .btn-submit.loading .btn-text {
+        display: none;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* ===== LOGIN LINK ===== */
+    .auth-footer {
+        text-align: center;
+        margin-top: 1.25rem;
+        padding-top: 1.25rem;
+    }
+
+    .auth-footer p {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .auth-footer a {
+        color: #a78bfa;
+        font-weight: 700;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .auth-footer a:hover {
+        color: #ddd6fe;
+        text-decoration: underline;
+    }
+
+    /* ===== ERROR MESSAGES ===== */
+    .alert-errors {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        padding: 0.875rem 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .alert-errors ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .alert-errors li {
+        color: #dc2626;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .alert-errors li:last-child {
+        margin-bottom: 0;
+    }
+
+    .alert-errors li::before {
+        content: '\f071';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        font-size: 0.7rem;
+    }
+
+    .field-error {
+        color: #dc2626;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .field-error::before {
+        content: '\f071';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        font-size: 0.65rem;
+    }
+
+    .autofill-hint {
+        display: block;
+        margin-top: -0.12rem;
+        font-size: 0.75rem;
+        line-height: 1.15;
+        color: #6b7280;
+    }
+
+    .autofill-hint.hidden {
+        display: none;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1000px) {
+        .auth-container {
+            grid-template-columns: 1fr;
+            min-height: auto;
+            height: auto;
+        }
+
+        .visual-side {
+            display: none;
+        }
+
+        .form-side {
+            padding: 2rem;
+        }
+
+        .auth-page-wrapper {
+            height: auto;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .auth-page-wrapper {
+            height: auto;
+        }
+
+        .form-side {
+            padding: 1.5rem;
+        }
+
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .password-requirements ul {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ===== RTL ADJUSTMENTS ===== */
+    html[dir="rtl"] .form-side,
+    html[dir="rtl"] .auth-form {
+        direction: rtl;
+    }
+
+    html[dir="rtl"] .form-group label,
+    html[dir="rtl"] .field-error,
+    html[dir="rtl"] .auth-footer,
+    html[dir="rtl"] .password-requirements p {
+        text-align: right;
+    }
+
+    html[dir="rtl"] .input-wrapper input,
+    html[dir="rtl"] .input-wrapper select,
+    html[dir="rtl"] .password-wrapper input {
+        text-align: right;
+    }
+
+    html[dir="rtl"] #id_full_name_ar::placeholder,
+    html[dir="rtl"] #id_full_name_en::placeholder {
+        color: #9ca3af;
+        opacity: 1;
+    }
+
+    #id_full_name_ar ~ .input-icon {
+        inset-inline-start: auto !important;
+        inset-inline-end: 15px !important;
+    }
+
+    html[dir="rtl"] .password-requirements li {
+        justify-content: flex-start;
+    }
+
+    html[dir="rtl"] .visual-features {
+        text-align: right;
+    }
+
+    html[dir="rtl"] .terms-checkbox {
+        flex-direction: row-reverse;
+    }
+
+    html[dir="rtl"] .auth-container {
+        direction: rtl;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% get_current_language as LANGUAGE_CODE %}
+
+<!-- ===== GATEKEEPER MODAL ===== -->
+<div class="cv-gatekeeper-modal" id="gatekeeperModal">
+    <div class="cv-gatekeeper-content">
+        <div class="cv-gatekeeper-header">
+            <h2>{% trans "How would you like to sign up?" %}</h2>
+            <p>{% trans "Choose your preferred way to create your account" %}</p>
+        </div>
+
+        <div class="cv-gatekeeper-options">
+            <!-- Manual Option -->
+            <div class="cv-option-card" onclick="chooseManualSignup()">
+                <div class="cv-option-icon">
+                    <i class="fas fa-keyboard"></i>
+                </div>
+                <h3>{% trans "Manual Entry" %}</h3>
+                <p>{% trans "Fill in your information manually" %}</p>
+                <button type="button" class="cv-option-button manual">
+                    {% trans "Continue" %}
+                </button>
+            </div>
+
+            <!-- CV Option -->
+            <div class="cv-option-card" onclick="chooseCVSignup()">
+                <div class="cv-option-icon">
+                    <i class="fas fa-file-pdf"></i>
+                </div>
+                <h3>{% trans "Upload CV" %}</h3>
+                <p>{% trans "Auto-fill from your CV (PDF/DOCX)" %}</p>
+                <button type="button" class="cv-option-button cv">
+                    {% trans "Upload" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== CV UPLOAD MODAL ===== -->
+<div class="cv-upload-container" id="cvUploadContainer">
+    <div class="cv-upload-modal">
+        <div class="cv-upload-header">
+            <h2>{% trans "Upload Your CV" %}</h2>
+            <p>{% trans "Supported formats: PDF, DOCX" %}</p>
+        </div>
+
+        <div class="cv-upload-zone" id="cvUploadZone" onclick="document.getElementById('cv-file-input').click()">
+            <div class="cv-upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="cv-upload-text">
+                <h3>{% trans "Drag & drop your CV here" %}</h3>
+                <p>{% trans "or click to browse" %}</p>
+            </div>
+        </div>
+
+        <input type="file" id="cv-file-input" accept=".pdf,.docx,.doc" />
+
+        <div class="cv-file-info" id="cvFileInfo">
+            <div class="cv-file-name" id="cvFileName"></div>
+            <div class="cv-progress-bar">
+                <div class="cv-progress-fill" id="cvProgressFill"></div>
+            </div>
+        </div>
+
+        <div class="cv-loading" id="cvLoading">
+            <div class="cv-spinner"></div>
+            <p class="cv-loading-text">{% trans "Analyzing your CV..." %}</p>
+        </div>
+
+        <div class="cv-upload-buttons" id="cvUploadButtons">
+            <button type="button" class="cv-upload-cancel" onclick="closeCVUpload()">
+                {% trans "Cancel" %}
+            </button>
+            <button type="button" class="cv-upload-submit" id="cvSubmitBtn" disabled onclick="submitCV()">
+                {% trans "Upload & Auto-fill" %}
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="auth-page-wrapper">
+    <div class="auth-container">
+        <!-- Visual Side -->
+        <div class="visual-side">
+            <div class="visual-content">
+                <h2 class="visual-title">{% trans "Join the Arabic NLP Community" %}</h2>
+                <p class="visual-subtitle">{% trans "Access state-of-the-art tools and datasets." %}</p>
+                
+                <div class="visual-features">
+                    <div class="visual-feature">
+                        <div class="visual-feature-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="visual-feature-text">
+                            <h4>{% trans "Advanced NLP Tools" %}</h4>
+                            <p>{% trans "State-of-the-art processing tools" %}</p>
+                        </div>
+                    </div>
+                    <div class="visual-feature">
+                        <div class="visual-feature-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="visual-feature-text">
+                            <h4>{% trans "Research Collaboration" %}</h4>
+                            <p>{% trans "Connect with researchers worldwide" %}</p>
+                        </div>
+                    </div>
+                    <div class="visual-feature">
+                        <div class="visual-feature-icon">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="visual-feature-text">
+                            <h4>{% trans "Rich Arabic Datasets" %}</h4>
+                            <p>{% trans "High-quality curated corpora" %}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Side -->
+        <div class="form-side">
+            <div class="form-header">
+                <h1>{% trans "Create Account" %}</h1>
+                <p>{% trans "Join our research community today!" %}</p>
+            </div>
+
+            {% if form.errors %}
+            <div class="alert-errors">
+                <ul>
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'account_signup' %}" class="auth-form" id="signup-form">
+                {% csrf_token %}
+                
+                <!-- Name Fields - Context Aware: Arabic first if site is in Arabic -->
+                <div class="form-row">
+                    {% if LANGUAGE_CODE == 'ar' %}
+                    <!-- Arabic Name First -->
+                    <div class="form-group">
+                        <label for="id_full_name_ar">
+                            {% trans "Full Name (Arabic)" %} <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="text" 
+                                   name="full_name_ar" 
+                                   id="id_full_name_ar" 
+                                   placeholder="{% trans 'الاسم الكامل بالعربية' %}"
+                                   value="{{ form.full_name_ar.value|default:'' }}"
+                                   dir="rtl"
+                                   required>
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                        <small class="autofill-hint hidden js-cv-autofill-hint">{% trans "Auto-generated, please verify" %}</small>
+                        {% if form.full_name_ar.errors %}
+                            <span class="field-error">{{ form.full_name_ar.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_full_name_en">
+                            {% trans "Full Name (English)" %} <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="text" 
+                                   name="full_name_en" 
+                                   id="id_full_name_en" 
+                                   placeholder="{% trans 'الاسم الكامل بالإنجليزية' %}"
+                                   value="{{ form.full_name_en.value|default:'' }}"
+                                   dir="ltr"
+                                   required>
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                        {% if form.full_name_en.errors %}
+                            <span class="field-error">{{ form.full_name_en.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <!-- English Name First -->
+                    <div class="form-group">
+                        <label for="id_full_name_en">
+                            {% trans "Full Name (English)" %} <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="text" 
+                                   name="full_name_en" 
+                                   id="id_full_name_en" 
+                                   placeholder="{% trans 'Enter your full name' %}"
+                                   value="{{ form.full_name_en.value|default:'' }}"
+                                   required>
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                        {% if form.full_name_en.errors %}
+                            <span class="field-error">{{ form.full_name_en.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_full_name_ar">
+                            {% trans "Full Name (Arabic)" %} <span class="required">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="text" 
+                                   name="full_name_ar" 
+                                   id="id_full_name_ar" 
+                                   placeholder="{% trans 'الاسم الكامل بالعربية' %}"
+                                   value="{{ form.full_name_ar.value|default:'' }}"
+                                   dir="rtl"
+                                   required>
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                        <small class="autofill-hint hidden js-cv-autofill-hint">{% trans "Auto-generated, please verify" %}</small>
+                        {% if form.full_name_ar.errors %}
+                            <span class="field-error">{{ form.full_name_ar.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Email Field -->
+                <div class="form-group full-width">
+                    <label for="id_email">
+                        {% trans "Email Address" %} <span class="required">*</span>
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="email" 
+                               name="email" 
+                               id="id_email" 
+                               placeholder="{% trans 'Enter your institutional email' %}"
+                               value="{{ form.email.value|default:'' }}"
+                               autocomplete="email"
+                               required>
+                        <i class="fas fa-envelope input-icon"></i>
+                    </div>
+                    {% if form.email.errors %}
+                        <span class="field-error">{{ form.email.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Institution Field -->
+                <div class="form-group full-width">
+                    <label for="id_institution">
+                        {% trans "Institution" %}
+                    </label>
+                    <div class="input-wrapper">
+                        <select name="institution" id="id_institution">
+                            <option value="">{% trans "Select your institution" %}</option>
+                            {% for institution in form.institution.field.queryset %}
+                                <option value="{{ institution.pk }}" {% if form.institution.value == institution.pk|stringformat:'s' %}selected{% endif %}>
+                                    {{ institution }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <i class="fas fa-university input-icon"></i>
+                    </div>
+                    {% if form.institution.errors %}
+                        <span class="field-error">{{ form.institution.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Specialization Field -->
+                <div class="form-group full-width">
+                    <label for="id_ai_specialization">
+                        {% trans "Field of Specialization in AI" %}
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="text" 
+                               name="ai_specialization" 
+                               id="id_ai_specialization" 
+                               placeholder="{% trans 'e.g., NLP, Machine Learning, Deep Learning' %}"
+                               value="{{ form.ai_specialization.value|default:'' }}">
+                        <i class="fas fa-microscope input-icon"></i>
+                    </div>
+                    {% if form.ai_specialization.errors %}
+                        <span class="field-error">{{ form.ai_specialization.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Password Fields -->
+                <div class="form-group full-width">
+                    <label for="id_password1">
+                        {% trans "Password" %} <span class="required">*</span>
+                    </label>
+                    <div class="password-wrapper">
+                        <input type="password" 
+                               name="password1" 
+                               id="id_password1" 
+                               placeholder="{% trans 'Create a password' %}"
+                               autocomplete="new-password"
+                               required>
+                        <i class="fas fa-lock input-icon"></i>
+                        <button type="button" class="password-toggle" onclick="togglePassword('id_password1', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    {% if form.password1.errors %}
+                        <span class="field-error">{{ form.password1.errors.0 }}</span>
+                    {% endif %}
+                </div>
+                <div class="form-group full-width">
+                    <label for="id_password2">
+                        {% trans "Confirm Password" %} <span class="required">*</span>
+                    </label>
+                    <div class="password-wrapper">
+                        <input type="password" 
+                               name="password2" 
+                               id="id_password2" 
+                               placeholder="{% trans 'Confirm your password' %}"
+                               autocomplete="new-password"
+                               required>
+                        <i class="fas fa-lock input-icon"></i>
+                        <button type="button" class="password-toggle" onclick="togglePassword('id_password2', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    {% if form.password2.errors %}
+                        <span class="field-error">{{ form.password2.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Password Requirements -->
+                <div class="password-requirements">
+                    <p>{% trans "Password must contain:" %}</p>
+                    <ul>
+                        <li id="req-length"><i class="fas fa-circle"></i> {% trans "At least 8 characters" %}</li>
+                        <li id="req-upper"><i class="fas fa-circle"></i> {% trans "One uppercase letter" %}</li>
+                        <li id="req-lower"><i class="fas fa-circle"></i> {% trans "One lowercase letter" %}</li>
+                        <li id="req-number"><i class="fas fa-circle"></i> {% trans "One number" %}</li>
+                    </ul>
+                </div>
+
+                <!-- Terms Checkbox -->
+                <div class="terms-checkbox">
+                    <input type="checkbox" name="terms" id="id_terms" required>
+                    <label for="id_terms">
+                        {% trans "I agree to the" %} 
+                        <a href="#" onclick="alert('Terms of Service page coming soon'); return false;">{% trans "Terms of Service" %}</a> 
+                        {% trans "and" %} 
+                        <a href="#" onclick="alert('Privacy Policy page coming soon'); return false;">{% trans "Privacy Policy" %}</a>
+                    </label>
+                </div>
+
+                <!-- Hidden next field -->
+                {% if redirect_field_value %}
+                <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+                {% endif %}
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit" id="submit-btn">
+                    <span class="btn-text">
+                        <i class="fas fa-user-plus"></i>
+                        {% trans "Create Account" %}
+                    </span>
+                    <span class="spinner"></span>
+                </button>
+            </form>
+
+            <!-- Login Link -->
+            <div class="auth-footer">
+                <p>
+                    {% trans "Already have an account?" %}
+                    <a href="{% url 'account_login' %}">{% trans "Sign In" %}</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== GATEKEEPER AND CV UPLOAD LOGIC =====
+
+// Show gatekeeper modal on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if user already made a choice (stored in sessionStorage)
+    if (!sessionStorage.getItem('signupMethod')) {
+        document.getElementById('gatekeeperModal').style.display = 'flex';
+    }
+});
+
+// Manual signup choice
+function chooseManualSignup() {
+    sessionStorage.setItem('signupMethod', 'manual');
+    document.getElementById('gatekeeperModal').classList.add('hidden');
+    document.getElementById('gatekeeperModal').style.display = 'none';
+    updateCvAutofillHintVisibility(false);
+}
+
+// CV signup choice
+function chooseCVSignup() {
+    sessionStorage.setItem('signupMethod', 'cv');
+    document.getElementById('gatekeeperModal').classList.add('hidden');
+    updateCvAutofillHintVisibility(true);
+    openCVUpload();
+}
+
+// Open CV upload modal
+function openCVUpload() {
+    document.getElementById('cvUploadContainer').classList.add('active');
+}
+
+// Close CV upload modal
+function closeCVUpload() {
+    document.getElementById('cvUploadContainer').classList.remove('active');
+    resetCVUpload();
+    sessionStorage.removeItem('signupMethod');
+    updateCvAutofillHintVisibility(false);
+}
+
+function updateCvAutofillHintVisibility(shouldShow) {
+    document.querySelectorAll('.js-cv-autofill-hint').forEach(function(hintEl) {
+        hintEl.classList.toggle('hidden', !shouldShow);
+    });
+}
+
+// Reset CV upload form
+function resetCVUpload() {
+    document.getElementById('cv-file-input').value = '';
+    document.getElementById('cvFileInfo').classList.remove('active');
+    document.getElementById('cvLoading').classList.remove('active');
+    document.getElementById('cvUploadButtons').style.display = 'flex';
+    document.getElementById('cvSubmitBtn').disabled = true;
+}
+
+// Handle file input change
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('cv-file-input');
+    const uploadZone = document.getElementById('cvUploadZone');
+    const cvFileInfo = document.getElementById('cvFileInfo');
+    const cvFileName = document.getElementById('cvFileName');
+    const submitBtn = document.getElementById('cvSubmitBtn');
+
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            displayFileInfo(file);
+        }
+    });
+
+    // Drag and drop
+    uploadZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadZone.classList.add('dragging');
+    });
+
+    uploadZone.addEventListener('dragleave', function() {
+        uploadZone.classList.remove('dragging');
+    });
+
+    uploadZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('dragging');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            displayFileInfo(files[0]);
+        }
+    });
+
+    function displayFileInfo(file) {
+        // Validate file type
+        const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('{% trans "Please upload a PDF or DOCX file" %}');
+            fileInput.value = '';
+            return;
+        }
+
+        // Validate file size (max 20MB)
+        if (file.size > 20 * 1024 * 1024) {
+            alert('{% trans "File is too large. Maximum size: 20MB" %}');
+            fileInput.value = '';
+            return;
+        }
+
+        cvFileName.textContent = file.name;
+        cvFileInfo.classList.add('active');
+        submitBtn.disabled = false;
+    }
+});
+
+// Submit CV
+// Parse JSON safely
+async function parseJsonResponse(response) {
+    const rawText = await response.text();
+
+    if (!rawText) {
+        return { data: null, rawText: '' };
+    }
+
+    try {
+        return { data: JSON.parse(rawText), rawText };
+    } catch (parseError) {
+        throw new Error(
+            `Server returned invalid JSON (HTTP ${response.status}). Response: ${rawText.slice(0, 300)}`
+        );
+    }
+}
+
+// Submit CV
+async function submitCV() {
+    const fileInput = document.getElementById('cv-file-input');
+    const file = fileInput.files[0];
+    
+    if (!file) return;
+
+    const submitBtn = document.getElementById('cvSubmitBtn');
+    const uploadButtons = document.getElementById('cvUploadButtons');
+    const cvLoading = document.getElementById('cvLoading');
+
+    // Show loading state
+    uploadButtons.style.display = 'none';
+    cvLoading.classList.add('active');
+    submitBtn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        // Send file to Django proxy endpoint (localized URL to avoid POST redirect issues)
+        const extractCvUrl = "{% url 'accounts:extract_cv_signup' %}";
+        console.log(`Sending CV to proxy endpoint: ${extractCvUrl}`);
+        
+        const response = await fetch(extractCvUrl, {
+            method: 'POST',
+            body: formData,
+        });
+
+        const { data, rawText } = await parseJsonResponse(response);
+
+        if (!response.ok) {
+            const detailMessage = data && data.detail ? data.detail : null;
+            const errorMessage = data && data.error ? data.error : null;
+            throw new Error(
+                detailMessage ||
+                errorMessage ||
+                rawText ||
+                `HTTP Error ${response.status}`
+            );
+        }
+
+        if (!data) {
+            throw new Error('The server returned an empty response.');
+        }
+
+        const cvData = data;
+        console.log('CV data received:', cvData);
+
+        // Persist extracted data and reload the signup page so it opens with the fields prefilled.
+        sessionStorage.setItem('pendingCvAutofill', JSON.stringify(cvData));
+        sessionStorage.setItem('signupMethod', 'cv');
+        window.location.href = "{% url 'account_signup' %}";
+        return;
+
+    } catch (error) {
+        console.error('Error processing CV:', error);
+        alert(`{% trans "Error processing CV:" %}\n\n${error.message}\n\n{% trans "Make sure the CV Processing service is running on port 8002." %}`);
+        
+        // Reset form
+        uploadButtons.style.display = 'flex';
+        cvLoading.classList.remove('active');
+        submitBtn.disabled = false;
+    }
+}
+
+const ARABIC_NAME_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+let arabicNameManuallyEdited = false;
+let isSettingArabicAutofill = false;
+let transliterationDebounceTimer = null;
+
+function normalizeFullName(value) {
+    return (value || '').replace(/\s+/g, ' ').trim();
+}
+
+function containsArabicScript(value) {
+    return ARABIC_NAME_REGEX.test(value || '');
+}
+
+function pickFirstNonEmpty(values) {
+    for (const value of values) {
+        if (typeof value === 'string' && normalizeFullName(value)) {
+            return normalizeFullName(value);
+        }
+    }
+    return '';
+}
+
+function getCandidateEnglishFullName(cvData) {
+    const directName = pickFirstNonEmpty([
+        cvData.fullNameEn,
+        cvData.full_name_en,
+        cvData.fullName,
+        cvData.full_name,
+    ]);
+
+    if (directName) {
+        return directName;
+    }
+
+    const firstName = normalizeFullName(cvData.firstName || cvData.first_name || '');
+    const lastName = normalizeFullName(cvData.lastName || cvData.last_name || '');
+    return normalizeFullName(`${firstName} ${lastName}`);
+}
+
+function getCandidateArabicFullName(cvData) {
+    return pickFirstNonEmpty([
+        cvData.fullNameAr,
+        cvData.full_name_ar,
+        cvData.nameAr,
+        cvData.name_ar,
+    ]);
+}
+
+function setArabicNameAutofillValue(value) {
+    const arabicInput = document.getElementById('id_full_name_ar');
+    if (!arabicInput) {
+        return;
+    }
+
+    isSettingArabicAutofill = true;
+    arabicInput.value = normalizeFullName(value);
+    isSettingArabicAutofill = false;
+}
+
+function canAutofillArabicField(force = false) {
+    if (force) {
+        return true;
+    }
+
+    const arabicInput = document.getElementById('id_full_name_ar');
+    if (!arabicInput) {
+        return false;
+    }
+
+    return !normalizeFullName(arabicInput.value) && !arabicNameManuallyEdited;
+}
+
+async function requestArabicNameAutofill(fullNameEn, options = {}) {
+    const { force = false, debounceMs = 0 } = options;
+    const normalizedName = normalizeFullName(fullNameEn);
+
+    if (!normalizedName || normalizedName.length < 2 || !canAutofillArabicField(force)) {
+        return;
+    }
+
+    const doRequest = async () => {
+        try {
+            const response = await fetch("{% url 'accounts:transliterate_name_ar' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ full_name_en: normalizedName }),
+            });
+
+            const { data } = await parseJsonResponse(response);
+
+            if (!response.ok || !data) {
+                return;
+            }
+
+            const translatedName = normalizeFullName(data.full_name_ar || '');
+            if (!translatedName || !containsArabicScript(translatedName)) {
+                return;
+            }
+
+            if (canAutofillArabicField(force)) {
+                setArabicNameAutofillValue(translatedName);
+            }
+        } catch (error) {
+            console.warn('Arabic name transliteration failed:', error);
+        }
+    };
+
+    if (debounceMs > 0) {
+        clearTimeout(transliterationDebounceTimer);
+        transliterationDebounceTimer = setTimeout(doRequest, debounceMs);
+        return;
+    }
+
+    await doRequest();
+}
+
+function applyPendingCvAutofill() {
+    const rawCvData = sessionStorage.getItem('pendingCvAutofill');
+    if (!rawCvData) {
+        return;
+    }
+
+    try {
+        const cvData = JSON.parse(rawCvData);
+        autoFillForm(cvData);
+    } catch (error) {
+        console.error('Invalid pending CV autofill payload:', error);
+    } finally {
+        sessionStorage.removeItem('pendingCvAutofill');
+        const gatekeeperModal = document.getElementById('gatekeeperModal');
+        if (gatekeeperModal) {
+            gatekeeperModal.classList.add('hidden');
+            gatekeeperModal.style.display = 'none';
+        }
+    }
+}
+
+// Auto-fill form with CV data
+function autoFillForm(cvData) {
+    const englishInput = document.getElementById('id_full_name_en');
+    const fullNameEn = getCandidateEnglishFullName(cvData);
+    if (englishInput && fullNameEn) {
+        englishInput.value = fullNameEn;
+    }
+
+    const fullNameAr = getCandidateArabicFullName(cvData);
+    if (fullNameAr && containsArabicScript(fullNameAr) && canAutofillArabicField()) {
+        setArabicNameAutofillValue(fullNameAr);
+    } else if (fullNameEn) {
+        requestArabicNameAutofill(fullNameEn);
+    }
+
+    if (cvData.lastName) {
+        // Also try to fill if there's a separate last name field
+        // This depends on your form structure
+    }
+
+    // Fill email if provided
+    if (cvData.email) {
+        document.getElementById('id_email').value = cvData.email;
+    }
+
+    // Fill bio
+    if (cvData.bio) {
+        const bioElement = document.getElementById('id_bio');
+        if (bioElement) {
+            bioElement.value = cvData.bio;
+        }
+    }
+
+    // Fill speciality from first matching speciality
+    if (cvData.specialities && cvData.specialities.length > 0) {
+        const specElement = document.getElementById('id_ai_specialization');
+        if (specElement) {
+            specElement.value = cvData.specialities.join(', ');
+        }
+    }
+
+    // If experiences exist, you might want to add them dynamically
+    // This would require more complex form handling depending on your form structure
+    if (cvData.experiences && cvData.experiences.length > 0) {
+        console.log('Experiences found:', cvData.experiences);
+        // TODO: Add experience form rows if your form supports dynamic fields
+    }
+}
+
+// ===== PASSWORD AND FORM VALIDATION =====
+
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Password validation visual feedback
+const password1 = document.getElementById('id_password1');
+if (password1) {
+    password1.addEventListener('input', function() {
+        const value = this.value;
+        
+        // Length check
+        const reqLength = document.getElementById('req-length');
+        if (value.length >= 8) {
+            reqLength.classList.add('valid');
+            reqLength.querySelector('i').classList.replace('fa-circle', 'fa-check-circle');
+        } else {
+            reqLength.classList.remove('valid');
+            reqLength.querySelector('i').classList.replace('fa-check-circle', 'fa-circle');
+        }
+        
+        // Uppercase check
+        const reqUpper = document.getElementById('req-upper');
+        if (/[A-Z]/.test(value)) {
+            reqUpper.classList.add('valid');
+            reqUpper.querySelector('i').classList.replace('fa-circle', 'fa-check-circle');
+        } else {
+            reqUpper.classList.remove('valid');
+            reqUpper.querySelector('i').classList.replace('fa-check-circle', 'fa-circle');
+        }
+        
+        // Lowercase check
+        const reqLower = document.getElementById('req-lower');
+        if (/[a-z]/.test(value)) {
+            reqLower.classList.add('valid');
+            reqLower.querySelector('i').classList.replace('fa-circle', 'fa-check-circle');
+        } else {
+            reqLower.classList.remove('valid');
+            reqLower.querySelector('i').classList.replace('fa-check-circle', 'fa-circle');
+        }
+        
+        // Number check
+        const reqNumber = document.getElementById('req-number');
+        if (/[0-9]/.test(value)) {
+            reqNumber.classList.add('valid');
+            reqNumber.querySelector('i').classList.replace('fa-circle', 'fa-check-circle');
+        } else {
+            reqNumber.classList.remove('valid');
+            reqNumber.querySelector('i').classList.replace('fa-check-circle', 'fa-circle');
+        }
+    });
+}
+
+// Form loading state
+document.addEventListener('DOMContentLoaded', function() {
+    const signupForm = document.getElementById('signup-form');
+    const arabicInput = document.getElementById('id_full_name_ar');
+    const englishInput = document.getElementById('id_full_name_en');
+    const isCvFlow = sessionStorage.getItem('signupMethod') === 'cv';
+
+    updateCvAutofillHintVisibility(isCvFlow);
+
+    if (arabicInput) {
+        arabicNameManuallyEdited = Boolean(normalizeFullName(arabicInput.value));
+        arabicInput.addEventListener('input', function(event) {
+            if (!isSettingArabicAutofill && event.isTrusted) {
+                arabicNameManuallyEdited = true;
+            }
+        });
+    }
+
+    if (englishInput) {
+        englishInput.addEventListener('input', function() {
+            requestArabicNameAutofill(englishInput.value, { debounceMs: 500 });
+        });
+
+        englishInput.addEventListener('blur', function() {
+            requestArabicNameAutofill(englishInput.value);
+        });
+    }
+
+    if (signupForm) {
+        signupForm.addEventListener('submit', function() {
+            const btn = document.getElementById('submit-btn');
+            btn.classList.add('loading');
+            btn.disabled = true;
+        });
+    }
+
+    applyPendingCvAutofill();
+});
+
+// Handle select placeholder color
+const institutionSelect = document.getElementById('id_institution');
+if (institutionSelect) {
+    function updateSelectColor() {
+        if (institutionSelect.value === '') {
+            institutionSelect.style.color = '#9ca3af';
+        } else {
+            institutionSelect.style.color = '#111827';
+        }
+    }
+    
+    institutionSelect.addEventListener('change', updateSelectColor);
+    updateSelectColor(); // Initial call
+}
+</script>
+{% endblock %}

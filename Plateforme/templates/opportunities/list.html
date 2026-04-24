@@ -1,0 +1,508 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+  .content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%) !important}
+  .op-shell{font-family:'Inter',sans-serif;color:#ecf0ff;padding:1rem 0 2.5rem;position:relative;overflow:hidden}
+  .op-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+  .op-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto;position:relative;z-index:1}
+  .pub-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+  .pub-stat-badge{background:transparent;border:none;padding:0rem 2rem 1.5rem 2rem;text-align:center;margin-top:-0.8rem}
+  .pub-stat-number{font-size:3.2rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+  .pub-stat-label{font-size:1rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.8rem;font-weight:700}
+  .op-panel,.op-card,.op-modal{border:1.5px solid rgba(167,139,250,.2);box-shadow:0 14px 36px rgba(0,0,0,.18)}
+  .op-hero{position:relative;overflow:hidden;border-radius:24px;padding:3rem 2rem;margin:1.5rem auto 1.25rem;background:transparent;border:none;box-shadow:none;display:flex;flex-direction:row;align-items:center;gap:2.5rem;justify-content:flex-start;text-align:left}
+  .op-hero:after{content:"";position:absolute;inset:0;background:none;pointer-events:none}
+  .op-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+  .op-hero-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-width:0;width:100%;flex:1;gap:.8rem}
+  .op-skill-option,.op-mini-tag,.op-badge{display:inline-flex;align-items:center;gap:.45rem;border-radius:12px}
+  .op-h1{margin:0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;max-width:100%;text-wrap:balance}
+  .op-hl{color:#a78bfa}
+  .op-sub{margin:0;font-family:'Inter',sans-serif;color:#a78bfa;max-width:760px;font-size:1.3rem;line-height:1.7;font-weight:600}
+  .op-hero-publish{display:none}
+  .op-visual{display:flex;align-items:flex-start;justify-content:center;position:relative;flex-shrink:0;width:auto;height:auto}
+  .op-visual-stats{display:flex;flex-direction:column;align-items:center;gap:1.5rem;text-align:center;margin-left:auto}
+  .op-chip{display:none}
+  .op-chip-1{display:none}
+  .op-chip-2{display:none}
+  .op-chip-3{display:none}
+  .op-chip-4{display:none}
+  .op-chip-1::after,
+  .op-chip-3::after,
+  .op-chip-2::after,
+  .op-chip-4::after{display:none}
+  .op-chip-title{font-size:1rem;font-weight:700;color:#f8fafc;line-height:1.2}
+  .op-chip-icon{display:none}
+  .op-chip-icon i{display:none}
+  .op-visual-center{display:flex;align-items:center;justify-content:center;position:relative;z-index:2}
+  .op-visual-center img{width:8rem;height:7rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;object-fit:contain;filter:drop-shadow(0 12px 28px rgba(15,23,42,.22));box-shadow:0 12px 28px rgba(15,23,42,.22)}
+  html[dir="rtl"] .op-hero{position:relative;flex-direction:row-reverse}
+  html[dir="rtl"] .op-visual{margin-right:auto;margin-left:0}
+  html[dir="rtl"] .op-visual-stats{margin-right:auto;margin-left:0}
+  html[dir="rtl"] .op-top h2{text-align:right;width:auto;justify-self:end}
+  html[dir="rtl"] .op-hero-inner{align-items:start}
+  html[dir="rtl"] .op-top{align-items:center}
+  html[dir="rtl"] .op-top h2{text-align:right;width:auto;justify-self:end}
+  .op-layout{display:block;margin-top:1.25rem}
+  .op-counter-text{font-size:0.9rem;font-weight:600;color:#a78bfa;margin-bottom:1rem;margin-top:-0.5rem;text-align:left;margin-left:1rem}
+  .op-counter-text #opCountNumber{font-size:0.9rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .op-panel{border-radius:28px;background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:1.5rem;margin-bottom:1.5rem}
+  .op-panel-title{display:none}
+  .op-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+  .op-filter-grid{display:grid;grid-template-columns:2.2fr repeat(4,1fr) auto;gap:1rem;align-items:center}
+  .op-filter-grid .op-btn{padding:.95rem 1rem;font-size:.95rem;min-width:160px}
+  .op-search{position:relative;display:flex;align-items:center;min-width:280px;flex:1 1 auto}
+  .op-search i{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:#a78bfa;font-size:.95rem;pointer-events:none}
+  .op-toolbar{display:flex;flex-wrap:nowrap;gap:.75rem;align-items:stretch;justify-content:flex-start;margin-bottom:0;min-width:0;padding:0}
+  .op-search input,.op-input,.op-textarea{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:12px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;font-size:.94rem;outline:none}
+  .op-search input::placeholder,.op-input::placeholder,.op-textarea::placeholder{color:rgba(255,255,255,.6);font-weight:400}
+  .op-search input:focus,.op-input:focus,.op-textarea:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+  .op-select{width:auto;min-width:160px;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background-color:#1a1a2e !important;color:#fff !important;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>') !important;background-repeat:no-repeat !important;background-position:right .8rem center !important;background-size:12px !important;padding-right:2.5rem !important;background-attachment:scroll !important;flex:0 0 auto}
+  .op-select:hover{border-color:rgba(167,139,250,.24) !important;background-color:#1a1a2e !important;box-shadow:0 4px 12px rgba(167,139,250,.15) !important;transform:translateY(-2px)}
+  .op-select:focus{outline:none !important;border-color:rgba(167,139,250,.24) !important;box-shadow:none !important;background-color:#1a1a2e !important}
+  .op-select:active{background-color:#1a1a2e !important;transform:translateY(-1px);box-shadow:0 6px 16px rgba(167,139,250,.2);animation:pulse-select .4s ease-out}
+  .op-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
+  .op-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
+  .op-search input{padding-left:2.4rem}
+  .op-search input::placeholder,.op-input::placeholder,.op-textarea::placeholder{color:#aab4d4}
+  .op-toolbar .op-select{width:auto;min-width:160px;flex:0 0 160px}
+  .op-main{padding:0;display:flex;flex-direction:column}
+  .op-top{display:grid;grid-template-columns:minmax(180px,260px) minmax(0,1fr) auto;gap:1rem;align-items:center;margin:0;width:100%;padding:0;border:none;background:transparent}
+  .op-top h2{margin:0;font-family:'Syne',sans-serif;font-size:1.18rem;color:#fff;justify-self:end;text-align:right;white-space:nowrap}
+  .op-hero-action-slot{display:none}
+  .op-actions{display:flex;gap:.55rem;align-items:center;justify-content:center;flex-wrap:nowrap;padding:0;border:none;border-radius:0;background:transparent;box-shadow:none}
+  .op-actions .op-select{width:auto;min-width:160px;flex:0 0 160px}
+  .op-actions .op-btn{flex:0 0 auto;white-space:nowrap}
+  .op-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+  .op-btn:hover{transform:translateY(-3px);box-shadow:none;background:#a78bfa}
+  .op-btn:active{transform:translateY(-1px);box-shadow:0 6px 16px rgba(167,139,250,.2)}
+  .op-modal .op-btn:not(.primary){background:#fff;color:#162033;border-color:#d4dceb}
+  .op-btn.primary{background:#a78bfa;border-color:#a78bfa}
+  .op-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,340px));gap:1rem;justify-content:start;width:100%;align-items:start}
+  .op-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:312px;width:100%;max-width:340px;justify-self:stretch}
+  .op-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:#a78bfa;flex-shrink:0}
+  .op-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+  .op-card-banner{padding:1rem 1rem .75rem;display:flex;justify-content:center;align-items:center;gap:.75rem;background:transparent;border-bottom:none;position:relative}
+  .op-accent{display:none}
+  .op-card-top{display:flex;justify-content:center;align-items:center;width:100%}
+  .op-badge{position:absolute;top:1rem;left:1rem;padding:.32rem .7rem;background:rgba(255,255,255,.08);border:1px solid rgba(196,181,253,.2);font-size:.74rem;font-weight:700;color:#ddd6fe}
+  .op-mark{width:46px;height:46px;border-radius:12px;background:linear-gradient(to bottom right,#8b5cf6,#6366f1);display:grid;place-items:center;font-weight:800;color:#fff;border:none;box-shadow:0 4px 12px rgba(139,92,246,.25);position:absolute;right:1rem;top:50%;transform:translateY(-50%)}
+  .op-card-body{display:flex;flex-direction:column;gap:.5rem;padding:.35rem 1rem .85rem;flex:1}
+  .op-title{margin:0;padding-right:52px;font-size:1.05rem;font-weight:700;color:#f8fafc;line-height:1.35;text-align:center;word-wrap:break-word;overflow-wrap:anywhere;letter-spacing:-.01em;font-family:'Inter',-apple-system,sans-serif}
+  .op-subline,.op-meta-row,.op-desc,.op-contact-line{display:flex;justify-content:space-between;align-items:center;padding:.65rem .8rem;background:rgba(255,255,255,.05);border:1px solid rgba(196,181,253,.16);border-radius:10px;gap:.75rem;transition:all .2s ease}
+  .op-subline:hover,.op-meta-row:hover,.op-desc:hover,.op-contact-line:hover{background:rgba(255,255,255,.08);border-color:rgba(196,181,253,.24)}
+  .op-subline{color:#f8fafc;font-size:.82rem;font-weight:600;line-height:1.35}
+  .op-subline small{display:inline-block;color:#cbd5e1;font-size:.78rem;font-weight:500;flex-shrink:0}
+  .op-subline span{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+  .op-meta,.op-tags{display:flex;flex-wrap:wrap;gap:.4rem}
+  .op-mini-tag{padding:.5rem .875rem;background:rgba(255,255,255,.08);border:1px solid rgba(196,181,253,.18);font-size:.8125rem;font-weight:600;color:#e9d5ff;border-radius:8px;display:inline-flex;align-items:center;gap:.375rem;white-space:nowrap;transition:all .2s ease}
+  .op-mini-tag:hover{border-color:rgba(196,181,253,.3);background:rgba(255,255,255,.12)}
+  .op-desc{margin:0;color:#f8fafc;font-size:.84rem;font-weight:600;line-height:1.5;display:block;overflow-wrap:anywhere;word-break:break-word}
+  .op-desc small{display:block;margin-top:.25rem;color:#cbd5e1;font-size:.78rem;font-weight:500;line-height:1.45;overflow-wrap:anywhere;word-break:break-word}
+  .op-contact-line{color:#e5e7eb;font-size:.8rem;font-weight:600}
+  .op-contact-label{color:#cbd5e1;font-weight:700;white-space:nowrap}
+  .op-contact-value{color:#f8fafc;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:end;text-decoration:none}
+  .op-contact-value:hover{color:#c4b5fd}
+  .op-card-foot{display:flex;flex-direction:row;gap:.75rem;padding:.85rem 1rem 1rem;background:transparent;border-top:none;margin-top:auto;justify-content:space-between;align-items:center}
+  .op-deadline{color:#e5e7eb;font-size:.75rem;font-weight:600;background:rgba(255,255,255,.06);border:1px solid rgba(196,181,253,.18);border-radius:8px;padding:.45rem .7rem;display:inline-flex;align-items:center;gap:.375rem;align-self:auto}
+  .op-card-foot .op-btn.primary{align-self:auto;border:none;border-radius:10px;padding:.62rem 1rem;background:#a78bfa;color:#fff;font-size:.84rem;font-weight:700;box-shadow:0 4px 12px rgba(139,92,246,.3)}
+  .op-card-foot .op-btn.primary:hover{transform:translateY(-2px)}
+  .op-card-tools{display:flex;justify-content:flex-end;padding:0 1rem .35rem}
+  .op-card-tools .card-top-actions{display:flex;gap:.5rem;align-items:center}
+  .op-card-tools .card-action-icon{display:inline-flex;align-items:center;justify-content:center;gap:.25rem;padding:.3rem .6rem;border:1px solid rgba(167,139,250,.2);border-radius:8px;background:transparent;cursor:pointer;transition:all .2s ease;color:#9ca3af;font-size:.7rem;font-weight:600;white-space:nowrap}
+  .op-card-tools .card-action-icon:hover{background:rgba(167,139,250,.1);color:#a78bfa;border-color:rgba(167,139,250,.4);transform:translateY(-1px);box-shadow:0 4px 12px rgba(167,139,250,.18)}
+  .op-card-tools .card-action-icon i{font-size:.8rem}
+  .op-card-tools .card-action-icon:focus-visible{outline:2px solid #a78bfa;outline-offset:2px}
+  .op-card-footer{padding:0 1rem .78rem}
+  .op-detail-link{display:flex;align-items:center;justify-content:center;gap:.45rem;width:100%;padding:.64rem .9rem;background:rgba(255,255,255,.03);border:1px solid rgba(167,139,250,.22);border-radius:10px;color:#c4b5fd;font-weight:800;font-size:.84rem;line-height:1.2;white-space:nowrap;cursor:pointer;transition:all .2s ease}
+  .op-detail-link:hover{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.38);color:#ddd6fe}
+  .op-detail-link i{flex-shrink:0}
+  html[dir="rtl"] .op-card-tools .card-top-actions,
+  html[dir="rtl"] .op-card-tools .card-action-icon{flex-direction:row-reverse}
+  html[dir="rtl"] .op-detail-link{flex-direction:row-reverse}
+  .op-empty{display:none;padding:4rem 2rem;border-radius:28px;border:1.5px solid rgba(167,139,250,.3);background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));text-align:center;min-height:380px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .op-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+  @keyframes float-empty{0%,100%{transform:translateY(0px)}50%{transform:translateY(-8px)}}
+  @keyframes pulse-select{0%{box-shadow:0 6px 16px rgba(167,139,250,.2)}50%{box-shadow:0 8px 24px rgba(167,139,250,.4)}100%{box-shadow:0 6px 16px rgba(167,139,250,.2)}}
+  .op-empty-inner{position:relative;z-index:1}
+  .op-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem;display:block;animation:float-empty 3s ease-in-out infinite}
+  .op-empty h3{margin:1rem 0 .75rem;font-family:'Inter',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.01em}
+  .op-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+  .op-empty-actions{display:flex;flex-direction:column;gap:.75rem;align-items:center;margin-top:1.5rem}
+  .op-empty-reset{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+  .op-empty-reset:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+  .op-backdrop{position:fixed;inset:0;display:none;align-items:flex-start;justify-content:center;padding:calc(var(--site-header-height, 80px) + 1.5rem) 1rem 1.5rem;background:rgba(4,8,18,.7);backdrop-filter:blur(8px);z-index:1600;overflow:auto}
+  .op-backdrop.show{display:flex}
+  .op-modal{width:min(1100px,100%);max-height:calc(100vh - var(--site-header-height, 80px) - 3rem);overflow:auto;border-radius:24px;background:linear-gradient(180deg,#151a31 0%,#101426 100%);color:#eef2ff;border:1px solid rgba(167,139,250,.22);box-shadow:0 26px 70px rgba(2,6,23,.4)}
+  .op-modal-head{display:block;padding:0;background:transparent;position:sticky;top:0;z-index:2}
+  .op-detail-hero{padding:1.5rem 1.5rem 1.25rem;background:linear-gradient(135deg,#151a31 0%,#1b2140 100%);border-bottom:1px solid rgba(167,139,250,.14)}
+  .op-modal-kicker{display:inline-flex;align-items:center;padding:.34rem .72rem;border-radius:999px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.22);color:#ddd6fe;font-size:.8rem;font-weight:800;margin-bottom:.9rem}
+  .op-post-hero{background:linear-gradient(135deg,#120f2a 0%,#21143f 52%,#32185d 100%);padding:2.25rem 1.5rem 2.75rem;position:relative;overflow:hidden;border-radius:24px 24px 0 0}
+  .op-post-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%,rgba(139,92,246,.2) 0%,transparent 60%);pointer-events:none}
+  .op-post-hero-inner{max-width:980px;margin:0 auto;position:relative;z-index:1;text-align:left}
+  .op-post-breadcrumb{display:flex;align-items:center;justify-content:flex-start;gap:.5rem;margin:0 0 1.1rem;padding:0;list-style:none;font-size:.875rem;color:rgba(255,255,255,.65)}
+  .op-post-breadcrumb a{color:rgba(255,255,255,.72);text-decoration:none}
+  .op-post-breadcrumb .separator{color:rgba(255,255,255,.35);font-size:.75rem}
+  .op-post-breadcrumb .current{color:rgba(255,255,255,.92)}
+  .op-post-icon{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#8B5CF6 0%,#7C3AED 100%);display:flex;align-items:center;justify-content:center;margin:0 0 1rem;color:#fff;font-size:1.7rem;box-shadow:0 8px 24px rgba(139,92,246,.4)}
+  .op-modal-title{margin:0 0 .45rem;font-family:'Syne',sans-serif;font-size:2rem;line-height:1.05;color:#f8fafc}
+  .op-modal-sub{margin:0;color:rgba(255,255,255,.9);line-height:1.7;max-width:62ch;font-weight:600}
+  .op-steps-bar{display:flex;align-items:center;justify-content:center;gap:0;margin:1.8rem auto 0;background:rgba(255,255,255,.08);border-radius:999px;padding:.375rem;width:fit-content;border:1px solid rgba(196,181,253,.18);box-shadow:0 12px 30px rgba(15,23,42,.16)}
+  .op-step-item{display:flex;align-items:center;gap:.5rem;padding:.5rem 1.25rem;border-radius:999px;font-size:.875rem;font-weight:500;color:rgba(255,255,255,.52);white-space:nowrap}
+  .op-step-item.active{background:#fff;color:#8B5CF6;font-weight:600;box-shadow:0 8px 18px rgba(139,92,246,.18)}
+  .op-step-number{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;background:rgba(255,255,255,.15);color:rgba(255,255,255,.78)}
+  .op-step-item.active .op-step-number{background:#8B5CF6;color:#fff}
+  .op-close{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;border:1px solid rgba(196,181,253,.18);background:rgba(255,255,255,.08);color:#f8fafc;cursor:pointer;font-size:1.15rem;position:absolute;top:1rem;right:1rem;flex-shrink:0;box-shadow:0 10px 24px rgba(15,23,42,.14)}
+  .op-close:hover{background:rgba(255,255,255,.14);border-color:rgba(196,181,253,.28)}
+  html[dir="rtl"] .op-close{right:auto;left:1rem}
+  .op-form-shell{padding:1.25rem;background:linear-gradient(180deg,rgba(18,22,40,.96) 0%,rgba(12,15,30,.98) 100%)}
+  .op-form-grid{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(280px,.72fr);gap:1rem}
+  .op-section{background:linear-gradient(180deg,rgba(25,31,54,.98) 0%,rgba(18,22,40,.98) 100%);border:1px solid rgba(167,139,250,.18);border-radius:16px;overflow:visible;box-shadow:0 14px 34px rgba(0,0,0,.22)}
+  .op-section-head{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1rem 1.1rem;border-bottom:1px solid rgba(167,139,250,.16);background:linear-gradient(180deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,.02) 100%)}
+  .op-section-title{display:flex;align-items:center;gap:1rem}
+  .op-section-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+  .op-section-icon.blue{background:rgba(96,165,250,.16);color:#93c5fd}
+  .op-section-icon.purple{background:rgba(167,139,250,.16);color:#c4b5fd}
+  .op-section-head h3{margin:0;font-size:1.08rem;font-weight:800;color:#f8fafc}
+  .op-section-head p{margin:.32rem 0 0;color:#cbd5e1;line-height:1.65}
+  .op-step{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;border-radius:999px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.2);color:#c4b5fd;font-weight:800;font-size:.82rem}
+  .op-section-body{padding:1rem 1.1rem 1.1rem}
+  .op-fields{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1rem}
+  .op-field{display:flex;flex-direction:column;gap:.42rem}.op-col-12{grid-column:span 12}.op-col-6{grid-column:span 6}.op-col-4{grid-column:span 4}
+  .op-field label{font-weight:800;font-size:.95rem;color:#eef2ff}.op-help{margin:0;color:#cbd5e1;font-size:.84rem;line-height:1.55}.op-req{color:#fca5a5}
+  .op-select,.op-input,.op-textarea{background:rgba(255,255,255,.05);color:#eef2ff;border-color:rgba(167,139,250,.24)}
+  .op-textarea{min-height:120px;resize:vertical}
+  .op-feedback{min-height:1.15rem;color:#cbd5e1;font-size:.82rem}.op-feedback.err{color:#fca5a5}.op-feedback.ok{color:#86efac}
+  .op-input-wrap.err .op-input,.op-input-wrap.err .op-select,.op-input-wrap.err .op-textarea{border-color:rgba(185,28,28,.45);background:#fef2f2}
+  .op-input-wrap.ok .op-input,.op-input-wrap.ok .op-select,.op-input-wrap.ok .op-textarea{border-color:rgba(21,128,61,.35);background:#f0fdf4}
+  .op-skills-grid,.op-custom-list{display:flex;flex-wrap:wrap;gap:.55rem}
+  .op-skill-option{padding:.55rem .8rem;border:1px solid rgba(167,139,250,.22);background:rgba(255,255,255,.04);color:#eef2ff;font-size:.88rem;font-weight:700;cursor:pointer;user-select:none;transition:border-color .2s ease,background .2s ease,color .2s ease,transform .2s ease}
+  .op-skill-option.active{border-color:#8b5cf6;background:rgba(139,92,246,.08);color:#6d28d9}.op-skill-option input{display:none}
+  .op-skill-option:hover{transform:translateY(-1px)}
+  .op-custom-skills{display:none;gap:.55rem;flex-wrap:wrap;align-items:center}.op-custom-skills.show{display:flex}
+  .op-custom-skills .op-input{flex:1 1 240px;min-width:220px}
+  .op-custom-skills .op-btn{flex:0 0 auto}
+  .op-custom-tag{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .72rem;border-radius:999px;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.22);font-size:.85rem;font-weight:700;color:#ddd6fe}
+  .op-custom-tag button{border:none;background:transparent;color:inherit;cursor:pointer;font-size:1rem;line-height:1}
+  .op-summary{display:grid;gap:.8rem}
+  .op-summary-card{padding:.9rem;border:1px solid rgba(167,139,250,.18);border-radius:18px;background:rgba(255,255,255,.04)}
+  .op-summary-label{display:block;margin-bottom:.32rem;color:#cbd5e1;font-size:.77rem;text-transform:uppercase;letter-spacing:.05em;font-weight:800}
+  .op-summary-value{font-weight:700;line-height:1.6;word-break:break-word;color:#f8fafc}
+  .op-errors{display:none;padding:1rem;border-radius:20px;border:1px solid rgba(185,28,28,.18);background:#fef2f2;color:#b91c1c}
+  .op-errors.show{display:block}.op-errors h4{margin:0 0 .6rem;font-size:.96rem}.op-errors ul{margin:0;padding-inline-start:1.1rem}
+  .op-modal-actions{display:grid;gap:.7rem;margin-top:1rem}
+  .op-note{padding:.75rem .85rem;border-radius:16px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.18);color:#e9d5ff;font-size:.84rem;line-height:1.6}
+  .op-toast{position:fixed;right:1rem;bottom:1rem;padding:.8rem .95rem;border-radius:14px;background:#12182a;border:1px solid rgba(255,255,255,.14);color:#eef2ff;box-shadow:0 18px 36px rgba(2,6,23,.4);opacity:0;transform:translateY(10px);pointer-events:none;transition:.18s;z-index:1700}
+  .op-toast.show{opacity:1;transform:translateY(0)}
+  #opPostBackdrop{padding:0;align-items:stretch;justify-content:stretch;background:rgba(4,8,18,.82);backdrop-filter:blur(10px)}
+  #opPostBackdrop .op-modal{width:100vw;max-width:none;height:100vh;max-height:100vh;border-radius:0;border-left:none;border-right:none;display:flex;flex-direction:column;overflow:hidden}
+  #opPostBackdrop .op-post-hero{border-radius:0;padding:1.7rem 1.7rem 2.1rem;overflow:visible}
+  #opPostBackdrop .op-form-shell{flex:1;overflow:auto;padding:1.25rem clamp(.8rem,3vw,2rem) 1.6rem}
+  #opPostBackdrop .op-steps-bar{display:none}
+  #opPostBackdrop .op-form-grid{display:block;min-height:100%}
+  #opPostBackdrop .op-section{max-width:1320px;margin:.75rem auto 0;min-height:calc(100vh - 190px)}
+  #opPostBackdrop .op-section-head .op-step{display:none}
+  #opPostBackdrop .op-modal-head{position:sticky;top:0;z-index:5}
+  #opPostBackdrop .op-post-hero{padding:1.2rem 1.35rem 1.45rem}
+  #opPostBackdrop .op-post-icon{width:52px;height:52px;margin:0 0 .7rem;box-shadow:0 10px 26px rgba(139,92,246,.45)}
+  #opPostBackdrop .op-post-breadcrumb{margin:0 0 .55rem}
+  #opPostBackdrop .op-modal-title{font-size:1.72rem;line-height:1.15;letter-spacing:.01em;margin:0 0 .42rem;color:#ffffff;text-shadow:0 2px 8px rgba(0,0,0,.35)}
+  #opPostBackdrop .op-modal-sub{font-size:1.06rem;line-height:1.6;max-width:76ch;color:rgba(255,255,255,.97);font-weight:700;text-shadow:0 1px 6px rgba(0,0,0,.28)}
+  #opPostBackdrop .op-col-4{grid-column:span 6}
+  #opPostBackdrop .op-close{z-index:10}
+  #opPostBackdrop .op-close i,
+  #opPostBackdrop .op-post-breadcrumb i,
+  #opPostBackdrop .op-post-icon i,
+  #opPostBackdrop .op-section-icon i,
+  #opPostBackdrop .op-btn i{color:inherit;opacity:1;visibility:visible;line-height:1}
+  html[dir="rtl"] #opPostBackdrop .op-select{background-position:left .8rem center !important;padding-left:2.5rem !important;padding-right:1rem !important}
+  html[dir="rtl"] .op-post-hero-inner{text-align:right}
+  html[dir="rtl"] .op-post-breadcrumb{justify-content:flex-end;flex-direction:row-reverse}
+  html[dir="rtl"] .op-post-icon{margin:0 0 .95rem auto}
+  html[dir="rtl"] .op-modal-title,
+  html[dir="rtl"] .op-modal-sub{text-align:right}
+  html[dir="rtl"] #opPostBackdrop .op-post-breadcrumb{justify-content:flex-end;flex-direction:row-reverse}
+  html[dir="rtl"] #opPostBackdrop .op-section-title{flex-direction:row-reverse}
+  @media(max-width:1000px){.op-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}.op-wrap{width:min(100%,calc(100% - 1rem))}.op-visual{margin-left:0}.op-visual-stats{margin-left:0}}
+  @media(max-width:760px){.op-wrap{width:calc(100% - .5rem)}.op-fields{grid-template-columns:1fr}.op-col-12,.op-col-6,.op-col-4{grid-column:auto}.op-toolbar,.op-toolbar-group,.op-actions{width:100%;flex-wrap:wrap}.op-search,.op-toolbar .op-select,.op-actions .op-select,.op-actions .op-btn,.op-select,.op-btn{width:100%;min-width:0}.op-top h2,.op-hero-action-slot{justify-self:stretch;text-align:right}.op-backdrop{padding:calc(var(--site-header-height, 80px) + 1rem) .55rem 1rem}.op-modal{max-height:calc(100vh - var(--site-header-height, 80px) - 2rem)}.op-visual{grid-template-columns:1fr 1fr;grid-template-rows:auto}.op-visual-center{display:none}.op-chip-1,.op-chip-2,.op-chip-3,.op-chip-4{grid-column:auto;grid-row:auto}.op-chip::after{display:none}.op-post-breadcrumb{flex-wrap:wrap}.op-steps-bar{flex-wrap:wrap;border-radius:12px}.op-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem;flex-direction:column;text-align:center}.op-hero h1{font-size:1.5rem}.op-hero p{font-size:.9rem}.op-visual-stats{text-align:center;align-items:center}.pub-stat-number{font-size:2rem}.pub-stat-label{font-size:.85rem}#opPostBackdrop{padding:0}#opPostBackdrop .op-modal{width:100vw;height:100vh;max-height:100vh;border-radius:0}#opPostBackdrop .op-post-hero{padding:1.05rem .95rem 1.1rem;border-radius:0}#opPostBackdrop .op-modal-title{font-size:1.35rem}#opPostBackdrop .op-modal-sub{font-size:.95rem;line-height:1.5}#opPostBackdrop .op-close{top:.75rem;right:.75rem}html[dir="rtl"] #opPostBackdrop .op-close{left:.75rem;right:auto}}
+  @media(max-width:480px){.pub-filter-grid{grid-template-columns:1fr}.pub-input-wrapper{grid-column:1/-1}.pub-btn{grid-column:auto;width:100%;padding:.75rem 1rem;font-size:.8rem}.pub-filter-card{padding:1rem;margin-bottom:1rem}.op-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.op-hero h1{font-size:1.5rem}.op-hero p{font-size:.9rem}.pub-stat-number{font-size:1.4rem}.pub-stat-label{font-size:.55rem;margin-top:.25rem}}
+</style>
+{% endblock %}
+
+{% block content %}
+{{ algerian_institutions|json_script:"opInstitutionData" }}
+{{ opportunities_data|json_script:"opportunitiesData" }}
+<section class="op-shell">
+  <div class="op-wrap">
+    <section class="op-hero">
+      <span class="pub-hero-icon" aria-hidden="true"><i class="fas fa-briefcase"></i></span>
+      <div class="op-hero-inner">
+        <h1 class="op-h1"><span data-i18n="heroTitle1">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بناء فرصتك القادمة{% else %}Build your next opportunity{% endif %}</span></h1>
+        <p class="op-sub" data-i18n="heroSubtitle">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف الفرص الثنائية اللغة في الوظائف والتدريبات والمشاريع البحثية وموضوعات PFE والتعاون الأكاديمي.{% else %}Discover bilingual opportunities across jobs, internships, <br>research projects, PFE topics, and academic collaborations.{% endif %}</p>
+      </div>
+    </section>
+
+    <div class="op-layout">
+      <div class="op-filter-card">
+        <div class="op-filter-grid">
+          <div class="op-search"><i class="fas fa-search"></i><input id="opSearch" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ابحث حسب العنوان أو المؤسسة أو المهارات...{% else %}Search by title, organization, skills...{% endif %}"></div>
+          <select id="opTypeFilter" class="op-select">
+            <option value="">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كل الأنواع{% else %}All types{% endif %}</option>
+            <option value="job">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}وظيفة{% else %}Job{% endif %}</option>
+            <option value="internship">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تربص{% else %}Internship{% endif %}</option>
+            <option value="pfe">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تخرج / ماستر{% else %}PFE / Master{% endif %}</option>
+            <option value="phd">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}دكتوراه{% else %}PhD{% endif %}</option>
+            <option value="collab">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعاون{% else %}Collaboration{% endif %}</option>
+          </select>
+          <select id="opModeFilter" class="op-select">
+            <option value="">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كل الأنماط{% else %}All modes{% endif %}</option>
+            <option value="remote">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عن بُعد{% else %}Remote{% endif %}</option>
+            <option value="hybrid">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}هجين{% else %}Hybrid{% endif %}</option>
+            <option value="onsite">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حضوري{% else %}On-site{% endif %}</option>
+          </select>
+          <select id="opLevelFilter" class="op-select">
+            <option value="">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كل المستويات{% else %}All levels{% endif %}</option>
+            <option value="student">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طالب{% else %}Student{% endif %}</option>
+            <option value="junior">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مبتدئ{% else %}Junior{% endif %}</option>
+            <option value="senior">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}خبير{% else %}Senior{% endif %}</option>
+            <option value="researcher">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}باحث{% else %}Researcher{% endif %}</option>
+          </select>
+          <select id="opSort" class="op-select">
+            <option value="recent" data-i18n="sortRecent">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأحدث{% else %}Most recent{% endif %}</option>
+            <option value="deadline" data-i18n="sortDeadline">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أقرب موعد نهائي{% else %}Closest deadline{% endif %}</option>
+            <option value="relevance" data-i18n="sortRelevance">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أفضل صلة{% else %}Best relevance{% endif %}</option>
+          </select>
+          <button id="opPostBtn" class="op-btn primary" type="button"><i class="fas fa-plus"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نشر فرصة{% else %}Post Opportunity{% endif %}</button>
+        </div>
+      </div>
+      <div class="op-counter-text" id="opCounterText"><span id="opCountNumber">0</span> <span id="opCounterText-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}فرص متاحة!{% else %}opportunities are available!{% endif %}</span></div>
+      <section class="op-panel op-main">
+        <div class="op-top">
+          <div class="op-hero-action-slot"></div>
+          <div class="op-toolbar"></div>
+          <h2 id="opCount"></h2>
+        </div>
+        <div id="opCards" class="op-grid"></div>
+        <div id="opEmpty" class="op-empty" data-i18n="noResults">
+          <div class="op-empty-inner">
+            <i class="fas fa-briefcase op-empty-icon"></i>
+            <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد نتائج متطابقة{% else %}No results found{% endif %}</h3>
+            <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تغيير الفلاتر أو كلمات البحث للعثور على ما تبحث عنه.{% else %}Try adjusting your filters or search keywords to find what you're looking for.{% endif %}</p>
+            <div class="op-empty-actions">
+              <a href="?" class="op-empty-reset">
+                <i class="fas fa-redo-alt"></i>
+                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إعادة تعيين الفلاتر{% else %}Reset filters{% endif %}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<div id="opDetailBackdrop" class="op-backdrop">
+  <article class="op-modal">
+    <header class="op-modal-head">
+      <div class="op-detail-hero">
+        <span class="op-modal-kicker" data-i18n="detailKicker">Opportunity overview</span>
+        <h3 id="opDetailTitle" class="op-modal-title">Opportunity details</h3>
+        <p id="opDetailSub" class="op-modal-sub"></p>
+      </div>
+      <button id="opCloseDetail" class="op-close" type="button" aria-label="{% trans 'Close' %}">&times;</button>
+    </header>
+    <div id="opDetailContent" class="op-form-shell"></div>
+  </article>
+</div>
+<div id="opPostBackdrop" class="op-backdrop">
+  <article class="op-modal">
+    <header class="op-modal-head">
+      <div class="op-post-hero">
+        <div class="op-post-hero-inner">
+          <ol class="op-post-breadcrumb">
+            <li><a href="{% url 'pages:opportunities' %}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}</a></li>
+            <li><span class="separator"><i class="bi bi-chevron-left"></i></span></li>
+            <li class="current" data-i18n="postModalTitle">Publish a new opportunity</li>
+          </ol>
+          <div class="op-post-icon"><i class="bi bi-briefcase"></i></div>
+          <h3 class="op-modal-title" data-i18n="postModalTitle">Publish a new opportunity</h3>
+          <p class="op-modal-sub" data-i18n="postModalSubtitle">Use the same polished editorial workflow as the other core pages. Titles in Arabic and English are required.</p>
+          <div class="op-steps-bar">
+            <div class="op-step-item active">
+              <span class="op-step-number">1</span>
+              <span data-i18n="sectionBasics">1. Essentials</span>
+            </div>
+            <div class="op-step-item">
+              <span class="op-step-number">2</span>
+              <span data-i18n="sectionDetails">2. Position details</span>
+            </div>
+            <div class="op-step-item">
+              <span class="op-step-number">3</span>
+              <span data-i18n="sectionReview">3. Review & publish</span>
+            </div>
+          </div>
+          <button id="opClosePost" class="op-close" type="button" aria-label="{% trans 'Close' %}">&times;</button>
+        </div>
+      </div>
+    </header>
+    <form id="opPostForm" class="op-form-shell" novalidate>
+      {% csrf_token %}
+      <div class="op-form-grid">
+        <section class="op-section">
+          <div class="op-section-head">
+            <div class="op-section-title">
+              <div class="op-section-icon blue"><i class="bi bi-briefcase"></i></div>
+              <div>
+                <h3 data-i18n="postModalTitle">Publish a new opportunity</h3>
+                <p data-i18n="postModalSubtitle">Use the same polished editorial workflow as the other core pages. Titles in Arabic and English are required.</p>
+              </div>
+            </div>
+          </div>
+          <div class="op-section-body">
+            <div class="op-fields">
+              <div class="op-field op-col-6"><label for="opTitleEn"><span data-i18n="fieldTitleEn">Title (English)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="title_en"><input id="opTitleEn" name="title_en" class="op-input" required></div><p class="op-help" data-i18n="fieldTitleEnHint">This title is shown on English screens.</p><div class="op-feedback" data-feedback="title_en"></div></div>
+              <div class="op-field op-col-6"><label for="opTitleAr"><span data-i18n="fieldTitleAr">Title (Arabic)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="title_ar"><input id="opTitleAr" name="title_ar" class="op-input" dir="rtl" required></div><p class="op-help" data-i18n="fieldTitleArHint">This title is shown on Arabic screens.</p><div class="op-feedback" data-feedback="title_ar"></div></div>
+              <div class="op-field op-col-4"><label for="opTypeSelect"><span data-i18n="fieldType">Type</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="type"><select id="opTypeSelect" name="type" class="op-select" required></select></div><p class="op-help" data-i18n="fieldTypeHint">Choose the opportunity category.</p></div>
+              <div class="op-field op-col-4"><label for="opInstitution"><span data-i18n="fieldInstitution">Institution</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="institution"><select id="opInstitution" name="institution" class="op-select" required></select></div><p class="op-help" data-i18n="fieldInstitutionHint">Only Algerian institutions are listed here, plus an Other option.</p><div class="op-feedback" data-feedback="institution"></div></div>
+              <div class="op-field op-col-4"><label for="opLocation"><span data-i18n="fieldLocation">Location</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="location"><input id="opLocation" name="location" class="op-input" required></div><p class="op-help" data-i18n="fieldLocationHint">Auto-filled from the selected institution when available.</p><div class="op-feedback" data-feedback="location"></div></div>
+              <div class="op-field op-col-6" id="opOtherOrgEnWrap" hidden><label for="opOrgEn"><span data-i18n="fieldOrgEn">Organization name (English)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="organization_en"><input id="opOrgEn" name="organization_en" class="op-input"></div><div class="op-feedback" data-feedback="organization_en"></div></div>
+              <div class="op-field op-col-6" id="opOtherOrgArWrap" hidden><label for="opOrgAr"><span data-i18n="fieldOrgAr">Organization name (Arabic)</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="organization_ar"><input id="opOrgAr" name="organization_ar" class="op-input" dir="rtl"></div><div class="op-feedback" data-feedback="organization_ar"></div></div>
+              <div class="op-field op-col-4"><label for="opModeSelect"><span data-i18n="fieldMode">Mode</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="mode"><select id="opModeSelect" name="mode" class="op-select" required></select></div></div>
+              <div class="op-field op-col-4"><label for="opLevelSelect"><span data-i18n="fieldLevel">Level</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="level"><select id="opLevelSelect" name="level" class="op-select" required></select></div></div>
+              <div class="op-field op-col-4"><label for="opDeadline"><span data-i18n="fieldDeadline">Deadline</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="deadline"><input id="opDeadline" name="deadline" type="date" class="op-input" required></div><div class="op-feedback" data-feedback="deadline"></div></div>
+              <div class="op-field op-col-12"><label for="opDescription"><span data-i18n="fieldDescription">Description</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="description"><textarea id="opDescription" name="description" class="op-textarea" required></textarea></div><p class="op-help" data-i18n="fieldDescriptionHint">Summarize responsibilities, expected profile, and the publication context.</p><div class="op-feedback" data-feedback="description"></div></div>
+              <div class="op-field op-col-12"><label><span data-i18n="fieldSkills">Skills</span> <span class="op-req">*</span></label><div id="opSkillChoices" class="op-skills-grid"></div><div id="opCustomSkillsWrap" class="op-custom-skills"><input id="opCustomSkillInput" class="op-input" type="text"><button id="opAddCustomSkill" class="op-btn" type="button" data-i18n="addSkill">Add skill</button></div><div id="opCustomSkillList" class="op-custom-list"></div><p class="op-help" data-i18n="fieldSkillsHint">Choose from common NLP skills. If you pick Other, you can type custom skills manually.</p><div class="op-feedback" data-feedback="skills"></div></div>
+              <div class="op-field op-col-12"><label for="opContact"><span data-i18n="fieldContact">Contact link or email</span> <span class="op-req">*</span></label><div class="op-input-wrap" data-wrap="contact"><input id="opContact" name="contact" class="op-input" required></div><p class="op-help" data-i18n="fieldContactHint">Use a URL or an email address for applications.</p><div class="op-feedback" data-feedback="contact"></div></div>
+            </div>
+
+            <div id="opErrorSummary" class="op-errors" aria-live="polite" tabindex="-1"><h4 data-i18n="validationErrors">Ongoing validation errors</h4><ul></ul></div>
+            <div class="op-summary">
+              <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumTitle">Displayed title</span><div class="op-summary-value" data-summary="title">Not set</div></div>
+              <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumInstitution">Institution</span><div class="op-summary-value" data-summary="institution">Not set</div></div>
+              <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumType">Type</span><div class="op-summary-value" data-summary="type">Not set</div></div>
+              <div class="op-summary-card"><span class="op-summary-label" data-i18n="sumSkills">Skills</span><div class="op-summary-value" data-summary="skills">No skills selected</div></div>
+            </div>
+            <div class="op-note" data-i18n="moderationNotice">Your opportunity will be reviewed before it is publicly displayed.</div>
+            <div class="op-modal-actions"><button type="button" class="op-btn" id="opCancelPost" data-i18n="cancel">Cancel</button><button type="submit" class="op-btn primary" data-i18n="submitOffer">Submit opportunity</button></div>
+          </div>
+        </section>
+      </div>
+    </form>
+  </article>
+</div>
+<div id="opToast" class="op-toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function(){
+  const lang=((document.documentElement.lang||"en").toLowerCase().startsWith("ar"))?"ar":"en";
+  const dict={
+    en:{heroEyebrow:"NLP Opportunities",heroTitle1:"Build your next opportunity",heroTitle2:"AI & NLP",heroSubtitle:"Discover bilingual opportunities across jobs, internships, research projects, PFE topics, and academic collaborations.",statActive:"Opportunities",statNew:"New this month",statOrg:"Organizations",chip1:"NLP Engineer",chip2:"Arabic Research",chip3:"PFE / Master",chip4:"Algerian Institutions",filtersTitle:"Filter opportunities",searchPlaceholder:"Search by title, organization, skills...",filterType:"Type",filterMode:"Mode",filterLevel:"Level",sortRecent:"Most recent",sortDeadline:"Closest deadline",sortRelevance:"Best relevance",publishBtn:"+ Post Opportunity",noResults:"No opportunities match your filters.",countShown:"{count} opportunities shown",detailKicker:"Opportunity overview",postKicker:"Editorial opportunity form",postModalTitle:"Publish a new opportunity",postModalSubtitle:"Use the same polished editorial workflow as the other core pages. Titles in Arabic and English are required.",sectionBasics:"1. Essentials",sectionBasicsHint:"Provide bilingual titles, choose the opportunity type, and select the hosting institution.",sectionDetails:"2. Position details",sectionDetailsHint:"Complete the editorial metadata used on the public opportunities page.",sectionReview:"3. Review & publish",sectionReviewHint:"Check the live summary before sending the opportunity for moderation.",fieldTitleEn:"Title (English)",fieldTitleAr:"Title (Arabic)",fieldTitleEnHint:"This title is shown on English screens.",fieldTitleArHint:"This title is shown on Arabic screens.",fieldType:"Type",fieldTypeHint:"Choose the opportunity category.",fieldInstitution:"Institution",fieldInstitutionHint:"Only Algerian institutions are listed here, plus an Other option.",fieldLocation:"Location",fieldLocationHint:"Auto-filled from the selected institution when available.",fieldOrgEn:"Organization name (English)",fieldOrgAr:"Organization name (Arabic)",fieldMode:"Mode",fieldLevel:"Level",fieldDeadline:"Deadline",fieldDescription:"Description",fieldDescriptionHint:"Summarize responsibilities, expected profile, and the publication context.",fieldSkills:"Skills",fieldSkillsHint:"Choose from common NLP skills. If you pick Other, you can type custom skills manually.",fieldContact:"Contact link or email",fieldContactHint:"Use a URL or an email address for applications.",addSkill:"Add skill",validationErrors:"Ongoing validation errors",sumTitle:"Displayed title",sumInstitution:"Institution",sumType:"Type",sumSkills:"Skills",moderationNotice:"Your opportunity will be reviewed before it is publicly displayed.",cancel:"Cancel",submitOffer:"Submit opportunity",notSet:"Not set",noSkills:"No skills selected",otherInstitution:"Other organization",customSkillPlaceholder:"Type a custom skill and press Enter",submitted:"Opportunity submitted successfully. Moderation is in progress.",req:"This field is required.",emailOrUrl:"Enter a valid URL or email address.",futureDate:"Please choose a future deadline.",selectSkill:"Select at least one skill.",selectInstitution:"Select an institution.",otherOrgReq:"This field becomes required when Other is selected.",close:"Close",applyNow:"Apply now",viewDetails:"View details",newBadge:"New",deadlineLabel:"Deadline",relevanceLabel:"Relevance",urgent:"Urgent",allTypes:"All types",allModes:"All modes",allLevels:"All levels",type:{job:"Job",internship:"Internship",pfe:"PFE / Master",phd:"PhD",collab:"Collaboration"},mode:{remote:"Remote",hybrid:"Hybrid",onsite:"On-site"},level:{student:"Student",junior:"Junior",senior:"Senior",researcher:"Researcher"},skills:["Python","Transformers","ASR","NER","OCR","MLOps","RAG","LLM","Arabic NLP","Data Annotation","Other"]},
+    ar:{heroEyebrow:"فرص الذكاء الاصطناعي ومعالجة اللغة",heroTitle1:"ابن فرصتك القادمة",heroTitle2:"الذكاء الاصطناعي ومعالجة اللغة",heroSubtitle:"اكتشف فرصًا ثنائية اللغة في الوظائف والتربصات والمشاريع البحثية ومواضيع التخرج والتعاون الأكاديمي.",statActive:"الفرص",statNew:"جديد هذا الشهر",statOrg:"مؤسسات",chip1:"مهندس NLP",chip2:"بحث عربي",chip3:"تخرج / ماستر",chip4:"مؤسسات جزائرية",filtersTitle:"تصفية الفرص",searchPlaceholder:"ابحث بالعنوان أو المؤسسة أو المهارات...",filterType:"النوع",filterMode:"نمط العمل",filterLevel:"المستوى",sortRecent:"الأحدث",sortDeadline:"الأقرب في الآجال",sortRelevance:"الأكثر صلة",publishBtn:"+ نشر فرصة",noResults:"لا توجد فرص مطابقة لمرشحاتك.",countShown:"تم عرض {count} فرصة",detailKicker:"نظرة عامة على الفرصة",postKicker:"واجهة نشر الفرص",postModalTitle:"نشر فرصة جديدة",postModalSubtitle:"استخدم نفس واجهة التحرير الأنيقة الموجودة في الصفحات الأخرى. العنوانان العربي والإنجليزي إلزاميان.",sectionBasics:"1. الأساسيات",sectionBasicsHint:"أدخل العنوانين بالعربية والإنجليزية، واختر النوع، ثم حدّد المؤسسة المضيفة.",sectionDetails:"2. تفاصيل الفرصة",sectionDetailsHint:"أكمل البيانات التحريرية التي ستظهر في صفحة الفرص العامة.",sectionReview:"3. المراجعة والنشر",sectionReviewHint:"راجع الملخص المباشر قبل إرسال الفرصة للمراجعة.",fieldTitleEn:"العنوان (بالإنجليزية)",fieldTitleAr:"العنوان (بالعربية)",fieldTitleEnHint:"يظهر هذا العنوان في الواجهات الإنجليزية.",fieldTitleArHint:"يظهر هذا العنوان في الواجهات العربية.",fieldType:"النوع",fieldTypeHint:"اختر فئة الفرصة.",fieldInstitution:"المؤسسة",fieldInstitutionHint:"تظهر هنا المؤسسات الجزائرية فقط مع خيار أخرى.",fieldLocation:"الموقع",fieldLocationHint:"يُملأ تلقائيًا من المؤسسة المختارة عندما يكون متاحًا.",fieldOrgEn:"اسم المؤسسة (بالإنجليزية)",fieldOrgAr:"اسم المؤسسة (بالعربية)",fieldMode:"نمط العمل",fieldLevel:"المستوى",fieldDeadline:"آخر أجل",fieldDescription:"الوصف",fieldDescriptionHint:"لخّص المسؤوليات والملف المطلوب وسياق النشر.",fieldSkills:"المهارات",fieldSkillsHint:"اختر من مهارات NLP الشائعة. إذا اخترت أخرى يمكنك كتابة مهارات مخصصة يدويًا.",fieldContact:"رابط أو بريد التواصل",fieldContactHint:"استخدم رابطًا أو بريدًا إلكترونيًا للتقديم.",addSkill:"إضافة مهارة",validationErrors:"أخطاء التحقق الحالية",sumTitle:"العنوان المعروض",sumInstitution:"المؤسسة",sumType:"النوع",sumSkills:"المهارات",moderationNotice:"ستُراجع الفرصة قبل عرضها علنًا.",cancel:"إلغاء",submitOffer:"إرسال الفرصة",notSet:"غير محدد",noSkills:"لم يتم اختيار مهارات",otherInstitution:"مؤسسة أخرى",customSkillPlaceholder:"اكتب مهارة مخصصة ثم اضغط Enter",submitted:"تم إرسال الفرصة بنجاح. المراجعة قيد التنفيذ.",req:"هذا الحقل مطلوب.",emailOrUrl:"أدخل رابطًا صحيحًا أو بريدًا إلكترونيًا صحيحًا.",futureDate:"يرجى اختيار تاريخ مستقبلي.",selectSkill:"يرجى اختيار مهارة واحدة على الأقل.",selectInstitution:"يرجى اختيار مؤسسة.",otherOrgReq:"هذا الحقل يصبح مطلوبًا عند اختيار أخرى.",close:"إغلاق",applyNow:"قدّم الآن",viewDetails:"عرض التفاصيل",newBadge:"جديد",deadlineLabel:"آخر أجل",relevanceLabel:"الملاءمة",urgent:"عاجل",allTypes:"كل الأنواع",allModes:"كل أنماط العمل",allLevels:"كل المستويات",type:{job:"وظيفة",internship:"تربص",pfe:"تخرج / ماستر",phd:"دكتوراه",collab:"تعاون"},mode:{remote:"عن بُعد",hybrid:"هجين",onsite:"حضوري"},level:{student:"طالب",junior:"مبتدئ",senior:"خبير",researcher:"باحث"},skills:["بايثون","المحوّلات","التعرّف على الكلام","التعرّف على الكيانات","التعرف الضوئي","إدارة النماذج","الاسترجاع المعزّز","النماذج اللغوية","معالجة العربية","وسم البيانات","أخرى"]}
+  }[lang];
+  const institutions=JSON.parse(document.getElementById("opInstitutionData").textContent||"[]");
+  const institutionMap=new Map(institutions.map(item=>[item.id,item]));
+  const typeKeys=["job","internship","pfe","phd","collab"],modeKeys=["remote","hybrid","onsite"],levelKeys=["student","junior","senior","researcher"],skillKeys=["Python","Transformers","ASR","NER","OCR","MLOps","RAG","LLM","Arabic NLP","Data Annotation","Other"];
+  const state={search:"",type:new Set(),mode:new Set(),level:new Set(),sort:"recent"};
+  const formState={customSkills:[]};
+  const opportunities=JSON.parse(document.getElementById("opportunitiesData").textContent||"[]");
+  const byId=id=>document.getElementById(id),cards=byId("opCards"),counter=byId("opCounterText"),empty=byId("opEmpty"),toast=byId("opToast"),pBack=byId("opPostBackdrop"),dBack=byId("opDetailBackdrop"),form=byId("opPostForm");
+  const institutionSelect=byId("opInstitution"),typeSelect=byId("opTypeSelect"),modeSelect=byId("opModeSelect"),levelSelect=byId("opLevelSelect"),otherOrgEnWrap=byId("opOtherOrgEnWrap"),otherOrgArWrap=byId("opOtherOrgArWrap"),customSkillsWrap=byId("opCustomSkillsWrap"),customSkillInput=byId("opCustomSkillInput"),customSkillList=byId("opCustomSkillList");
+  const topTypeFilter=byId("opTypeFilter"),topModeFilter=byId("opModeFilter"),topLevelFilter=byId("opLevelFilter");
+  const summaries={title:form.querySelector('[data-summary="title"]'),institution:form.querySelector('[data-summary="institution"]'),type:form.querySelector('[data-summary="type"]'),skills:form.querySelector('[data-summary="skills"]')};
+  const t=k=>dict[k]||k;
+  function setTexts(){document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.dataset.i18n;if(dict[k])el.textContent=dict[k]});document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{const k=el.dataset.i18nPlaceholder;if(dict[k])el.placeholder=dict[k]});customSkillInput.placeholder=t("customSkillPlaceholder");document.documentElement.dir=lang==="ar"?"rtl":"ltr";}
+  function daysLeft(d){const n=new Date();n.setHours(0,0,0,0);const x=new Date(d+"T00:00:00");return Math.ceil((x-n)/86400000)}
+  function fillSelect(select,keys,labels){select.innerHTML=keys.map(k=>`<option value="${k}">${labels[k]}</option>`).join("")}
+  function fillTopFilter(select,allLabel,keys,labels,current){select.innerHTML=`<option value="">${allLabel}</option>`+keys.map(k=>`<option value="${k}" ${current===k?"selected":""}>${labels[k]}</option>`).join("")}
+  function populateInstitutions(){const opts=institutions.map(item=>`<option value="${item.id}">${lang==="ar"?item.name_ar:item.name_en}</option>`);opts.push(`<option value="other">${t("otherInstitution")}</option>`);institutionSelect.innerHTML=`<option value="">${t("selectInstitution")}</option>`+opts.join("")}
+  function initials(name){return (name||"").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"OP"}
+  function safeText(value){return String(value||"").replace(/[&<>\"']/g,match=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[match]))}
+  function contactMarkup(contact){const value=(contact||"").trim();if(!value)return"";const href=value.includes("@")&&!/^https?:/i.test(value)?`mailto:${value}`:value;return `<div class="op-contact-line"><span class="op-contact-label">${safeText(t("fieldContact"))}</span><a class="op-contact-value" href="${safeText(href)}" target="_blank" rel="noopener noreferrer">${safeText(value)}</a></div>`}
+  function opportunityActionMarkup(item){const title=safeText(item.title[lang]||"");const description=safeText(item.short[lang]||"");const author=safeText(item.author||item.organization[lang]||"");const category=safeText(dict.type[item.type]||item.type||"opportunity");const url=safeText(item.url||window.location.pathname);const context=safeText(JSON.stringify({title:item.title[lang]||"",category:dict.type[item.type]||item.type||"opportunity",author:item.author||item.organization[lang]||"",description:item.short[lang]||"",url:item.url||window.location.pathname,type:"opportunity",id:item.id}));return `<div class="op-card-tools"><div class="card-top-actions"><button type="button" class="card-action-icon share-trigger-btn" title="{% trans 'Share with friends' %}" data-share-type="opportunity" data-share-id="${safeText(item.id)}" data-share-title="${title}" aria-label="{% trans 'Send' %}"><i class="bi bi-send"></i><span>{% trans "Send" %}</span></button><button type="button" class="card-action-icon ask-chatbot-btn" title="{% trans 'Ask chatbot about this' %}" data-ct="opportunity" data-oid="${safeText(item.id)}" data-title="${title}" data-category="${category}" data-author="${author}" data-description="${description}" data-url="${url}" data-context='${context}' aria-label="{% trans 'Ask chatbot' %}"><i class="fas fa-robot"></i><span>{% trans "Ask AI" %}</span></button></div></div><div class="op-card-footer"><button type="button" class="op-detail-link" data-action="detail"><span>${safeText(t("viewDetails"))}</span><i class="bi ${lang==="ar"?"bi-arrow-left":"bi-arrow-right"}"></i></button></div>`}
+  function filtered(){const q=state.search.toLowerCase();let data=opportunities.filter(item=>{const hay=[item.title[lang],item.organization[lang],item.location[lang],item.short[lang],...item.skills].join(" ").toLowerCase();return (!state.type.size||state.type.has(item.type))&&(!state.mode.size||state.mode.has(item.mode))&&(!state.level.size||state.level.has(item.level))&&(!q||hay.includes(q))});if(state.sort==="recent")data.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));if(state.sort==="deadline")data.sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));if(state.sort==="relevance")data.sort((a,b)=>b.relevance-a.relevance);return data}
+  function renderFilters(){fillTopFilter(topTypeFilter,t("allTypes"),typeKeys,dict.type,[...state.type][0]||"");fillTopFilter(topModeFilter,t("allModes"),modeKeys,dict.mode,[...state.mode][0]||"");fillTopFilter(topLevelFilter,t("allLevels"),levelKeys,dict.level,[...state.level][0]||"")}
+  function renderCards(){const data=filtered();const countNum=data.length;const countSpan=document.getElementById("opCountNumber");const labelSpan=document.getElementById("opCounterText-label");countSpan.textContent=countNum;if(lang==="ar"){labelSpan.textContent=countNum===1?"فرصة متاحة!":"فرص متاحة!";}else{labelSpan.textContent=countNum===1?"opportunity is available!":"opportunities are available!";}cards.innerHTML="";empty.style.display=data.length?"none":"block";data.forEach(item=>{const urgent=daysLeft(item.deadline)<=7;const article=document.createElement("article");article.className="op-card";article.innerHTML=`<div class="op-card-banner"><div class="op-card-top"><span class="op-badge">${dict.type[item.type]}</span><h3 class="op-title">${item.title[lang]}</h3><div class="op-mark">${item.orgInitials||initials(item.organization[lang])}</div></div></div><div class="op-card-body"><div class="op-subline"><span>${item.organization[lang]} · ${item.location[lang]}</span><small>${t("relevanceLabel")}: ${item.relevance}/100</small></div><div class="op-meta-row"><div class="op-meta"><span class="op-mini-tag">${dict.mode[item.mode]}</span><span class="op-mini-tag">${dict.level[item.level]}</span>${item.isNew?`<span class="op-mini-tag">${t("newBadge")}</span>`:""}</div><small>${new Date(item.deadline).toLocaleDateString(lang==="ar"?"ar-DZ":"en-GB")}</small></div><div class="op-desc">${item.short[lang]}<small>${item.skills.slice(0,3).join(" · ") || ""}</small></div>${contactMarkup(item.contact)}<div class="op-tags">${item.skills.map(s=>`<span class="op-mini-tag">${s}</span>`).join("")}</div></div><div class="op-card-foot"><span class="op-deadline">${t("deadlineLabel")}: ${new Date(item.deadline).toLocaleDateString(lang==="ar"?"ar-DZ":"en-GB")} ${urgent?`· ${t("urgent")}`:""}</span><button class="op-btn primary" type="button">${t("applyNow")}</button></div>${opportunityActionMarkup(item)}`;article.addEventListener("click",()=>openDetail(item));article.querySelector(".op-btn.primary").addEventListener("click",e=>{e.stopPropagation();openDetail(item)});article.querySelectorAll(".ask-chatbot-btn, .share-trigger-btn").forEach(btn=>btn.addEventListener("click",e=>e.stopPropagation()));cards.appendChild(article)})}
+  function openDetail(item){byId("opDetailTitle").textContent=item.title[lang];byId("opDetailSub").textContent=`${item.organization[lang]} · ${item.location[lang]}`;byId("opDetailContent").innerHTML=`<section class="op-section"><div class="op-section-body"><div class="op-meta" style="margin-bottom:1rem"><span class="op-mini-tag">${dict.type[item.type]}</span><span class="op-mini-tag">${dict.mode[item.mode]}</span><span class="op-mini-tag">${dict.level[item.level]}</span><span class="op-mini-tag">${t("relevanceLabel")}: ${item.relevance}/100</span></div><p style="margin:0 0 1rem;color:#334155;line-height:1.8">${item.full[lang]}</p>${contactMarkup(item.contact)}<div class="op-tags" style="margin:1rem 0">${item.skills.map(s=>`<span class="op-mini-tag">${s}</span>`).join("")}</div><div class="op-note">${t("deadlineLabel")}: ${new Date(item.deadline).toLocaleDateString(lang==="ar"?"ar-DZ":"en-GB")}</div></div></section>`;dBack.classList.add("show")}
+  function closeDetail(){dBack.classList.remove("show")}
+  function syncSkillOptionState(){
+    document.querySelectorAll("#opSkillChoices .op-skill-option").forEach(option=>{
+      const input=option.querySelector("input");
+      option.classList.toggle("active",Boolean(input&&input.checked));
+    });
+    toggleCustomSkillInput();
+    updateSummary();
+    validateSkills();
+  }
+  function renderSkillChoices(){
+    const wrap=byId("opSkillChoices");
+    wrap.innerHTML=skillKeys.map((key,idx)=>`<label class="op-skill-option" data-skill="${key}" tabindex="0"><input type="checkbox" value="${key}"><span>${dict.skills[idx]||key}</span></label>`).join("");
+    wrap.querySelectorAll('.op-skill-option input').forEach(input=>input.addEventListener("change",syncSkillOptionState));
+    wrap.querySelectorAll(".op-skill-option").forEach(option=>option.addEventListener("keydown",e=>{
+      if(e.key==="Enter"||e.key===" "){
+        e.preventDefault();
+        const input=option.querySelector("input");
+        input.checked=!input.checked;
+        syncSkillOptionState();
+      }
+    }));
+    syncSkillOptionState();
+  }
+  function selectedPredefinedSkills(){return Array.from(document.querySelectorAll('#opSkillChoices input:checked')).map(input=>input.value)}
+  function toggleCustomSkillInput(){
+    const useOther=selectedPredefinedSkills().includes("Other");
+    const wasVisible=customSkillsWrap.classList.contains("show");
+    customSkillsWrap.classList.toggle("show",useOther);
+    if(useOther&&!wasVisible)setTimeout(()=>customSkillInput.focus(),0);
+    if(!useOther){
+      formState.customSkills=[];
+      customSkillInput.value="";
+      renderCustomSkills();
+    }
+  }
+  function renderCustomSkills(){customSkillList.innerHTML=formState.customSkills.map((skill,index)=>`<span class="op-custom-tag">${skill}<button type="button" data-remove-skill="${index}">&times;</button></span>`).join("");customSkillList.querySelectorAll("[data-remove-skill]").forEach(btn=>btn.addEventListener("click",()=>{formState.customSkills.splice(Number(btn.dataset.removeSkill),1);renderCustomSkills();updateSummary();validateSkills()}))}
+  function addCustomSkill(){const value=customSkillInput.value.trim();if(!value)return;if(!formState.customSkills.some(skill=>skill.toLowerCase()===value.toLowerCase()))formState.customSkills.push(value);customSkillInput.value="";renderCustomSkills();updateSummary();validateSkills()}
+  function getInstitutionLabel(value){if(!value)return t("notSet");if(value==="other")return form.organization_en.value.trim()||form.organization_ar.value.trim()||t("otherInstitution");const item=institutionMap.get(value);return item?(lang==="ar"?item.name_ar:item.name_en):t("notSet")}
+  function updateSummary(){const title=lang==="ar"?(form.title_ar.value.trim()||form.title_en.value.trim()):(form.title_en.value.trim()||form.title_ar.value.trim());summaries.title.textContent=title||t("notSet");summaries.institution.textContent=getInstitutionLabel(form.institution.value);summaries.type.textContent=form.type.value?dict.type[form.type.value]:t("notSet");const skills=selectedPredefinedSkills().filter(skill=>skill!=="Other").concat(formState.customSkills);summaries.skills.textContent=skills.length?skills.join(", "):t("noSkills")}
+  function setFeedback(name,stateName,message){const wrap=form.querySelector(`[data-wrap="${name}"]`),feedback=form.querySelector(`[data-feedback="${name}"]`);if(wrap)wrap.classList.remove("err","ok");if(feedback){feedback.textContent=message||"";feedback.classList.remove("err","ok")}if(stateName){if(wrap)wrap.classList.add(stateName);if(feedback)feedback.classList.add(stateName)}}
+  function isEmailOrUrl(value){if(!value)return false;const email=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;if(email.test(value))return true;try{const parsed=new URL(value);return Boolean(parsed.protocol&&parsed.host)}catch(error){return false}}
+  function validateField(name){const input=form[name];if(!input)return null;const value=(input.value||"").trim();let error=null;if(["title_en","title_ar","location","description","institution"].includes(name)&&!value)error=t("req");if(name==="deadline"){if(!value)error=t("req");else if(daysLeft(value)<0)error=t("futureDate")}if(name==="contact"&&!isEmailOrUrl(value))error=t("emailOrUrl");if((name==="organization_en"||name==="organization_ar")&&form.institution.value==="other"&&!value)error=t("otherOrgReq");if(error){setFeedback(name,"err",error);return error}if(value)setFeedback(name,"ok","");else setFeedback(name,"","");return null}
+  function validateSkills(){const selected=selectedPredefinedSkills().filter(skill=>skill!=="Other").concat(formState.customSkills),feedback=form.querySelector('[data-feedback="skills"]');if(!selected.length){feedback.textContent="";feedback.className="op-feedback ok";return null}feedback.textContent="";feedback.className="op-feedback ok";return null}
+  function syncInstitutionSelection(){const value=institutionSelect.value,isOther=value==="other";otherOrgEnWrap.hidden=!isOther;otherOrgArWrap.hidden=!isOther;form.organization_en.toggleAttribute("required",isOther);form.organization_ar.toggleAttribute("required",isOther);if(!isOther&&institutionMap.has(value)){const item=institutionMap.get(value);form.location.value=lang==="ar"?item.city_ar:item.city_en;form.organization_en.value=item.name_en;form.organization_ar.value=item.name_ar}else if(isOther){form.location.value="";form.organization_en.value="";form.organization_ar.value=""}validateField("institution");validateField("organization_en");validateField("organization_ar");validateField("location");updateSummary()}
+  function updateErrorSummary(errors){const box=byId("opErrorSummary"),list=box.querySelector("ul");list.innerHTML="";errors.forEach(message=>{const li=document.createElement("li");li.textContent=message;list.appendChild(li)});box.classList.toggle("show",Boolean(errors.length));if(errors.length)box.focus()}
+  function openPost(){pBack.classList.add("show")} function closePost(){pBack.classList.remove("show")}
+  function showToast(message){toast.textContent=message;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),2600)}
+  function appendOpportunity(item){if(!item)return;opportunities.unshift(item);renderCards()}
+  function populatePostingControls(){fillSelect(typeSelect,typeKeys,dict.type);fillSelect(modeSelect,modeKeys,dict.mode);fillSelect(levelSelect,levelKeys,dict.level);populateInstitutions();typeSelect.value="job";modeSelect.value="remote";levelSelect.value="student"}
+  form.querySelectorAll("input, textarea, select").forEach(field=>{field.addEventListener("blur",()=>{validateField(field.name);updateSummary()});field.addEventListener("input",()=>{if(field.name)validateField(field.name);updateSummary()})});
+  const bind=(id,eventName,handler)=>{const el=byId(id);if(el)el.addEventListener(eventName,handler)};
+  bind("opSearch","input",e=>{state.search=e.target.value||"";renderCards()});
+  bind("opSort","change",e=>{state.sort=e.target.value;renderCards()});
+  topTypeFilter.addEventListener("change",e=>{state.type=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});
+  topModeFilter.addEventListener("change",e=>{state.mode=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});
+  topLevelFilter.addEventListener("change",e=>{state.level=new Set(e.target.value?[e.target.value]:[]);renderFilters();renderCards()});
+  institutionSelect.addEventListener("change",syncInstitutionSelection);
+  bind("opOpenPost","click",openPost);
+  bind("opPostBtn","click",openPost);
+  bind("opClosePost","click",closePost);
+  bind("opCancelPost","click",closePost);
+  bind("opCloseDetail","click",closeDetail);
+  dBack.addEventListener("click",e=>{if(e.target===dBack)closeDetail()});
+  pBack.addEventListener("click",e=>{if(e.target===pBack)closePost()});
+  bind("opAddCustomSkill","click",addCustomSkill);
+  customSkillInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCustomSkill()}});
+  form.addEventListener("submit",async e=>{e.preventDefault();const errors=[];["title_en","title_ar","institution","location","deadline","description","contact","organization_en","organization_ar"].forEach(name=>{const result=validateField(name);if(result)errors.push(result)});const skillError=validateSkills();if(skillError)errors.push(skillError);updateErrorSummary([...new Set(errors)]);if(errors.length)return;const formData=new FormData(form);formData.set("institution_ref",form.institution.value);formData.set("skills_payload",JSON.stringify(selectedPredefinedSkills().filter(skill=>skill!=="Other").concat(formState.customSkills)));try{const response=await fetch("{% url 'pages:create_opportunity' %}",{method:"POST",body:formData,headers:{"X-Requested-With":"XMLHttpRequest"}});const data=await response.json().catch(()=>({ok:false}));if(!response.ok||!data.ok){const serverErrors=[];Object.values(data.errors||{}).forEach(items=>(items||[]).forEach(msg=>serverErrors.push(String(msg))));updateErrorSummary(serverErrors.length?serverErrors:[data.error||"Submission failed."]);return}closePost();form.reset();formState.customSkills=[];renderCustomSkills();renderSkillChoices();populatePostingControls();syncInstitutionSelection();updateSummary();updateErrorSummary([]);appendOpportunity(data.opportunity);showToast(data.message||t("submitted"))}catch(error){updateErrorSummary(["Submission failed."])}})
+  setTexts();populatePostingControls();renderFilters();renderCards();renderSkillChoices();syncInstitutionSelection();updateSummary();
+})();
+</script>
+{% endblock %}

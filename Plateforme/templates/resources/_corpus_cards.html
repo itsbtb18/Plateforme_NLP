@@ -1,0 +1,136 @@
+{% load i18n %}
+{% load static %}
+
+<!-- ===== CORPUS CARDS PARTIAL ===== -->
+{% if corpora %}
+<div class="corpus-grid">
+    {% for corpus in corpora %}
+    <article class="corpus-card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+            <div style="display: flex; gap: 1rem; align-items: flex-start; flex: 1;">
+            <!-- Dynamic Icon based on corpus type/field -->
+            <div class="corpus-icon {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}type-medical{% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}type-linguistics{% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}type-translation{% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}type-social{% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}type-legal{% else %}type-general{% endif %}">
+                {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}
+                    <i class="bi bi-heart-pulse"></i>
+                {% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}
+                    <i class="bi bi-chat-quote"></i>
+                {% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}
+                    <i class="bi bi-translate"></i>
+                {% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}
+                    <i class="bi bi-people"></i>
+                {% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}
+                    <i class="bi bi-bank"></i>
+                {% else %}
+                    <i class="bi bi-folder2-open"></i>
+                {% endif %}
+            </div>
+            <div class="card-title-section">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <h3 class="corpus-title">{{ corpus.get_localized_title }}</h3>
+                </div>
+                <span class="corpus-type-badge {% if 'medical' in corpus.field|lower or 'طبي' in corpus.field|lower %}type-medical{% elif 'linguistic' in corpus.field|lower or 'لغوي' in corpus.field|lower %}type-linguistics{% elif 'translation' in corpus.field|lower or 'ترجمة' in corpus.field|lower %}type-translation{% elif 'social' in corpus.field|lower or 'اجتماعي' in corpus.field|lower %}type-social{% elif 'legal' in corpus.field|lower or 'قانوني' in corpus.field|lower %}type-legal{% else %}type-general{% endif %}">
+                    {{ corpus.get_field_display }}
+                </span>
+            </div>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <div class="meta-list">
+                <div class="meta-item">
+                    <span class="meta-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تاريخ الإنشاء{% else %}{% trans "Created" %}{% endif %}</span>
+                    <span class="meta-value">{{ corpus.creation_date|date:"M d, Y" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكاتب{% else %}{% trans "Author" %}{% endif %}</span>
+                    <span class="meta-value">
+                        {% if corpus.author %}
+                            {{ corpus.author.get_full_name_display }}
+                        {% else %}
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}غير معروف{% else %}{% trans "Unknown" %}{% endif %}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-tags">
+            {% if corpus.language %}
+            <span class="tag-pill {% if corpus.language == 'ar' %}lang-ar{% elif corpus.language == 'en' %}lang-en{% endif %}">
+                <i class="bi bi-globe"></i>
+                {{ corpus.get_language_display }}
+            </span>
+            {% endif %}
+
+            {% if corpus.uploaded_file %}
+            <span class="tag-pill">
+                <i class="bi bi-paperclip"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ملف مرفق{% else %}{% trans "File Attached" %}{% endif %}
+            </span>
+            {% endif %}
+            
+            {% if corpus.keywords %}
+            <span class="tag-pill">
+                <i class="bi bi-tag"></i>
+                {{ corpus.get_keywords_list.0 }}
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="pub-card-actions" style="display:flex !important;justify-content:flex-end !important;padding:0 .85rem .75rem !important;visibility:visible !important;opacity:1 !important;z-index:2 !important;position:relative;">
+            <div class="card-top-actions" style="display:flex !important;gap:.5rem !important;align-items:center !important;visibility:visible !important;opacity:1 !important;flex-wrap:wrap;">
+                <button type="button"
+                        class="card-action-icon share-trigger-btn"
+                        style="display:inline-flex !important;visibility:visible !important;opacity:1 !important;"
+                        title="{% trans 'Share with friends' %}"
+                        data-share-type="corpus"
+                        data-share-id="{{ corpus.id }}"
+                        data-share-title="{{ corpus.get_localized_title|default:'' }}"
+                        aria-label="{% trans 'Send' %}">
+                    <i class="bi bi-send"></i>
+                    <span>{% trans "Send" %}</span>
+                </button>
+                <button type="button"
+                        class="card-action-icon ask-chatbot-btn"
+                    style="display:inline-flex !important;visibility:visible !important;opacity:1 !important;"
+                        title="{% trans 'Ask chatbot about this' %}"
+                        data-ct="corpus"
+                        data-oid="{{ corpus.id }}"
+                        data-title="{{ corpus.get_localized_title|default:''|truncatechars:200 }}"
+                        data-category="{{ corpus.get_field_display|default:'corpus' }}"
+                        data-author="{{ corpus.author.get_full_name_display|default:''|truncatechars:120 }}"
+                        data-description="{{ corpus.get_localized_description|default:''|truncatechars:400 }}"
+                        data-url="{{ corpus.get_absolute_url|default:'' }}"
+                        aria-label="{% trans 'Ask chatbot' %}">
+                    <i class="fas fa-robot"></i>
+                    <span>{% trans "Ask AI" %}</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="card-footer">
+            <a href="{% url 'resources:corpus_detail' corpus.id %}" class="btn-view">
+                <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض التفاصيل{% else %}{% trans "View Details" %}{% endif %}</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+            <div style="display:none;">
+                {% include "includes/card_top_actions.html" with content_type="corpus" object_id=corpus.id title=corpus.get_localized_title description=corpus.get_localized_description|truncatewords:40 category=corpus.get_field_display author=corpus.author.get_full_name_display url=corpus.get_absolute_url|default:'' %}
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% if is_paginated %}
+  {% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
+{% endif %}
+
+{% else %}
+<!-- Empty State -->
+<div class="empty-state">
+    <div class="empty-icon">
+        <i class="bi bi-folder2-open"></i>
+    </div>
+    <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد مدونات متاحة بعد{% else %}{% trans "No corpora available yet" %}{% endif %}</h3>
+    <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}كن أول من يساهم في مجموعتنا البحثية{% else %}{% trans "Be the first to contribute to our research collection" %}{% endif %}</p>
+</div>
+{% endif %}

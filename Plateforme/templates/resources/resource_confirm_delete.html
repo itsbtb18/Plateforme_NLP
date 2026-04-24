@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "Delete Resource" %} - {{ object.get_localized_title|truncatechars:30 }}{% endblock %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES - Engineering Grade Theme ===== */
+:root {
+    --eng-primary: #1e3a5f;
+    --eng-accent: #2563eb;
+    --eng-surface: #ffffff;
+    --eng-background: #f8fafc;
+    --eng-muted: #f1f5f9;
+    --eng-border: #e2e8f0;
+    --eng-text: #0f172a;
+    --eng-text-secondary: #475569;
+    --eng-text-muted: #94a3b8;
+    --eng-danger: #dc2626;
+    --eng-danger-bg: #fef2f2;
+    --eng-danger-dark: #b91c1c;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.delete-page {
+    min-height: calc(100vh - 200px);
+    background: var(--eng-background);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+}
+
+/* ===== DANGER ZONE CARD ===== */
+.danger-zone-card {
+    max-width: 520px;
+    width: 100%;
+    background: var(--eng-surface);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-xl);
+    animation: scaleIn 0.3s ease-out forwards;
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ===== DANGER HEADER ===== */
+.danger-header {
+    background: linear-gradient(135deg, var(--eng-danger) 0%, var(--eng-danger-dark) 100%);
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.danger-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M20 0L0 20h10v20h20V20h10L20 0z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.danger-icon {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1rem;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 15px rgba(255, 255, 255, 0);
+    }
+}
+
+.danger-icon i {
+    font-size: 2.5rem;
+    color: white;
+}
+
+.danger-header h1 {
+    position: relative;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: white;
+    margin: 0 0 0.5rem;
+}
+
+.danger-header p {
+    position: relative;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+}
+
+/* ===== CARD BODY ===== */
+.danger-body {
+    padding: 2rem;
+}
+
+/* Resource Preview */
+.resource-preview {
+    background: var(--eng-muted);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.resource-preview-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.preview-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-sm);
+    background: var(--eng-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--eng-text-muted);
+    border: 1px solid var(--eng-border);
+}
+
+.preview-info h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--eng-text);
+    margin: 0 0 0.25rem;
+    line-height: 1.3;
+}
+
+.preview-info span {
+    font-size: 0.8rem;
+    color: var(--eng-text-muted);
+}
+
+.preview-meta {
+    display: flex;
+    gap: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--eng-border);
+}
+
+.preview-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--eng-text-secondary);
+}
+
+.preview-meta-item i {
+    color: var(--eng-text-muted);
+}
+
+/* Warning Message */
+.warning-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: var(--eng-danger-bg);
+    border: 1px solid #fecaca;
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+}
+
+.warning-message i {
+    font-size: 1.25rem;
+    color: var(--eng-danger);
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.warning-message p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--eng-text-secondary);
+    line-height: 1.6;
+}
+
+.warning-message strong {
+    color: var(--eng-danger);
+}
+
+/* ===== FORM ACTIONS ===== */
+.delete-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-cancel {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    background: var(--eng-muted);
+    color: var(--eng-text-secondary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+    background: var(--eng-surface);
+    border-color: var(--eng-border-dark);
+    color: var(--eng-text);
+}
+
+.btn-delete {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    background: var(--eng-danger);
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-delete:hover {
+    background: var(--eng-danger-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.btn-delete:active {
+    transform: translateY(0);
+}
+
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .resource-preview-header {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .warning-message {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+html[dir="rtl"] .preview-meta {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .delete-actions {
+    flex-direction: row-reverse;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+    .danger-zone-card {
+        margin: 1rem;
+    }
+    
+    .danger-header {
+        padding: 1.5rem;
+    }
+    
+    .danger-body {
+        padding: 1.5rem;
+    }
+    
+    .delete-actions {
+        flex-direction: column;
+    }
+    
+    .preview-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="delete-page">
+    <div class="danger-zone-card">
+        
+        <!-- Danger Header -->
+        <div class="danger-header">
+            <div class="danger-icon">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <h1>{% trans "Danger Zone" %}</h1>
+            <p>{% trans "You are about to delete this resource permanently" %}</p>
+        </div>
+        
+        <!-- Card Body -->
+        <div class="danger-body">
+            
+            <!-- Resource Preview -->
+            <div class="resource-preview">
+                <div class="resource-preview-header">
+                    <div class="preview-icon">
+                        <i class="bi {% if view.kwargs.type == 'article' %}bi-file-earmark-text
+                                   {% elif view.kwargs.type == 'thesis' %}bi-journal-richtext
+                                   {% elif view.kwargs.type == 'memoir' %}bi-book
+                                   {% elif view.kwargs.type == 'tool' or view.kwargs.type == 'nlp_tool' %}bi-cpu
+                                   {% elif view.kwargs.type == 'course' %}bi-mortarboard
+                                   {% elif view.kwargs.type == 'corpus' %}bi-database
+                                   {% else %}bi-file-earmark{% endif %}"></i>
+                    </div>
+                    <div class="preview-info">
+                        <h3>{{ object.get_localized_title|truncatechars:50 }}</h3>
+                        <span>
+                            {% if view.kwargs.type == 'course' %}{% trans "Course" %}
+                            {% elif view.kwargs.type == 'nlp_tool' or view.kwargs.type == 'tool' %}{% trans "NLP Tool" %}
+                            {% elif view.kwargs.type == 'corpus' %}{% trans "Corpus" %}
+                            {% elif view.kwargs.type == 'article' %}{% trans "Article" %}
+                            {% elif view.kwargs.type == 'thesis' %}{% trans "Thesis" %}
+                            {% elif view.kwargs.type == 'memoir' %}{% trans "Memoir" %}
+                            {% else %}{{ view.kwargs.type|title }}{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="preview-meta">
+                    <div class="preview-meta-item">
+                        <i class="bi bi-person"></i>
+                        <span>{{ object.author.get_full_name_display|default:object.author.email }}</span>
+                    </div>
+                    <div class="preview-meta-item">
+                        <i class="bi bi-calendar3"></i>
+                        <span>{{ object.creation_date|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Warning Message -->
+            <div class="warning-message">
+                <i class="bi bi-info-circle-fill"></i>
+                <p>
+                    {% trans "This action" %} <strong>{% trans "cannot be undone" %}</strong>. 
+                    {% trans "All data associated with this resource will be permanently removed from the platform." %}
+                </p>
+            </div>
+            
+            <!-- Delete Form -->
+            <form method="post">
+                {% csrf_token %}
+                <div class="delete-actions">
+                    <a href="{% url 'resources:resource-detail' type=view.kwargs.type pk=object.pk %}" class="btn-cancel">
+                        <i class="bi bi-arrow-left"></i>
+                        {% trans "Cancel" %}
+                    </a>
+                    <button type="submit" class="btn-delete">
+                        <i class="bi bi-trash3"></i>
+                        {% trans "Delete Permanently" %}
+                    </button>
+                </div>
+            </form>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}

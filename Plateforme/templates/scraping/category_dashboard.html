@@ -1,0 +1,1167 @@
+{% extends 'scraping/category_base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Category Dashboard" %} — {{ category_name|default:scraping_current_category|title }}{% endblock %}
+
+{% block category_extra_css %}
+<style>
+  .cat-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+
+  .cat-kpi {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    padding: 1rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .cat-kpi-label {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .cat-kpi-value {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  .cat-split {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .cat-panel {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    padding: 1.5rem;
+  }
+
+  .cat-panel-title {
+    margin: 0 0 0.85rem;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .cat-prompts-list {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .cat-prompts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .cat-prompts-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-action-btn {
+    border: 1px solid #dbe3f0;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    color: #1d4ed8;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.48rem 0.8rem;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+
+  .cat-action-btn:hover {
+    transform: translateY(-1px);
+    background: #eff6ff;
+    box-shadow: 0 8px 16px rgba(29, 78, 216, 0.12);
+  }
+
+  .cat-action-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .cat-action-btn--primary {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    border-color: transparent;
+    color: #ffffff;
+  }
+
+  .cat-action-btn--primary:hover {
+    background: linear-gradient(135deg, #1e40af, #1d4ed8);
+  }
+
+  .cat-prompt-composer {
+    display: none;
+    gap: 0.7rem;
+    margin-bottom: 0.85rem;
+    padding: 0.9rem;
+    border: 1px solid #dbe3f0;
+    border-radius: 0.9rem;
+    background: linear-gradient(180deg, #fbfdff, #f8fafc);
+  }
+
+  .cat-prompt-composer.is-open {
+    display: grid;
+  }
+
+  .cat-prompt-composer-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.6rem;
+    align-items: start;
+  }
+
+  .cat-prompt-input {
+    width: 100%;
+    min-height: 3.25rem;
+    resize: vertical;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    font: inherit;
+    color: #0f172a;
+    background: #ffffff;
+  }
+
+  .cat-prompt-input:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.2);
+    border-color: #2563eb;
+  }
+
+  .cat-prompt-help {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.74rem;
+  }
+
+  .cat-prompt-pill {
+    position: relative;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.42rem 2rem 0.42rem 0.8rem;
+    line-height: 1.4;
+  }
+
+  .cat-prompt-pill-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .cat-prompt-delete {
+    position: absolute;
+    top: 50%;
+    right: 0.45rem;
+    transform: translateY(-50%);
+    width: 1.35rem;
+    height: 1.35rem;
+    border: none;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  }
+
+  .cat-prompt-delete:hover {
+    background: #fecaca;
+    color: #991b1b;
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  .cat-prompt-empty {
+    border: 1px dashed #dbe3f0;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+    padding: 0.8rem 0.9rem;
+    color: #64748b;
+    font-size: 0.78rem;
+  }
+
+  .cat-prompt-feedback {
+    min-height: 1rem;
+    color: #475569;
+    font-size: 0.76rem;
+    font-weight: 600;
+  }
+
+  .cat-suggestions-panel {
+    margin-bottom: 0.85rem;
+    border: 1px solid #dbe3f0;
+    border-radius: 0.9rem;
+    background: linear-gradient(180deg, #fbfdff, #f8fafc);
+    padding: 0.9rem;
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .cat-suggestions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-suggestions-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 0.88rem;
+    font-weight: 800;
+  }
+
+  .cat-suggestions-list {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .cat-suggestion-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #ffffff;
+    padding: 0.65rem 0.75rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .cat-suggestion-item.is-existing {
+    background: #f8fafc;
+    border-color: #e5e7eb;
+  }
+
+  .cat-suggestion-text {
+    font-size: 0.78rem;
+    color: #334155;
+    line-height: 1.35;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-suggestion-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.12rem 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+  }
+
+  .cat-suggestion-empty {
+    border: 1px dashed #dbe3f0;
+    border-radius: 0.75rem;
+    background: #ffffff;
+    padding: 0.7rem 0.75rem;
+    color: #64748b;
+    font-size: 0.76rem;
+  }
+
+  .cat-inline-spinner {
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0.35rem;
+    animation: catSpin 0.85s linear infinite;
+  }
+
+  .cat-toast {
+    position: fixed;
+    right: 1.2rem;
+    bottom: 1.2rem;
+    z-index: 9999;
+    background: #0f172a;
+    color: #ffffff;
+    border-radius: 0.65rem;
+    padding: 0.58rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.28);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .cat-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @keyframes catSpin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .cat-run-box {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .cat-run-actions {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .cat-run-btn {
+    width: 100%;
+    border: none;
+    border-radius: 0.8rem;
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 800;
+    padding: 0.82rem 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .cat-run-btn--secondary {
+    background: #ffffff;
+    color: #b45309;
+    border: 1px solid #f6ad55;
+    box-shadow: none;
+  }
+
+  .cat-run-btn--secondary:hover {
+    box-shadow: 0 12px 24px rgba(245, 158, 11, 0.22);
+    border-color: #f59e0b;
+  }
+
+  .cat-run-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 30px rgba(37, 99, 235, 0.34);
+  }
+
+  .cat-run-status {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    color: #334155;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .cat-table-wrap {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+  }
+
+  .cat-table-head {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  .cat-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .cat-table th,
+  .cat-table td {
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+    padding: 0.74rem 1.2rem;
+    font-size: 0.8rem;
+    color: #334155;
+  }
+
+  .cat-table th {
+    background: #fcfdff;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+
+  .cat-run-kind {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.12rem 0.5rem;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    margin-left: 0.35rem;
+    border: 1px solid transparent;
+  }
+
+  .cat-run-kind--standard {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+  }
+
+  .cat-run-kind--quick {
+    background: #ffedd5;
+    border-color: #fdba74;
+    color: #c2410c;
+  }
+
+  @media (max-width: 1160px) {
+    .cat-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cat-split {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .cat-kpi-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block category_content %}
+<section class="cat-kpi-grid" aria-label="{% trans 'Category KPI cards' %}">
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Items scraped" %}</p>
+    <p class="cat-kpi-value">{{ kpi_scraped|default:0 }}</p>
+  </article>
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Pending" %}</p>
+    <p class="cat-kpi-value">{{ kpi_pending|default:0 }}</p>
+  </article>
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Approved" %}</p>
+    <p class="cat-kpi-value">{{ kpi_approved|default:0 }}</p>
+  </article>
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Success rate" %}</p>
+    <p class="cat-kpi-value">{{ kpi_success_rate|default:'0%' }}</p>
+  </article>
+</section>
+
+<section class="cat-split" aria-label="{% trans 'Dashboard middle layout' %}">
+  <article class="cat-panel">
+    <div class="cat-prompts-header">
+      <h2 class="cat-panel-title" style="margin-bottom: 0;">{% trans "AI Prompts" %}</h2>
+      <div class="cat-prompts-actions">
+        <button type="button" class="cat-action-btn cat-action-btn--primary" id="catPromptGenerateBtn">
+          {% trans "Generate" %}
+        </button>
+        <button type="button" class="cat-action-btn cat-action-btn--primary" id="catPromptAddBtn">
+          + {% trans "Add prompt" %}
+        </button>
+      </div>
+    </div>
+
+    <form class="cat-prompt-composer" id="catPromptComposer" data-add-url="{% url 'scraping:add_prompt_api' %}" data-generate-url="{% url 'scraping:generate_search_prompts' %}" data-category="{{ category_key }}">
+      {% csrf_token %}
+      <div class="cat-prompt-composer-row">
+        <textarea
+          class="cat-prompt-input"
+          id="catPromptInput"
+          name="query_text"
+          maxlength="500"
+          rows="2"
+          placeholder="{% trans 'Type a new prompt, then add it to this category.' %}"
+        ></textarea>
+        <button type="submit" class="cat-action-btn cat-action-btn--primary" id="catPromptSubmitBtn">
+          {% trans "Save" %}
+        </button>
+      </div>
+      <p class="cat-prompt-help">{% trans "Prompts are saved for this category and become available to the scraper immediately." %}</p>
+      <p class="cat-prompt-feedback" id="catPromptFeedback"></p>
+    </form>
+
+    <section class="cat-suggestions-panel" id="catSuggestionsPanel" hidden>
+      <div class="cat-suggestions-header">
+        <h3 class="cat-suggestions-title">{% trans "Suggested prompts" %}</h3>
+        <button type="button" class="cat-action-btn" id="catAddAllSuggestionsBtn">{% trans "Add all" %}</button>
+      </div>
+      <div class="cat-suggestions-list" id="catSuggestionsList"></div>
+    </section>
+
+    <div class="cat-prompts-list">
+      {% for prompt in ai_prompts %}
+      <div class="cat-prompt-pill" data-prompt-id="{{ prompt.id }}" data-prompt-text="{{ prompt.query_text|escape }}">
+        <span class="cat-prompt-pill-text">{{ prompt.query_text }}</span>
+        <button
+          type="button"
+          class="cat-prompt-delete"
+          data-delete-url="{% url 'scraping:delete_prompt_api' prompt.id %}"
+          data-prompt-id="{{ prompt.id }}"
+          aria-label="{% trans 'Delete prompt' %}"
+          title="{% trans 'Delete prompt' %}"
+        >
+          ×
+        </button>
+      </div>
+      {% empty %}
+      <div class="cat-prompt-empty" data-empty-prompts>{% trans "No prompts configured for this category." %}</div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <aside class="cat-panel cat-run-box">
+    <h2 class="cat-panel-title">{% trans "Run Control" %}</h2>
+    <div class="cat-run-actions">
+      <button
+        type="button"
+        class="cat-run-btn"
+        id="catRunScraperBtn"
+        data-run-url="{% url 'scraping:run_scraper' category_key|default:scraping_current_category %}"
+        data-run-kind="standard"
+        data-status-url-template="{% url 'scraping:run_scraper_status' '00000000-0000-0000-0000-000000000000' %}"
+      >
+        {% trans "Run Scraper" %}
+      </button>
+      <button
+        type="button"
+        class="cat-run-btn cat-run-btn--secondary"
+        id="catQuickScrapeBtn"
+        data-run-url="{% url 'scraping:run_quick_scrape' category_key|default:scraping_current_category %}"
+        data-run-kind="quick"
+        title="Broad discovery mode — searches the full web with relaxed filters. All results go to pending review."
+      >
+        {% trans "Quick Scrape" %}
+      </button>
+    </div>
+    <div class="cat-run-status">
+      <strong>{% trans "Last run" %}</strong>
+      <span id="catRunStatusLabel">{{ last_run_status|default:_('No run yet') }}</span>
+      <span id="catRunStatusTime">{{ last_run_time|default:'' }}</span>
+    </div>
+  </aside>
+</section>
+
+<section class="cat-table-wrap" aria-label="{% trans 'Recent run snapshots' %}">
+  <div class="cat-table-head">{% trans "Recent Run Snapshots" %}</div>
+  <table class="cat-table">
+    <thead>
+      <tr>
+        <th>{% trans "Run ID" %}</th>
+        <th>{% trans "Started" %}</th>
+        <th>{% trans "Duration" %}</th>
+        <th>{% trans "Created" %}</th>
+        <th>{% trans "Updated" %}</th>
+        <th>{% trans "Skipped" %}</th>
+        <th>{% trans "Status" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recent_run_snapshots %}
+      <tr>
+        <td>
+          {{ row.run_id }}
+          {% if row.run_mode == 'quick' %}
+          <span class="cat-run-kind cat-run-kind--quick">{% trans "Quick" %}</span>
+          {% else %}
+          <span class="cat-run-kind cat-run-kind--standard">{% trans "Run" %}</span>
+          {% endif %}
+        </td>
+        <td>{{ row.started_at }}</td>
+        <td>{{ row.duration }}</td>
+        <td>{{ row.items_created }}</td>
+        <td>{{ row.items_updated }}</td>
+        <td>{{ row.items_skipped }}</td>
+        <td>{{ row.status }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7">{% trans "No snapshots available for this category." %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<div class="cat-toast" id="catPromptToast" role="status" aria-live="polite"></div>
+
+<script>
+  (function () {
+    const composer = document.getElementById('catPromptComposer');
+    const addButton = document.getElementById('catPromptAddBtn');
+    const generateButton = document.getElementById('catPromptGenerateBtn');
+    const input = document.getElementById('catPromptInput');
+    const submitButton = document.getElementById('catPromptSubmitBtn');
+    const feedback = document.getElementById('catPromptFeedback');
+    const suggestionsPanel = document.getElementById('catSuggestionsPanel');
+    const suggestionsList = document.getElementById('catSuggestionsList');
+    const addAllSuggestionsButton = document.getElementById('catAddAllSuggestionsBtn');
+    const toast = document.getElementById('catPromptToast');
+    const promptsList = document.querySelector('.cat-prompts-list');
+    const runButton = document.getElementById('catRunScraperBtn');
+    const quickRunButton = document.getElementById('catQuickScrapeBtn');
+    const runStatusLabel = document.getElementById('catRunStatusLabel');
+    const runStatusTime = document.getElementById('catRunStatusTime');
+    const runUrl = runButton?.dataset?.runUrl || '';
+    const quickRunUrl = quickRunButton?.dataset?.runUrl || '';
+    const runStatusTemplate = runButton?.dataset?.statusUrlTemplate || '';
+    const categoryKey = composer?.dataset?.category || '';
+    const addUrl = composer?.dataset?.addUrl || '';
+    const generateUrl = composer?.dataset?.generateUrl || '';
+    const runStatusPlaceholder = '00000000-0000-0000-0000-000000000000';
+    const generateDefaultLabel = generateButton ? generateButton.innerHTML : '';
+    let runPollTimer = null;
+    let toastTimer = null;
+
+    if (!composer || !addButton || !input || !submitButton || !promptsList || !addUrl) {
+      return;
+    }
+
+    function readCsrfToken() {
+      const inputToken = composer.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+      if (inputToken) {
+        return inputToken;
+      }
+      return (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || '';
+    }
+
+    function setFeedback(message, isError = false) {
+      if (!feedback) {
+        return;
+      }
+      feedback.textContent = message || '';
+      feedback.style.color = isError ? '#b91c1c' : '#475569';
+    }
+
+    function openComposer() {
+      composer.classList.add('is-open');
+      input.focus();
+    }
+
+    function closeComposer() {
+      composer.classList.remove('is-open');
+      input.value = '';
+      setFeedback('');
+    }
+
+    function showToast(message) {
+      if (!toast) {
+        return;
+      }
+      toast.textContent = message || '';
+      toast.classList.add('is-visible');
+      if (toastTimer) {
+        clearTimeout(toastTimer);
+      }
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('is-visible');
+      }, 2600);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function removeEmptyStateIfNeeded() {
+      const empty = promptsList.querySelector('[data-empty-prompts]');
+      if (empty) {
+        empty.remove();
+      }
+    }
+
+    function ensureEmptyStateIfNeeded() {
+      const promptItems = promptsList.querySelectorAll('[data-prompt-id]');
+      if (promptItems.length > 0) {
+        return;
+      }
+      const empty = document.createElement('div');
+      empty.className = 'cat-prompt-empty';
+      empty.setAttribute('data-empty-prompts', 'true');
+      empty.textContent = '{% trans "No prompts configured for this category." %}';
+      promptsList.appendChild(empty);
+    }
+
+    function createPromptNode(prompt) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cat-prompt-pill';
+      wrapper.dataset.promptId = prompt.id;
+      wrapper.dataset.promptText = prompt.query_text;
+      wrapper.innerHTML = `
+        <span class="cat-prompt-pill-text">${escapeHtml(prompt.query_text)}</span>
+        <button
+          type="button"
+          class="cat-prompt-delete"
+          data-delete-url="${prompt.delete_url}"
+          data-prompt-id="${prompt.id}"
+          aria-label="{% trans 'Delete prompt' %}"
+          title="{% trans 'Delete prompt' %}"
+        >
+          ×
+        </button>
+      `;
+      return wrapper;
+    }
+
+    function normalizePromptKey(value) {
+      return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    }
+
+    function currentPromptKeys() {
+      const keys = new Set();
+      promptsList.querySelectorAll('[data-prompt-id]').forEach((node) => {
+        const key = normalizePromptKey(node.dataset.promptText || node.textContent || '');
+        if (key) {
+          keys.add(key);
+        }
+      });
+      return keys;
+    }
+
+    function setGenerateLoading(isLoading) {
+      if (!generateButton) {
+        return;
+      }
+      generateButton.disabled = isLoading;
+      if (isLoading) {
+        generateButton.innerHTML = '<span class="cat-inline-spinner"></span>{% trans "Generating..." %}';
+      } else {
+        generateButton.innerHTML = generateDefaultLabel;
+      }
+    }
+
+    function createSuggestionItem(promptText, promptKeys) {
+      const row = document.createElement('div');
+      row.className = 'cat-suggestion-item';
+      row.dataset.promptText = promptText;
+      const alreadyAdded = promptKeys.has(normalizePromptKey(promptText));
+      if (alreadyAdded) {
+        row.classList.add('is-existing');
+      }
+      row.innerHTML = `
+        <div class="cat-suggestion-text">
+          <span class="cat-suggestion-badge">New</span>
+          <span>${escapeHtml(promptText)}</span>
+        </div>
+        <button type="button" class="cat-action-btn cat-suggestion-add" ${alreadyAdded ? 'disabled' : ''}>
+          ${alreadyAdded ? '{% trans "Already added" %}' : '+ {% trans "Add" %}'}
+        </button>
+      `;
+      return row;
+    }
+
+    function refreshSuggestionStates() {
+      if (!suggestionsList) {
+        return;
+      }
+      const promptKeys = currentPromptKeys();
+      suggestionsList.querySelectorAll('.cat-suggestion-item').forEach((row) => {
+        const action = row.querySelector('.cat-suggestion-add');
+        if (!action) {
+          return;
+        }
+        const exists = promptKeys.has(normalizePromptKey(row.dataset.promptText || ''));
+        row.classList.toggle('is-existing', exists);
+        action.disabled = exists;
+        action.textContent = exists ? '{% trans "Already added" %}' : '+ {% trans "Add" %}';
+      });
+    }
+
+    function renderSuggestions(prompts) {
+      if (!suggestionsPanel || !suggestionsList) {
+        return;
+      }
+      suggestionsList.innerHTML = '';
+
+      if (!Array.isArray(prompts) || prompts.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'cat-suggestion-empty';
+        empty.textContent = '{% trans "No suggestions returned." %}';
+        suggestionsList.appendChild(empty);
+        suggestionsPanel.hidden = false;
+        return;
+      }
+
+      const promptKeys = currentPromptKeys();
+      prompts.forEach((promptText) => {
+        const text = String(promptText || '').trim();
+        if (!text) {
+          return;
+        }
+        suggestionsList.appendChild(createSuggestionItem(text, promptKeys));
+      });
+      suggestionsPanel.hidden = false;
+      refreshSuggestionStates();
+    }
+
+    async function addPromptByText(queryText) {
+      const data = await postJson(addUrl, {
+        category: categoryKey,
+        query_text: queryText,
+        is_active: true,
+      });
+
+      const key = normalizePromptKey(data.query_text || queryText);
+      const existsInList = Array.from(promptsList.querySelectorAll('[data-prompt-id]')).some((node) => {
+        return normalizePromptKey(node.dataset.promptText || '') === key;
+      });
+      if (!existsInList) {
+        removeEmptyStateIfNeeded();
+        promptsList.prepend(createPromptNode({
+          id: data.id,
+          query_text: data.query_text,
+          delete_url: `{% url 'scraping:delete_prompt_api' 0 %}`.replace('/0/', `/${data.id}/`),
+        }));
+        ensureEmptyStateIfNeeded();
+      }
+      refreshSuggestionStates();
+      return data;
+    }
+
+    async function postJson(url, payload) {
+      const csrfToken = readCsrfToken();
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data.error || data.message || '{% trans "Request failed." %}';
+        throw new Error(message);
+      }
+      return data;
+    }
+
+    function setRunStatus(message, isError = false) {
+      if (!runStatusLabel) {
+        return;
+      }
+      runStatusLabel.textContent = message || '';
+      runStatusLabel.style.color = isError ? '#b91c1c' : '#334155';
+    }
+
+    function stopRunPolling() {
+      if (runPollTimer) {
+        clearInterval(runPollTimer);
+        runPollTimer = null;
+      }
+    }
+
+    function setRunButtonsDisabled(disabled) {
+      if (runButton) {
+        runButton.disabled = disabled;
+      }
+      if (quickRunButton) {
+        quickRunButton.disabled = disabled;
+      }
+    }
+
+    async function pollRunStatus(runId) {
+      if (!runStatusTemplate || !runId) {
+        return;
+      }
+
+      const statusUrl = runStatusTemplate.replace(runStatusPlaceholder, String(runId));
+      try {
+        const response = await fetch(statusUrl, {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.error || data.message || '{% trans "Unable to check run status." %}');
+        }
+
+        const status = String(data.status || '').toLowerCase();
+        if (status === 'running' || status === 'pending' || status === 'started') {
+          const progress = data.total ? ` (${data.current || 0}/${data.total || 0})` : '';
+          const currentMessage = data.current_message || data.message || '{% trans "Scraper is running..." %}';
+          setRunStatus(`${currentMessage}${progress}`);
+          return;
+        }
+
+        stopRunPolling();
+        setRunButtonsDisabled(false);
+
+        if (status === 'completed') {
+          setRunStatus(
+            `Run Complete: ${data.items_created || 0} Created, ${data.items_updated || 0} Updated, ${data.items_skipped || 0} Skipped`
+          );
+          if (runStatusTime) {
+            runStatusTime.textContent = new Date().toLocaleString();
+          }
+          setTimeout(() => window.location.reload(), 900);
+          return;
+        }
+
+        if (status === 'failed') {
+          const failureMessage = data.message || (Array.isArray(data.errors) ? data.errors.join(' | ') : '');
+          setRunStatus(failureMessage || '{% trans "Run failed." %}', true);
+          return;
+        }
+
+        setRunStatus(status ? status.toUpperCase() : '{% trans "Unknown status." %}', status !== 'ok');
+      } catch (error) {
+        stopRunPolling();
+        setRunButtonsDisabled(false);
+        setRunStatus(error.message || '{% trans "Unable to poll run status." %}', true);
+      }
+    }
+
+    async function startRun(runEndpoint, kindLabel) {
+      setRunButtonsDisabled(true);
+      stopRunPolling();
+      if (kindLabel === 'quick') {
+        setRunStatus('{% trans "Starting quick scrape..." %}');
+      } else {
+        setRunStatus('{% trans "Starting scraper..." %}');
+      }
+
+      try {
+        const data = await postJson(runEndpoint, {});
+        const status = String(data.status || '').toLowerCase();
+        const runId = data.run_id;
+
+        if (status === 'started' && runId) {
+          setRunStatus(
+            kindLabel === 'quick'
+              ? '{% trans "Quick scrape dispatched. Running in background..." %}'
+              : '{% trans "Scraper dispatched. Running in background..." %}'
+          );
+          runPollTimer = setInterval(() => {
+            pollRunStatus(runId);
+          }, 2000);
+          pollRunStatus(runId);
+          return;
+        }
+
+        if (status === 'success') {
+          const prefix = kindLabel === 'quick' ? 'Quick Run Complete' : 'Run Complete';
+          setRunStatus(
+            `${prefix}: ${data.items_created || 0} Created, ${data.items_updated || 0} Updated, ${data.items_skipped || 0} Skipped`
+          );
+          if (runStatusTime) {
+            runStatusTime.textContent = new Date().toLocaleString();
+          }
+          setRunButtonsDisabled(false);
+          setTimeout(() => window.location.reload(), 900);
+          return;
+        }
+
+        const failureMessage = data.message || (Array.isArray(data.errors) ? data.errors.join(' | ') : '');
+        setRunStatus(failureMessage || '{% trans "Unable to start scraper." %}', true);
+        setRunButtonsDisabled(false);
+      } catch (error) {
+        setRunStatus(error.message || '{% trans "Unable to start scraper." %}', true);
+        setRunButtonsDisabled(false);
+      }
+    }
+
+    if (runButton && runUrl) {
+      runButton.addEventListener('click', async () => {
+        await startRun(runUrl, 'standard');
+      });
+    }
+
+    if (quickRunButton && quickRunUrl) {
+      quickRunButton.addEventListener('click', async () => {
+        await startRun(quickRunUrl, 'quick');
+      });
+    }
+
+    addButton.addEventListener('click', () => {
+      if (composer.classList.contains('is-open')) {
+        closeComposer();
+      } else {
+        openComposer();
+      }
+    });
+
+    composer.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const queryText = input.value.trim();
+      if (!queryText) {
+        setFeedback('{% trans "Please enter a prompt first." %}', true);
+        input.focus();
+        return;
+      }
+
+      submitButton.disabled = true;
+      addButton.disabled = true;
+      setFeedback('{% trans "Saving..." %}');
+
+      try {
+        const data = await addPromptByText(queryText);
+
+        setFeedback(data.created ? '{% trans "Prompt added." %}' : '{% trans "Prompt updated." %}');
+        closeComposer();
+        ensureEmptyStateIfNeeded();
+      } catch (error) {
+        setFeedback(error.message || '{% trans "Unable to save prompt." %}', true);
+      } finally {
+        submitButton.disabled = false;
+        addButton.disabled = false;
+      }
+    });
+
+    if (generateButton && generateUrl) {
+      generateButton.addEventListener('click', async () => {
+        setGenerateLoading(true);
+        try {
+          const data = await postJson(generateUrl, { category: categoryKey });
+          renderSuggestions(Array.isArray(data.prompts) ? data.prompts : []);
+        } catch (_error) {
+          showToast('Could not generate prompts. Try again.');
+        } finally {
+          setGenerateLoading(false);
+        }
+      });
+    }
+
+    if (suggestionsList) {
+      suggestionsList.addEventListener('click', async (event) => {
+        const addSuggestionButton = event.target.closest('.cat-suggestion-add');
+        if (!addSuggestionButton || addSuggestionButton.disabled) {
+          return;
+        }
+        const row = addSuggestionButton.closest('.cat-suggestion-item');
+        const promptText = row?.dataset?.promptText || '';
+        if (!promptText) {
+          return;
+        }
+
+        addSuggestionButton.disabled = true;
+        try {
+          await addPromptByText(promptText);
+          addSuggestionButton.textContent = '{% trans "Already added" %}';
+          row?.classList.add('is-existing');
+          setFeedback('{% trans "Prompt added." %}');
+        } catch (error) {
+          addSuggestionButton.disabled = false;
+          setFeedback(error.message || '{% trans "Unable to save prompt." %}', true);
+        }
+      });
+    }
+
+    if (addAllSuggestionsButton) {
+      addAllSuggestionsButton.addEventListener('click', async () => {
+        const addableRows = Array.from(suggestionsList?.querySelectorAll('.cat-suggestion-item') || []).filter((row) => {
+          const action = row.querySelector('.cat-suggestion-add');
+          return action && !action.disabled;
+        });
+        if (!addableRows.length) {
+          return;
+        }
+
+        addAllSuggestionsButton.disabled = true;
+        for (const row of addableRows) {
+          const action = row.querySelector('.cat-suggestion-add');
+          const promptText = row.dataset.promptText || '';
+          if (!action || !promptText) {
+            continue;
+          }
+          action.disabled = true;
+          try {
+            await addPromptByText(promptText);
+            action.textContent = '{% trans "Already added" %}';
+            row.classList.add('is-existing');
+          } catch (_error) {
+            action.disabled = false;
+          }
+        }
+        refreshSuggestionStates();
+        addAllSuggestionsButton.disabled = false;
+      });
+    }
+
+    promptsList.addEventListener('click', async (event) => {
+      const deleteButton = event.target.closest('.cat-prompt-delete');
+      if (!deleteButton) {
+        return;
+      }
+
+      const promptId = deleteButton.dataset.promptId;
+      const deleteUrl = deleteButton.dataset.deleteUrl;
+      const promptNode = deleteButton.closest('[data-prompt-id]');
+
+      if (!promptId || !deleteUrl || !promptNode) {
+        return;
+      }
+
+      deleteButton.disabled = true;
+      try {
+        await postJson(deleteUrl, {});
+        promptNode.remove();
+        ensureEmptyStateIfNeeded();
+        refreshSuggestionStates();
+        setFeedback('{% trans "Prompt removed." %}');
+      } catch (error) {
+        setFeedback(error.message || '{% trans "Unable to delete prompt." %}', true);
+        deleteButton.disabled = false;
+      }
+    });
+
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,878 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{{ institution.get_localized_name }} | {% translate "Institutions" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== INSTITUTION PROFILE CSS ===== */
+:root {
+    /* Primary Colors - Purple/Violet Theme */
+    --ipf-primary: #a78bfa;
+    --ipf-primary-dark: #8b5cf6;
+    --ipf-primary-light: #c4b5fd;
+    --ipf-accent: #7c3aed;
+    --ipf-accent-cyan: #06b6d4;
+    --ipf-accent-pink: #ec4899;
+    --ipf-primary-glow: rgba(167, 139, 250, 0.2);
+    
+    /* Surfaces */
+    --ipf-deep: #0f1419;
+    --ipf-navy: #1a1a2e;
+    --ipf-white: #ffffff;
+    --ipf-bg: #0f1419;
+    --ipf-muted: rgba(167, 139, 250, 0.08);
+    --ipf-subtle: rgba(167, 139, 250, 0.12);
+    
+    /* Typography */
+    --ipf-text: #ffffff;
+    --ipf-text-secondary: #d1d5db;
+    --ipf-text-muted: #9ca3af;
+    
+    /* Borders & Effects */
+    --ipf-border: rgba(167, 139, 250, 0.2);
+    --ipf-border-light: rgba(167, 139, 250, 0.1);
+    --ipf-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --ipf-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --ipf-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.3);
+    --ipf-shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    
+    /* Status Colors */
+    --ipf-success: #34d399;
+    --ipf-success-bg: rgba(52, 211, 153, 0.15);
+    
+    --ipf-warning: #fbbf24;
+    --ipf-warning-bg: rgba(251, 191, 36, 0.15);
+    
+    --ipf-danger: #ef4444;
+    --ipf-danger-bg: rgba(239, 68, 68, 0.15);
+    
+    --ipf-purple: #8b5cf6;
+    --ipf-purple-bg: rgba(139, 92, 246, 0.15);
+    
+    --ipf-cyan: #06b6d4;
+    --ipf-cyan-bg: rgba(6, 182, 212, 0.15);
+    
+    /* Radius */
+    --ipf-radius-sm: 6px;
+    --ipf-radius-md: 10px;
+    --ipf-radius-lg: 14px;
+    --ipf-radius-xl: 20px;
+    --ipf-radius-full: 9999px;
+}
+
+body { 
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    color: var(--ipf-text);
+}
+html[dir="rtl"] body { 
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
+
+.ipf-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.ipf-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Hero Header */
+.ipf-hero {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+    padding: 2.5rem 0 4rem;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.ipf-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        radial-gradient(ellipse 60% 80% at 70% 30%, rgba(167, 139, 250, 0.1), transparent),
+        none;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.ipf-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.ipf-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.ipf-breadcrumb a {
+    font-size: 0.875rem;
+    color: var(--ipf-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.ipf-breadcrumb a:hover { color: var(--ipf-white); }
+.ipf-breadcrumb span { font-size: 0.875rem; color: rgba(255, 255, 255, 0.5); }
+
+.ipf-hero-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+.ipf-logo-box {
+    width: 120px;
+    height: 120px;
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    border-radius: var(--ipf-radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+.ipf-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 0.75rem;
+}
+
+.ipf-logo-placeholder {
+    color: var(--ipf-primary);
+    font-size: 3rem;
+    filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.3));
+}
+
+.ipf-hero-info { flex: 1; }
+
+.ipf-hero-badges {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ipf-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: var(--ipf-radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ipf-badge-type {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(124, 58, 237, 0.1));
+    color: var(--ipf-primary);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+.ipf-badge-active {
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--ipf-success);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.ipf-hero-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #d1d5db;
+    margin: 0 0 0.5rem;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+}
+
+.ipf-hero-acronym {
+    font-weight: 400;
+    color: #d1d5db;
+}
+
+.ipf-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-top: 1rem;
+}
+
+.ipf-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--ipf-text-secondary);
+}
+
+.ipf-meta-item i { color: var(--ipf-primary); }
+
+.ipf-meta-item a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.ipf-meta-item a:hover { text-decoration: underline; }
+
+@media (max-width: 768px) {
+    .ipf-hero {
+        padding: 1.5rem 0 3rem;
+    }
+    
+    .ipf-hero-content { 
+        flex-direction: column; 
+        align-items: center; 
+        text-align: center; 
+    }
+    
+    .ipf-hero-badges { justify-content: center; }
+    .ipf-hero-meta { justify-content: center; }
+    
+    .ipf-main {
+        padding: 0 1rem 3rem;
+    }
+}
+
+/* Main Layout */
+.ipf-main {
+    max-width: 1200px;
+    margin: 2rem auto 0;
+    padding: 0 2rem 4rem;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 2rem;
+    position: relative;
+    z-index: 2;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ipf-page {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+/* RTL Support */
+html[dir="rtl"] .ipf-hero-content {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .ipf-contact-item {
+    flex-direction: row-reverse;
+}
+
+@media (max-width: 900px) {
+    .ipf-main { grid-template-columns: 1fr; }
+}
+
+/* Main Content */
+.ipf-content { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.ipf-section {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ipf-radius-xl);
+    padding: 1.75rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out;
+}
+
+.ipf-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.ipf-section-icon {
+    width: 44px;
+    height: 44px;
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ipf-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ipf-primary);
+    font-size: 1.2rem;
+}
+
+.ipf-section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ipf-text);
+    margin: 0;
+    background: linear-gradient(135deg, var(--ipf-primary) 0%, var(--ipf-accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.ipf-description {
+    font-size: 0.95rem;
+    line-height: 1.9;
+    color: var(--ipf-text-secondary);
+}
+
+.ipf-description p {
+    color: var(--ipf-text-muted);
+}
+
+.ipf-description p { margin: 0 0 1rem; }
+.ipf-description p:last-child { margin-bottom: 0; }
+
+/* Specialties */
+.ipf-specialties {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ipf-specialty-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ipf-radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ipf-text-secondary);
+    transition: all 0.2s;
+}
+
+.ipf-specialty-tag:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--ipf-primary);
+    color: var(--ipf-primary);
+}
+
+.ipf-specialty-tag i { color: var(--ipf-primary); font-size: 0.8rem; }
+
+/* Sidebar */
+.ipf-sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+
+@media (min-width: 901px) {
+    .ipf-sidebar { position: sticky; top: 2rem; height: fit-content; }
+}
+
+/* Contact Card */
+.ipf-contact-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ipf-radius-xl);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out 0.1s both;
+}
+
+.ipf-contact-header {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(124, 58, 237, 0.15) 100%);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.ipf-contact-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ipf-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+}
+
+.ipf-contact-body { 
+    padding: 1.5rem;
+    background: rgba(167, 139, 250, 0.04);
+}
+
+.ipf-contact-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+}
+
+.ipf-contact-item:last-child { border-bottom: none; padding-bottom: 0; }
+.ipf-contact-item:first-child { padding-top: 0; }
+
+.ipf-contact-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ipf-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ipf-primary);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.ipf-contact-content { flex: 1; min-width: 0; }
+
+.ipf-contact-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--ipf-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+    opacity: 0.8;
+}
+
+.ipf-contact-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ipf-text);
+    word-break: break-word;
+}
+
+.ipf-contact-value a {
+    color: var(--ipf-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.ipf-contact-value a:hover { 
+    color: var(--ipf-accent-cyan);
+    text-decoration: underline;
+}
+
+/* Status Card */
+.ipf-status-card {
+    background: rgba(52, 211, 153, 0.15);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    border-radius: var(--ipf-radius-xl);
+    padding: 1.25rem;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out 0.2s both;
+}
+
+.ipf-status-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(52, 211, 153, 0.2);
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    border-radius: 50%;
+    margin: 0 auto 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ipf-success);
+    font-size: 1.5rem;
+}
+
+.ipf-status-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ipf-success);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.ipf-status-text {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--ipf-text);
+}
+
+/* Admin Actions */
+.ipf-admin-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ipf-radius-xl);
+    padding: 1.25rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out 0.25s both;
+}
+
+.ipf-admin-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ipf-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+}
+
+.ipf-admin-btns { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.ipf-admin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ipf-radius-md);
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--ipf-text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ipf-admin-btn:hover {
+    border-color: var(--ipf-primary);
+    color: var(--ipf-primary);
+    background: rgba(167, 139, 250, 0.15);
+    transform: translateY(-2px);
+}
+
+.ipf-admin-btn.danger:hover {
+    border-color: var(--ipf-danger);
+    color: var(--ipf-danger);
+    background: rgba(239, 68, 68, 0.15);
+}
+
+/* Website Button */
+.ipf-website-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 1rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--ipf-primary), var(--ipf-accent));
+    color: var(--ipf-deep);
+    border: none;
+    border-radius: var(--ipf-radius-md);
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.ipf-website-btn:hover {
+    background: linear-gradient(135deg, var(--ipf-primary-dark), var(--ipf-primary));
+    color: var(--ipf-deep);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+}
+
+/* Meta Info */
+.ipf-meta-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ipf-radius-lg);
+    padding: 1rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out 0.15s both;
+}
+
+.ipf-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.ipf-meta-label {
+    font-size: 0.8rem;
+    color: var(--ipf-text-muted);
+    opacity: 0.8;
+}
+
+.ipf-meta-value {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ipf-primary);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ipf-page">
+    
+    <!-- Hero Header -->
+    <header class="ipf-hero">
+        <div class="ipf-hero-container">
+            <nav class="ipf-breadcrumb">
+                <a href="{% url 'institutions:institution_list' %}">{% translate "Institutions" %}</a>
+                <span>/</span>
+                <span>{{ institution.get_localized_name|truncatechars:40 }}</span>
+            </nav>
+            
+            <div class="ipf-hero-content">
+                <div class="ipf-logo-box">
+                    {% if institution.logo %}
+                    <img src="{{ institution.logo.url }}" alt="{{ institution.get_localized_name }}" class="ipf-logo-img">
+                    {% else %}
+                    <i class="bi bi-building ipf-logo-placeholder"></i>
+                    {% endif %}
+                </div>
+                
+                <div class="ipf-hero-info">
+                    <div class="ipf-hero-badges">
+                        <span class="ipf-badge ipf-badge-type">
+                            <i class="bi bi-{% if institution.type == 'University' %}mortarboard{% elif institution.type == 'Research Center' %}search{% elif institution.type == 'School' %}book{% else %}building{% endif %}"></i>
+                            {{ institution.get_type_display }}
+                        </span>
+                        <span class="ipf-badge ipf-badge-active">
+                            <i class="bi bi-check-circle-fill"></i>
+                            {% translate "Active Partner" %}
+                        </span>
+                    </div>
+                    
+                    <h1 class="ipf-hero-title">
+                        {{ institution.get_localized_name }}
+                        {% if institution.acronym %}
+                        <span class="ipf-hero-acronym">({{ institution.acronym }})</span>
+                        {% endif %}
+                    </h1>
+                    
+                    <div class="ipf-hero-meta">
+                        <span class="ipf-meta-item">
+                            <i class="bi bi-geo-alt"></i>
+                            {{ institution.get_localized_city }}, {{ institution.country }}
+                        </span>
+                        {% if institution.website %}
+                        <span class="ipf-meta-item">
+                            <i class="bi bi-globe"></i>
+                            <a href="{{ institution.website }}" target="_blank">{{ institution.website|truncatechars:30 }}</a>
+                        </span>
+                        {% endif %}
+                        {% if institution.email %}
+                        <span class="ipf-meta-item">
+                            <i class="bi bi-envelope"></i>
+                            <a href="mailto:{{ institution.email }}">{{ institution.email }}</a>
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="ipf-main">
+        
+        <!-- Left Column -->
+        <div class="ipf-content">
+            
+            <!-- About Section -->
+            <section class="ipf-section">
+                <div class="ipf-section-header">
+                    <div class="ipf-section-icon">
+                        <i class="bi bi-file-text"></i>
+                    </div>
+                    <h2 class="ipf-section-title">{% translate "About This Institution" %}</h2>
+                </div>
+                <div class="ipf-description">
+                    {% if institution.get_localized_description %}
+                    {{ institution.get_localized_description|linebreaks }}
+                    {% else %}
+                    <p style="color: var(--ipf-text-muted); font-style: italic;">
+                        {% translate "No description available for this institution." %}
+                    </p>
+                    {% endif %}
+                </div>
+            </section>
+            
+            <!-- Specialties Section -->
+            {% if institution.specialties.exists %}
+            <section class="ipf-section">
+                <div class="ipf-section-header">
+                    <div class="ipf-section-icon">
+                        <i class="bi bi-tags"></i>
+                    </div>
+                    <h2 class="ipf-section-title">{% translate "Research Specialties" %}</h2>
+                </div>
+                <div class="ipf-specialties">
+                    {% for specialty in institution.specialties.all %}
+                    <span class="ipf-specialty-tag">
+                        <i class="bi bi-hash"></i>
+                        {{ specialty.get_localized_name }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Address Section -->
+            {% if institution.get_localized_address %}
+            <section class="ipf-section">
+                <div class="ipf-section-header">
+                    <div class="ipf-section-icon">
+                        <i class="bi bi-pin-map"></i>
+                    </div>
+                    <h2 class="ipf-section-title">{% translate "Location & Address" %}</h2>
+                </div>
+                <div class="ipf-description">
+                    {{ institution.get_localized_address|linebreaks }}
+                </div>
+            </section>
+            {% endif %}
+            
+        </div>
+        
+        <!-- Sidebar -->
+        <aside class="ipf-sidebar">
+            
+            <!-- Website Button -->
+            {% if institution.website %}
+            <a href="{{ institution.website }}" target="_blank" class="ipf-website-btn">
+                <i class="bi bi-globe"></i>
+                {% translate "Visit Official Website" %}
+            </a>
+            {% endif %}
+            
+            <!-- Contact Card -->
+            <div class="ipf-contact-card">
+                <div class="ipf-contact-header">
+                    <h3 class="ipf-contact-title">{% translate "Contact Information" %}</h3>
+                </div>
+                <div class="ipf-contact-body">
+                    <div class="ipf-contact-item">
+                        <div class="ipf-contact-icon">
+                            <i class="bi bi-geo-alt"></i>
+                        </div>
+                        <div class="ipf-contact-content">
+                            <div class="ipf-contact-label">{% translate "Location" %}</div>
+                            <div class="ipf-contact-value">{{ institution.get_localized_city }}, {{ institution.country }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if institution.email %}
+                    <div class="ipf-contact-item">
+                        <div class="ipf-contact-icon">
+                            <i class="bi bi-envelope"></i>
+                        </div>
+                        <div class="ipf-contact-content">
+                            <div class="ipf-contact-label">{% translate "Email" %}</div>
+                            <div class="ipf-contact-value">
+                                <a href="mailto:{{ institution.email }}">{{ institution.email }}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if institution.phone %}
+                    <div class="ipf-contact-item">
+                        <div class="ipf-contact-icon">
+                            <i class="bi bi-telephone"></i>
+                        </div>
+                        <div class="ipf-contact-content">
+                            <div class="ipf-contact-label">{% translate "Phone" %}</div>
+                            <div class="ipf-contact-value">
+                                <a href="tel:{{ institution.phone }}">{{ institution.phone }}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Status Card -->
+            <div class="ipf-status-card">
+                <div class="ipf-status-icon">
+                    <i class="bi bi-patch-check-fill"></i>
+                </div>
+                <div class="ipf-status-label">{% translate "Collaboration Status" %}</div>
+                <div class="ipf-status-text">{% translate "Active Partner" %}</div>
+            </div>
+            
+            <!-- Meta Info -->
+            <div class="ipf-meta-card">
+                <div class="ipf-meta-row">
+                    <span class="ipf-meta-label">{% translate "Added on" %}</span>
+                    <span class="ipf-meta-value">{{ institution.created_at|date:"M d, Y" }}</span>
+                </div>
+                <div class="ipf-meta-row">
+                    <span class="ipf-meta-label">{% translate "Last updated" %}</span>
+                    <span class="ipf-meta-value">{{ institution.updated_at|date:"M d, Y" }}</span>
+                </div>
+            </div>
+            
+            <!-- Admin Actions -->
+            {% if user == institution.created_by or user.is_staff %}
+            <div class="ipf-admin-card">
+                <div class="ipf-admin-title">{% translate "Manage Institution" %}</div>
+                <div class="ipf-admin-btns">
+                    <a href="{% url 'institutions:institution_update' institution.pk %}" class="ipf-admin-btn">
+                        <i class="bi bi-pencil"></i>
+                        {% translate "Edit Profile" %}
+                    </a>
+                    <a href="{% url 'institutions:institution_delete' institution.pk %}" class="ipf-admin-btn danger">
+                        <i class="bi bi-trash3"></i>
+                        {% translate "Remove Institution" %}
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+        </aside>
+    </main>
+</div>
+{% endblock %}

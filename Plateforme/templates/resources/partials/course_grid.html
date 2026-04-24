@@ -1,0 +1,76 @@
+{% load i18n %}
+
+{% if courses %}
+<div class="course-hub-grid" id="courses-grid">
+    {% for course in courses %}
+    <article class="course-hub-card">
+        <div class="course-hub-card-header">
+            <div class="course-hub-card-icon">
+                <i class="bi bi-journal-bookmark"></i>
+            </div>
+            <span class="course-hub-level-badge {{ course.academic_level }}">
+                {{ course.get_academic_level_display }}
+            </span>
+        </div>
+
+        <div class="course-hub-card-body">
+            <h3 class="course-hub-card-title">{{ course.get_localized_title }}</h3>
+            <p class="course-hub-card-desc">
+                {{ course.get_localized_description|truncatewords:18|default:_("Comprehensive course content covering essential topics in Arabic NLP.") }}
+            </p>
+
+            <div class="course-hub-card-meta">
+                <div class="course-hub-meta-row">
+                    <i class="bi bi-person-workspace"></i>
+                    <strong>{{ course.teacher.get_full_name_display|default:_("Instructor") }}</strong>
+                </div>
+                <div class="course-hub-meta-row">
+                    <i class="bi bi-building"></i>
+                    <span>{{ course.institution.get_localized_name|truncatechars:28 }}</span>
+                </div>
+                <div class="course-hub-meta-row">
+                    <i class="bi bi-calendar3"></i>
+                    <span>{{ course.academic_year }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="course-hub-card-footer">
+            <div class="card-actions-bar">
+                <div class="course-hub-primary-actions social-actions">
+                    <button type="button" class="course-hub-action-text like-btn" data-course-id="{{ course.id }}" aria-label="{% translate 'Like' %}">
+                        <i class="bi bi-heart" data-outline-icon="bi-heart" data-solid-icon="bi-heart-fill"></i>
+                    </button>
+                    <a href="{% url 'resources:course_detail' course.id %}#comments" class="course-hub-action-text comment-btn icon-only" aria-label="{% translate 'Comment' %}">
+                        <i class="bi bi-chat"></i>
+                    </a>
+                    <a href="{% url 'resources:course_detail' course.id %}" class="course-hub-action-text view-only icon-only" aria-label="{% translate 'View details' %}">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </div>
+                <div class="course-hub-secondary-actions tool-actions">
+                    {% include "includes/card_top_actions.html" with content_type="course" object_id=course.id title=course.get_localized_title description=course.get_localized_description|truncatewords:40 category=course.get_course_field_display|default:'course' author=course.teacher.get_full_name_display|default:course.author.get_full_name_display|default:_("Instructor") url=course.get_absolute_url|default:'' %}
+                </div>
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
+{% else %}
+<div class="course-hub-grid" id="courses-grid">
+    <div class="course-hub-empty">
+        <div class="course-hub-empty-icon">
+            <i class="bi bi-journal-x"></i>
+        </div>
+        <h3>{% translate "No Courses Found" %}</h3>
+        <p>{% translate "Be the first to contribute a course to the Arabic NLP Academy." %}</p>
+        {% if user.is_authenticated %}
+        <a href="{% url 'resources:course-create' %}" class="course-hub-empty-btn">
+            <i class="bi bi-plus-lg"></i>
+            {% translate "Create Your First Course" %}
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

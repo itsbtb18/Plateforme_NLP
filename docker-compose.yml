@@ -1,0 +1,639 @@
+services:
+  # PostgreSQL Database with pgvector extension
+  # Keep PG image compatible with existing on-disk data.
+  db:
+    profiles: ["scraping", "full"]
+    image: pgvector/pgvector:pg16
+    container_name: nlp_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} && psql -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} -tAc \"SELECT NOT pg_is_in_recovery();\" | grep -q t"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Redis for Django Channels
+  redis:
+    profiles: ["scraping", "full"]
+    image: redis:7-alpine
+    container_name: nlp_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5,
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Qdrant vector database
+  qdrant:
+    profiles: ["full"]
+    image: qdrant/qdrant:v1.12.4
+    container_name: nlp_qdrant
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: "6334"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Elasticsearch for search functionality
+  elasticsearch:
+    profiles: ["full"]
+    build:
+      context: ./elasticsearch
+      dockerfile: Dockerfile
+    container_name: nlp_elasticsearch
+    mem_limit: 512m
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./data/elasticsearch:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Django Application (Plateforme)
+  django:
+    profiles: ["scraping", "full"]
+    build:
+      context: ./Plateforme
+      dockerfile: Dockerfile
+    container_name: nlp_django
+    user: "0:0"
+    mem_limit: 512m
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+
+      # Django (support both old and new env keys)
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+
+      # Celery
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+
+      # Email (optional)
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+
+      # Elasticsearch
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+
+      # FastAPI Chatbot
+      FASTAPI_URL: http://fastapi:8000
+      FASTAPI_BROWSER_URL: /ai
+      FASTAPI_LOCAL_BROWSER_URL: ${FASTAPI_LOCAL_BROWSER_URL:-http://localhost:8000}
+      FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
+
+      # Chatbot Settings
+      CHATBOT_MAX_HISTORY: ${CHATBOT_MAX_HISTORY:-20}
+      CHATBOT_MAX_TOKENS: ${CHATBOT_MAX_TOKENS:-8192}
+      CHATBOT_TIMEOUT: ${CHATBOT_TIMEOUT:-180}
+      CHATBOT_MAX_FILE_SIZE: ${CHATBOT_MAX_FILE_SIZE:-20971520}
+
+      # Groq (scraping LLM validation)
+      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      GEMINI_SCRAPING_API_KEY: ${GEMINI_SCRAPING_API_KEY:-}
+      GEMINI_INTERNAL_API_KEY: ${GEMINI_INTERNAL_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_SCRAPING_MODEL: ${GEMINI_SCRAPING_MODEL:-gemini-3.5-preview}
+      GEMINI_SCRAPING_TIMEOUT: ${GEMINI_SCRAPING_TIMEOUT:-30}
+      GEMINI_SCRAPING_MAX_RETRIES: ${GEMINI_SCRAPING_MAX_RETRIES:-2}
+      GEMINI_SCRAPING_MAX_RPM: ${GEMINI_SCRAPING_MAX_RPM:-10}
+      SCRAPING_LLM_PRIMARY_PROVIDER: ${SCRAPING_LLM_PRIMARY_PROVIDER:-gemini}
+      SCRAPING_LLM_FALLBACK_PROVIDER: ${SCRAPING_LLM_FALLBACK_PROVIDER:-groq}
+      SCRAPING_LLM_MODE: ${SCRAPING_LLM_MODE:-primary_with_fallback}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      SCRAPING_TAVILY_API_KEY: ${SCRAPING_TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
+      SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
+      SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
+    volumes:
+      - ./Plateforme:/app
+      - static_volume:/app/staticfiles
+      - ./Plateforme/media:/app/media
+      - ./scraping_data:/app/scraping_data
+    ports:
+      - "8888:8000"
+    command: >
+      sh -c "
+        python manage.py collectstatic --noinput &&
+        python manage.py migrate --noinput &&
+        daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # FastAPI Chatbot
+  fastapi:
+    profiles: ["full"]
+    build:
+      context: ./fastapi_chatbot
+      dockerfile: Dockerfile
+    container_name: nlp_fastapi
+    cpus: 1.0
+    mem_limit: 1.5g
+    mem_reservation: 512m
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: "6333"
+      QDRANT_GRPC_PORT: "6334"
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
+      GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
+      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
+      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
+      # ---- Gemini ----
+      GENAI_API_KEY: ${GENAI_API_KEY:-}
+      GENAI_MODEL: ${GENAI_MODEL:-gemini-2.0-flash}
+      GENAI_INTERNAL_API_KEY: ${GENAI_INTERNAL_API_KEY:-}
+      GENAI_INTERNAL_MODEL: ${GENAI_INTERNAL_MODEL:-gemini-2.0-flash}
+      # ---- Provider Selection ----
+      LLM_PROVIDER_CHAT: ${LLM_PROVIDER_CHAT:-gemini}
+      LLM_PROVIDER_INTERNAL: ${LLM_PROVIDER_INTERNAL:-gemini}
+      # ---- Exa fallback ----
+      EXA_API_KEY: ${EXA_API_KEY:-}
+      EXA_ENABLED: ${EXA_ENABLED:-false}
+      # ---- Tavily Web Search ----
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-false}
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+      # Disable parallelism - protect CPU
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      TORCH_NUM_THREADS: "1"
+      NUMEXPR_MAX_THREADS: "1"
+    volumes:
+      - ./fastapi_chatbot:/app
+      - fastapi_cache:/app/.cache
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Standalone Translation/Summarization Service
+  translation_summarization:
+    profiles: ["full"]
+    build:
+      context: ./translation_summarization_service
+      dockerfile: Dockerfile
+    container_name: nlp_translation_summarization
+    environment:
+      TS_SERVICE_API_KEY: ${TS_SERVICE_API_KEY:-}
+      TS_PRIMARY_PROVIDER: ${TS_PRIMARY_PROVIDER:-gemini}
+      TS_FALLBACK_PROVIDER: ${TS_FALLBACK_PROVIDER:-groq}
+      TS_GEMINI_API_KEY: ${TS_GEMINI_API_KEY:-}
+      TS_GEMINI_MODEL: ${TS_GEMINI_MODEL:-gemini-2.0-flash}
+      TS_GROQ_API_KEY: ${TS_GROQ_API_KEY:-}
+      TS_GROQ_TRANSLATION_MODEL: ${TS_GROQ_TRANSLATION_MODEL:-llama-3.3-70b-versatile}
+      TS_GROQ_SUMMARIZATION_MODEL: ${TS_GROQ_SUMMARIZATION_MODEL:-llama-3.3-70b-versatile}
+    ports:
+      - "${TS_SERVICE_PORT:-8010}:8010"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # CV Processing Service
+  cv_processing:
+    profiles: ["full"]
+    build:
+      context: ./cv_processing
+      dockerfile: Dockerfile
+    container_name: nlp_cv_processing
+    cpus: 0.5
+    mem_limit: 1g
+    mem_reservation: 256m
+    environment:
+      SERVICE_NAME: CV Processing Service
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      API_HOST: 0.0.0.0
+      API_PORT: 8002
+      DEBUG: ${DEBUG:-False}
+      # Database
+      POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
+      # Groq API (CV Processing)
+      GROQ_CV_API_KEY: ${GROQ_CV_API_KEY:-}
+      GROQ_CV_MODEL: ${GROQ_CV_MODEL:-llama-3.3-70b-versatile}
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      REDIS_DB: "0"
+      # Celery
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/5
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/6
+      CELERY_TASK_TIME_LIMIT: "3600"
+      CELERY_TASK_SOFT_TIME_LIMIT: "3300"
+      # CV Processing
+      MAX_FILE_SIZE_MB: "20"
+      TEMP_FILE_DIR: "/tmp"
+      GROQ_MAX_TOKENS: "2048"
+      GROQ_TEMPERATURE: "0.3"
+    volumes:
+      - ./cv_processing:/app
+      - cv_processing_cache:/app/.cache
+      - /tmp:/tmp
+    ports:
+      - "8002:8002"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --workers 1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Celery Worker for CV Processing
+  cv_processing_worker:
+    profiles: ["full"]
+    build:
+      context: ./cv_processing
+      dockerfile: Dockerfile
+    container_name: nlp_cv_processing_worker
+    cpus: 0.5
+    mem_limit: 1g
+    mem_reservation: 256m
+    environment:
+      SERVICE_NAME: CV Processing Worker
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Database
+      POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
+      # Groq API (CV Processing)
+      GROQ_CV_API_KEY: ${GROQ_CV_API_KEY:-}
+      GROQ_CV_MODEL: ${GROQ_CV_MODEL:-llama-3.3-70b-versatile}
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      REDIS_DB: "0"
+      # Celery
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/5
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/6
+      CELERY_TASK_TIME_LIMIT: "3600"
+      CELERY_TASK_SOFT_TIME_LIMIT: "3300"
+      # CV Processing
+      MAX_FILE_SIZE_MB: "20"
+      TEMP_FILE_DIR: "/tmp"
+      GROQ_MAX_TOKENS: "2048"
+      GROQ_TEMPERATURE: "0.3"
+    volumes:
+      - ./cv_processing:/app
+      - cv_processing_cache:/app/.cache
+      - /tmp:/tmp
+    command: celery -A app.celery_app worker -l info --concurrency=2
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping --timeout 10 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      cv_processing:
+        condition: service_healthy
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Celery Worker for background document processing
+  celery_worker:
+    profiles: ["full"]
+    build:
+      context: ./fastapi_chatbot
+      dockerfile: Dockerfile
+    container_name: nlp_celery_worker
+    cpus: 1.0
+    mem_limit: 1.5g
+    mem_reservation: 512m
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: "6333"
+      QDRANT_GRPC_PORT: "6334"
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.35}
+      GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-2048}
+      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
+      GROQ_INTERNAL_MODEL: ${GROQ_INTERNAL_MODEL:-llama-3.1-8b-instant}
+      # ---- Gemini ----
+      GENAI_API_KEY: ${GENAI_API_KEY:-}
+      GENAI_MODEL: ${GENAI_MODEL:-gemini-2.0-flash}
+      GENAI_INTERNAL_API_KEY: ${GENAI_INTERNAL_API_KEY:-}
+      GENAI_INTERNAL_MODEL: ${GENAI_INTERNAL_MODEL:-gemini-2.0-flash}
+      # ---- Provider Selection ----
+      LLM_PROVIDER_CHAT: ${LLM_PROVIDER_CHAT:-gemini}
+      LLM_PROVIDER_INTERNAL: ${LLM_PROVIDER_INTERNAL:-gemini}
+      # ---- Exa fallback ----
+      EXA_API_KEY: ${EXA_API_KEY:-}
+      EXA_ENABLED: ${EXA_ENABLED:-false}
+      # ---- Tavily Web Search ----
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-false}
+      # Disable parallelism - protect CPU
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      TORCH_NUM_THREADS: "1"
+      NUMEXPR_MAX_THREADS: "1"
+    volumes:
+      - ./fastapi_chatbot:/app
+      - fastapi_cache:/app/.cache
+    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion,translation,summarization,postprocess,quality -l info --concurrency=1
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping --timeout 10 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    profiles: ["scraping", "full"]
+    image: nginx:1.25-alpine
+    container_name: nlp_nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_volume:/static:ro
+      - ./Plateforme/media:/media:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - django
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # -- Django Celery Worker (scraping background tasks) --
+  django_celery_worker:
+    profiles: ["scraping", "full"]
+    build:
+      context: ./Plateforme
+      dockerfile: Dockerfile
+    container_name: nlp_django_celery_worker
+    user: "celery:celery"
+    mem_limit: 512m
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+      FASTAPI_URL: http://fastapi:8000
+      FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
+      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
+      GROQ_INTERNAL_API_KEY: ${GROQ_INTERNAL_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      GEMINI_SCRAPING_API_KEY: ${GEMINI_SCRAPING_API_KEY:-}
+      GEMINI_INTERNAL_API_KEY: ${GEMINI_INTERNAL_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_SCRAPING_MODEL: ${GEMINI_SCRAPING_MODEL:-gemini-3.5-preview}
+      GEMINI_SCRAPING_TIMEOUT: ${GEMINI_SCRAPING_TIMEOUT:-30}
+      GEMINI_SCRAPING_MAX_RETRIES: ${GEMINI_SCRAPING_MAX_RETRIES:-2}
+      GEMINI_SCRAPING_MAX_RPM: ${GEMINI_SCRAPING_MAX_RPM:-10}
+      SCRAPING_LLM_PRIMARY_PROVIDER: ${SCRAPING_LLM_PRIMARY_PROVIDER:-gemini}
+      SCRAPING_LLM_FALLBACK_PROVIDER: ${SCRAPING_LLM_FALLBACK_PROVIDER:-groq}
+      SCRAPING_LLM_MODE: ${SCRAPING_LLM_MODE:-primary_with_fallback}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      SCRAPING_TAVILY_API_KEY: ${SCRAPING_TAVILY_API_KEY:-}
+      TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
+      SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
+      SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
+    volumes:
+      - ./Plateforme:/app
+      - static_volume:/app/staticfiles
+      - ./Plateforme/media:/app/media
+      - ./scraping_data:/app/scraping_data
+    command: celery -A Plateforme worker -Q scraping -l info --concurrency=2
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+  # -- Django Celery Beat (periodic task scheduler) --
+  django_celery_beat:
+    profiles: ["scheduler"]
+    build:
+      context: ./Plateforme
+      dockerfile: Dockerfile
+    container_name: nlp_django_celery_beat
+    user: "0:0"
+    mem_limit: 128m
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      ELASTICSEARCH_HOST: http://elasticsearch:9200
+      GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
+      GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
+      GEMINI_SCRAPING_API_KEY: ${GEMINI_SCRAPING_API_KEY:-}
+      GEMINI_INTERNAL_API_KEY: ${GEMINI_INTERNAL_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_SCRAPING_MODEL: ${GEMINI_SCRAPING_MODEL:-gemini-3.5-preview}
+      GEMINI_SCRAPING_TIMEOUT: ${GEMINI_SCRAPING_TIMEOUT:-30}
+      GEMINI_SCRAPING_MAX_RETRIES: ${GEMINI_SCRAPING_MAX_RETRIES:-2}
+      GEMINI_SCRAPING_MAX_RPM: ${GEMINI_SCRAPING_MAX_RPM:-10}
+      SCRAPING_LLM_PRIMARY_PROVIDER: ${SCRAPING_LLM_PRIMARY_PROVIDER:-gemini}
+      SCRAPING_LLM_FALLBACK_PROVIDER: ${SCRAPING_LLM_FALLBACK_PROVIDER:-groq}
+      SCRAPING_LLM_MODE: ${SCRAPING_LLM_MODE:-primary_with_fallback}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      SCRAPING_TAVILY_API_KEY: ${SCRAPING_TAVILY_API_KEY:-}
+      SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
+      SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
+    volumes:
+      - ./Plateforme:/app
+    command: celery -A Plateforme beat -l info --scheduler celery.beat:PersistentScheduler
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nlp_network
+    restart: unless-stopped
+
+networks:
+  nlp_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
+  fastapi_cache:
+    driver: local
+  cv_processing_cache:
+    driver: local

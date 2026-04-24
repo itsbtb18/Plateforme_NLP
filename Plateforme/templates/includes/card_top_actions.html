@@ -1,0 +1,156 @@
+{% comment %}
+templates/includes/card_top_actions.html
+Instagram-style modern action buttons for card headers
+
+Usage:
+  {% include "includes/card_top_actions.html" with content_type="tool" object_id=tool.id title=tool.get_localized_title description=tool.get_localized_description|truncatewords:40 %}
+
+Required Parameters:
+  - content_type: String (e.g., "tool", "corpus", "project", "course", etc.)
+  - object_id: The object's primary key
+  - title: The object's title
+
+Optional Parameters:
+  - description: Object description (for chatbot context)
+  - category: Object category/field/type label
+  - author: Object author/owner/organizer
+  - file_content: Optional extracted file content preview
+  - url: Full URL to the object
+  - tags: Comma-separated tags
+{% endcomment %}
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<div class="card-top-actions">
+    {# Send Button #}
+    <button type="button"
+            class="card-action-icon share-trigger-btn"
+            title="{% trans 'Share with friends' %}"
+            data-share-type="{{ content_type }}"
+            data-share-id="{{ object_id }}"
+            data-share-title="{{ title|default:'' }}"
+            aria-label="{% trans 'Send' %}">
+        <i class="bi bi-send"></i>
+        <span>{% trans "Send" %}</span>
+    </button>
+    
+    {# Ask AI Button #}
+    <button type="button"
+            class="card-action-icon ask-chatbot-btn"
+            title="{% if LANGUAGE_CODE == 'ar' %}إسأل{% else %}Ask AI{% endif %}"
+            data-ct="{{ content_type }}"
+            data-oid="{{ object_id }}"
+            data-title="{{ title|default:''|truncatechars:200 }}"
+            data-category="{{ category|default:content_type }}"
+            data-author="{{ author|default:''|truncatechars:120 }}"
+            data-description="{{ description|default:''|truncatechars:400 }}"
+            data-file-content="{{ file_content|default:''|truncatechars:1200 }}"
+            data-url="{{ url|default:'' }}"
+            data-tags="{{ tags|default:'' }}"
+            data-context='{"title":"{{ title|default:""|truncatechars:200|escapejs }}","category":"{{ category|default:content_type|escapejs }}","author":"{{ author|default:""|truncatechars:120|escapejs }}","description":"{{ description|default:""|truncatechars:400|escapejs }}","file_content":"{{ file_content|default:""|truncatechars:1200|escapejs }}","url":"{{ url|default:""|escapejs }}","type":"{{ content_type|escapejs }}","id":"{{ object_id|escapejs }}"}'
+            aria-label="{% if LANGUAGE_CODE == 'ar' %}إسأل{% else %}Ask AI{% endif %}">
+        <i class="fas fa-robot"></i>
+        <span>{% if LANGUAGE_CODE == 'ar' %}إسأل{% else %}Ask AI{% endif %}</span>
+    </button>
+</div>
+
+<style>
+/* Card Top Actions Container */
+.card-top-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Modern Minimal Button Style - Theme Compatible */
+.card-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--hub-border, rgba(157, 78, 221, 0.15));
+    border-radius: 8px; /* Modern rounded corners */
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--transition-short, 0.2s ease);
+    color: var(--hub-text-secondary, #9ea0b1);
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: none;
+}
+
+.card-action-icon i {
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.card-action-icon span {
+    display: inline;
+}
+
+/* Hover States */
+.card-action-icon:hover {
+    background: var(--hub-surface-hover, rgba(157, 78, 221, 0.05));
+    color: var(--hub-text-primary, #ffffff);
+    border-color: var(--hub-accent, #9d4edd);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--hub-accent-glow, rgba(157, 78, 221, 0.15));
+}
+
+.card-action-icon:hover i {
+    transform: scale(1.1);
+}
+
+.card-action-icon:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* RTL Support */
+html[dir="rtl"] .card-top-actions {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .card-action-icon {
+    flex-direction: row-reverse;
+}
+
+/* Accessibility - Focus States */
+.card-action-icon:focus-visible {
+    outline: 2px solid var(--hub-accent, #9d4edd);
+    outline-offset: 2px;
+}
+
+.card-action-icon:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+    .card-action-icon {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.65rem;
+    }
+    
+    .card-action-icon i {
+        font-size: 0.75rem;
+    }
+}
+
+.card-action-icon.loading {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.card-action-icon.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>

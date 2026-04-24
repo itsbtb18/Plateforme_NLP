@@ -1,0 +1,106 @@
+{% load i18n %}
+{% load static %}
+
+<!-- ===== TOOL GRID CARDS — Modern Dark Theme Design ===== -->
+{% if tools %}
+<div class="resource-grid" id="toolGrid">
+    {% for tool in tools %}
+    <article class="resource-card"
+             data-title="{{ tool.get_localized_title }}"
+             data-description="{{ tool.get_localized_description|truncatewords:25 }}"
+             data-type="{{ tool.tool_type }}"
+             data-author="{{ tool.author.get_full_name_display|default:'' }}"
+             data-keywords="{{ tool.keywords|default:'' }}">
+        <div class="card-accent-line"></div>
+        <div class="card-content">
+            <span class="card-type-badge">
+                <i class="bi bi-lightning-charge"></i>
+                {% if tool.tool_type == 'tokenization' %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تجزئة النص{% else %}{% translate "Tokenization" %}{% endif %}
+                {% elif tool.tool_type == 'stemming' %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التجذير{% else %}{% translate "Stemming" %}{% endif %}
+                {% elif tool.tool_type == 'ner' %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التعرف على الكيانات{% else %}{% translate "NER" %}{% endif %}
+                {% elif tool.tool_type == 'pos_tagging' %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}وسم أجزاء الكلام{% else %}{% translate "POS Tagging" %}{% endif %}
+                {% elif tool.tool_type == 'sentiment_analysis' %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحليل المشاعر{% else %}{% translate "Sentiment" %}{% endif %}
+                {% elif tool.tool_type == 'machine_translation' %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الترجمة{% else %}{% translate "Translation" %}{% endif %}
+                {% else %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أداة{% else %}{% translate "Tool" %}{% endif %}
+                {% endif %}
+            </span>
+            <h3 class="card-title">{{ tool.get_localized_title }}</h3>
+            <p class="card-description">
+                {% if tool.get_localized_description %}
+                    {{ tool.get_localized_description|truncatewords:25 }}
+                {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                    لا يوجد وصف متاح
+                {% else %}
+                    {% translate "No description provided" %}
+                {% endif %}
+            </p>
+            <div class="card-meta">
+                <div class="meta-item">
+                    <i class="bi bi-person"></i>
+                    <span>
+                        {% if tool.author.get_full_name_display %}
+                            {{ tool.author.get_full_name_display }}
+                        {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                            غير معروف
+                        {% else %}
+                            {% translate "Unknown" %}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="meta-item">
+                    <i class="bi bi-calendar3"></i>
+                    <span>
+                        {% if tool.creation_date %}
+                            {{ tool.creation_date|date:"M d, Y" }}
+                        {% elif request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                            غير محدد
+                        {% else %}
+                            {% translate "Not specified" %}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="card-action">
+            {% if tool.approval_status == 'pending' and tool.author == request.user %}
+                <a href="{% url 'resources:resource-update' type='tool' pk=tool.id %}"
+                   class="btn-view-details"
+                   title="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تعديل النموذج{% else %}{% translate 'Edit Form' %}{% endif %}">
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل النموذج{% else %}{% translate "Edit Form" %}{% endif %}</span>
+                    <i class="bi bi-file-earmark-text"></i>
+                </a>
+            {% else %}
+                <a href="{% url 'resources:tool_detail' tool.id %}"
+                   class="btn-view-details">
+                    <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض التفاصيل{% else %}{% translate "View Details" %}{% endif %}</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            {% endif %}
+            {% include "includes/card_top_actions.html" with content_type="tool" object_id=tool.id title=tool.get_localized_title description=tool.get_localized_description|truncatewords:40 category=tool.get_tool_type_display author=tool.author.get_full_name_display url=tool.get_absolute_url|default:'' %}
+        </div>
+    </article>
+    {% endfor %}
+</div>
+
+<!-- Results count -->
+<div class="results-count" style="margin-top: 1rem;">
+    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}عرض <strong>{{ tools|length }}</strong> أداة{% else %}{% translate "Showing" %} <strong>{{ tools|length }}</strong> {% translate "tools" %}{% endif %}
+</div>
+
+{% else %}
+<!-- Empty State -->
+<div class="empty-state">
+    <div class="empty-illustration">
+        <i class="bi bi-gear"></i>
+    </div>
+    <h3>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد أدوات متاحة{% else %}{% trans "No tools available" %}{% endif %}</h3>
+    <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد أدوات تطابق بحثك. جرّب تعديل عوامل التصفية أو الكلمات المفتاحية.{% else %}{% trans "No tools match your search. Try adjusting your filters or keywords." %}{% endif %}</p>
+</div>
+{% endif %}

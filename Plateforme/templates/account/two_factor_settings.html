@@ -1,0 +1,128 @@
+{% load i18n %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="{{ request.LANGUAGE_CODE|default:'en' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "Two-Factor Settings" %}</title>
+    <link rel="icon" href="{% static 'images/navbarlogo.png' %}?v=20260418" sizes="32x32" type="image/png">
+    <link rel="shortcut icon" href="{% static 'images/navbarlogo.png' %}?v=20260418" type="image/png">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 24px; background: #f7f9fc; }
+        .card { max-width: 760px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #dfe5ee; }
+        .row { margin-bottom: 14px; }
+        .muted { color: #5b667a; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 14px; background: #e7f0ff; color: #174ea6; font-weight: 700; }
+        .btn { border: 1px solid #174ea6; color: #174ea6; background: #fff; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+        .btn-primary { background: #174ea6; color: #fff; }
+        .btn + .btn { margin-left: 8px; }
+        .inline { display: inline; }
+        .code-list { margin: 8px 0; padding-left: 18px; }
+        .code { font-family: monospace; letter-spacing: 1px; }
+        .qr { margin-top: 12px; padding: 12px; border: 1px dashed #d0d9e8; border-radius: 8px; display: inline-block; background: #fff; }
+        .switches { margin-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>{% trans "Two-Factor Authentication Settings" %}</h1>
+
+    <div class="row">
+        <strong>{% trans "2FA Status:" %}</strong>
+        {% if is_2fa_enabled %}
+            <span class="badge">{% trans "Enabled" %}</span>
+        {% else %}
+            <span class="badge" style="background:#f3f4f6;color:#374151;">{% trans "Disabled" %}</span>
+        {% endif %}
+    </div>
+
+    <div class="row">
+        <strong>{% trans "Current method:" %}</strong>
+        {% if current_method == totp_method %}
+            {% trans "Authenticator App (TOTP)" %}
+        {% else %}
+            {% trans "Email OTP" %}
+        {% endif %}
+    </div>
+
+    <div class="row switches">
+        <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="switch_totp">
+            <button class="btn btn-primary" type="submit">{% trans "Switch to TOTP" %}</button>
+        </form>
+        <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="switch_email">
+            <button class="btn" type="submit">{% trans "Switch to Email OTP" %}</button>
+        </form>
+    </div>
+
+    <div class="row muted">
+        <a href="{% url 'accounts:verify_2fa' %}">{% trans "Go to verification flow" %}</a>
+        &nbsp;|&nbsp;
+        <a href="{% url 'account_login' %}">{% trans "Test via next login" %}</a>
+    </div>
+
+    {% if totp_qr_code %}
+    <div class="row">
+        <h3>{% trans "Scan this QR code in Google Authenticator/Authy" %}</h3>
+        <div class="qr">
+            <img src="data:image/png;base64,{{ totp_qr_code }}" alt="{% trans 'TOTP QR Code' %}" />
+        </div>
+        {% if totp_secret %}
+            <p class="muted">{% trans "Manual key:" %} <code>{{ totp_secret }}</code></p>
+        {% endif %}
+        <p class="muted">{% trans "After scanning, your next login will be verified in the same verify flow." %}</p>
+    </div>
+    {% endif %}
+
+    <hr>
+
+    <div class="row">
+        <h3>{% trans "Backup Codes" %}</h3>
+        {% if new_backup_codes %}
+            <p><strong>{% trans "New codes (shown once):" %}</strong></p>
+            <ul class="code-list">
+                {% for code in new_backup_codes %}
+                    <li class="code">{{ code }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="muted">{% trans "Stored backup codes are masked for security." %}</p>
+            <ul class="code-list">
+                {% for code in masked_backup_codes %}
+                    <li class="code">{{ code }}</li>
+                {% empty %}
+                    <li class="muted">{% trans "No backup codes yet." %}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <button class="btn" type="button" id="regenCodesBtn">{% trans "Regenerate backup codes" %}</button>
+    </div>
+</div>
+<script>
+    const regenBtn = document.getElementById('regenCodesBtn');
+    if (regenBtn) {
+        regenBtn.addEventListener('click', async function () {
+            const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (!tokenInput) return;
+            const response = await fetch("{% url 'accounts:backup_codes_regenerate' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': tokenInput.value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert(data.backup_codes.join('\n'));
+            } else {
+                alert(data.message || 'Failed to regenerate backup codes');
+            }
+        });
+    }
+</script>
+</body>
+</html>

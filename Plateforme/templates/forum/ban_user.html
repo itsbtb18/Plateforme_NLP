@@ -1,0 +1,361 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{% translate "Ban User" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== BAN USER CSS ===== */
+:root {
+    --bu-primary: #3B82F6;
+    --bu-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --bu-deep: #0f172a;
+    --bu-white: #ffffff;
+    --bu-bg: #f8fafc;
+    --bu-muted: #f1f5f9;
+    --bu-subtle: #e2e8f0;
+    
+    --bu-text: #0f172a;
+    --bu-text-secondary: #475569;
+    --bu-text-muted: #94a3b8;
+    
+    --bu-border: #e2e8f0;
+    --bu-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    
+    --bu-danger: #ef4444;
+    --bu-danger-dark: #dc2626;
+    --bu-danger-bg: rgba(239, 68, 68, 0.08);
+    --bu-danger-glow: rgba(239, 68, 68, 0.15);
+    
+    --bu-warning: #f59e0b;
+    --bu-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --bu-radius-sm: 6px;
+    --bu-radius-md: 10px;
+    --bu-radius-lg: 14px;
+    --bu-radius-xl: 20px;
+}
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
+
+.bu-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--bu-bg) 0%, var(--bu-muted) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+}
+
+.bu-container {
+    max-width: 520px;
+    width: 100%;
+}
+
+/* Card */
+.bu-card {
+    background: var(--bu-white);
+    border: 2px solid var(--bu-danger);
+    border-radius: var(--bu-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--bu-shadow-lg);
+}
+
+.bu-card-header {
+    background: var(--bu-danger-bg);
+    padding: 2rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.bu-icon {
+    width: 72px;
+    height: 72px;
+    background: var(--bu-danger-glow);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+}
+
+.bu-icon i { font-size: 2rem; color: var(--bu-danger); }
+
+.bu-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--bu-danger);
+    margin: 0 0 0.5rem;
+}
+
+.bu-subtitle {
+    font-size: 0.95rem;
+    color: var(--bu-text-secondary);
+    margin: 0;
+}
+
+.bu-card-body { padding: 2rem; }
+
+/* User Info */
+.bu-user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bu-muted);
+    border-radius: var(--bu-radius-md);
+    margin-bottom: 1.5rem;
+}
+
+.bu-user-avatar {
+    width: 56px;
+    height: 56px;
+    background: var(--bu-danger-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.bu-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.bu-user-avatar i { font-size: 1.5rem; color: var(--bu-danger); }
+
+.bu-user-details { flex: 1; min-width: 0; }
+
+.bu-user-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--bu-text);
+    margin: 0 0 0.25rem;
+}
+
+.bu-user-email {
+    font-size: 0.85rem;
+    color: var(--bu-text-muted);
+    margin: 0;
+}
+
+/* Room Badge */
+.bu-room-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bu-primary-glow);
+    border-radius: var(--bu-radius-sm);
+    font-size: 0.8rem;
+    color: var(--bu-primary);
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+}
+
+.bu-room-badge i { font-size: 0.9rem; }
+
+/* Warning Box */
+.bu-warning {
+    background: var(--bu-warning-bg);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: var(--bu-radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.bu-warning-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--bu-warning);
+    margin-bottom: 0.5rem;
+}
+
+.bu-warning-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.bu-warning-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--bu-text-secondary);
+    padding: 0.375rem 0;
+}
+
+.bu-warning-list li i { font-size: 0.7rem; color: var(--bu-warning); margin-top: 0.25rem; }
+
+/* Form */
+.bu-form-group { margin-bottom: 1.5rem; }
+
+.bu-form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--bu-text);
+    margin-bottom: 0.5rem;
+}
+
+.bu-form-hint {
+    font-size: 0.8rem;
+    color: var(--bu-text-muted);
+    margin-top: 0.375rem;
+}
+
+.bu-textarea {
+    width: 100%;
+    padding: 1rem;
+    background: var(--bu-muted);
+    border: 2px solid transparent;
+    border-radius: var(--bu-radius-md);
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--bu-text);
+    min-height: 100px;
+    resize: vertical;
+    transition: all 0.2s;
+}
+
+.bu-textarea:focus {
+    outline: none;
+    background: var(--bu-white);
+    border-color: var(--bu-danger);
+    box-shadow: 0 0 0 4px var(--bu-danger-glow);
+}
+
+.bu-textarea::placeholder { color: var(--bu-text-muted); }
+
+/* Actions */
+.bu-actions { display: flex; gap: 1rem; }
+
+.bu-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--bu-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.bu-btn-secondary {
+    background: var(--bu-muted);
+    color: var(--bu-text-secondary);
+    border-color: var(--bu-border);
+}
+
+.bu-btn-secondary:hover { background: var(--bu-subtle); color: var(--bu-text); }
+
+.bu-btn-danger {
+    background: var(--bu-danger);
+    color: var(--bu-white);
+}
+
+.bu-btn-danger:hover {
+    background: var(--bu-danger-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--bu-danger-glow);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bu-page">
+    <div class="bu-container">
+        
+        <div class="bu-card">
+            <div class="bu-card-header">
+                <div class="bu-icon">
+                    <i class="bi bi-person-x"></i>
+                </div>
+                <h1 class="bu-title">{% translate "Ban User" %}</h1>
+                <p class="bu-subtitle">{% translate "Remove user access from this chat room" %}</p>
+            </div>
+            
+            <div class="bu-card-body">
+                
+                <div class="bu-user-info">
+                    <div class="bu-user-avatar">
+                        {% if banned_user.avatar %}
+                        <img src="{{ banned_user.avatar.url }}" alt="{{ banned_user.username }}">
+                        {% else %}
+                        <i class="bi bi-person"></i>
+                        {% endif %}
+                    </div>
+                    <div class="bu-user-details">
+                        <h3 class="bu-user-name">{{ banned_user.get_full_name_display|default:banned_user.username }}</h3>
+                        <p class="bu-user-email">@{{ banned_user.username }}</p>
+                    </div>
+                </div>
+                
+                <div class="bu-room-badge">
+                    <i class="bi bi-chat-dots"></i>
+                    {{ chatroom.get_localized_name }}
+                </div>
+                
+                <div class="bu-warning">
+                    <div class="bu-warning-title">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        {% translate "This action will:" %}
+                    </div>
+                    <ul class="bu-warning-list">
+                        <li>
+                            <i class="bi bi-circle-fill"></i>
+                            {% translate "Prevent the user from viewing this chat room" %}
+                        </li>
+                        <li>
+                            <i class="bi bi-circle-fill"></i>
+                            {% translate "Block new messages from this user" %}
+                        </li>
+                        <li>
+                            <i class="bi bi-circle-fill"></i>
+                            {% translate "User's existing messages will remain visible" %}
+                        </li>
+                    </ul>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="bu-form-group">
+                        <label for="id_reason" class="bu-form-label">{% translate "Reason for Ban" %} ({% translate "Optional" %})</label>
+                        <textarea name="reason" id="id_reason" class="bu-textarea" 
+                                  placeholder="{% translate 'Explain why this user is being banned...' %}"></textarea>
+                        <p class="bu-form-hint">{% translate "This reason will be logged for administrative records" %}</p>
+                    </div>
+                    
+                    <div class="bu-actions">
+                        <a href="{% url 'forum:chatroom-detail' chatroom.pk %}" class="bu-btn bu-btn-secondary">
+                            <i class="bi bi-x-lg"></i>
+                            {% translate "Cancel" %}
+                        </a>
+                        <button type="submit" class="bu-btn bu-btn-danger">
+                            <i class="bi bi-person-x"></i>
+                            {% translate "Ban User" %}
+                        </button>
+                    </div>
+                </form>
+                
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

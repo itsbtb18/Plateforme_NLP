@@ -1,0 +1,779 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Sign In" %} - {% trans "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .content {
+        padding: 0 !important;
+        margin: 0 !important;
+        min-height: calc(100vh - var(--site-header-height));
+    }
+
+    .main-container {
+        min-height: calc(100vh - var(--site-header-height)) !important;
+    }
+
+    /* ===== AUTH PAGE LAYOUT ===== */
+    .auth-page-wrapper {
+        min-height: calc(100vh - var(--site-header-height));
+        height: calc(100vh - var(--site-header-height));
+        display: flex;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 0;
+        background: #1a1a2e;
+        overflow-x: hidden;
+        width: 100%;
+        margin: 0;
+    }
+
+    .auth-container {
+        display: grid;
+        grid-template-columns: 1fr 1.2fr;
+        width: 100%;
+        min-height: 100%;
+        height: 100%;
+        max-width: none;
+        background: #1a1a2e;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: hidden;
+        animation: fadeInScale 0.5s ease-out;
+    }
+
+    @keyframes fadeInScale {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    /* ===== VISUAL SIDE ===== */
+    .visual-side {
+        background: #1a1a2e;
+        background-attachment: fixed;
+        padding: 3rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .visual-side::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+        z-index: 1;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.1); opacity: 0.3; }
+    }
+
+    .visual-content {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 340px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .visual-icon {
+        width: 124px;
+        height: 124px;
+        margin-bottom: 2rem;
+        background: rgba(167, 139, 250, 0.15);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(167, 139, 250, 0.2);
+    }
+
+    .visual-icon svg {
+        width: 72px;
+        height: 72px;
+        fill: white;
+    }
+
+    .visual-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 1rem;
+        line-height: 1.3;
+    }
+
+    .visual-subtitle {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.6;
+        max-width: 320px;
+        margin: 0 auto;
+    }
+
+    .visual-features {
+        margin-top: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .visual-feature {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.9rem;
+        justify-content: center;
+    }
+
+    .visual-feature i {
+        width: 24px;
+        height: 24px;
+        background: rgba(167, 139, 250, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        color: #a78bfa;
+    }
+
+    /* ===== FORM SIDE ===== */
+    .form-side {
+        padding: 3rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow-y: auto;
+        background: #ffffff;
+    }
+
+    .form-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .form-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-header p {
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
+
+    /* ===== FORM STYLING ===== */
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.9rem;
+    }
+
+    .form-group label .required {
+        color: #EF4444;
+    }
+
+    .input-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .input-wrapper input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        padding-inline-start: 45px !important;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        background: #f9fafb;
+        color: #1f2937;
+    }
+
+    .input-wrapper input:focus {
+        border-color: #A78BFA !important;
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.14);
+    }
+
+    .input-wrapper input::placeholder {
+        color: #9ca3af;
+    }
+
+    .input-icon {
+        position: absolute;
+        inset-inline-start: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #d1d5db;
+        font-size: 0.9rem;
+        pointer-events: none;
+        transition: color 0.2s ease;
+        z-index: 1;
+    }
+
+    .input-wrapper input:focus + .input-icon,
+    .input-wrapper input:focus ~ .input-icon {
+        color: #A78BFA;
+    }
+
+    /* Password field with toggle */
+    .password-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .password-wrapper input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        padding-inline-start: 45px !important;
+        padding-inline-end: 2.75rem !important;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        background: #f9fafb;
+        color: #1f2937;
+    }
+
+    .password-wrapper input:focus {
+        border-color: #A78BFA !important;
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.14);
+    }
+
+    .password-wrapper input:focus + .input-icon,
+    .password-wrapper input:focus ~ .input-icon {
+        color: #A78BFA;
+    }
+
+    .password-toggle {
+        position: absolute;
+        inset-inline-end: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        padding: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s ease;
+        z-index: 2;
+    }
+
+    .password-toggle:hover {
+        color: #A78BFA;
+    }
+
+    /* ===== REMEMBER ME & FORGOT PASSWORD ===== */
+    .form-options {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .remember-me {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+
+    .remember-me input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        border: 2px solid #d1d5db;
+        border-radius: 4px;
+        cursor: pointer;
+        accent-color: #A78BFA;
+    }
+
+    .remember-me span {
+        font-size: 0.9rem;
+        color: #4b5563;
+    }
+
+    .forgot-password {
+        font-size: 0.9rem;
+        color: #a78bfa;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+    .forgot-password:hover {
+        color: #A78BFA;
+        text-decoration: underline;
+    }
+
+    /* ===== SUBMIT BUTTON ===== */
+    .btn-submit {
+        width: 100%;
+        padding: 1rem 1.5rem;
+        background: #A78BFA;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 14px rgba(31, 41, 55, 0.4);
+        margin-top: 0.5rem;
+    }
+
+    .btn-submit:hover {
+        transform: scale(1.02) translateY(-2px);
+        box-shadow: 0 8px 25px rgba(31, 41, 55, 0.5);
+        background: #A78BFA;
+    }
+
+    .btn-submit:active {
+        transform: scale(0.98);
+    }
+
+    .btn-submit .spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    .btn-submit.loading .spinner {
+        display: block;
+    }
+
+    .btn-submit.loading .btn-text {
+        display: none;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* ===== DIVIDER ===== */
+    .divider {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+
+    .divider::before,
+    .divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #d1d5db;
+    }
+
+    .divider span {
+        color: #6b7280;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    /* ===== SOCIAL LOGIN ===== */
+    .social-login {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .social-btn {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        background: white;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .social-btn:hover {
+        border-color: #d1d5db;
+        background: #f9fafb;
+        color: #374151;
+    }
+
+    .social-btn img {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* ===== SIGNUP LINK ===== */
+    .auth-footer {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .auth-footer p {
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
+
+    .auth-footer a {
+        color: #a78bfa;
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .auth-footer a:hover {
+        color: #A78BFA;
+        text-decoration: underline;
+    }
+
+    /* ===== ERROR MESSAGES ===== */
+    .alert-errors {
+        background: #FEF2F2;
+        border: 1px solid #FECACA;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .alert-errors ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .alert-errors li {
+        color: #DC2626;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .alert-errors li::before {
+        content: '\f071';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        font-size: 0.75rem;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+        .auth-container {
+            grid-template-columns: 1fr;
+            width: 100%;
+            min-height: auto;
+            height: auto;
+        }
+
+        .visual-side {
+            display: none;
+        }
+
+        .form-side {
+            padding: 2rem;
+        }
+
+        .auth-page-wrapper {
+            height: auto;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .auth-page-wrapper {
+            min-height: calc(100vh - var(--site-header-height));
+            height: auto;
+        }
+
+        .auth-container {
+            grid-template-columns: 1fr;
+            width: 100%;
+            border-radius: 0;
+        }
+
+        .form-side {
+            padding: 1.5rem;
+        }
+
+        .form-options {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .form-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .form-header p {
+            font-size: 0.85rem;
+        }
+
+        .input-wrapper input,
+        .password-wrapper input {
+            font-size: 16px;
+            padding: 0.75rem 1rem;
+            padding-inline-start: 40px !important;
+        }
+
+        .btn-submit {
+            padding: 0.875rem 1rem;
+            font-size: 0.95rem;
+        }
+    }
+
+    /* ===== RTL ADJUSTMENTS ===== */
+    html[dir="rtl"] .visual-feature {
+        flex-direction: row-reverse;
+        text-align: center;
+    }
+
+    html[dir="rtl"] .remember-me {
+        flex-direction: row-reverse;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+    <div class="auth-container">
+        <!-- Visual Side -->
+        <div class="visual-side">
+            <div class="visual-content">
+                <div class="visual-icon">
+                    <!-- Arabic NLP Brain/Network Icon -->
+                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="50" cy="30" r="8" fill="white"/>
+                        <circle cx="25" cy="50" r="6" fill="white"/>
+                        <circle cx="75" cy="50" r="6" fill="white"/>
+                        <circle cx="35" cy="75" r="5" fill="white"/>
+                        <circle cx="65" cy="75" r="5" fill="white"/>
+                        <circle cx="50" cy="55" r="10" fill="white"/>
+                        <line x1="50" y1="30" x2="50" y2="45" stroke="white" stroke-width="2"/>
+                        <line x1="25" y1="50" x2="40" y2="55" stroke="white" stroke-width="2"/>
+                        <line x1="75" y1="50" x2="60" y2="55" stroke="white" stroke-width="2"/>
+                        <line x1="35" y1="75" x2="45" y2="62" stroke="white" stroke-width="2"/>
+                        <line x1="65" y1="75" x2="55" y2="62" stroke="white" stroke-width="2"/>
+                        <!-- Arabic letter ع stylized -->
+                        <text x="44" y="60" font-size="16" fill="#8B5CF6" font-weight="bold" font-family="Arial">ع</text>
+                    </svg>
+                </div>
+                <h2 class="visual-title">{% if LANGUAGE_CODE == 'ar' %}مرحبًا بعودتك{% else %}{% trans "Welcome Back" %}{% endif %}</h2>
+                <p class="visual-subtitle">{% if LANGUAGE_CODE == 'ar' %}الوصول إلى أحدث الأدوات ومجموعات البيانات لأبحاث معالجة اللغة العربية.{% else %}{% trans "Access state-of-the-art tools and datasets for Arabic NLP research." %}{% endif %}</p>
+                
+                <div class="visual-features">
+                    <div class="visual-feature">
+                        <i class="fas fa-check"></i>
+                        <span>{% if LANGUAGE_CODE == 'ar' %}أدوات متقدمة لمعالجة اللغة{% else %}{% trans "Advanced NLP Tools" %}{% endif %}</span>
+                    </div>
+                    <div class="visual-feature">
+                        <i class="fas fa-check"></i>
+                        <span>{% if LANGUAGE_CODE == 'ar' %}التعاون البحثي{% else %}{% trans "Research Collaboration" %}{% endif %}</span>
+                    </div>
+                    <div class="visual-feature">
+                        <i class="fas fa-check"></i>
+                        <span>{% if LANGUAGE_CODE == 'ar' %}مجموعات بيانات عربية غنية{% else %}{% trans "Rich Arabic Datasets" %}{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Side -->
+        <div class="form-side">
+            <div class="form-header">
+                <h1>{% trans "Sign In" %}</h1>
+                <p>{% trans "Enter your credentials to access your account!" %}</p>
+            </div>
+
+            {% if form.errors %}
+            <div class="alert-errors">
+                <ul>
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'account_login' %}" class="auth-form" id="login-form">
+                {% csrf_token %}
+                
+                <!-- Email Field -->
+                <div class="form-group">
+                    <label for="id_login">
+                        {% trans "Email Address" %} <span class="required">*</span>
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="email" 
+                               name="login" 
+                               id="id_login" 
+                               placeholder="{% trans 'Enter your email' %}"
+                               value="{{ form.login.value|default:'' }}"
+                               autocomplete="email"
+                               required>
+                        <i class="fas fa-envelope input-icon"></i>
+                    </div>
+                </div>
+
+                <!-- Password Field -->
+                <div class="form-group">
+                    <label for="id_password">
+                        {% trans "Password" %} <span class="required">*</span>
+                    </label>
+                    <div class="password-wrapper">
+                        <input type="password" 
+                               name="password" 
+                               id="id_password" 
+                               placeholder="{% trans 'Enter your password' %}"
+                               autocomplete="current-password"
+                               required>
+                        <i class="fas fa-lock input-icon"></i>
+                        <button type="button" class="password-toggle" onclick="togglePassword('id_password', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Remember Me & Forgot Password -->
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" name="remember" id="id_remember">
+                        <span>{% trans "Remember me" %}</span>
+                    </label>
+                    <a href="{% url 'account_reset_password' %}" class="forgot-password">
+                        {% trans "Forgot password?" %}
+                    </a>
+                </div>
+
+                <!-- Hidden next field -->
+                {% if redirect_field_value %}
+                <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+                {% endif %}
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit" id="submit-btn">
+                    <span class="btn-text">
+                        <i class="fas fa-sign-in-alt"></i>
+                        {% trans "Sign In" %}
+                    </span>
+                    <span class="spinner"></span>
+                </button>
+            </form>
+
+            <!-- Social Login -->
+            {% if socialaccount_providers %}
+            <div class="divider">
+                <span>{% trans "or continue with" %}</span>
+            </div>
+            
+            <div class="social-login">
+                {% for provider in socialaccount_providers %}
+                    {% if provider.id == 'google' %}
+                    <a href="{% url 'socialaccount_login' %}?provider=google" class="social-btn">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                        {% trans "Continue with Google" %}
+                    </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Sign Up Link -->
+            <div class="auth-footer">
+                <p>
+                    {% trans "Don't have an account?" %}
+                    <a href="{% url 'account_signup' %}">{% trans "Create Account" %}</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Form loading state
+document.getElementById('login-form').addEventListener('submit', function() {
+    const btn = document.getElementById('submit-btn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+});
+</script>
+{% endblock %}

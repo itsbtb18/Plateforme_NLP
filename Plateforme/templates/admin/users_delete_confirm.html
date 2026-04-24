@@ -1,0 +1,47 @@
+{% extends "base_admin.html" %}
+{% load i18n %}
+{% block title %}{% trans "Delete User" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding-top:.5rem;max-width:540px;margin:0 auto;">
+  <div class="n-modal-card">
+    <div class="n-modal-icon danger"><i class="fas fa-exclamation-triangle"></i></div>
+    <div class="n-modal-body">
+      <h2>{% trans "Confirm Deletion" %}</h2>
+      <p>{% trans "This action cannot be undone. Please review the information below carefully." %}</p>
+
+      <div style="background:var(--n-bg);border:1px solid var(--n-border);border-radius:var(--n-radius);padding:1rem;margin:1rem 0;text-align:start;">
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.35rem;">
+          {% if user_obj.avatar %}
+          <img src="{{ user_obj.avatar.url }}" alt="{{ user_obj.get_full_name_display }}" style="width:42px;height:42px;border-radius:10px;object-fit:cover;flex-shrink:0;border:2px solid var(--n-border);">
+          {% else %}
+          <div class="n-av" style="width:42px;height:42px;font-size:1rem;border-radius:10px;">{{ user_obj.get_full_name_display.0|upper }}</div>
+          {% endif %}
+          <div>
+            <p style="font-weight:700;font-size:.9rem;color:var(--n-text);margin:0;">{{ user_obj.get_full_name_display }}</p>
+            <p style="font-size:.78rem;color:var(--n-text-2);margin:0;"><i class="fas fa-envelope" style="margin-inline-end:.3rem;font-size:.7rem;"></i>{{ user_obj.email }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:start;margin:1rem 0;">
+        <p style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--n-text);margin-bottom:.65rem;">{% trans "What will be deleted:" %}</p>
+        <ul style="list-style:none;padding:0;margin:0;">
+          <li style="padding:.45rem 0;font-size:.82rem;color:var(--n-text-2);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--n-border-s);"><i class="fas fa-times-circle" style="color:var(--n-red);font-size:.75rem;"></i> {% trans "User account and profile" %}</li>
+          <li style="padding:.45rem 0;font-size:.82rem;color:var(--n-text-2);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--n-border-s);"><i class="fas fa-times-circle" style="color:var(--n-red);font-size:.75rem;"></i> {% trans "All user data and settings" %}</li>
+          <li style="padding:.45rem 0;font-size:.82rem;color:var(--n-text-2);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--n-border-s);"><i class="fas fa-times-circle" style="color:var(--n-red);font-size:.75rem;"></i> {% trans "User permissions and access" %}</li>
+          <li style="padding:.45rem 0;font-size:.82rem;color:var(--n-text-2);display:flex;align-items:center;gap:.5rem;"><i class="fas fa-times-circle" style="color:var(--n-red);font-size:.75rem;"></i> {% trans "Associated activity history" %}</li>
+        </ul>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="n-modal-actions">
+          <a href="{% url 'pages:admin_users' %}" class="n-btn n-btn-outline"><i class="fas fa-arrow-left"></i> {% trans "Cancel" %}</a>
+          <button type="submit" class="n-btn n-btn-red"><i class="fas fa-trash-alt"></i> {% trans "Yes, Delete User" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,354 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "User Management" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ═══ Users – Notion-Blue Minimal ═══ */
+
+  /* ── Page header ── */
+  .u-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.25rem; flex-wrap: wrap; gap: .75rem;
+  }
+  .u-head-left { display: flex; align-items: center; gap: .75rem; }
+  .u-head h1 {
+    font-size: 1.35rem; font-weight: 700; color: var(--n-text, #111827);
+    margin: 0; display: flex; align-items: center; gap: .5rem;
+  }
+  .u-head h1 i { color: var(--n-text-3, #9CA3AF); font-size: 1.1rem; }
+  .u-pending-badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--n-amber-bg, #FEF3C7); color: var(--n-amber, #F59E0B);
+    font-size: .72rem; font-weight: 700; padding: .25rem .65rem;
+    border-radius: 50px;
+  }
+  .u-btn-new {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .45rem .95rem; border-radius: 8px;
+    font-weight: 600; font-size: .82rem;
+    background: var(--n-blue, #3B82F6); color: #fff;
+    border: none; cursor: pointer; text-decoration: none;
+    transition: opacity .15s;
+  }
+  .u-btn-new:hover { opacity: .85; color: #fff; }
+
+  /* ── Card ── */
+  .u-card {
+    background: var(--n-surface, #fff);
+    border: 1px solid var(--n-border, #E5E7EB);
+    border-radius: 10px; margin-bottom: 1.25rem; overflow: hidden;
+  }
+
+  /* ── Filter ── */
+  .u-filter { padding: 1rem 1.25rem; }
+  .u-search-wrap { position: relative; }
+  .u-search-wrap i {
+    position: absolute; left: .85rem; top: 50%; transform: translateY(-50%);
+    color: var(--n-text-3, #9CA3AF); font-size: .85rem;
+  }
+  .u-search {
+    width: 100%; padding: .55rem .85rem .55rem 2.25rem;
+    border: 1px solid var(--n-border, #E5E7EB); border-radius: 8px;
+    font-size: .85rem; background: var(--n-bg, #F8FAFC);
+    transition: border-color .15s;
+  }
+  .u-search:focus { outline: none; border-color: var(--n-blue, #3B82F6); }
+  .u-select {
+    padding: .55rem .85rem; border: 1px solid var(--n-border, #E5E7EB);
+    border-radius: 8px; font-size: .85rem; background: var(--n-bg, #F8FAFC);
+    cursor: pointer; transition: border-color .15s;
+  }
+  .u-select:focus { outline: none; border-color: var(--n-blue, #3B82F6); }
+  .u-btn-filter {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .5rem .9rem; border-radius: 8px; font-weight: 600;
+    font-size: .8rem; border: 1px solid var(--n-blue, #3B82F6);
+    background: var(--n-blue, #3B82F6); color: #fff;
+    cursor: pointer; transition: opacity .15s;
+  }
+  .u-btn-filter:hover { opacity: .85; }
+  .u-btn-reset {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .5rem .9rem; border-radius: 8px; font-weight: 600;
+    font-size: .8rem; border: 1px solid var(--n-border, #E5E7EB);
+    background: var(--n-surface, #fff); color: var(--n-text-2, #6B7280);
+    cursor: pointer; text-decoration: none; transition: border-color .15s;
+  }
+  .u-btn-reset:hover { border-color: var(--n-text-3); color: var(--n-text); }
+
+  /* ── Active filter tags ── */
+  .u-tags {
+    display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    margin-top: .75rem; padding-top: .75rem;
+    border-top: 1px solid var(--n-border-s, #F3F4F6);
+  }
+  .u-tag {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: var(--n-border-s, #F3F4F6); padding: .25rem .65rem;
+    border-radius: 50px; font-size: .78rem; font-weight: 500;
+  }
+  .u-tag a { color: var(--n-text-3); text-decoration: none; }
+  .u-tag a:hover { color: var(--n-red, #EF4444); }
+
+  /* ── Table ── */
+  .u-tbl { width: 100%; border-collapse: collapse; }
+  .u-tbl thead th {
+    padding: .65rem 1.25rem;
+    font-size: .68rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--n-text-3, #9CA3AF);
+    border-bottom: 1px solid var(--n-border-s, #F3F4F6);
+  }
+  .u-tbl tbody td {
+    padding: .55rem 1.25rem; vertical-align: middle;
+    border-bottom: 1px solid var(--n-border-s, #F3F4F6);
+    font-size: .85rem; color: var(--n-text, #111827);
+  }
+  .u-tbl tbody tr:last-child td { border-bottom: none; }
+  .u-tbl tbody tr:hover { background: #FAFBFC; }
+
+  /* ── Avatar ── */
+  .u-av {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 600; color: #fff; font-size: .8rem; flex-shrink: 0;
+    background: var(--n-blue, #3B82F6);
+  }
+  .u-av-img {
+    width: 36px; height: 36px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0; border: 1px solid var(--n-border, #E5E7EB);
+  }
+  .u-info { display: flex; align-items: center; gap: .7rem; }
+  .u-info-text h6 {
+    margin: 0; font-weight: 600; font-size: .85rem;
+    color: var(--n-text, #111827); line-height: 1.2;
+  }
+  .u-info-text p {
+    margin: 0; font-size: .75rem; color: var(--n-text-3, #9CA3AF); line-height: 1.2;
+  }
+
+  /* ── Status pill ── */
+  .u-status {
+    display: inline-flex; align-items: center; gap: .3rem;
+    font-size: .72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .u-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .u-status.active  { color: var(--n-green, #10B981); }
+  .u-status.pending  { color: var(--n-amber, #F59E0B); }
+  .u-status.blocked  { color: var(--n-red, #EF4444); }
+
+  /* ── Action buttons ── */
+  .u-acts { display: flex; align-items: center; gap: .3rem; }
+  .u-act {
+    width: 30px; height: 30px; border-radius: 6px;
+    border: 1px solid var(--n-border, #E5E7EB); background: var(--n-surface, #fff);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: .75rem; color: var(--n-text-2, #6B7280);
+    cursor: pointer; transition: all .15s; text-decoration: none;
+  }
+  .u-act:hover { border-color: var(--n-blue, #3B82F6); color: var(--n-blue, #3B82F6); }
+
+  /* ── Dropdown ── */
+  .u-dd {
+    border-radius: 8px; border: 1px solid var(--n-border, #E5E7EB);
+    box-shadow: 0 4px 16px rgba(0,0,0,.08); padding: .3rem;
+  }
+  .u-dd .dropdown-item {
+    padding: .45rem .7rem; border-radius: 6px; font-size: .82rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .u-dd .dropdown-item:hover { background: var(--n-border-s, #F3F4F6); }
+  .u-dd .dd-danger:hover { background: rgba(239,68,68,.06); color: var(--n-red, #EF4444); }
+
+  /* ── Pagination ── */
+  .u-pag {
+    display: flex; align-items: center; justify-content: center;
+    gap: .35rem; padding: 1rem;
+  }
+  .u-pg {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 34px; height: 34px; padding: 0 .5rem;
+    border-radius: 6px; border: 1px solid var(--n-border, #E5E7EB);
+    background: var(--n-surface, #fff); color: var(--n-text-2, #6B7280);
+    font-weight: 500; font-size: .82rem; text-decoration: none;
+    transition: all .15s;
+  }
+  .u-pg:hover { border-color: var(--n-blue); color: var(--n-blue); }
+  .u-pg.on {
+    background: var(--n-blue, #3B82F6); border-color: var(--n-blue);
+    color: #fff;
+  }
+
+  /* ── Empty ── */
+  .u-empty { text-align: center; padding: 3rem 1.5rem; }
+  .u-empty i { font-size: 2.5rem; color: var(--n-border, #E5E7EB); display: block; margin-bottom: .75rem; }
+  .u-empty h3 { font-size: 1.05rem; font-weight: 700; color: var(--n-text, #111827); margin-bottom: .25rem; }
+  .u-empty p { font-size: .85rem; color: var(--n-text-3, #9CA3AF); margin-bottom: 1rem; }
+
+  /* ── Date ── */
+  .u-dt { font-size: .78rem; color: var(--n-text-3, #9CA3AF); }
+
+  /* ── Responsive ── */
+  @media (max-width:768px) {
+    .u-head h1 { font-size: 1.15rem; }
+    .u-card { overflow-x: auto; }
+    .u-acts { flex-direction: column; }
+  }
+
+  /* ── RTL ── */
+  [dir="rtl"] .u-info-text { text-align: right; }
+  [dir="rtl"] .u-search-wrap i { left: auto; right: .85rem; }
+  [dir="rtl"] .u-search { padding-left: .85rem; padding-right: 2.25rem; }
+  [dir="rtl"] .u-tbl th, [dir="rtl"] .u-tbl td { text-align: right; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding-top:.5rem;">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="u-head">
+    <div class="u-head-left">
+      <h1><i class="fas fa-users-cog"></i> {% trans "User Management" %}</h1>
+      {% if pending_users_count > 0 %}
+      <span class="u-pending-badge"><i class="fas fa-clock"></i> {{ pending_users_count }} {% trans "Pending" %}</span>
+      {% endif %}
+    </div>
+    <a href="{% url 'pages:admin_users_new' %}" class="u-btn-new">
+      <i class="fas fa-user-plus"></i> {% trans "New User" %}
+    </a>
+  </div>
+
+  <!-- ═══ FILTERS ═══ -->
+  <div class="u-card">
+    <div class="u-filter">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <div class="u-search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" class="u-search" name="search" value="{{ search }}" placeholder="{% trans "Search by name or email..." %}">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select name="status" class="u-select form-control">
+            <option value="">{% trans "All statuses" %}</option>
+            <option value="active" {% if filter_status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
+            <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>{% trans "Pending" %}</option>
+            <option value="blocked" {% if filter_status == 'blocked' %}selected{% endif %}>{% trans "Blocked" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="u-btn-filter w-100">
+            <i class="fas fa-filter"></i> {% trans "Filter" %}
+          </button>
+        </div>
+        <div class="col-md-3">
+          <a href="{% url 'pages:admin_users' %}" class="u-btn-reset w-100">
+            <i class="fas fa-redo"></i> {% trans "Reset" %}
+          </a>
+        </div>
+      </form>
+
+      {% if search or filter_status %}
+      <div class="u-tags">
+        <span style="font-size:.78rem;color:var(--n-text-3);font-weight:600;">{% trans "Active filters:" %}</span>
+        {% if search %}
+        <div class="u-tag">
+          <span>{% trans "Search:" %} "{{ search }}"</span>
+          <a href="?{% if filter_status %}status={{ filter_status }}{% endif %}"><i class="fas fa-times"></i></a>
+        </div>
+        {% endif %}
+        {% if filter_status %}
+        <div class="u-tag">
+          <span>{% trans "Status:" %} {{ filter_status|title }}</span>
+          <a href="?{% if search %}search={{ search }}{% endif %}"><i class="fas fa-times"></i></a>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══ USERS TABLE ═══ -->
+  {% if users %}
+  <div class="u-card">
+    <table class="u-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "User" %}</th>
+          <th>{% trans "Email" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Registration Date" %}</th>
+          <th style="text-align:center;">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>
+            <div class="u-info">
+              {% if user.avatar %}
+              <img src="{{ user.avatar.url }}" alt="{{ user.get_full_name_display }}" class="u-av-img">
+              {% else %}
+              <div class="u-av">{{ user.get_full_name_display|slice:":1"|upper }}</div>
+              {% endif %}
+              <div class="u-info-text">
+                <h6>{{ user.get_full_name_display }}</h6>
+                <p>{% if user.institution %}{{ user.institution.get_localized_name }}{% else %}{% trans "No institution" %}{% endif %}</p>
+              </div>
+            </div>
+          </td>
+          <td><span class="u-dt">{{ user.email }}</span></td>
+          <td>
+            {% if user.status == 'active' %}
+            <span class="u-status active"><span class="u-dot"></span> {% trans "Active" %}</span>
+            {% elif user.status == 'pending' %}
+            <span class="u-status pending"><span class="u-dot"></span> {% trans "Pending" %}</span>
+            {% elif user.status == 'blocked' %}
+            <span class="u-status blocked"><span class="u-dot"></span> {% trans "Blocked" %}</span>
+            {% endif %}
+          </td>
+          <td><span class="u-dt">{{ user.date_joined|date:"M d, Y" }}</span></td>
+          <td>
+            <div class="u-acts" style="justify-content:center;">
+              <a href="{% url 'pages:admin_user_edit' user.id %}" class="u-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+              <div class="dropdown">
+                <button class="u-act" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-ellipsis-v"></i></button>
+                <ul class="dropdown-menu u-dd dropdown-menu-end">
+                  {% if user.status != 'active' %}
+                  <li><a class="dropdown-item" href="{% url 'pages:admin_user_activate' user.id %}"><i class="fas fa-check-circle"></i> {% trans "Activate" %}</a></li>
+                  {% endif %}
+                  {% if user.status != 'blocked' %}
+                  <li><a class="dropdown-item dd-danger" href="{% url 'pages:admin_user_block' user.id %}"><i class="fas fa-ban"></i> {% trans "Block" %}</a></li>
+                  {% endif %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item" href="{% url 'pages:admin_user_history' user.id %}"><i class="fas fa-history"></i> {% trans "History" %}</a></li>
+                  <li><a class="dropdown-item dd-danger" href="{% url 'pages:admin_user_delete' user.id %}"><i class="fas fa-trash-alt"></i> {% trans "Delete" %}</a></li>
+                </ul>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
+  </div>
+
+  {% else %}
+  <div class="u-card">
+    <div class="u-empty">
+      <i class="fas fa-users"></i>
+      <h3>{% trans "No users found" %}</h3>
+      <p>{% trans "No users match your search criteria. Try adjusting your filters." %}</p>
+      <a href="{% url 'pages:admin_users' %}" class="u-btn-filter" style="display:inline-flex;">
+        <i class="fas fa-redo"></i> {% trans "Reset filters" %}
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

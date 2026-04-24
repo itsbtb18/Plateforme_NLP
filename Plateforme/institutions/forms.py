@@ -1,0 +1,452 @@
+from django import forms
+from django.utils.translation import gettext_lazy as _, get_language
+from typing import List
+from .models import Institution, Country, Specialty
+
+
+def get_active_language():
+    """Get the current language, normalizing to 'ar' or 'en'."""
+    lang = get_language()
+    if lang and lang.startswith('ar'):
+        return 'ar'
+    return 'en'
+
+
+def get_institution_bilingual_labels():
+    """Return language-appropriate labels for bilingual fields."""
+    lang = get_language()
+    if lang and lang.startswith('ar'):
+        return {
+            'name_ar': _("اسم المؤسسة (بالعربية)"),
+            'name_en': _("اسم المؤسسة (بالإنجليزية)"),
+            'description_ar': _("الوصف (بالعربية)"),
+            'description_en': _("الوصف (بالإنجليزية)"),
+        }
+    else:
+        return {
+            'name_ar': _("Institution Name (Arabic)"),
+            'name_en': _("Institution Name (English)"),
+            'description_ar': _("Description (Arabic)"),
+            'description_en': _("Description (English)"),
+        }
+
+
+class InstitutionFilterForm(forms.Form):
+    INSTITUTION_TYPE_CHOICES = [('', _('All'))] + Institution.TYPE
+    
+    SORT_CHOICES = [
+        ('name', _('Alphabetical (A-Z)')),
+        ('name_desc', _('Alphabetical (Z-A)')),
+        ('newest', _('Newest First')),
+        ('oldest', _('Oldest First')),
+    ]
+
+    institution_type = forms.ChoiceField(
+        choices=INSTITUTION_TYPE_CHOICES,
+        required=False,
+        label=_('Institution Type'),
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+        })
+    )
+    country = forms.ModelChoiceField(
+        queryset=Country.objects.all(),
+        required=False,
+        empty_label=_('All'),
+        label=_('Country'),
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+        })
+    )
+    specialty = forms.ModelChoiceField(
+        queryset=Specialty.objects.all(),
+        required=False,
+        empty_label=_('All'),
+        label=_('Specialty'),
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+        })
+    )
+    search_term = forms.CharField(
+        required=False,
+        label=_('Search Term'),
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Enter institution name or keyword...'),
+            'type': 'search',
+        })
+    )
+    sort = forms.ChoiceField(
+        choices=SORT_CHOICES,
+        required=False,
+        label=_('Sort By'),
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+        })
+    )
+
+class CustomSpecialtyField(forms.ModelMultipleChoiceField):
+    """
+    Champ personnalisé pour permettre la création de nouvelles spécialités
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.created_specialties: List[str] = []
+
+    def validate(self, value):
+        """
+        Validation personnalisée qui permet les nouvelles spécialités
+        """
+        if self.required and not value:
+            raise forms.ValidationError(self.error_messages['required'], code='required')
+
+    def clean(self, value):
+        """
+        Nettoie et traite les valeurs des spécialités
+        """
+        if not value:
+            return []
+        
+        final_specialties = []
+        self.created_specialties = []
+        
+        for item in value:
+            item_str = str(item).strip()
+            
+            # Ignorer les entrées vides
+            if not item_str:
+                continue
+                
+            if item_str.isdigit():
+                # Spécialité existante (ID)
+                try:
+                    specialty = Specialty.objects.get(pk=int(item_str))
+                    final_specialties.append(specialty)
+                except Specialty.DoesNotExist:
+                    continue
+            else:
+                # Nouvelle spécialité (nom)
+                # Vérifier si la spécialité existe déjà (insensible à la casse)
+                existing_specialty = Specialty.objects.filter(
+                    name_en__iexact=item_str.lower()
+                ).first()
+                
+                if existing_specialty:
+                    final_specialties.append(existing_specialty)
+                else:
+                    # Validation du nom de la spécialité
+                    if len(item_str) < 2:
+                        raise forms.ValidationError(
+                            _('Le nom de la spécialité doit contenir au moins 2 caractères.')
+                        )
+                    
+                    if len(item_str) > 100:
+                        raise forms.ValidationError(
+                            _('Le nom de la spécialité ne peut pas dépasser 100 caractères.')
+                        )
+                    
+                    # Créer la nouvelle spécialité
+                    # Générer un code automatique basé sur le nom
+                    code = item_str[:10].upper().replace(' ', '_')
+                    specialty, created = Specialty.objects.get_or_create(
+                        name_en=item_str.strip().title(),
+                        defaults={
+                            'name_ar': item_str.strip().title(),  # Par défaut, même valeur
+                            'code': code
+                        }
+                    )
+                    final_specialties.append(specialty)
+                    
+                    if created:
+                        self.created_specialties.append(specialty.name_en)
+
+        return final_specialties
+
+    def get_created_specialties(self) -> List[str]:
+        """
+        Retourne la liste des spécialités créées
+        """
+        return self.created_specialties
+
+class InstitutionForm(forms.ModelForm):
+    # Stocker les spécialités créées au niveau du formulaire
+    _created_specialties: List[str] = []
+    
+    # Définir explicitement les champs pour avoir plus de contrôle
+    # name is auto-populated from name_en in save()
+    name = forms.CharField(
+        label=_('Nom de l\'institution'), 
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    
+    name_ar = forms.CharField(
+        label=_('Institution Name (Arabic)'),
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'dir': 'rtl',
+            'placeholder': _('Enter institution name in Arabic')
+        })
+    )
+    
+    name_en = forms.CharField(
+        label=_('Institution Name (English)'),
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Enter institution name in English')
+        })
+    )
+    
+    acronym = forms.CharField(
+        label=_('Sigle'), 
+        required=False, 
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    type = forms.ChoiceField(
+        label=_('Type d\'institution'), 
+        choices=Institution.TYPE, 
+        widget=forms.Select(attrs={'class': 'form-control', 'required': True})
+    )
+    country = forms.ModelChoiceField(
+        label=_('Pays'), 
+        queryset=Country.objects.all(), 
+        widget=forms.Select(attrs={'class': 'form-control', 'required': True})
+    )
+    # city is auto-populated from city_en in save()
+    city = forms.CharField(
+        label=_('Ville'), 
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    city_en = forms.CharField(
+        label=_('City (English)'),
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Enter city name in English')
+        })
+    )
+    city_ar = forms.CharField(
+        label=_('City (Arabic)'),
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'dir': 'rtl',
+            'placeholder': _('Enter city name in Arabic')
+        })
+    )
+    
+    # Utiliser le champ personnalisé
+    specialties = CustomSpecialtyField(
+        queryset=Specialty.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-control select2',
+            'data-placeholder': _('Sélectionnez ou ajoutez des spécialités...')
+        }),
+        label=_('Spécialités')
+    )
+    
+    logo = forms.ImageField(
+        label=_('Logo'), 
+        required=False, 
+        widget=forms.FileInput(attrs={'class': 'form-control'})
+    )
+    website = forms.URLField(
+        label=_('Site web'), 
+        required=False, 
+        widget=forms.URLInput(attrs={'class': 'form-control'})
+    )
+    email = forms.EmailField(
+        label=_('Email'), 
+        required=False, 
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    phone = forms.CharField(
+        label=_('Téléphone'), 
+        required=False, 
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    address = forms.CharField(
+        label=_('Adresse'), 
+        required=False, 
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    address_en = forms.CharField(
+        label=_('Address (English)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': _('Enter address in English')
+        })
+    )
+    address_ar = forms.CharField(
+        label=_('Address (Arabic)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'dir': 'rtl',
+            'placeholder': _('Enter address in Arabic')
+        })
+    )
+    description = forms.CharField(
+        label=_('Description'), 
+        required=False, 
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5})
+    )
+    
+    description_ar = forms.CharField(
+        label=_('Description (Arabic)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control', 
+            'rows': 4,
+            'dir': 'rtl',
+            'placeholder': _('Enter institution description in Arabic')
+        })
+    )
+    
+    description_en = forms.CharField(
+        label=_('Description (English)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': _('Enter institution description in English')
+        })
+    )
+
+    class Meta:
+        model = Institution
+        fields = [
+            'name', 'name_ar', 'name_en', 'acronym', 'type', 'country', 
+            'city', 'city_en', 'city_ar', 'specialties',
+            'logo', 'website', 'email', 'phone', 
+            'address', 'address_en', 'address_ar', 
+            'description', 'description_ar', 'description_en'
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._ensure_default_countries()
+        self._ensure_default_specialties()
+
+        self.fields['country'].queryset = Country.objects.all().order_by('name_en')
+        self.fields['specialties'].queryset = Specialty.objects.all().order_by('name_en')
+
+        # Get conditional labels based on current language
+        labels = get_institution_bilingual_labels()
+        self.fields['name_ar'].label = labels['name_ar']
+        self.fields['name_en'].label = labels['name_en']
+        self.fields['description_ar'].label = labels['description_ar']
+        self.fields['description_en'].label = labels['description_en']
+
+    def _ensure_default_countries(self):
+        """Ensure create form always has a usable country list."""
+        defaults = [
+            {'code': 'DZ', 'name_en': 'Algeria', 'name_ar': 'الجزائر'},
+            {'code': 'MA', 'name_en': 'Morocco', 'name_ar': 'المغرب'},
+            {'code': 'TN', 'name_en': 'Tunisia', 'name_ar': 'تونس'},
+            {'code': 'EG', 'name_en': 'Egypt', 'name_ar': 'مصر'},
+            {'code': 'SA', 'name_en': 'Saudi Arabia', 'name_ar': 'المملكة العربية السعودية'},
+            {'code': 'AE', 'name_en': 'United Arab Emirates', 'name_ar': 'الإمارات العربية المتحدة'},
+            {'code': 'QA', 'name_en': 'Qatar', 'name_ar': 'قطر'},
+            {'code': 'JO', 'name_en': 'Jordan', 'name_ar': 'الأردن'},
+            {'code': 'LB', 'name_en': 'Lebanon', 'name_ar': 'لبنان'},
+            {'code': 'US', 'name_en': 'United States', 'name_ar': 'الولايات المتحدة'},
+            {'code': 'GB', 'name_en': 'United Kingdom', 'name_ar': 'المملكة المتحدة'},
+            {'code': 'FR', 'name_en': 'France', 'name_ar': 'فرنسا'},
+            {'code': 'DE', 'name_en': 'Germany', 'name_ar': 'ألمانيا'},
+            {'code': 'CA', 'name_en': 'Canada', 'name_ar': 'كندا'},
+        ]
+
+        for item in defaults:
+            Country.objects.get_or_create(
+                code=item['code'],
+                defaults={'name_en': item['name_en'], 'name_ar': item['name_ar']},
+            )
+
+    def _ensure_default_specialties(self):
+        """Ensure create form always has specialty choices when DB is empty."""
+        defaults = [
+            ('NLP', 'Natural Language Processing', 'معالجة اللغة الطبيعية'),
+            ('LLM', 'Large Language Models', 'النماذج اللغوية الكبيرة'),
+            ('ASR', 'Automatic Speech Recognition', 'التعرف التلقائي على الكلام'),
+            ('NMT', 'Machine Translation', 'الترجمة الآلية'),
+            ('NER', 'Named Entity Recognition', 'استخراج الكيانات المسماة'),
+            ('IR', 'Information Retrieval', 'استرجاع المعلومات'),
+            ('OCR', 'Optical Character Recognition', 'التعرف الضوئي على الحروف'),
+            ('RAG', 'Retrieval-Augmented Generation', 'التوليد المعزز بالاسترجاع'),
+            ('MLOPS', 'MLOps', 'هندسة تشغيل نماذج التعلم الآلي'),
+            ('CV', 'Computer Vision', 'الرؤية الحاسوبية'),
+        ]
+
+        for code, name_en, name_ar in defaults:
+            Specialty.objects.get_or_create(
+                code=code,
+                defaults={'name_en': name_en, 'name_ar': name_ar},
+            )
+
+    def clean(self):
+        """
+        Validation générale du formulaire.
+        """
+        cleaned_data = super().clean()
+        website = cleaned_data.get('website')
+        email = cleaned_data.get('email')
+        phone = cleaned_data.get('phone')
+
+        # Au moins un moyen de contact doit être fourni
+        if not any([website, email, phone]):
+            raise forms.ValidationError(
+                _("Veuillez fournir au moins un moyen de contact (site web, email ou téléphone).")
+            )
+
+        # Capturer les spécialités créées depuis le champ personnalisé
+        specialties_field = self.fields.get('specialties')
+        if isinstance(specialties_field, CustomSpecialtyField):
+            self._created_specialties = specialties_field.get_created_specialties()
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        """
+        Sauvegarde personnalisée pour gérer les spécialités.
+        Auto-populate name and city from their _en counterparts if not provided.
+        """
+        instance = super().save(commit=False)
+        
+        # Auto-populate 'name' from 'name_en' if not provided
+        if not instance.name and instance.name_en:
+            instance.name = instance.name_en
+        
+        # Auto-populate 'city' from 'city_en' if not provided
+        if not instance.city and instance.city_en:
+            instance.city = instance.city_en
+        
+        # Auto-populate 'address' from 'address_en' if not provided
+        if not instance.address and instance.address_en:
+            instance.address = instance.address_en
+        
+        if commit:
+            instance.save()
+            
+            # Gérer les spécialités
+            specialties = self.cleaned_data.get('specialties', [])
+            instance.specialties.set(specialties)
+            
+            # Sauvegarder les relations many-to-many
+            self.save_m2m()
+            
+        return instance
+
+    def get_created_specialties(self) -> List[str]:
+        """
+        Retourne la liste des spécialités créées lors de la validation.
+        """
+        return self._created_specialties

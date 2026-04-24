@@ -1,0 +1,217 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Projects Management" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding-top:.5rem;">
+
+  <div class="pg-head">
+    <div><h1><i class="fas fa-project-diagram"></i> {% trans "Projects Management" %}</h1></div>
+    <a href="{% url 'projects:project_new' %}" class="n-btn n-btn-blue"><i class="fas fa-plus"></i> {% trans "New Project" %}</a>
+  </div>
+
+  <!-- Stats -->
+  <div class="n-st-grid">
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Total Projects" %}</p>
+        <p class="n-st-num">{{ total_count }}</p>
+        <span class="n-st-grow {% if projects_growth >= 0 %}up{% else %}down{% endif %}">
+          <i class="fas fa-arrow-{% if projects_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ projects_growth }}% {% trans "this month" %}
+        </span>
+      </div>
+      <div class="n-st-icon i1"><i class="fas fa-folder"></i></div>
+    </div>
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Ongoing" %}</p>
+        <p class="n-st-num">{{ in_progress_count }}</p>
+      </div>
+      <div class="n-st-icon i3"><i class="fas fa-play-circle"></i></div>
+    </div>
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Completed" %}</p>
+        <p class="n-st-num">{{ completed_count }}</p>
+        <span class="n-st-grow up"><i class="fas fa-arrow-up"></i> {{ completed_growth }}%</span>
+      </div>
+      <div class="n-st-icon i2"><i class="fas fa-check-circle"></i></div>
+    </div>
+    <div class="n-st">
+      <div class="n-st-info">
+        <p class="n-st-label">{% trans "Pending Review" %}</p>
+        <p class="n-st-num">{{ pending_count }}</p>
+      </div>
+      <div class="n-st-icon i4"><i class="fas fa-clock"></i></div>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="n-card">
+    <div class="n-filter">
+      <form method="get" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+        {% if active_tab %}<input type="hidden" name="tab" value="{{ active_tab }}">{% endif %}
+        <div class="n-search-wrap" style="flex:1;min-width:200px;">
+          <i class="fas fa-search"></i>
+          <input type="text" name="search" class="n-search" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث عن المشاريع...{% else %}{% trans 'Search projects...' %}{% endif %}" value="{{ search }}">
+        </div>
+        <select name="status" class="n-select">
+          <option value="">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}جميع الحالات{% else %}{% trans "All Statuses" %}{% endif %}</option>
+          <option value="ongoing" {% if filter_status == 'ongoing' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}قيد الإنجاز{% else %}{% trans "Ongoing" %}{% endif %}</option>
+          <option value="completed" {% if filter_status == 'completed' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}مكتمل{% else %}{% trans "Completed" %}{% endif %}</option>
+          <option value="planned" {% if filter_status == 'planned' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:':2' == 'ar' %}مخطط له{% else %}{% trans "Planned" %}{% endif %}</option>
+        </select>
+        <button type="submit" class="n-btn n-btn-blue"><i class="fas fa-filter"></i> {% trans "Filter" %}</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="n-tabs">
+    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" class="n-tab {% if active_tab == 'approved' %}on{% endif %}">
+      <i class="fas fa-check-circle"></i> {% trans "Approved" %}
+      <span class="n-tab-badge">{{ approved_count }}</span>
+    </a>
+    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" class="n-tab {% if active_tab == 'pending' %}on{% endif %}">
+      <i class="fas fa-clock"></i> {% trans "Pending Review" %}
+      <span class="n-tab-badge {% if pending_count > 0 %}warn{% endif %}">{{ pending_count }}</span>
+    </a>
+  </div>
+
+  {% if active_tab == 'pending' %}
+    {% if projects %}
+    <div class="n-card" style="margin-bottom:0;">
+      <table class="n-tbl">
+        <thead>
+          <tr>
+            <th style="min-width:200px;">{% trans "Project Title + Description" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Coordinator" %}</th>
+            <th>{% trans "Date" %}</th>
+            <th style="text-align:center;">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for project in projects %}
+          <tr>
+            <td>
+              <a href="{% url 'projects:project_detail' project.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;display:block;">{{ project.get_localized_title }}</a>
+              <p style="font-size:.75rem;color:var(--n-text-3);margin:.15rem 0 0;">{{ project.get_localized_description|truncatechars:90 }}</p>
+            </td>
+            <td>
+              <span class="n-status pending"><span class="n-dot"></span> PENDING</span>
+            </td>
+            <td><span style="font-size:.82rem;">{{ project.coordinator.get_full_name_display|default:project.coordinator.email }}</span></td>
+            <td><span class="n-dt">{{ project.created_at|date:"d M Y" }}</span></td>
+            <td>
+              {% url 'pages:admin_view_item' model_type='project' pk=project.id as view_url %}
+              {% url 'pages:admin_approve_item' model_type='project' pk=project.id as review_url %}
+              {% include 'admin/_pending_actions.html' with model_type='project' item_pk=project.id view_url=view_url edit_url=review_url|add:'?mode=edit' %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
+    {% else %}
+    <div class="n-card"><div class="n-empty"><i class="fas fa-clipboard-check"></i><h3>{% trans "No pending projects to review." %}</h3></div></div>
+    {% endif %}
+
+  {% else %}
+    {% if projects %}
+    <div class="n-card" style="margin-bottom:0;">
+      <table class="n-tbl">
+        <thead>
+          <tr>
+            <th style="min-width:220px;">{% trans "Project" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Team" %}</th>
+            <th style="text-align:center;">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% translate "Delete this project?" as confirm_delete_project %}
+          {% for project in projects %}
+          <tr>
+            <td>
+              <a href="{% url 'projects:project_detail' project.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;display:block;">{{ project.get_localized_title }}</a>
+              <p style="font-size:.75rem;color:var(--n-text-3);margin:.15rem 0 0;">{{ project.get_localized_description|truncatechars:100 }}</p>
+              <p style="font-size:.7rem;color:var(--n-text-3);margin:.15rem 0 0;">
+                <i class="fas fa-calendar-alt"></i> {{ project.created_at|date:"d M Y" }}
+                {% if project.date_end %} &middot; <i class="fas fa-flag-checkered"></i> {{ project.date_end|date:"d M Y" }}{% endif %}
+              </p>
+            </td>
+            <td>
+              {% if project.status == 'ongoing' %}
+                <span class="n-status active"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}قيد الإنجاز{% else %}{% trans "Ongoing" %}{% endif %}</span>
+              {% elif project.status == 'completed' %}
+                <span class="n-status completed"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}مكتمل{% else %}{% trans "Completed" %}{% endif %}</span>
+              {% elif project.status == 'planned' %}
+                <span class="n-status pending"><span class="n-dot"></span> {% if LANGUAGE_CODE|slice:':2' == 'ar' %}مخطط له{% else %}{% trans "Planned" %}{% endif %}</span>
+              {% else %}
+                <span class="n-status-pill pending">{% if LANGUAGE_CODE|slice:':2' == 'ar' %}قيد المراجعة{% else %}{{ project.get_status_display }}{% endif %}</span>
+              {% endif %}
+            </td>
+            <td>
+              <span style="font-size:.8rem;background:var(--n-bg);padding:.2rem .5rem;border-radius:4px;color:var(--n-text-2);">{{ project.coordinator.get_full_name_display|default:project.coordinator.email }}</span>
+              {% for pm in project.members.all|slice:":2" %}
+              <span style="font-size:.8rem;background:var(--n-bg);padding:.2rem .5rem;border-radius:4px;color:var(--n-text-2);margin-inline-start:.2rem;">{{ pm.member.get_full_name_display|default:pm.member.email }}</span>
+              {% empty %}
+              <span style="font-size:.78rem;color:var(--n-text-3);font-style:italic;">{% trans "No participants" %}</span>
+              {% endfor %}
+            </td>
+            <td>
+              <div class="n-acts" style="display:flex; align-items:center; gap:6px;">
+                <a href="{% url 'projects:project_detail' project.id %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
+                <a href="{% url 'projects:project_update' project.id %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+                <a href="{% url 'projects:project_delete' project.id %}" class="n-act n-act-red" onclick="return confirm('{{ confirm_delete_project }}');" title="{% trans 'Delete' %}"><i class="fas fa-trash"></i></a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
+    {% else %}
+    <div class="n-card"><div class="n-empty"><i class="fas fa-folder-open"></i><h3>{% trans "No projects found." %}</h3></div></div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCookie(name){
+  const cookieValue=document.cookie.split('; ').find((row)=>row.startsWith(name+'='));
+  return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : null;
+}
+
+document.addEventListener('click', async function(event){
+  const rejectButton=event.target.closest('.js-project-reject-btn');
+  if(!rejectButton){return;}
+
+  if(!confirm('Are you sure you want to reject this project?')){return;}
+
+  const rejectUrl=rejectButton.dataset.rejectUrl;
+  const tableRow=rejectButton.closest('tr');
+
+  try{
+    const response=await fetch(rejectUrl,{
+      method:'POST',
+      headers:{
+        'X-CSRFToken': '{{ csrf_token }}' !== 'NOTPROVIDED' ? '{{ csrf_token }}' : (getCookie('csrftoken') || ''),
+        'X-Requested-With':'XMLHttpRequest',
+      },
+    });
+
+    if(!response.ok){throw new Error('Reject request failed');}
+    if(tableRow){tableRow.remove();}
+    alert('Project rejected successfully.');
+  }catch(error){
+    alert('Failed to reject project. Please try again.');
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Publication management" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding-top:.5rem;">
+
+  <!-- Header -->
+  <div class="pg-head">
+    <div class="pg-head-left">
+      <div>
+        <h1><i class="fas fa-book-open"></i> {% trans "Publication management" %}</h1>
+      </div>
+      {% if pending_count > 0 %}
+      <span class="pg-badge"><i class="fas fa-clock"></i> {{ pending_count }} {% trans "pending" %}</span>
+      {% endif %}
+    </div>
+    <a href="{% url 'resources:create' %}" class="n-btn n-btn-blue"><i class="fas fa-plus"></i> {% trans "Add a publication" %}</a>
+  </div>
+
+  <!-- Filters -->
+  <div class="n-card">
+    <div class="n-filter">
+      <form method="get" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+        <div class="n-form-group" style="flex:1;min-width:180px;margin:0;">
+          <label for="search" class="n-form-label"><i class="fas fa-search" style="margin-inline-end:.3rem;"></i>{% trans "Research" %}</label>
+          <input type="text" id="search" name="search" class="n-input" value="{{ request.GET.search }}" placeholder="{% trans 'Title, author...' %}">
+        </div>
+        <div class="n-form-group" style="flex:1;min-width:140px;margin:0;">
+          <label for="date_from" class="n-form-label"><i class="fas fa-calendar" style="margin-inline-end:.3rem;"></i>{% trans "Start date" %}</label>
+          <input type="text" id="date_from" name="date_from" class="n-input" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}يوم/شهر/سنة{% else %}dd/mm/yyyy{% endif %}" value="{{ request.GET.date_from }}">
+        </div>
+        <div class="n-form-group" style="flex:1;min-width:140px;margin:0;">
+          <label for="date_to" class="n-form-label"><i class="fas fa-calendar" style="margin-inline-end:.3rem;"></i>{% trans "End date" %}</label>
+          <input type="text" id="date_to" name="date_to" class="n-input" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}يوم/شهر/سنة{% else %}dd/mm/yyyy{% endif %}" value="{{ request.GET.date_to }}">
+        </div>
+        <div style="display:flex;gap:.5rem;">
+          <button type="button" class="n-btn n-btn-outline" onclick="resetFilters()"><i class="fas fa-undo"></i> {% trans "Reset" %}</button>
+          <button type="submit" class="n-btn n-btn-blue"><i class="fas fa-filter"></i> {% trans "Filter" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="n-tabs">
+    <a href="?tab=approved{% if filter_publication_type %}&document_type={{ filter_publication_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}"
+       class="n-tab {% if active_tab == 'approved' %}on{% endif %}">
+      <i class="fas fa-check-circle"></i> {% trans "Approved" %}
+      <span class="n-tab-badge">{{ approved_count }}</span>
+    </a>
+    <a href="?tab=pending{% if filter_publication_type %}&document_type={{ filter_publication_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}"
+       class="n-tab {% if active_tab == 'pending' %}on{% endif %}">
+      <i class="fas fa-clock"></i> {% trans "Pending Review" %}
+      <span class="n-tab-badge {% if pending_count > 0 %}warn{% endif %}">{{ pending_count }}</span>
+    </a>
+  </div>
+
+  <!-- Pending Tab -->
+  {% if active_tab == 'pending' %}
+    {% if pending_publications %}
+    <div class="n-card" style="margin-bottom:0;">
+      <table class="n-tbl">
+        <thead>
+          <tr>
+            <th>{% trans "Title" %}</th>
+            <th>{% trans "Author(s)" %}</th>
+            <th>{% trans "Submission date" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th style="text-align:center;">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for publication in publications %}
+          <tr>
+            <td>
+              <a href="{% url 'resources:resource-detail' publication.document_type publication.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;">
+                {% if LANGUAGE_CODE == 'ar' and publication.title_ar %}{{ publication.title_ar }}{% elif publication.title_en %}{{ publication.title_en }}{% else %}{{ publication.title }}{% endif %}
+              </a>
+            </td>
+            <td>{{ publication.author.get_full_name_display|default:publication.author.email }}</td>
+            <td><span class="n-dt">{{ publication.creation_date|date:"d/m/Y H:i" }}</span></td>
+            <td><span class="n-status pending"><span class="n-dot"></span> {% trans "Pending" %}</span></td>
+            <td>
+              {% url 'pages:admin_view_item' model_type='document' pk=publication.id as view_url %}
+              {% url 'pages:admin_approve_item' model_type='document' pk=publication.id as review_url %}
+              {% include 'admin/_pending_actions.html' with model_type='document' item_pk=publication.id view_url=view_url edit_url=review_url|add:'?mode=edit' %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
+    {% else %}
+    <div class="n-card"><div class="n-empty"><i class="fas fa-check-double"></i><h3>{% trans "No pending publications" %}</h3><p>{% trans "All submissions have been reviewed. Great work!" %}</p></div></div>
+    {% endif %}
+
+  {% else %}
+  <!-- Approved Tab -->
+  {% if approved_publications %}
+  <div class="n-card" style="margin-bottom:0;">
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "Title" %}</th>
+          <th>{% trans "Author(s)" %}</th>
+          <th>{% trans "Submission date" %}</th>
+          <th style="text-align:center;">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for publication in publications %}
+        <tr>
+          <td>
+            <a href="{% url 'resources:resource-detail' publication.document_type publication.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;">
+              {% if LANGUAGE_CODE == 'ar' and publication.title_ar %}{{ publication.title_ar }}{% elif publication.title_en %}{{ publication.title_en }}{% else %}{{ publication.title }}{% endif %}
+            </a>
+          </td>
+          <td>{{ publication.author.get_full_name_display|default:publication.author.email }}</td>
+          <td><span class="n-dt">{{ publication.creation_date|date:"d/m/Y H:i" }}</span></td>
+          <td>
+            <div class="n-acts" style="display:flex; align-items:center; gap:6px;">
+              <a href="{% url 'resources:resource-detail' publication.document_type publication.id %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
+              <a href="{% url 'resources:resource-update' publication.document_type publication.id %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'resources:resource-delete' publication.document_type publication.id %}" class="n-act n-act-red" onclick="return confirm('{% trans "Are you sure you want to delete this publication?" %}');" title="{% trans 'Delete' %}"><i class="fas fa-trash"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  </div>
+  {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
+  {% else %}
+  <div class="n-card"><div class="n-empty"><i class="fas fa-book-open"></i><h3>{% trans "No publications found" %}</h3><p>{% trans "Modify your search criteria or add new publications." %}</p><a href="{% url 'resources:create' %}" class="n-btn n-btn-blue" style="margin-top:.5rem;"><i class="fas fa-plus"></i> {% trans "Add a publication" %}</a></div></div>
+  {% endif %}
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function resetFilters(){document.getElementById('search').value='';document.getElementById('date_from').value='';document.getElementById('date_to').value='';window.location.href='{% url "pages:admin_publications" %}';}
+
+function getCookie(name){
+  const cookieValue=document.cookie.split('; ').find((row)=>row.startsWith(name+'='));
+  return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : null;
+}
+
+document.addEventListener('click', async function(event){
+  const rejectButton=event.target.closest('.js-publication-reject-btn');
+  if(!rejectButton){return;}
+
+  if(!confirm('Are you sure you want to reject this publication?')){return;}
+
+  const rejectUrl=rejectButton.dataset.rejectUrl;
+  const tableRow=rejectButton.closest('tr');
+
+  try{
+    const response=await fetch(rejectUrl,{
+      method:'POST',
+      headers:{
+        'X-CSRFToken': '{{ csrf_token }}' !== 'NOTPROVIDED' ? '{{ csrf_token }}' : (getCookie('csrftoken') || ''),
+        'X-Requested-With':'XMLHttpRequest',
+      },
+    });
+
+    if(!response.ok){throw new Error('Reject request failed');}
+    if(tableRow){tableRow.remove();}
+    alert('Publication rejected successfully.');
+  }catch(error){
+    alert('Failed to reject publication. Please try again.');
+  }
+});
+</script>
+{% endblock %}

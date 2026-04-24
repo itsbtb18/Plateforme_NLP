@@ -1,0 +1,1223 @@
+﻿{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'css/home.css' %}" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<style>
+
+  .home-news-section {
+    width: 100vw;
+    min-height: 100vh;
+    height: 100vh;
+    margin-inline: calc(50% - 50vw);
+    padding: clamp(1.25rem, 3vw, 2rem);
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+  }
+  .home-news-section .section-content {
+    width: 100%;
+    max-width: none;
+    padding-inline: 0;
+  }
+  .home-news-wrap {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: clamp(2rem, 4vw, 3.2rem) clamp(1.5rem, 4vw, 4rem);
+    border-radius: 0;
+    background: rgba(255, 255, 255, 0.78);
+    border: none;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+  }
+  .home-news-wrap::before,
+  .home-news-wrap::after {
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    filter: blur(8px);
+  }
+  .home-news-wrap::before {
+    inset-inline-start: 3%;
+    top: 38%;
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.2), transparent 70%);
+  }
+  .home-news-wrap::after {
+    inset-inline-end: 6%;
+    top: 20%;
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.18), transparent 72%);
+  }
+  .home-news-inner {
+    position: relative;
+    z-index: 1;
+  }
+  .home-news-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.9rem;
+    margin-bottom: 2.5rem;
+    padding-top: 0.3rem;
+  }
+  .home-news-badge {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, rgba(167, 139, 250, 0.24), rgba(167, 139, 250, 0.14));
+    border: 1px solid rgba(167, 139, 250, 0.28);
+    color: #5b3aa8;
+    box-shadow: 0 12px 28px rgba(167, 139, 250, 0.24);
+  }
+  .home-news-badge i {
+    font-size: 1.65rem;
+  }
+  .home-news-title {
+    margin: 0;
+    color: #a78bfa;
+    max-width: 760px;
+    font-size: clamp(2.2rem, 4.8vw, 4rem);
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  .home-news-subtitle {
+    margin: 0;
+    color: #000000;
+    font-size: clamp(1rem, 1.3vw, 1.08rem);
+    line-height: 1.9;
+    max-width: 760px;
+  }
+  .home-news-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(240px, 1.05fr) minmax(220px, 1fr);
+    gap: 1.4rem;
+    align-items: center;
+  }
+  .home-news-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .home-news-col.center {
+    align-items: center;
+  }
+  .home-news-card {
+    position: relative;
+    padding: 1.35rem 1.2rem;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(167, 139, 250, 0.34);
+    box-shadow:
+      0 12px 28px rgba(167, 139, 250, 0.16),
+      0 0 0 2px rgba(167, 139, 250, 0.05);
+    text-align: center;
+  }
+  .home-news-card.large {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 320px;
+    width: 100%;
+  }
+  .home-news-card-icon {
+    width: 3.7rem;
+    height: 3.7rem;
+    margin: 0 auto 0.95rem;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, rgba(167, 139, 250, 0.24), rgba(167, 139, 250, 0.12));
+    border: 1px solid rgba(167, 139, 250, 0.26);
+    color: #6d48c7;
+    box-shadow: 0 10px 24px rgba(167, 139, 250, 0.18);
+  }
+  .home-news-card-icon i {
+    font-size: 1.2rem;
+  }
+  .home-news-card-title {
+    margin: 0 0 0.55rem;
+    color: #2d1f50;
+    font-size: 1.08rem;
+    font-weight: 800;
+    line-height: 1.45;
+  }
+  .home-news-card-text {
+    margin: 0;
+    color: #56497d;
+    font-size: 0.95rem;
+    line-height: 1.8;
+  }
+  .home-news-decor {
+    position: absolute;
+    color: rgba(167, 139, 250, 0.35);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .home-news-decor.left {
+    inset-inline-start: 2%;
+    top: 48%;
+    font-size: 4rem;
+  }
+  .home-news-decor.right {
+    inset-inline-end: 7%;
+    top: 22%;
+    font-size: 3.3rem;
+  }
+  .home-news-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 2.4rem;
+  }
+  .home-news-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    min-height: 56px;
+    padding: 0.95rem 1.7rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+    color: #ffffff;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 14px 30px rgba(167, 139, 250, 0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .home-news-btn:hover {
+    color: #ffffff;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 18px 36px rgba(167, 139, 250, 0.34);
+  }
+  html[dir="rtl"] .home-news-card,
+  html[dir="rtl"] .home-news-header {
+    direction: rtl;
+  }
+  @media (max-width: 1100px) {
+    .home-news-grid {
+      grid-template-columns: 1fr;
+    }
+    .home-news-col,
+    .home-news-col.center {
+      align-items: center;
+    }
+  }
+  @media (max-width: 768px) {
+    .home-news-section {
+      height: auto;
+      min-height: 100vh;
+    }
+    .home-news-wrap {
+      min-height: auto;
+      padding: 1.4rem;
+    }
+    .home-news-badge {
+      width: 4rem;
+      height: 4rem;
+    }
+    .home-news-decor {
+      display: none;
+    }
+    .home-news-card.large {
+      min-height: auto;
+    }
+    .home-news-btn {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="home-fullscreen-container">
+  
+  <!-- Section 1: Hero - The future of Arabic NLP -->
+  <section class="fullscreen-section section-1">
+    <div class="hero-layout">
+      <!-- Left Column - Text Content -->
+      <div class="hero-left">
+        <div class="section-content hero-content">
+          <span class="hero-badge">{% if LANGUAGE_CODE == 'ar' %}الارتقاء بمعالجة اللغة العربية{% else %}{% trans "Advancing Arabic NLP" %}{% endif %}</span>
+          <h1 class="hero-title">{% if LANGUAGE_CODE == 'ar' %}الارتقاء بتقنيات معالجة اللغة العربية{% else %}{% trans "Advancing Arabic language processing technologies" %}{% endif %}</h1>
+          <div class="hero-subtitle">
+            <span class="hero-subtitle-white">{% if LANGUAGE_CODE == 'ar' %}منصة تعاونية لمشاركة وإثراء{% else %}{% trans "A collaborative platform to share and enrich" %}{% endif %}</span>
+            <span class="hero-subtitle-accent">{% if LANGUAGE_CODE == 'ar' %}موارد وتقنيات اللغة العربية{% else %}{% trans "Arabic language resources and technologies" %}{% endif %}</span>
+          </div>
+          <p class="hero-description">
+            {% if LANGUAGE_CODE == 'ar' %}انضم إلى مجتمع من الباحثين والمطورين واللغويين يعملون معًا للنهوض بمعالجة اللغة الطبيعية للعربية{% else %}{% trans "Join a community of researchers, developers, and linguists working together to advance natural language processing for Arabic" %}{% endif %}
+          </p>
+          <p class="hero-meta">
+            <i class="fas fa-users"></i>
+            <span>{% if LANGUAGE_CODE == 'ar' %}انضم إلى {{ members_count|default:"1" }}+ من أعضاء المجتمع{% else %}{% trans "Join" %} {{ members_count|default:"1" }}+ {% trans "community members" %}{% endif %}</span>
+          </p>
+          <div class="hero-actions">
+            <a href="{% url 'resources:article_list' %}" class="btn-primary">
+              <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف الموارد{% else %}{% trans "Explore Resources" %}{% endif %}</span>
+              <i class="fas fa-arrow-right"></i>
+            </a>
+            <a href="{% url 'projects:project_new' %}" class="btn-secondary">
+              <span>{% if LANGUAGE_CODE == 'ar' %}ابدأ مشروعًا{% else %}{% trans "Start a Project" %}{% endif %}</span>
+              <i class="fas fa-sparkles"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column - Image -->
+      <div class="hero-right">
+        <img src="{% static 'images/A89E6755-4CBC-4C08-AF11-F94F68BCFB51.png' %}" alt="Arabic NLP Platform Logo" class="hero-image" />
+      </div>
+
+  </section>
+
+  <!-- Section 2: Tools -->
+  <section class="fullscreen-section section-2">
+    <div class="section-content tools-section-content">
+      <h2 class="section-title tools-title">
+        {% if LANGUAGE_CODE == 'ar' %}
+        <span class="highlight-word">أدوات</span> معالجة اللغة العربية
+        {% else %}
+        <span class="highlight-word">{% trans "Developer" %}</span> {% trans "Tools" %} <span class="highlight-word">{% trans "Landing" %}</span> {% trans "Page" %}
+        {% endif %}
+      </h2>
+      
+      <div class="tools-layout">
+        <!-- Left Column -->
+        <div class="tools-left">
+          <div class="tools-why-matters">
+            <h3 class="why-matters-title">{% if LANGUAGE_CODE == 'ar' %}لماذا هذا مهم{% else %}{% trans "Why It Matters" %}{% endif %}</h3>
+            <p class="why-matters-text">{% if LANGUAGE_CODE == 'ar' %}الأدوات الذكية تقود إلى قرارات أذكى ونتائج أفضل.{% else %}{% trans "Smart tools lead to smarter decisions — and better outcomes." %}{% endif %}</p>
+          </div>
+          
+          <ul class="tools-checklist">
+            <li>
+              <span class="check-icon">✓</span>
+              <span class="check-text">{% if LANGUAGE_CODE == 'ar' %}تجزئة نصية متقدمة لمعالجة اللغة العربية{% else %}{% trans "Advanced text tokenization for Arabic language processing" %}{% endif %}</span>
+            </li>
+            <li>
+              <span class="check-icon">✓</span>
+              <span class="check-text">{% if LANGUAGE_CODE == 'ar' %}تحليل لغوي عميق لبنية الكلمات وأنماطها{% else %}{% trans "Deep linguistic analysis of word structures and patterns" %}{% endif %}</span>
+            </li>
+            <li>
+              <span class="check-icon">✓</span>
+              <span class="check-text">{% if LANGUAGE_CODE == 'ar' %}ترجمة آلية متقدمة بين العربية وعدة لغات{% else %}{% trans "State-of-the-art machine translation between Arabic and multiple languages" %}{% endif %}</span>
+            </li>
+            <li>
+              <span class="check-icon">✓</span>
+              <span class="check-text">{% if LANGUAGE_CODE == 'ar' %}تحليل دقيق للمشاعر لاكتشاف الآراء والانفعالات في النص العربي{% else %}{% trans "Accurate sentiment analysis to detect emotions and opinions in Arabic text" %}{% endif %}</span>
+            </li>
+          </ul>
+          
+          <a href="{% url 'resources:tool_list' %}" class="btn-tools-explore">
+            <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف جميع الأدوات{% else %}{% trans "Explore All Tools" %}{% endif %}</span>
+            <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+        
+        <!-- Right Column - Image -->
+        <div class="tools-right">
+          <div class="tools-illustration">
+            <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" class="nlp-illustration">
+              <!-- Background circles -->
+              <circle cx="250" cy="100" r="60" fill="none" stroke="rgba(167, 139, 250, 0.2)" stroke-width="2" stroke-dasharray="5,5"/>
+              <circle cx="120" cy="200" r="55" fill="none" stroke="rgba(167, 139, 250, 0.2)" stroke-width="2" stroke-dasharray="5,5"/>
+              <circle cx="380" cy="200" r="55" fill="none" stroke="rgba(167, 139, 250, 0.2)" stroke-width="2" stroke-dasharray="5,5"/>
+              <circle cx="100" cy="350" r="50" fill="none" stroke="rgba(167, 139, 250, 0.2)" stroke-width="2" stroke-dasharray="5,5"/>
+              <circle cx="400" cy="350" r="50" fill="none" stroke="rgba(167, 139, 250, 0.2)" stroke-width="2" stroke-dasharray="5,5"/>
+              
+              <!-- Connection lines -->
+              <line x1="250" y1="160" x2="150" y2="230" stroke="rgba(167, 139, 250, 0.3)" stroke-width="2"/>
+              <line x1="250" y1="160" x2="350" y2="230" stroke="rgba(167, 139, 250, 0.3)" stroke-width="2"/>
+              <line x1="120" y1="255" x2="130" y2="310" stroke="rgba(167, 139, 250, 0.3)" stroke-width="2"/>
+              <line x1="380" y1="255" x2="370" y2="310" stroke="rgba(167, 139, 250, 0.3)" stroke-width="2"/>
+              <line x1="250" y1="410" x2="250" y2="470" stroke="rgba(167, 139, 250, 0.3)" stroke-width="2"/>
+              
+              <!-- Top: Lightbulb -->
+              <circle cx="250" cy="100" r="50" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+              <path d="M 250 75 Q 235 65 235 50 Q 235 35 250 35 Q 265 35 265 50 Q 265 65 250 75" fill="none" stroke="rgba(167, 139, 250, 0.8)" stroke-width="2.5"/>
+              <circle cx="250" cy="90" r="12" fill="rgba(167, 139, 250, 0.8)"/>
+              <text x="250" y="115" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="20" font-weight="bold">💡</text>
+              
+              <!-- Left Top: Chip -->
+              <circle cx="120" cy="200" r="45" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+              <rect x="110" y="185" width="20" height="8" fill="rgba(167, 139, 250, 0.8)"/>
+              <rect x="110" y="207" width="20" height="8" fill="rgba(167, 139, 250, 0.8)"/>
+              <circle cx="125" cy="200" r="8" fill="rgba(167, 139, 250, 0.8)"/>
+              <text x="120" y="225" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="20" font-weight="bold">🔌</text>
+              
+              <!-- Right Top: Code -->
+              <circle cx="380" cy="200" r="45" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+              <text x="375" y="185" fill="rgba(167, 139, 250, 0.8)" font-size="14" font-weight="bold">&lt;</text>
+              <text x="390" y="210" fill="rgba(167, 139, 250, 0.8)" font-size="14" font-weight="bold">/&gt;</text>
+              <text x="380" y="225" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="20" font-weight="bold">💻</text>
+              
+              <!-- Left Bottom: Database -->
+              <circle cx="100" cy="350" r="40" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+              <ellipse cx="100" cy="330" rx="20" ry="12" fill="none" stroke="rgba(167, 139, 250, 0.8)" stroke-width="2"/>
+              <rect x="80" y="330" width="40" height="20" fill="none" stroke="rgba(167, 139, 250, 0.8)" stroke-width="2"/>
+              <ellipse cx="100" cy="350" rx="20" ry="12" fill="none" stroke="rgba(167, 139, 250, 0.8)" stroke-width="2"/>
+              <text x="100" y="370" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="20" font-weight="bold">💾</text>
+              
+              <!-- Right Bottom: Globe -->
+              <circle cx="400" cy="350" r="40" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+              <circle cx="400" cy="350" r="20" fill="none" stroke="rgba(167, 139, 250, 0.8)" stroke-width="2"/>
+              <ellipse cx="400" cy="350" rx="20" ry="8" fill="none" stroke="rgba(167, 139, 250, 0.8)" stroke-width="2"/>
+              <path d="M 400 330 Q 415 340 400 350 Q 385 340 400 330" fill="none" stroke="rgba(167, 139, 250, 0.8)" stroke-width="1.5"/>
+              <text x="400" y="370" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="20" font-weight="bold">🌐</text>
+              
+              <!-- Center: Main head with gears -->
+              <g class="head-gears">
+                <circle cx="250" cy="420" r="35" fill="rgba(167, 139, 250, 0.2)" stroke="rgba(167, 139, 250, 0.8)" stroke-width="2.5"/>
+                <path d="M 250 395 L 260 400 L 260 415 L 250 420 L 240 415 L 240 400 Z" fill="rgba(167, 139, 250, 0.8)"/>
+                <circle cx="250" cy="432" r="8" fill="rgba(167, 139, 250, 0.6)"/>
+                <circle cx="250" cy="432" r="5" fill="rgba(167, 139, 250, 0.8)"/>
+                <text x="250" y="455" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="18" font-weight="bold">⚙️</text>
+              </g>
+              
+              <!-- Decorative elements -->
+              <circle cx="80" cy="100" r="4" fill="rgba(167, 139, 250, 0.4)"/>
+              <circle cx="420" cy="120" r="6" fill="rgba(167, 139, 250, 0.3)"/>
+              <circle cx="90" cy="450" r="3" fill="rgba(167, 139, 250, 0.35)"/>
+              <circle cx="410" cy="440" r="5" fill="rgba(167, 139, 250, 0.25)"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 3: Corpus -->
+  <section class="fullscreen-section section-3">
+    <div class="section-content corpus-content">
+      <div class="corpus-icon">
+        <i class="fas fa-database"></i>
+      </div>
+      <h2 class="corpus-label">{% if LANGUAGE_CODE == 'ar' %}المدونات{% else %}{% trans "Corpus" %}{% endif %}</h2>
+      
+      <div class="corpus-header">
+        <h3 class="corpus-title">{% if LANGUAGE_CODE == 'ar' %}+500 مجموعة بيانات عربية منسقة{% else %}500+ {% trans "Curated Arabic Language Datasets" %}{% endif %}</h3>
+      </div>
+      
+      <div class="corpus-grid">
+        <div class="corpus-card">
+          <div class="corpus-card-icon">
+            <i class="fas fa-language"></i>
+          </div>
+          <h3 class="corpus-card-title">{% if LANGUAGE_CODE == 'ar' %}تغطية متعددة اللهجات{% else %}{% trans "Multi-Dialect Coverage" %}{% endif %}</h3>
+          <p class="corpus-card-description">{% if LANGUAGE_CODE == 'ar' %}مجموعات بيانات شاملة تغطي العربية الفصحى ولهجات مصر وبلاد الشام والخليج وشمال أفريقيا{% else %}{% trans "Comprehensive datasets spanning Modern Standard Arabic, Egyptian, Levantine, Gulf, and North African dialects" %}{% endif %}</p>
+        </div>
+        
+        <div class="corpus-card">
+          <div class="corpus-card-icon">
+            <i class="fas fa-tags"></i>
+          </div>
+          <h3 class="corpus-card-title">{% if LANGUAGE_CODE == 'ar' %}مجالات متنوعة{% else %}{% trans "Diverse Domains" %}{% endif %}</h3>
+          <p class="corpus-card-description">{% if LANGUAGE_CODE == 'ar' %}الأخبار ووسائل التواصل الاجتماعي والأدب والنصوص الأكاديمية ومدونات متخصصة لمهام معالجة اللغة{% else %}{% trans "News, social media, literature, academic texts, and domain-specific corpora for specialized NLP tasks" %}{% endif %}</p>
+        </div>
+        
+        <div class="corpus-card">
+          <div class="corpus-card-icon">
+            <i class="fas fa-tag"></i>
+          </div>
+          <h3 class="corpus-card-title">{% if LANGUAGE_CODE == 'ar' %}موسومة ومُعنونة{% else %}{% trans "Annotated & Labeled" %}{% endif %}</h3>
+          <p class="corpus-card-description">{% if LANGUAGE_CODE == 'ar' %}وسوم نحوية وعلامات للمشاعر وكيانات اسمية وتعليقات لغوية مهيأة للتدريب{% else %}{% trans "Part-of-speech tags, sentiment labels, named entities, and linguistic annotations for training" %}{% endif %}</p>
+        </div>
+        
+        <div class="corpus-card">
+          <div class="corpus-card-icon">
+            <i class="fas fa-download"></i>
+          </div>
+          <h3 class="corpus-card-title">{% if LANGUAGE_CODE == 'ar' %}جاهزة للاستخدام{% else %}{% trans "Ready to Use" %}{% endif %}</h3>
+          <p class="corpus-card-description">{% if LANGUAGE_CODE == 'ar' %}تنزيل بعدة صيغ مثل النص الخام وJSON وXML وبما يتوافق مع أشهر أطر معالجة اللغة{% else %}{% trans "Download in multiple formats - raw text, JSON, XML - compatible with popular NLP frameworks" %}{% endif %}</p>
+        </div>
+      </div>
+      
+      <a href="{% url 'resources:corpus_list' %}" class="btn-corpus-explore">
+            <span>{% if LANGUAGE_CODE == 'ar' %}تصفح جميع المدونات{% else %}{% trans "Browse All Corpus" %}{% endif %}</span>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+  </section>
+
+  <!-- Section 4: Research Projects -->
+  <section class="fullscreen-section section-4">
+    <div class="section-content research-projects-content">
+      <h2 class="research-title">{% if LANGUAGE_CODE == 'ar' %}المشاريع البحثية واستكشاف <span class="highlight-idea">الأفكار</span>{% else %}{% trans "Research Projects & Exploring" %} <span class="highlight-idea">{% trans "Ideas" %}</span>{% endif %}</h2>
+      <p class="research-subtitle">{% if LANGUAGE_CODE == 'ar' %}{{ projects_count|default:"80" }} مبادرة بحثية نشطة{% else %}{{ projects_count|default:"80" }} {% trans "active research initiatives" %}{% endif %}</p>
+      
+      <div class="research-bubbles">
+        <div class="research-bubble">
+          <p class="research-bubble-text">{% if LANGUAGE_CODE == 'ar' %}تعاون في مشاريع بحث وابتكار متقدمة في معالجة اللغة العربية{% else %}{% trans "Collaborate on cutting-edge research and innovation projects in Arabic NLP" %}{% endif %}</p>
+        </div>
+        <div class="research-bubble">
+          <p class="research-bubble-text">{% if LANGUAGE_CODE == 'ar' %}اكتشف المبادرات الجارية التي تدفع مجال معالجة اللغة العربية إلى الأمام{% else %}{% trans "Discover ongoing initiatives that advance the Arabic language processing field" %}{% endif %}</p>
+        </div>
+        <div class="research-bubble">
+          <p class="research-bubble-text">{% if LANGUAGE_CODE == 'ar' %}ساهم بخبرتك ومعرفتك في مشاريع رائدة ومؤثرة{% else %}{% trans "Contribute your expertise and knowledge to groundbreaking projects" %}{% endif %}</p>
+        </div>
+        <div class="research-bubble">
+          <p class="research-bubble-text">{% if LANGUAGE_CODE == 'ar' %}طوّر المجال مع الباحثين والمطورين حول العالم{% else %}{% trans "Advance the field together with researchers and developers worldwide" %}{% endif %}</p>
+        </div>
+      </div>
+      
+      <a href="{% url 'projects:project_list' %}" class="btn-primary" style="margin-top: 3rem;">
+        <span>{% if LANGUAGE_CODE == 'ar' %}عرض المشاريع{% else %}{% trans "View Projects" %}{% endif %}</span>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+  </section>
+
+  <!-- Section 5: Courses -->
+  <section class="fullscreen-section section-5">
+    <div class="section-content courses-content">
+      <div class="courses-layout">
+        <!-- Left Column - Image -->
+        <div class="courses-left-image">
+          <div class="courses-illustration">
+            <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" class="courses-creative-svg">
+              <defs>
+                <linearGradient id="bookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.8" />
+                  <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.6" />
+                </linearGradient>
+                <linearGradient id="pathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.5" />
+                  <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0.3" />
+                </linearGradient>
+                <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.2" />
+                  <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0" />
+                </radialGradient>
+              </defs>
+
+              <!-- Background glow circles -->
+              <circle cx="100" cy="80" r="70" fill="url(#glowGrad)"/>
+              <circle cx="400" cy="150" r="80" fill="url(#glowGrad)"/>
+              <circle cx="250" cy="450" r="90" fill="url(#glowGrad)"/>
+
+              <!-- Learning Path - curved line -->
+              <path d="M 80 250 Q 150 150, 250 120 T 420 260" 
+                    fill="none" 
+                    stroke="url(#pathGrad)" 
+                    stroke-width="3" 
+                    stroke-linecap="round" 
+                    stroke-dasharray="10,5"
+                    opacity="0.6"/>
+
+              <!-- Book 1 - Bottom Left -->
+              <g class="book-item">
+                <rect x="40" y="320" width="80" height="100" rx="6" 
+                      fill="rgba(167, 139, 250, 0.2)" 
+                      stroke="rgba(167, 139, 250, 0.5)" 
+                      stroke-width="2"/>
+                <line x1="50" y1="340" x2="110" y2="340" stroke="rgba(167, 139, 250, 0.6)" stroke-width="2"/>
+                <line x1="50" y1="360" x2="110" y2="360" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+                <line x1="50" y1="380" x2="105" y2="380" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+                <line x1="50" y1="400" x2="110" y2="400" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1.5"/>
+                <text x="80" y="445" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="20">📚</text>
+              </g>
+
+              <!-- Book 2 - Top Left -->
+              <g class="book-item" style="animation-delay: 0.1s;">
+                <rect x="80" y="80" width="90" height="110" rx="6" 
+                      fill="rgba(167, 139, 250, 0.15)" 
+                      stroke="rgba(167, 139, 250, 0.4)" 
+                      stroke-width="2"
+                      transform="rotate(-15 125 135)"/>
+                <line x1="95" y1="105" x2="160" y2="105" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2" transform="rotate(-15 125 135)"/>
+                <line x1="95" y1="125" x2="160" y2="125" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1.5" transform="rotate(-15 125 135)"/>
+                <text x="125" y="65" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="22">📖</text>
+              </g>
+
+              <!-- Graduation Cap - Top Center -->
+              <g class="grad-cap">
+                <rect x="215" y="40" width="70" height="8" rx="1" fill="rgba(167, 139, 250, 0.8)"/>
+                <polygon points="250,48 220,65 280,65" fill="rgba(167, 139, 250, 0.7)"/>
+                <circle cx="250" cy="55" r="4" fill="rgba(167, 139, 250, 0.9)"/>
+                <line x1="250" y1="59" x2="250" y2="80" stroke="rgba(167, 139, 250, 0.6)" stroke-width="2"/>
+                <circle cx="240" cy="82" r="3" fill="rgba(167, 139, 250, 0.5)"/>
+                <circle cx="260" cy="82" r="3" fill="rgba(167, 139, 250, 0.5)"/>
+                <text x="250" y="100" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="24">🎓</text>
+              </g>
+
+              <!-- Progress Chart - Right Side -->
+              <g class="progress-chart">
+                <rect x="360" y="280" width="120" height="140" rx="8" 
+                      fill="rgba(167, 139, 250, 0.1)" 
+                      stroke="rgba(167, 139, 250, 0.4)" 
+                      stroke-width="2"/>
+                <polyline points="375,390 390,360 405,375 420,340 435,355 450,320 465,340" 
+                          fill="none" 
+                          stroke="url(#bookGrad)" 
+                          stroke-width="3" 
+                          stroke-linecap="round" 
+                          stroke-linejoin="round"/>
+                <line x1="370" y1="395" x2="470" y2="395" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1.5"/>
+                <text x="420" y="410" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="12" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}التقدم{% else %}Progress{% endif %}</text>
+                <text x="420" y="430" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="22">📈</text>
+              </g>
+
+              <!-- Central Brain/Mind - Knowledge Hub -->
+              <g class="knowledge-hub">
+                <circle cx="250" cy="260" r="50" 
+                        fill="rgba(167, 139, 250, 0.15)" 
+                        stroke="url(#bookGrad)" 
+                        stroke-width="2.5"/>
+                <circle cx="250" cy="260" r="35" 
+                        fill="none" 
+                        stroke="rgba(167, 139, 250, 0.3)" 
+                        stroke-width="1.5" 
+                        stroke-dasharray="5,3"/>
+                <!-- Brain waves -->
+                <path d="M 220 260 Q 230 250, 240 260 T 260 260 T 280 260" 
+                      fill="none" 
+                      stroke="rgba(167, 139, 250, 0.5)" 
+                      stroke-width="2" 
+                      stroke-linecap="round"/>
+                <path d="M 220 275 Q 230 285, 240 275 T 260 275 T 280 275" 
+                      fill="none" 
+                      stroke="rgba(167, 139, 250, 0.4)" 
+                      stroke-width="1.5" 
+                      stroke-linecap="round"/>
+                <text x="250" y="265" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="28">🧠</text>
+              </g>
+
+              <!-- Certificate - Bottom Right -->
+              <g class="certificate">
+                <rect x="350" y="340" width="110" height="80" rx="4" 
+                      fill="rgba(167, 139, 250, 0.12)" 
+                      stroke="rgba(167, 139, 250, 0.4)" 
+                      stroke-width="2"/>
+                <line x1="365" y1="360" x2="435" y2="360" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+                <line x1="365" y1="375" x2="435" y2="375" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1.5"/>
+                <line x1="365" y1="390" x2="420" y2="390" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1.5"/>
+                <circle cx="410" cy="355" r="6" fill="rgba(167, 139, 250, 0.6)"/>
+                <text x="405" y="415" text-anchor="middle" fill="rgba(167, 139, 250, 0.8)" font-size="20">✓</text>
+              </g>
+
+              <!-- Language/Arabic - Left Side -->
+              <g class="language-element">
+                <circle cx="180" cy="200" r="45" 
+                        fill="rgba(167, 139, 250, 0.12)" 
+                        stroke="rgba(167, 139, 250, 0.4)" 
+                        stroke-width="2"/>
+                <text x="180" y="215" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="32">ع</text>
+                <text x="180" y="240" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="14" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}العربية{% else %}Arabic{% endif %}</text>
+              </g>
+
+              <!-- Sparkle effects -->
+              <circle cx="150" cy="120" r="3" fill="rgba(167, 139, 250, 0.6)"/>
+              <circle cx="320" cy="100" r="2.5" fill="rgba(167, 139, 250, 0.4)"/>
+              <circle cx="380" cy="220" r="2" fill="rgba(167, 139, 250, 0.5)"/>
+              <circle cx="100" cy="400" r="2.5" fill="rgba(167, 139, 250, 0.4)"/>
+              <circle cx="450" cy="450" r="3" fill="rgba(167, 139, 250, 0.5)"/>
+
+              <!-- Decorative connecting dots on path -->
+              <circle cx="80" cy="250" r="5" fill="rgba(167, 139, 250, 0.5)" stroke="rgba(167, 139, 250, 0.8)" stroke-width="2"/>
+              <circle cx="250" cy="120" r="5" fill="rgba(167, 139, 250, 0.6)" stroke="rgba(167, 139, 250, 0.9)" stroke-width="2"/>
+              <circle cx="420" cy="260" r="5" fill="rgba(167, 139, 250, 0.5)" stroke="rgba(167, 139, 250, 0.8)" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+        
+        <!-- Right Column -->
+        <div class="courses-right">
+          <div class="courses-header">
+            <div class="courses-icon">
+              <i class="fas fa-book-open"></i>
+            </div>
+            <div class="courses-title-wrapper">
+              <h2 class="courses-title">{% if LANGUAGE_CODE == 'ar' %}الدورات{% else %}{% trans "Courses" %}{% endif %}</h2>
+            </div>
+          </div>
+
+          <p class="courses-subtitle courses-subtitle-small">{% if LANGUAGE_CODE == 'ar' %}مسارات تعلم شاملة لمعالجة اللغة العربية{% else %}{% trans "Comprehensive learning paths for Arabic NLP" %}{% endif %}</p>
+          
+          <p class="courses-description">
+            {% if LANGUAGE_CODE == 'ar' %}تعلّم من المستوى المبتدئ إلى المتقدم عبر دورات منظمة تغطي مفاهيم معالجة اللغة الأساسية والتقنيات الخاصة بالعربية والمشاريع التطبيقية. طوّر مهاراتك من خلال محتوى يقوده خبراء وتمارين عملية.{% else %}{% trans "Learn from beginner to advanced levels with structured courses covering fundamental NLP concepts, Arabic-specific techniques, and hands-on projects. Develop your skills with expert-led materials and practical exercises." %}{% endif %}
+          </p>
+          
+          <a href="{% url 'resources:course_list' %}" class="btn-primary" style="margin-top: 3rem;">
+            <span>{% if LANGUAGE_CODE == 'ar' %}ابدأ التعلّم{% else %}{% trans "Start Learning" %}{% endif %}</span>
+            <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 6: Institutions -->
+  <section class="fullscreen-section section-6">
+    <div class="section-content institutions-content">
+      <div class="institutions-header">
+        <div class="institutions-icon">
+          <i class="fas fa-university"></i>
+        </div>
+        <h2 class="institutions-title">{% if LANGUAGE_CODE == 'ar' %}المؤسسات{% else %}{% trans "Institutions" %}{% endif %}</h2>
+      </div>
+      
+      <p class="institutions-subtitle">{% if LANGUAGE_CODE == 'ar' %}المؤسسات الشريكة والهيئات البحثية{% else %}{% trans "Partner organizations and research institutions" %}{% endif %}</p>
+      
+      <div class="institutions-grid">
+        <div class="institution-card">
+          <div class="institution-card-icon">
+            <i class="fas fa-graduation-cap"></i>
+          </div>
+          <h3 class="institution-card-title">{% if LANGUAGE_CODE == 'ar' %}جامعات رائدة{% else %}{% trans "Leading Universities" %}{% endif %}</h3>
+          <p class="institution-card-text">{% if LANGUAGE_CODE == 'ar' %}تواصل مع الجامعات الرائدة ومراكز البحث والمؤسسات المكرسة لتطوير تقنيات اللغة العربية{% else %}{% trans "Connect with leading universities, research centers, and organizations dedicated to advancing Arabic language technology." %}{% endif %}</p>
+        </div>
+        
+        <div class="institution-card">
+          <div class="institution-card-icon">
+            <i class="fas fa-handshake"></i>
+          </div>
+          <h3 class="institution-card-title">{% if LANGUAGE_CODE == 'ar' %}شراكات{% else %}{% trans "Partnerships" %}{% endif %}</h3>
+          <p class="institution-card-text">{% if LANGUAGE_CODE == 'ar' %}استكشف الشراكات والموارد المؤسسية وفرص التعاون مع الخبراء حول العالم{% else %}{% trans "Explore partnerships, institutional resources, and collaborative opportunities with experts around the world." %}{% endif %}</p>
+        </div>
+      </div>
+      
+      <a href="{% url 'institutions:institution_list' %}" class="btn-primary" style="margin-top: 3rem;">
+        <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف المؤسسات{% else %}{% trans "Explore Institutions" %}{% endif %}</span>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+  </section>
+
+  <!-- Section 7: Events -->
+  <section class="fullscreen-section section-7">
+    <div class="section-content events-content">
+      <!-- Centered Header -->
+      <div class="events-header-section">
+        <div class="events-icon">
+          <i class="fas fa-calendar-alt"></i>
+        </div>
+        <h2 class="events-title">{% if LANGUAGE_CODE == 'ar' %}الفعاليات{% else %}{% trans "Events" %}{% endif %}</h2>
+        <p class="events-subtitle">{% if LANGUAGE_CODE == 'ar' %}ورش العمل والمؤتمرات ولقاءات المجتمع{% else %}{% trans "Workshops, conferences, and community meetups" %}{% endif %}</p>
+      </div>
+
+      <!-- Three-Column Layout: Card | Illustration | Two Cards -->
+      <div class="events-main-layout">
+        <!-- Left: First Card -->
+        <div class="events-left-card">
+          <div class="event-card">
+            <div class="event-card-icon">📅</div>
+            <p class="event-card-text">{% if LANGUAGE_CODE == 'ar' %}ابقَ على اطلاع بالفعاليات القادمة{% else %}{% trans "Stay updated with upcoming events" %}{% endif %}</p>
+          </div>
+        </div>
+
+        <!-- Center: Illustration -->
+        <div class="events-center-image">
+          <div class="events-illustration">
+            <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" class="events-creative-svg">
+              <defs>
+                <linearGradient id="eventGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.8" />
+                  <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.6" />
+                </linearGradient>
+                <linearGradient id="eventPathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.5" />
+                  <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0.3" />
+                </linearGradient>
+                <radialGradient id="eventGlowGrad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.2" />
+                  <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0" />
+                </radialGradient>
+              </defs>
+
+              <!-- Background glow circles -->
+              <circle cx="100" cy="100" r="70" fill="url(#eventGlowGrad)"/>
+              <circle cx="400" cy="130" r="80" fill="url(#eventGlowGrad)"/>
+              <circle cx="250" cy="450" r="90" fill="url(#eventGlowGrad)"/>
+
+              <!-- Calendar Grid - Main Focus -->
+              <g class="main-calendar">
+                <rect x="120" y="80" width="260" height="200" rx="12" 
+                      fill="rgba(167, 139, 250, 0.15)" 
+                      stroke="url(#eventGrad)" 
+                      stroke-width="2.5"/>
+                <!-- Calendar Header -->
+                <rect x="120" y="80" width="260" height="40" rx="12" 
+                      fill="url(#eventGrad)" 
+                      opacity="0.3"/>
+                <text x="250" y="110" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="18" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}مارس 2026{% else %}March 2026{% endif %}</text>
+                <!-- Calendar Days -->
+                <line x1="130" y1="130" x2="370" y2="130" stroke="rgba(167, 139, 250, 0.2)" stroke-width="1"/>
+                <!-- Week numbers -->
+                <text x="140" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ح{% else %}S{% endif %}</text>
+                <text x="170" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ن{% else %}M{% endif %}</text>
+                <text x="200" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ث{% else %}T{% endif %}</text>
+                <text x="230" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ر{% else %}W{% endif %}</text>
+                <text x="260" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}خ{% else %}T{% endif %}</text>
+                <text x="290" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}ج{% else %}F{% endif %}</text>
+                <text x="320" y="155" fill="rgba(167, 139, 250, 0.7)" font-size="11">{% if LANGUAGE_CODE == 'ar' %}س{% else %}S{% endif %}</text>
+                <!-- Sample dates -->
+                <circle cx="145" cy="180" r="8" fill="rgba(167, 139, 250, 0.3)"/>
+                <text x="145" y="184" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="10">15</text>
+                <circle cx="260" cy="190" r="10" fill="url(#eventGrad)"/>
+                <text x="260" y="195" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="bold">28</text>
+                <circle cx="320" cy="200" r="8" fill="rgba(167, 139, 250, 0.3)"/>
+                <text x="320" y="204" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="10">30</text>
+              </g>
+
+              <!-- Event markers/badges -->
+              <!-- Workshop Badge -->
+              <g class="event-badge-1">
+                <circle cx="80" cy="320" r="40" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+                <text x="80" y="330" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="28">🎓</text>
+                <text x="80" y="355" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="11" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}ورشة{% else %}Workshop{% endif %}</text>
+              </g>
+
+              <!-- Conference Badge -->
+              <g class="event-badge-2">
+                <circle cx="420" cy="320" r="40" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+                <text x="420" y="330" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="28">🎤</text>
+                <text x="420" y="355" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="11" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}مؤتمر{% else %}Conference{% endif %}</text>
+              </g>
+
+              <!-- Webinar Badge -->
+              <g class="event-badge-3">
+                <circle cx="250" cy="410" r="40" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+                <text x="250" y="420" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="28">💻</text>
+                <text x="250" y="445" text-anchor="middle" fill="rgba(167, 139, 250, 0.7)" font-size="11" font-weight="bold">{% if LANGUAGE_CODE == 'ar' %}ندوة عبر الويب{% else %}Webinar{% endif %}</text>
+              </g>
+
+              <!-- Connection lines -->
+              <line x1="250" y1="280" x2="100" y2="320" stroke="url(#eventPathGrad)" stroke-width="2" stroke-dasharray="5,5"/>
+              <line x1="250" y1="280" x2="400" y2="320" stroke="url(#eventPathGrad)" stroke-width="2" stroke-dasharray="5,5"/>
+              <line x1="250" y1="280" x2="250" y2="370" stroke="url(#eventPathGrad)" stroke-width="2" stroke-dasharray="5,5"/>
+
+              <!-- Sparkles -->
+              <circle cx="150" cy="50" r="3" fill="rgba(167, 139, 250, 0.6)"/>
+              <circle cx="350" cy="60" r="2.5" fill="rgba(167, 139, 250, 0.4)"/>
+              <circle cx="400" cy="450" r="2" fill="rgba(167, 139, 250, 0.5)"/>
+              <circle cx="100" cy="460" r="2.5" fill="rgba(167, 139, 250, 0.4)"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Right: Two Cards Stacked -->
+        <div class="events-right-cards">
+          <div class="event-card">
+            <div class="event-card-icon">🎯</div>
+            <p class="event-card-text">{% if LANGUAGE_CODE == 'ar' %}تشمل ورشًا تقنية ومؤتمرات دولية وندوات عبر الويب ولقاءات مجتمعية{% else %}{% trans "Including technical workshops, international conferences, webinars, and community gatherings" %}{% endif %}</p>
+          </div>
+          
+          <div class="event-card">
+            <div class="event-card-icon">🤝</div>
+            <p class="event-card-text">{% if LANGUAGE_CODE == 'ar' %}تواصل مع الخبراء وتعرّف على أحدث التطورات في معالجة اللغة العربية{% else %}{% trans "Network with experts and learn about the latest developments in Arabic NLP" %}{% endif %}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Centered Button -->
+      <div class="events-button-center">
+        <a href="{% url 'events:event_list' %}" class="btn-primary">
+          <span>{% if LANGUAGE_CODE == 'ar' %}عرض الفعاليات{% else %}{% trans "View Events" %}{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 8: Community -->
+  <section class="fullscreen-section section-8">
+    <div class="section-content events-content">
+      <!-- Centered Header -->
+      <div class="events-header-section">
+        <div class="events-icon">
+          <i class="fas fa-comments"></i>
+        </div>
+        <h2 class="events-title">{% if LANGUAGE_CODE == 'ar' %}المجتمع{% else %}{% trans "Community" %}{% endif %}</h2>
+        <p class="events-subtitle">{% if LANGUAGE_CODE == 'ar' %}نقاشات ومنتديات ودعم بين الأقران{% else %}{% trans "Discussions, forums, and peer support" %}{% endif %}</p>
+      </div>
+
+      <!-- Three-Column Layout: Text | Illustration | Text -->
+      <div class="events-main-layout">
+        <!-- Left: Community Benefits -->
+        <div class="events-left-card">
+          <div style="text-align: left;">
+            <div class="community-benefit" style="margin-bottom: 1.5rem;">
+              <p style="font-size: 1em; line-height: 1.7; color: rgba(255, 255, 255, 0.85);">
+                {% if LANGUAGE_CODE == 'ar' %}
+                <span style="color: #a78bfa; font-weight: 600;">💬 شارك الأفكار</span> واطرح الأسئلة في بيئة مرحبة
+                {% else %}
+                <span style="color: #a78bfa; font-weight: 600;">💬 Share ideas</span> and ask questions in a welcoming environment
+                {% endif %}
+              </p>
+            </div>
+            <div class="community-benefit">
+              <p style="font-size: 1em; line-height: 1.7; color: rgba(255, 255, 255, 0.85);">
+                {% if LANGUAGE_CODE == 'ar' %}
+                <span style="color: #a78bfa; font-weight: 600;">🤓 تعلّموا معًا</span> من خلال النقاشات وتبادل المعرفة
+                {% else %}
+                <span style="color: #a78bfa; font-weight: 600;">🤓 Learn together</span> through peer discussions and knowledge exchange
+                {% endif %}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center: Illustration -->
+        <div class="events-center-image">
+          <div class="events-illustration">
+            <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" class="community-creative-svg">
+              <defs>
+                <linearGradient id="communityGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.8" />
+                  <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.6" />
+                </linearGradient>
+                <linearGradient id="communityPathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.5" />
+                  <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0.3" />
+                </linearGradient>
+                <radialGradient id="communityGlowGrad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:0.2" />
+                  <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0" />
+                </radialGradient>
+              </defs>
+
+              <!-- Background glow circles -->
+              <circle cx="80" cy="120" r="70" fill="url(#communityGlowGrad)"/>
+              <circle cx="420" cy="150" r="75" fill="url(#communityGlowGrad)"/>
+              <circle cx="250" cy="420" r="85" fill="url(#communityGlowGrad)"/>
+
+              <!-- Central Hub - Main Community Circle -->
+              <circle cx="250" cy="250" r="80" fill="rgba(167, 139, 250, 0.1)" stroke="url(#communityGrad)" stroke-width="2.5"/>
+              <circle cx="250" cy="250" r="60" fill="none" stroke="rgba(167, 139, 250, 0.3)" stroke-width="1.5" stroke-dasharray="5,3"/>
+              <text x="250" y="260" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="36">👥</text>
+
+              <!-- Top Left: Person 1 -->
+              <g class="person-1">
+                <circle cx="100" cy="100" r="35" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+                <circle cx="100" cy="80" r="12" fill="rgba(167, 139, 250, 0.6)"/>
+                <ellipse cx="100" cy="110" rx="18" ry="15" fill="rgba(167, 139, 250, 0.5)"/>
+                <text x="100" y="105" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="20">👨</text>
+                <!-- Chat bubble -->
+                <path d="M 130 75 L 160 60 L 160 85 Z" fill="rgba(167, 139, 250, 0.2)" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+                <rect x="130" y="60" width="50" height="35" rx="6" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+              </g>
+
+              <!-- Top Right: Person 2 -->
+              <g class="person-2">
+                <circle cx="400" cy="110" r="35" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+                <circle cx="400" cy="90" r="12" fill="rgba(167, 139, 250, 0.6)"/>
+                <ellipse cx="400" cy="120" rx="18" ry="15" fill="rgba(167, 139, 250, 0.5)"/>
+                <text x="400" y="115" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="20">👩</text>
+                <!-- Chat bubble -->
+                <path d="M 370 75 L 340 60 L 340 85 Z" fill="rgba(167, 139, 250, 0.2)" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+                <rect x="310" y="60" width="50" height="35" rx="6" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+              </g>
+
+              <!-- Bottom Left: Person 3 -->
+              <g class="person-3">
+                <circle cx="90" cy="380" r="35" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+                <circle cx="90" cy="360" r="12" fill="rgba(167, 139, 250, 0.6)"/>
+                <ellipse cx="90" cy="390" rx="18" ry="15" fill="rgba(167, 139, 250, 0.5)"/>
+                <text x="90" y="385" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="20">👨</text>
+                <!-- Chat bubble -->
+                <path d="M 120 420 L 150 435 L 150 410 Z" fill="rgba(167, 139, 250, 0.2)" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+                <rect x="120" y="410" width="50" height="35" rx="6" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+              </g>
+
+              <!-- Bottom Right: Person 4 -->
+              <g class="person-4">
+                <circle cx="410" cy="390" r="35" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.5)" stroke-width="2"/>
+                <circle cx="410" cy="370" r="12" fill="rgba(167, 139, 250, 0.6)"/>
+                <ellipse cx="410" cy="400" rx="18" ry="15" fill="rgba(167, 139, 250, 0.5)"/>
+                <text x="410" y="395" text-anchor="middle" fill="rgba(167, 139, 250, 0.9)" font-size="20">👩</text>
+                <!-- Chat bubble -->
+                <path d="M 380 420 L 350 435 L 350 410 Z" fill="rgba(167, 139, 250, 0.2)" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+                <rect x="330" y="410" width="50" height="35" rx="6" fill="rgba(167, 139, 250, 0.15)" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1.5"/>
+              </g>
+
+              <!-- Connection lines to center -->
+              <line x1="130" y1="125" x2="200" y2="200" stroke="url(#communityPathGrad)" stroke-width="2" stroke-dasharray="5,5"/>
+              <line x1="370" y1="135" x2="300" y2="210" stroke="url(#communityPathGrad)" stroke-width="2" stroke-dasharray="5,5"/>
+              <line x1="120" y1="360" x2="190" y2="290" stroke="url(#communityPathGrad)" stroke-width="2" stroke-dasharray="5,5"/>
+              <line x1="380" y1="370" x2="310" y2="290" stroke="url(#communityPathGrad)" stroke-width="2" stroke-dasharray="5,5"/>
+
+              <!-- Sparkles -->
+              <circle cx="150" cy="50" r="3" fill="rgba(167, 139, 250, 0.6)"/>
+              <circle cx="350" cy="40" r="2.5" fill="rgba(167, 139, 250, 0.4)"/>
+              <circle cx="420" cy="300" r="2" fill="rgba(167, 139, 250, 0.5)"/>
+              <circle cx="80" cy="470" r="2.5" fill="rgba(167, 139, 250, 0.4)"/>
+              <circle cx="440" cy="450" r="3" fill="rgba(167, 139, 250, 0.5)"/>
+
+              <!-- Decorative elements -->
+              <circle cx="250" cy="60" r="3" fill="rgba(167, 139, 250, 0.5)"/>
+              <circle cx="70" cy="250" r="2" fill="rgba(167, 139, 250, 0.4)"/>
+              <circle cx="430" cy="250" r="2.5" fill="rgba(167, 139, 250, 0.45)"/>
+              <circle cx="250" cy="480" r="2" fill="rgba(167, 139, 250, 0.4)"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Right: Community Features -->
+        <div class="events-right-cards">
+          <div style="text-align: left;">
+            <div class="community-benefit" style="margin-bottom: 1.5rem;">
+              <p style="font-size: 1em; line-height: 1.7; color: rgba(255, 255, 255, 0.85);">
+                {% if LANGUAGE_CODE == 'ar' %}
+                <span style="color: #a78bfa; font-weight: 600;">🌟 أفضل الممارسات</span> يشاركها الخبراء والأعضاء ذوو الخبرة
+                {% else %}
+                <span style="color: #a78bfa; font-weight: 600;">🌟 Best practices</span> shared by experts and experienced members
+                {% endif %}
+              </p>
+            </div>
+            <div class="community-benefit">
+              <p style="font-size: 1em; line-height: 1.7; color: rgba(255, 255, 255, 0.85);">
+                {% if LANGUAGE_CODE == 'ar' %}
+                <span style="color: #a78bfa; font-weight: 600;">🚀 ساهم في تشكيل المستقبل</span> لمعالجة اللغة العربية عبر التعاون
+                {% else %}
+                <span style="color: #a78bfa; font-weight: 600;">🚀 Shape the future</span> of Arabic NLP through collaboration
+                {% endif %}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Centered Button -->
+      <div class="events-button-center">
+        <a href="{% url 'forum:topic-list' %}" class="btn-primary">
+          <span>{% if LANGUAGE_CODE == 'ar' %}انضم إلى المجتمع{% else %}{% trans "Join Community" %}{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 9: News -->
+  <section class="fullscreen-section section-9">
+    <div class="section-content news-content">
+      <div class="news-icon">
+        <i class="fas fa-newspaper"></i>
+      </div>
+      <h2 class="news-label">{% if LANGUAGE_CODE == 'ar' %}الأخبار وآخر العناوين{% else %}{% trans "News and Latest Headlines" %}{% endif %}</h2>
+      
+      <div class="news-header">
+        <h3 class="news-title">{% if LANGUAGE_CODE == 'ar' %}منشورات المجتمع، الأخبار الأكاديمية، وآخر التحديثات اليومية في مكان واحد.{% else %}{% trans "Community posts, academic updates, and the latest daily platform news in one place." %}{% endif %}</h3>
+      </div>
+      
+      <div class="news-bubbles">
+        <div class="news-bubble">
+          <div class="news-bubble-icon">
+            <i class="fas fa-star"></i>
+          </div>
+          <h4 class="news-bubble-title">{% if LANGUAGE_CODE == 'ar' %}مستجدات علمية عربية{% else %}{% trans "Arabic NLP scientific updates" %}{% endif %}</h4>
+          <p class="news-bubble-text">{% if LANGUAGE_CODE == 'ar' %}تابع منشورات الباحثين والمطورين وتفاعل مع الأفكار والرؤى اليومية داخل المجتمع.{% else %}{% trans "Follow posts from researchers and developers, and engage with daily ideas and insights from the community." %}{% endif %}</p>
+        </div>
+        
+        <div class="news-bubble">
+          <div class="news-bubble-icon">
+            <i class="fas fa-book"></i>
+          </div>
+          <h4 class="news-bubble-title">{% if LANGUAGE_CODE == 'ar' %}أخبار ومنشورات أكاديمية{% else %}{% trans "Academic news and publications" %}{% endif %}</h4>
+          <p class="news-bubble-text">{% if LANGUAGE_CODE == 'ar' %}استكشف مقالات وأخبارًا ومنشورات حديثة تربط بين المجتمع والموارد والأعمال الجديدة في معالجة اللغة العربية.{% else %}{% trans "Explore fresh articles, announcements, and publications that connect the community with new resources and work in Arabic NLP." %}{% endif %}</p>
+        </div>
+        
+        <div class="news-bubble">
+          <div class="news-bubble-icon">
+            <i class="fas fa-rocket"></i>
+          </div>
+          <h4 class="news-bubble-title">{% if LANGUAGE_CODE == 'ar' %}اختراقات بحثية{% else %}{% trans "Research breakthroughs" %}{% endif %}</h4>
+          <p class="news-bubble-text">{% if LANGUAGE_CODE == 'ar' %}اكتشف الأخبار البحثية والأفكار الجديدة من الباحثين والخبراء في المجال.{% else %}{% trans "Discover research news and fresh ideas shared by researchers and field experts." %}{% endif %}</p>
+        </div>
+      </div>
+      
+      <a href="{% url 'pages:publications_list' %}" class="btn-news-read">
+        <span>{% if LANGUAGE_CODE == 'ar' %}اقرأ الأخبار{% else %}{% trans "Read News" %}{% endif %}</span>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+  </section>
+
+  <!-- Section 10: Feed -->
+  <section class="fullscreen-section section-10">
+    <div class="feed-container">
+      <!-- Header Section -->
+      <div class="feed-header">
+        <h2 class="feed-main-title">{% if LANGUAGE_CODE == 'ar' %}الخلاصة{% else %}{% trans "Feed" %}{% endif %}</h2>
+        <p class="feed-subtitle">
+          {% if LANGUAGE_CODE == 'ar' %}
+          تابع أحدث الأفكار والمحتوى من مجتمع المطورين.
+          اكتشف منشورات جديدة، شارك أفكارك، وتفاعل مع محتوى غني يعكس خبرات وتجارب المجتمع.
+          {% else %}
+          {% trans "Follow the latest ideas and content from the developer community. Discover new posts, share your ideas, and engage with rich content that reflects the community's experience." %}
+          {% endif %}
+        </p>
+      </div>
+
+      <!-- Discussion Quote Section -->
+      <div class="feed-discussion-quote">
+        <div class="quote-inner">
+          <h3 class="quote-title">
+            {% if LANGUAGE_CODE == 'ar' %}
+            كيف نحول الأفكار الصغيرة إلى منشورات تصنع نقاشاً حقيقياً داخل المجتمع؟
+            {% else %}
+            {% trans "How do we turn small ideas into posts that spark real community discussion?" %}
+            {% endif %}
+          </h3>
+          <p class="quote-description">
+            {% if LANGUAGE_CODE == 'ar' %}
+            شارك تجربتك، أضف منظورك، واستكشف كيف يشارك الآخرون المعرفة والخبرات العملية في مساحة واحدة نابضة بالحياة. محتوى متجدد باستمرار
+            {% else %}
+            {% trans "Share your experience, add your perspective, and see how others exchange practical knowledge in one lively space. Always fresh content" %}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <!-- Posts Grid -->
+      <div class="feed-posts-grid">
+        <!-- Post Card 1: Trending -->
+        <div class="feed-post-card feed-post-featured">
+          <div class="post-badge post-badge-trending">
+            <i class="fas fa-fire"></i> 
+            {% if LANGUAGE_CODE == 'ar' %}ترند{% else %}{% trans "Trending" %}{% endif %}
+          </div>
+          <div class="post-header">
+            <div class="post-avatar">{{ 'ND'|default:'👤' }}</div>
+            <div class="post-user-info">
+              <div class="post-user-name">{% if LANGUAGE_CODE == 'ar' %}سارة أحمد{% else %}{% trans "Sarah Ahmed" %}{% endif %}</div>
+              <div class="post-user-tag">{% if LANGUAGE_CODE == 'ar' %}مطورة Full-Stack{% else %}{% trans "Full-Stack Developer" %}{% endif %}</div>
+            </div>
+            <div class="post-time">{% if LANGUAGE_CODE == 'ar' %}الآن{% else %}{% trans "Just now" %}{% endif %}</div>
+          </div>
+          <div class="post-content">
+            <h4 class="post-title">
+              {% if LANGUAGE_CODE == 'ar' %}
+              أفضل طرق تحسين أداء التطبيقات بالذكاء الاصطناعي
+              {% else %}
+              {% trans "Optimizing App Performance with AI" %}
+              {% endif %}
+            </h4>
+            <p class="post-body">
+              {% if LANGUAGE_CODE == 'ar' %}
+              شاركت نصائح عملية حول كيفية استخدام machine learning لتحسين سرعة التطبيق...
+              {% else %}
+              {% trans "Practical tips on using machine learning to boost app performance and user experience..." %}
+              {% endif %}
+            </p>
+          </div>
+          <div class="post-tags">
+            <span class="post-tag">#AI</span>
+            <span class="post-tag">#Performance</span>
+            <span class="post-tag">#Development</span>
+          </div>
+          <div class="post-stats">
+            <span class="stat-item"><i class="fas fa-heart"></i> 2.4k</span>
+            <span class="stat-item"><i class="fas fa-comment"></i> 486</span>
+            <span class="stat-item"><i class="fas fa-share"></i> 312</span>
+          </div>
+        </div>
+
+        <!-- Post Card 2 -->
+        <div class="feed-post-card">
+          <div class="post-badge post-badge-hot">
+            <i class="fas fa-bolt"></i>
+            {% if LANGUAGE_CODE == 'ar' %}ساخن{% else %}{% trans "Hot" %}{% endif %}
+          </div>
+          <div class="post-header">
+            <div class="post-avatar">{{ 'MK'|default:'👤' }}</div>
+            <div class="post-user-info">
+              <div class="post-user-name">{% if LANGUAGE_CODE == 'ar' %}محمود خليل{% else %}{% trans "Mahmoud Khalil" %}{% endif %}</div>
+              <div class="post-user-tag">{% if LANGUAGE_CODE == 'ar' %}مهندس بيانات{% else %}{% trans "Data Engineer" %}{% endif %}</div>
+            </div>
+            <div class="post-time">2h</div>
+          </div>
+          <div class="post-content">
+            <h4 class="post-title">
+              {% if LANGUAGE_CODE == 'ar' %}
+              معالجة اللغة الطبيعية: من النظرية إلى التطبيق
+              {% else %}
+              {% trans "NLP: From Theory to Production" %}
+              {% endif %}
+            </h4>
+            <p class="post-body">
+              {% if LANGUAGE_CODE == 'ar' %}
+              مناقشة شاملة حول التحديات والحلول العملية في مشاريع NLP الحقيقية...
+              {% else %}
+              {% trans "Comprehensive guide on challenges and real-world solutions in NLP projects..." %}
+              {% endif %}
+            </p>
+          </div>
+          <div class="post-tags">
+            <span class="post-tag">#NLP</span>
+            <span class="post-tag">#ML</span>
+            <span class="post-tag">#Tutorial</span>
+          </div>
+          <div class="post-stats">
+            <span class="stat-item"><i class="fas fa-heart"></i> 1.8k</span>
+            <span class="stat-item"><i class="fas fa-comment"></i> 342</span>
+            <span class="stat-item"><i class="fas fa-share"></i> 198</span>
+          </div>
+        </div>
+
+        <!-- Post Card 3 -->
+        <div class="feed-post-card">
+          <div class="post-badge post-badge-new">
+            <i class="fas fa-star"></i>
+            {% if LANGUAGE_CODE == 'ar' %}جديد{% else %}{% trans "New" %}{% endif %}
+          </div>
+          <div class="post-header">
+            <div class="post-avatar">{{ 'FN'|default:'👤' }}</div>
+            <div class="post-user-info">
+              <div class="post-user-name">{% if LANGUAGE_CODE == 'ar' %}فاطمة النجار{% else %}{% trans "Fatima Elnajar" %}{% endif %}</div>
+              <div class="post-user-tag">{% if LANGUAGE_CODE == 'ar' %}متخصصة في العربية{% else %}{% trans "Arabic NLP Specialist" %}{% endif %}</div>
+            </div>
+            <div class="post-time">4h</div>
+          </div>
+          <div class="post-content">
+            <h4 class="post-title">
+              {% if LANGUAGE_CODE == 'ar' %}
+              تحديات معالجة النصوص العربية وكيفية تجاوزها
+              {% else %}
+              {% trans "Overcoming Arabic Text Processing Challenges" %}
+              {% endif %}
+            </h4>
+            <p class="post-body">
+              {% if LANGUAGE_CODE == 'ar' %}
+              شرح مفصل عن المشاكل الفريدة في معالجة اللغة العربية والحلول المبتكرة...
+              {% else %}
+              {% trans "Detailed explanation of unique Arabic NLP challenges and innovative solutions..." %}
+              {% endif %}
+            </p>
+          </div>
+          <div class="post-tags">
+            <span class="post-tag">#Arabic</span>
+            <span class="post-tag">#NLP</span>
+            <span class="post-tag">#Guide</span>
+          </div>
+          <div class="post-stats">
+            <span class="stat-item"><i class="fas fa-heart"></i> 956</span>
+            <span class="stat-item"><i class="fas fa-comment"></i> 218</span>
+            <span class="stat-item"><i class="fas fa-share"></i> 142</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Call to Action -->
+      <div class="feed-cta">
+        <a href="{% url 'feed:feed' %}" class="feed-explore-btn">
+          <span>{% if LANGUAGE_CODE == 'ar' %}استكشاف الخلاصة{% else %}{% trans "Explore Feed" %}{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

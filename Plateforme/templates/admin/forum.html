@@ -1,0 +1,256 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Forum Management" %}{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1><i class="fas fa-comments"></i> {% trans "Administration of the Forums" %}</h1>
+    <p class="pg-sub">{% trans "Manage all your discussion topics at a glance" %}</p>
+  </div>
+  <a href="{% url 'forum:topic-new' %}" class="n-btn n-btn-primary">
+    <i class="fas fa-plus"></i> {% trans "New topic" %}
+  </a>
+</div>
+
+<!-- Stats -->
+<div class="n-st-grid" style="grid-template-columns:repeat(2,1fr);">
+  <div class="n-st">
+    <span class="n-st-val">{{ total_topics_count }}</span>
+    <span class="n-st-lbl">{% trans "Total topics" %}</span>
+  </div>
+  <div class="n-st">
+    <span class="n-st-val" style="color:var(--n-blue);">{{ total_messages_count }}</span>
+    <span class="n-st-lbl">{% trans "Answers" %}</span>
+  </div>
+</div>
+
+<!-- Filter -->
+<div class="n-card mb-3">
+  <div class="n-card-body">
+    <form method="get" id="filterForm">
+      <div class="n-filter">
+        <div class="n-form-group" style="flex:1;">
+          <div class="position-relative">
+            <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3" style="color:var(--n-text-3);"></i>
+            <input type="text" class="n-input ps-5" placeholder="{% trans "Search for a topic..." %}" name="search" value="{{ search|default:'' }}">
+          </div>
+        </div>
+        <button type="submit" class="n-btn n-btn-primary">
+          <i class="fas fa-filter"></i> {% trans "Filter" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="n-tabs">
+  <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}"
+     class="n-tab {% if active_tab != 'pending' %}active{% endif %}">
+    <i class="fas fa-check-circle"></i> {% trans "Approved" %}
+    <span class="pg-badge">{{ approved_count|default:0 }}</span>
+  </a>
+  <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}"
+     class="n-tab {% if active_tab == 'pending' %}active{% endif %}">
+    <i class="fas fa-clock"></i> {% trans "Pending Review" %}
+    <span class="pg-badge" style="background:var(--n-amber);color:#fff;">{{ pending_count|default:0 }}</span>
+  </a>
+</div>
+
+{% if active_tab == 'pending' %}
+<!-- Pending Topics Table -->
+<div class="n-card">
+  <div class="table-responsive">
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "Post Title + Excerpt" %}</th>
+          <th>{% trans "Author" %}</th>
+          <th>{% trans "Date" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th class="text-center">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for topic in topics %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ topic.get_localized_title }}</div>
+            <div class="small" style="color:var(--n-text-3);">{{ topic.get_localized_description|truncatechars:100 }}</div>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="n-av">{{ topic.creator.full_name|slice:":2"|upper }}</span>
+              <span>{{ topic.creator.full_name }}</span>
+            </div>
+          </td>
+          <td class="n-dt">
+            <div>{{ topic.created_at|date:"d/m/Y" }}</div>
+            <div>{{ topic.created_at|date:"H:i" }}</div>
+          </td>
+          <td><span class="n-status pending"><span class="n-dot"></span> PENDING</span></td>
+          <td>
+            {% url 'pages:admin_view_item' model_type='topic' pk=topic.id as view_url %}
+            {% url 'pages:admin_approve_item' model_type='topic' pk=topic.id as review_url %}
+            {% include 'admin/_pending_actions.html' with model_type='topic' item_pk=topic.id view_url=view_url edit_url=review_url|add:'?mode=edit' %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5">
+            <div class="n-empty">
+              <i class="fas fa-check-circle"></i>
+              <h3>{% trans "No pending topics" %}</h3>
+              <p>{% trans "All topics have been reviewed. Great job!" %}</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<!-- Approved Topics Table -->
+<div class="n-card">
+  <div class="table-responsive">
+    <table class="n-tbl">
+      <thead>
+        <tr>
+          <th>{% trans "topics" %}</th>
+          <th>{% trans "Author" %}</th>
+          <th>{% trans "Date" %}</th>
+          <th>{% trans "Answers" %}</th>
+          <th class="text-center">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for topic in topics %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ topic.get_localized_title }}</div>
+            <div class="small" style="color:var(--n-text-3);">{{ topic.get_localized_description|truncatechars:100 }}</div>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="n-av">{{ topic.creator.full_name|slice:":2"|upper }}</span>
+              <span>{{ topic.creator.full_name }}</span>
+            </div>
+          </td>
+          <td class="n-dt">
+            <div>{{ topic.created_at|date:"d/m/Y" }}</div>
+            <div>{{ topic.created_at|date:"H:i" }}</div>
+          </td>
+          <td>
+            <span class="fw-semibold" style="color:var(--n-blue);">{{ topic.total_messages|default:0 }}</span>
+          </td>
+          <td>
+            <div class="n-acts" style="display:flex; align-items:center; gap:6px;">
+              <a href="{% url 'forum:chatroom-list' topic.id %}" class="n-act" title="{% trans 'View topic' %}"><i class="fas fa-eye"></i></a>
+              <a href="{% url 'forum:topic-update' pk=topic.pk %}" class="n-act" title="{% trans 'Edit topic' %}"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'forum:topic-delete' pk=topic.pk %}" class="n-act n-act-red delete-topic" title="{% trans 'delete topic' %}"><i class="fas fa-trash"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5">
+            <div class="n-empty">
+              <i class="fas fa-comments"></i>
+              <h3>{% trans "No forum topics found" %}</h3>
+              <p>{% trans "There are no topics matching your search criteria." %}</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Pagination -->
+{% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteTopicModal" tabindex="-1" aria-labelledby="deleteTopicModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:none;border-radius:var(--n-radius);">
+      <div class="modal-header" style="background:var(--n-red);color:#fff;border-radius:var(--n-radius) var(--n-radius) 0 0;">
+        <h5 class="modal-title" id="deleteTopicModalLabel">
+          <i class="fas fa-exclamation-triangle me-2"></i>{% trans "Confirm deletion" %}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>{% trans "Are you sure you want to delete this topic?" %}</p>
+        <p class="fw-bold" style="color:var(--n-red);" id="topicToDelete"></p>
+        <p style="color:var(--n-text-3);">{% trans "This action cannot be undone." %}</p>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--n-border);">
+        <button type="button" class="n-btn" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+        <button type="button" class="n-btn n-btn-danger" id="confirmDeleteBtn">
+          <i class="fas fa-trash"></i> {% trans "Delete" %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header bg-success text-white">
+      <i class="fas fa-check-circle me-2"></i>
+      <strong class="me-auto">{% trans "Success" %}</strong>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body" id="successMessage"></div>
+  </div>
+  <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header bg-danger text-white">
+      <i class="fas fa-exclamation-circle me-2"></i>
+      <strong class="me-auto">{% trans "Error" %}</strong>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body" id="errorMessage"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCookie(name){
+  const cookieValue=document.cookie.split('; ').find((row)=>row.startsWith(name+'='));
+  return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : null;
+}
+
+document.addEventListener('click', async function(event){
+  const rejectButton=event.target.closest('.js-forum-reject-btn');
+  if(!rejectButton){return;}
+
+  if(!confirm('Are you sure you want to reject this post?')){return;}
+
+  const rejectUrl=rejectButton.dataset.rejectUrl;
+  const tableRow=rejectButton.closest('tr');
+
+  try{
+    const response=await fetch(rejectUrl,{
+      method:'POST',
+      headers:{
+        'X-CSRFToken': '{{ csrf_token }}' !== 'NOTPROVIDED' ? '{{ csrf_token }}' : (getCookie('csrftoken') || ''),
+        'X-Requested-With':'XMLHttpRequest',
+      },
+    });
+
+    if(!response.ok){throw new Error('Reject request failed');}
+    if(tableRow){tableRow.remove();}
+    alert('Post rejected successfully.');
+  }catch(error){
+    alert('Failed to reject post. Please try again.');
+  }
+});
+</script>
+{% endblock %}

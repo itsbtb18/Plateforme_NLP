@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Human Evaluation - Chatbot RAG</title>
+  <link rel="stylesheet" href="web/style.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <h1>Human Evaluation Workspace</h1>
+      <p>Rate chatbot answers on legal correctness, completeness, clarity, citation quality, and safe fallback.</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel side-panel">
+      <h2>Evaluator</h2>
+      <label for="raterId">Researcher ID</label>
+      <input id="raterId" type="text" placeholder="e.g. research_team_a" />
+
+      <label for="domainFilter">Domain</label>
+      <select id="domainFilter">
+        <option value="all">All</option>
+        <option value="legal">Legal</option>
+        <option value="nlp">NLP</option>
+      </select>
+
+      <label for="langFilter">Query Language</label>
+      <select id="langFilter">
+        <option value="all">All</option>
+        <option value="ar">Arabic</option>
+        <option value="fr">French</option>
+        <option value="en">English</option>
+        <option value="mix">Mixed</option>
+      </select>
+
+      <div class="stats" id="summaryBox"></div>
+
+      <button id="refreshSummaryBtn" class="secondary">Refresh Summary</button>
+    </aside>
+
+    <section class="panel main-panel">
+      <div class="toolbar">
+        <button id="prevBtn" class="secondary">Previous</button>
+        <span id="positionLabel">0 / 0</span>
+        <button id="nextBtn" class="secondary">Next</button>
+      </div>
+
+      <article id="itemCard" class="item-card"></article>
+
+      <form id="ratingForm" class="rating-form">
+        <div class="grid">
+          <label>Legal correctness (1-5)
+            <input type="number" name="legal_correctness" min="1" max="5" required />
+          </label>
+          <label>Completeness (1-5)
+            <input type="number" name="completeness" min="1" max="5" required />
+          </label>
+          <label>Clarity (1-5)
+            <input type="number" name="clarity" min="1" max="5" required />
+          </label>
+          <label>Source citation (1-5)
+            <input type="number" name="source_citation" min="1" max="5" required />
+          </label>
+          <label>Safe fallback (1-5)
+            <input type="number" name="safe_fallback" min="1" max="5" required />
+          </label>
+        </div>
+
+        <label>Notes
+          <textarea name="notes" rows="5" placeholder="Optional comments about quality, hallucination, or missing context"></textarea>
+        </label>
+
+        <div class="actions">
+          <div id="localScore">Overall: -</div>
+          <button type="submit" class="primary">Save Rating</button>
+        </div>
+      </form>
+
+      <div id="statusLine" class="status"></div>
+    </section>
+  </main>
+
+  <script src="web/app.js"></script>
+</body>
+</html>

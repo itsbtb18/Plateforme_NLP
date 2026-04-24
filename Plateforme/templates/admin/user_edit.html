@@ -1,0 +1,98 @@
+{% extends 'base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "Edit user" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.ue-quick{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;margin-bottom:1.5rem;}
+.ue-qc{display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:1rem;background:var(--n-surface);border:1px solid var(--n-border);border-radius:var(--n-radius);text-decoration:none;color:var(--n-text);transition:border-color .2s,box-shadow .2s;}
+.ue-qc:hover{border-color:var(--n-blue);box-shadow:0 2px 8px rgba(59,130,246,.12);color:var(--n-text);}
+.ue-qi{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#fff;}
+.ue-qi.blue{background:var(--n-blue);}
+.ue-qi.green{background:var(--n-green);}
+.ue-qi.red{background:var(--n-red);}
+.ue-ql{font-weight:600;font-size:.85rem;}
+.ue-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;}
+.ue-fg{margin-bottom:1.25rem;}
+.ue-fg label{display:block;margin-bottom:.4rem;font-weight:600;font-size:.875rem;color:var(--n-text);}
+.ue-fg input,.ue-fg select,.ue-fg textarea{width:100%;padding:.65rem .85rem;border:1px solid var(--n-border);border-radius:8px;font-size:.9rem;background:var(--n-bg);transition:border-color .2s;}
+.ue-fg input:focus,.ue-fg select:focus,.ue-fg textarea:focus{outline:none;border-color:var(--n-blue);box-shadow:0 0 0 3px rgba(59,130,246,.08);}
+.ue-fg textarea{min-height:100px;resize:vertical;}
+.ue-help{margin-top:.3rem;font-size:.8rem;color:var(--n-text-3);}
+.ue-err{margin-top:.3rem;font-size:.8rem;color:var(--n-red);background:rgba(239,68,68,.08);padding:.35rem .6rem;border-radius:6px;}
+.ue-acts{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--n-border);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div style="display:flex;align-items:center;gap:1rem;">
+    <span class="n-av" style="width:52px;height:52px;font-size:1.3rem;">{{ user_obj.full_name|default:user_obj.email|first|upper }}</span>
+    <div>
+      <h1>{% trans "Edit" %} {{ user_obj.full_name|default:user_obj.email }}</h1>
+      <p class="pg-sub"><i class="fas fa-envelope"></i> {{ user_obj.email }}</p>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="ue-quick">
+  <a href="{% url 'pages:admin_user_history' user_obj.id %}" class="ue-qc">
+    <span class="ue-qi blue"><i class="fas fa-history"></i></span>
+    <span class="ue-ql">{% trans "View History" %}</span>
+  </a>
+  <a href="{% url 'pages:admin_users' %}" class="ue-qc">
+    <span class="ue-qi blue"><i class="fas fa-users"></i></span>
+    <span class="ue-ql">{% trans "All Users" %}</span>
+  </a>
+  {% if user_obj.status == 'pending' %}
+  <a href="{% url 'pages:admin_user_activate' user_obj.id %}" class="ue-qc">
+    <span class="ue-qi green"><i class="fas fa-check-circle"></i></span>
+    <span class="ue-ql">{% trans "Activate User" %}</span>
+  </a>
+  {% endif %}
+  {% if user_obj.status != 'blocked' %}
+  <a href="{% url 'pages:admin_user_block' user_obj.id %}" class="ue-qc">
+    <span class="ue-qi red"><i class="fas fa-ban"></i></span>
+    <span class="ue-ql">{% trans "Block User" %}</span>
+  </a>
+  {% endif %}
+</div>
+
+<!-- Form -->
+<div class="n-card">
+  <div class="n-card-body">
+    <h3 style="font-size:1.05rem;font-weight:600;margin:0 0 1.25rem;display:flex;align-items:center;gap:.5rem;color:var(--n-text);">
+      <i class="fas fa-address-card" style="color:var(--n-blue);"></i>
+      {% trans "User Information" %}
+    </h3>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="ue-row">
+        {% for field in form %}
+        <div class="ue-fg">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.help_text %}
+          <p class="ue-help"><i class="fas fa-info-circle"></i> {{ field.help_text }}</p>
+          {% endif %}
+          {% if field.errors %}
+            {% for error in field.errors %}
+            <p class="ue-err">{{ error }}</p>
+            {% endfor %}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="ue-acts">
+        <a href="{% url 'pages:admin_users' %}" class="n-btn">
+          <i class="fas fa-times"></i> {% trans "Cancel" %}
+        </a>
+        <button type="submit" class="n-btn n-btn-primary">
+          <i class="fas fa-save"></i> {% trans "Save Changes" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
