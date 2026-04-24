@@ -3,8 +3,69 @@
 
 {% block title %}{% trans "Category Dashboard" %} — {{ category_name|default:scraping_current_category|title }}{% endblock %}
 
+{% block scraping_header_meta %}
+<div class="cat-header-meta">
+  <span class="cat-header-kicker">{% trans "Scraping workspace" %}</span>
+  <div class="cat-header-row">
+    <h1 class="cat-header-title">{{ category_name|default:scraping_current_category|title }}</h1>
+    <span class="cat-header-badge">{{ active_prompt_count|default:0 }}/{{ max_active_prompts|default:0 }} {% trans "prompts" %}</span>
+  </div>
+  <p class="cat-header-subtitle">{% trans "Manage prompts, run scrapes, and review results from one clean workspace." %}</p>
+</div>
+{% endblock %}
+
 {% block category_extra_css %}
 <style>
+  .cat-header-meta {
+    display: grid;
+    gap: 0.14rem;
+    min-width: 0;
+    padding-inline-end: 0.3rem;
+  }
+
+  .cat-header-kicker {
+    color: #7c3aed;
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .cat-header-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-header-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+  }
+
+  .cat-header-badge {
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 999px;
+    background: rgba(124, 58, 237, 0.08);
+    color: #5b21b6;
+    font-size: 0.68rem;
+    font-weight: 900;
+    padding: 0.28rem 0.52rem;
+    white-space: nowrap;
+  }
+
+  .cat-header-subtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
   .cat-kpi-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -42,6 +103,7 @@
     display: grid;
     grid-template-columns: 1.6fr 1fr;
     gap: 1.5rem;
+    align-items: start;
   }
 
   .cat-panel {
@@ -62,6 +124,9 @@
   .cat-prompts-list {
     display: grid;
     gap: 0.55rem;
+    max-height: 28rem;
+    overflow: auto;
+    padding-right: 0.2rem;
   }
 
   .cat-prompts-header {
@@ -342,8 +407,10 @@
   }
 
   .cat-run-box {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
+    align-self: start;
   }
 
   .cat-run-actions {
@@ -509,7 +576,7 @@
       </div>
     </div>
 
-    <form class="cat-prompt-composer" id="catPromptComposer" data-add-url="{% url 'scraping:add_prompt_api' %}" data-generate-url="{% url 'scraping:generate_search_prompts' %}" data-category="{{ category_key }}">
+    <form class="cat-prompt-composer" id="catPromptComposer" data-add-url="{% url 'scraping:add_prompt_api' %}" data-generate-url="{% url 'scraping:generate_search_prompts' %}" data-category="{{ category_key }}" data-max-prompts="{{ max_active_prompts }}" data-active-prompts="{{ active_prompt_count }}">
       {% csrf_token %}
       <div class="cat-prompt-composer-row">
         <textarea
@@ -524,7 +591,7 @@
           {% trans "Save" %}
         </button>
       </div>
-      <p class="cat-prompt-help">{% trans "Prompts are saved for this category and become available to the scraper immediately." %}</p>
+      <p class="cat-prompt-help">{% blocktrans with current=active_prompt_count max=max_active_prompts %}Prompts are saved for this category and become available to the scraper immediately. {{ current }}/{{ max }} used.{% endblocktrans %}</p>
       <p class="cat-prompt-feedback" id="catPromptFeedback"></p>
     </form>
 
@@ -653,6 +720,7 @@
     const quickRunUrl = quickRunButton?.dataset?.runUrl || '';
     const runStatusTemplate = runButton?.dataset?.statusUrlTemplate || '';
     const categoryKey = composer?.dataset?.category || '';
+    const maxPrompts = Number(composer?.dataset?.maxPrompts || 0);
     const addUrl = composer?.dataset?.addUrl || '';
     const generateUrl = composer?.dataset?.generateUrl || '';
     const runStatusPlaceholder = '00000000-0000-0000-0000-000000000000';
@@ -769,6 +837,18 @@
       return keys;
     }
 
+    function currentPromptCount() {
+      return promptsList.querySelectorAll('[data-prompt-id]').length;
+    }
+
+    function hasReachedPromptLimit() {
+      return Number.isFinite(maxPrompts) && maxPrompts > 0 && currentPromptCount() >= maxPrompts;
+    }
+
+    function promptLimitMessage() {
+      return `Maximum prompts reached for this category (${currentPromptCount()}/${maxPrompts}).`;
+    }
+
     function setGenerateLoading(isLoading) {
       if (!generateButton) {
         return;
@@ -834,18 +914,44 @@
       }
 
       const promptKeys = currentPromptKeys();
+      let renderedCount = 0;
       prompts.forEach((promptText) => {
         const text = String(promptText || '').trim();
         if (!text) {
           return;
         }
+        if (promptKeys.has(normalizePromptKey(text))) {
+          return;
+        }
         suggestionsList.appendChild(createSuggestionItem(text, promptKeys));
+        renderedCount += 1;
       });
+
+      if (!renderedCount) {
+        const empty = document.createElement('div');
+        empty.className = 'cat-suggestion-empty';
+        empty.textContent = '{% trans "All generated prompts already exist in this category." %}';
+        suggestionsList.appendChild(empty);
+      }
       suggestionsPanel.hidden = false;
       refreshSuggestionStates();
     }
 
+    function hideSuggestionsIfEmpty() {
+      if (!suggestionsPanel || !suggestionsList) {
+        return;
+      }
+      const hasRows = suggestionsList.querySelector('.cat-suggestion-item');
+      if (!hasRows) {
+        suggestionsPanel.hidden = true;
+      }
+    }
+
     async function addPromptByText(queryText) {
+      if (hasReachedPromptLimit()) {
+        throw new Error(promptLimitMessage());
+      }
+
       const data = await postJson(addUrl, {
         category: categoryKey,
         query_text: queryText,
@@ -1031,6 +1137,10 @@
     }
 
     addButton.addEventListener('click', () => {
+      if (hasReachedPromptLimit()) {
+        setFeedback(promptLimitMessage(), true);
+        return;
+      }
       if (composer.classList.contains('is-open')) {
         closeComposer();
       } else {
@@ -1044,6 +1154,10 @@
       if (!queryText) {
         setFeedback('{% trans "Please enter a prompt first." %}', true);
         input.focus();
+        return;
+      }
+      if (hasReachedPromptLimit()) {
+        setFeedback(promptLimitMessage(), true);
         return;
       }
 
@@ -1090,12 +1204,16 @@
         if (!promptText) {
           return;
         }
+        if (hasReachedPromptLimit()) {
+          setFeedback(promptLimitMessage(), true);
+          return;
+        }
 
         addSuggestionButton.disabled = true;
         try {
           await addPromptByText(promptText);
-          addSuggestionButton.textContent = '{% trans "Already added" %}';
-          row?.classList.add('is-existing');
+          row?.remove();
+          hideSuggestionsIfEmpty();
           setFeedback('{% trans "Prompt added." %}');
         } catch (error) {
           addSuggestionButton.disabled = false;
@@ -1113,6 +1231,10 @@
         if (!addableRows.length) {
           return;
         }
+        if (hasReachedPromptLimit()) {
+          setFeedback(promptLimitMessage(), true);
+          return;
+        }
 
         addAllSuggestionsButton.disabled = true;
         for (const row of addableRows) {
@@ -1121,16 +1243,19 @@
           if (!action || !promptText) {
             continue;
           }
+          if (hasReachedPromptLimit()) {
+            break;
+          }
           action.disabled = true;
           try {
             await addPromptByText(promptText);
-            action.textContent = '{% trans "Already added" %}';
-            row.classList.add('is-existing');
+            row.remove();
           } catch (_error) {
             action.disabled = false;
           }
         }
         refreshSuggestionStates();
+        hideSuggestionsIfEmpty();
         addAllSuggestionsButton.disabled = false;
       });
     }
@@ -1143,7 +1268,7 @@
 
       const promptId = deleteButton.dataset.promptId;
       const deleteUrl = deleteButton.dataset.deleteUrl;
-      const promptNode = deleteButton.closest('[data-prompt-id]');
+      const promptNode = deleteButton.closest('.cat-prompt-pill');
 
       if (!promptId || !deleteUrl || !promptNode) {
         return;

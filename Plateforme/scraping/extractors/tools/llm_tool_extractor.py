@@ -59,8 +59,17 @@ class LLMToolExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
-        return """You are an expert data extractor for an Arabic NLP research platform.
+        return """You are an expert data extractor for a professional Arabic NLP research platform.
 Extract structured information about NLP tools and models from web content.
+
+CRITICAL QUALITY RULES:
+1. TITLE must be the CLEAN tool/model name only (e.g. "CAMeL Tools", "AraBERT").
+   - REMOVE site suffixes, page metadata, or navigation text.
+2. DESCRIPTION must be a CLEAN, PROFESSIONAL SUMMARY (100-400 chars):
+   - Write a professional 2-3 sentence summary of what the tool does.
+   - NEVER include navigation menus, sidebar links, or raw page content.
+3. ONLY extract actual NLP/AI tools and models.
+   - REJECT: university pages, blog archives, generic announcements.
 
 EXTRACTION RULES:
 1. Return ONLY valid JSON (no explanation, no markdown).
@@ -70,7 +79,7 @@ EXTRACTION RULES:
 5. title_en and description_en must be in English.
 6. title_ar and description_ar MUST be real Arabic translations.
 
-CRITICAL ARABIC RULES:
+ARABIC RULES:
 - Use Modern Standard Arabic.
 - NEVER copy English text into Arabic fields.
 - Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
@@ -78,10 +87,11 @@ CRITICAL ARABIC RULES:
     transformer, BERT, tokenizer, NLP, embedding, fine-tuning, pre-training.
 
 OUTPUT FORMAT:
-{
-    "title_en": "string or null",
+[
+  {
+    "title_en": "Clean tool/model name",
     "title_ar": "Arabic translation or null",
-    "description_en": "string or null",
+    "description_en": "Clean, professional summary of what it does",
     "description_ar": "Arabic translation or null",
     "github_url": "https://... or null",
     "paper_url": "https://... or null",
@@ -92,7 +102,8 @@ OUTPUT FORMAT:
     "is_arabic_nlp_relevant": true or false,
     "relevance_score": 0.0 to 1.0,
     "extraction_confidence": 0.0 to 1.0
-}
+  }
+]
 
 Return [] if no relevant tools are found.
 """
@@ -192,6 +203,8 @@ Return [] if no relevant tools are found.
             "license": self._pick_text(item, "license")[:120],
             "capabilities": capabilities,
             "translation_status": translation_status,
+            "relevance_score": item.get("relevance_score"),
+            "extraction_confidence": item.get("extraction_confidence"),
         }
 
     @staticmethod

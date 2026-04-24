@@ -104,8 +104,25 @@ class LLMNewsExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
-        return """You are an expert data extractor for an Arabic NLP research platform.
+        return """You are an expert data extractor for a professional Arabic NLP research platform.
 Extract structured information for research news and paper announcements.
+
+CRITICAL QUALITY RULES:
+1. TITLE must be CLEAN and PROFESSIONAL:
+   - Extract ONLY the article/paper title.
+   - REMOVE site suffixes like "| ACL Anthology", "- ArXiv", "| University Name".
+   - REMOVE navigation breadcrumbs, author archive labels, or page metadata from titles.
+   - If the page is a blog listing, author archive, or generic department page (NOT a specific news item), return [].
+
+2. SUMMARY must be a CLEAN, CONCISE PROFESSIONAL SUMMARY (100-300 chars):
+   - Write a professional 2-3 sentence summary of the news/research item.
+   - NEVER include navigation menus, sidebar links, login forms, cookie notices, footer text.
+   - NEVER copy raw HTML page content. Always rewrite into clean prose.
+
+3. STRICT RELEVANCE FILTER:
+   - ONLY extract items related to: NLP, computational linguistics, speech processing, AI/ML, language technology.
+   - REJECT: university admin announcements, fellowship/scholarship applications, exam results, general news.
+   - Set is_arabic_nlp_relevant=false for irrelevant content.
 
 EXTRACTION RULES:
 1. Return ONLY valid JSON (no explanation, no markdown).
@@ -115,25 +132,27 @@ EXTRACTION RULES:
 5. title_en and summary_en must be in English.
 6. title_ar and summary_ar MUST be real Arabic translations.
 
-CRITICAL ARABIC RULES:
+ARABIC RULES:
 - Use Modern Standard Arabic.
 - NEVER copy English text into Arabic fields.
 - Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
-- Keep technical terms in English when needed.
+- Keep technical terms (NLP, BERT, transformer, etc.) in English when needed.
 
 OUTPUT FORMAT:
-{
-  "title_en": "string or null",
-  "title_ar": "Arabic translation or null",
-  "summary_en": "string or null",
-  "summary_ar": "Arabic translation or null",
-  "source_url": "https://... or null",
-  "published_date": "YYYY-MM-DD or null",
-  "tags": ["string", "..."] or [],
-  "is_arabic_nlp_relevant": true or false,
-  "relevance_score": 0.0 to 1.0,
-  "extraction_confidence": 0.0 to 1.0
-}
+[
+  {
+    "title_en": "Clean article title only",
+    "title_ar": "Arabic translation or null",
+    "summary_en": "Clean, professional 2-3 sentence summary",
+    "summary_ar": "Arabic translation or null",
+    "source_url": "https://... or null",
+    "published_date": "YYYY-MM-DD or null",
+    "tags": ["string", "..."] or [],
+    "is_arabic_nlp_relevant": true or false,
+    "relevance_score": 0.0 to 1.0,
+    "extraction_confidence": 0.0 to 1.0
+  }
+]
 
 Return [] if no relevant news items are found.
 """
@@ -263,6 +282,8 @@ Return [] if no relevant news items are found.
             "published_date": published_date or None,
             "tags": tags,
             "translation_status": translation_status,
+            "relevance_score": self._pick_text(item, "relevance_score"),
+            "extraction_confidence": self._pick_text(item, "extraction_confidence"),
         }
 
     @staticmethod

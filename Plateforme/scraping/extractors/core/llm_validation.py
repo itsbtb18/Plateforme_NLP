@@ -60,7 +60,7 @@ EXPECTED_KEYS = {
 
 # ─── Prompt templates ──────────────────────────────────────────────
 SYSTEM_PROMPT = """\
-You are an expert Arabic-NLP data-quality assistant.
+You are an expert Arabic-NLP data-quality assistant for a professional research platform.
 You receive a scraped item (JSON) from the web and must validate, enrich,
 and translate it.  Always reply with a SINGLE JSON object — no markdown
 fences, no commentary.
@@ -68,16 +68,26 @@ fences, no commentary.
 ### Your tasks
 1. **Relevance**: Is this item relevant to Natural Language Processing, \
 Computational Linguistics, or Arabic language technology?  \
-Set `is_relevant` (bool) and `relevance_reason` (1 sentence).
+Set `is_relevant` (bool) and `relevance_reason` (1 sentence). \
+Items about university admin, scholarships, exam results, or unrelated \
+announcements are NOT relevant.
 2. **Language detection**: `detected_language` — ISO-639-1 code of the \
 *dominant* language of the input content (e.g. "en", "ar", "fr").
 3. **Quality score**: `quality_score` — integer 0-100.  \
-100 = perfect academic content; 0 = garbage / spam.
+100 = perfect academic content; 0 = garbage / spam. \
+Score 20 or below if the content is mostly navigation menus, boilerplate, \
+or irrelevant university announcements.
 4. **Spam detection**: `is_spam` (bool), `spam_reason` (string, empty if not spam).
 5. **English title & description**: `title_en`, `description_en` — \
-clean, well-formed English text.  Fix typos, remove ads, normalise casing.
+CLEAN, PROFESSIONAL English text.
+   - title_en: Extract ONLY the item name. REMOVE site suffixes like \
+"| ACL Member Portal", "- Home", "| University Name". Fix typos, normalise casing.
+   - description_en: Write a clean, concise 2-4 sentence professional summary. \
+NEVER include navigation menus, sidebar links, login forms, cookie banners, \
+footer text, or raw HTML page content. Always rewrite into clean prose.
 6. **Arabic translation**: `title_ar`, `description_ar` — faithful \
-Arabic translations.  If Arabic text already exists, improve it if needed.
+Arabic translations in Modern Standard Arabic.  If Arabic text already exists, \
+improve it if needed. Keep technical terms (NLP, BERT, etc.) in English.
 7. **Date normalisation**: `normalized_dates` — an object whose keys are \
 the original date field names and values are ISO-8601 strings (YYYY-MM-DD) \
 or null if unparseable.
@@ -119,26 +129,51 @@ Validate, enrich, translate, and return the strict JSON schema.\
 
 CUSTOM_EXTRACTION_INSTRUCTIONS = {
     "events": (
-        "Extract event entries from this page. Include title, description, url, date, "
-        "location, event_type (conference/workshop/seminar/cfp), and organizer if visible."
+        "Extract event entries from this page. For each event, provide: "
+        "a CLEAN event title (no site suffixes), a professional 2-3 sentence description "
+        "(no navigation menus or boilerplate), url, date (ISO YYYY-MM-DD), "
+        "location, event_type (conference/workshop/seminar/cfp), and organizer if visible. "
+        "ONLY include NLP/AI/computational linguistics events. Return [] if no relevant events found."
     ),
     "tools": (
-        "Extract from this page: tool name, what it does, programming language, "
-        "github link if present, license, installation command if shown, "
-        "supported languages (arabic/english/etc)."
+        "Extract NLP tools/models from this page. For each tool, provide: "
+        "the CLEAN tool name (no site suffixes), a professional 2-3 sentence description "
+        "of what it does (no raw page content), programming language, "
+        "github link if present, license, supported languages (arabic/english/etc). "
+        "ONLY include actual NLP/AI tools. Return [] if no relevant tools found."
     ),
     "news": (
-        "Extract research/news entries from this page. Include title, summary, url, "
-        "publication date, and source name if visible."
+        "Extract research/news entries from this page. For each item, provide: "
+        "a CLEAN title (no site suffixes), a professional 2-3 sentence summary "
+        "(no navigation or boilerplate), url, publication date (ISO YYYY-MM-DD), "
+        "and source name if visible. "
+        "ONLY include NLP/AI/computational linguistics news. Return [] if no relevant items found."
     ),
     "courses": (
-        "Extract: course title, instructor name, institution, course level "
-        "(beginner/intermediate/advanced), language of instruction, duration, "
-        "whether it is free, platform name."
+        "Extract NLP/AI courses from this page. For each course, provide: "
+        "a CLEAN course title (no site suffixes), a professional 2-3 sentence description, "
+        "instructor name, institution, course level (beginner/intermediate/advanced), "
+        "language of instruction, duration, whether it is free, platform name. "
+        "ONLY include NLP/AI/language technology courses. Return [] if no relevant courses found."
     ),
     "institutions": (
-        "Extract: institution full name, acronym, type (university/research lab/center), "
-        "country, city, website, main research areas, director name if shown."
+        "Extract NLP/AI research institutions from this page. For each institution, provide: "
+        "the CLEAN full name (no site suffixes), acronym, type (university/research lab/center), "
+        "country, city, website, main research areas, director name if shown. "
+        "ONLY include institutions doing NLP/AI/language technology research. Return [] if none found."
+    ),
+    "corpus": (
+        "Extract NLP corpora/datasets from this page. For each dataset, provide: "
+        "the CLEAN dataset name (no site suffixes), a professional 2-3 sentence description, "
+        "language variants, size estimate, license, download url, paper url if available. "
+        "ONLY include actual NLP/language datasets. Return [] if no relevant datasets found."
+    ),
+    "opportunities": (
+        "Extract NLP/AI job opportunities from this page. For each opportunity, provide: "
+        "a CLEAN job title (no site suffixes), a professional 2-3 sentence description, "
+        "institution name, opportunity type (Job/PhD/PostDoc/Grant), deadline (ISO YYYY-MM-DD), "
+        "location, application url. "
+        "ONLY include NLP/AI/language technology positions. Return [] if no relevant opportunities found."
     ),
 }
 
@@ -152,7 +187,9 @@ def build_custom_extraction_prompt(category: str, page_text: str) -> tuple[str, 
     )
 
     system_prompt = (
-        "You are a strict extraction assistant for Arabic NLP curation. "
+        "You are a strict extraction assistant for a professional Arabic NLP research platform. "
+        "Extract ONLY relevant NLP/AI items. Write CLEAN, PROFESSIONAL titles and descriptions. "
+        "NEVER include navigation menus, sidebars, login forms, or boilerplate content. "
         "Return only a valid JSON array. No markdown. No explanation."
     )
     user_prompt = f"""
@@ -164,12 +201,13 @@ Task:
 Output format:
 - Return ONLY a JSON array.
 - Each object may include any relevant fields, but always include:
-  - title or name
-  - description (or summary)
+  - title or name (CLEAN — no site suffixes like "| Site Name")
+  - description (or summary) — a professional 2-3 sentence summary, NOT raw page content
   - url (if available)
   - date (if available, ISO YYYY-MM-DD preferred)
-- If no items are present, return [].
+- If no relevant items are present, return [].
 - Do not invent facts.
+- Do NOT include navigation menus, login forms, or other boilerplate in any field.
 
 Webpage text:
 {page_text}
@@ -200,22 +238,28 @@ class GroqLLMClient:
             settings, "GROQ_SCRAPING_MAX_RETRIES", 2
         )
 
-        self.primary_provider = str(
-            getattr(settings, "SCRAPING_LLM_PRIMARY_PROVIDER", "gemini")
-        ).strip().lower()
-        self.fallback_provider = str(
-            getattr(settings, "SCRAPING_LLM_FALLBACK_PROVIDER", "groq")
-        ).strip().lower()
-        self.mode = str(
-            getattr(settings, "SCRAPING_LLM_MODE", "primary_with_fallback")
-        ).strip().lower()
+        self.primary_provider = (
+            str(getattr(settings, "SCRAPING_LLM_PRIMARY_PROVIDER", "gemini"))
+            .strip()
+            .lower()
+        )
+        self.fallback_provider = (
+            str(getattr(settings, "SCRAPING_LLM_FALLBACK_PROVIDER", "groq"))
+            .strip()
+            .lower()
+        )
+        self.mode = (
+            str(getattr(settings, "SCRAPING_LLM_MODE", "primary_with_fallback"))
+            .strip()
+            .lower()
+        )
 
         self.gemini_api_key = str(
             getattr(settings, "GEMINI_SCRAPING_API_KEY", "") or ""
         ).strip()
         self.gemini_model = str(
-            getattr(settings, "GEMINI_SCRAPING_MODEL", "gemini-1.5-flash")
-            or "gemini-1.5-flash"
+            getattr(settings, "GEMINI_SCRAPING_MODEL", "gemini-2.0-flash")
+            or "gemini-2.0-flash"
         ).strip()
         self.gemini_timeout = max(
             1,
@@ -245,25 +289,47 @@ class GroqLLMClient:
 
         # ── Groq API key rotation pool ──
         _groq_candidates = [
-            str(getattr(settings, "GROQ_SCRAPING_API_KEY", "") or os.environ.get("GROQ_SCRAPING_API_KEY", "")).strip(),
-            str(getattr(settings, "GROQ_INTERNAL_API_KEY", "") or os.environ.get("GROQ_INTERNAL_API_KEY", "")).strip(),
-            str(getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")).strip(),
+            str(
+                getattr(settings, "GROQ_SCRAPING_API_KEY", "")
+                or os.environ.get("GROQ_SCRAPING_API_KEY", "")
+            ).strip(),
+            str(
+                getattr(settings, "GROQ_INTERNAL_API_KEY", "")
+                or os.environ.get("GROQ_INTERNAL_API_KEY", "")
+            ).strip(),
+            str(
+                getattr(settings, "GROQ_API_KEY", "")
+                or os.environ.get("GROQ_API_KEY", "")
+            ).strip(),
         ]
         self._groq_key_pool = [k for k in dict.fromkeys(_groq_candidates) if k]
         self._groq_key_index = 0
         if self._groq_key_pool:
-            logger.info("Groq key pool initialized with %d key(s)", len(self._groq_key_pool))
-            
+            logger.info(
+                "Groq key pool initialized with %d key(s)", len(self._groq_key_pool)
+            )
+
         # ── Gemini API key rotation pool ──
         _gem_candidates = [
-            str(getattr(settings, "GEMINI_SCRAPING_API_KEY", "") or os.environ.get("GEMINI_SCRAPING_API_KEY", "")).strip(),
-            str(getattr(settings, "GEMINI_INTERNAL_API_KEY", "") or os.environ.get("GEMINI_INTERNAL_API_KEY", "")).strip(),
-            str(getattr(settings, "GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")).strip(),
+            str(
+                getattr(settings, "GEMINI_SCRAPING_API_KEY", "")
+                or os.environ.get("GEMINI_SCRAPING_API_KEY", "")
+            ).strip(),
+            str(
+                getattr(settings, "GEMINI_INTERNAL_API_KEY", "")
+                or os.environ.get("GEMINI_INTERNAL_API_KEY", "")
+            ).strip(),
+            str(
+                getattr(settings, "GEMINI_API_KEY", "")
+                or os.environ.get("GEMINI_API_KEY", "")
+            ).strip(),
         ]
         self._gemini_key_pool = [k for k in dict.fromkeys(_gem_candidates) if k]
         self._gemini_key_index = 0
         if self._gemini_key_pool:
-            logger.info("Gemini key pool initialized with %d key(s)", len(self._gemini_key_pool))
+            logger.info(
+                "Gemini key pool initialized with %d key(s)", len(self._gemini_key_pool)
+            )
 
     def _next_groq_key(self) -> str:
         """Return the next API key from the rotation pool."""
@@ -283,9 +349,9 @@ class GroqLLMClient:
 
     @property
     def is_configured(self) -> bool:
-        return self._is_provider_configured(self.primary_provider) or self._is_provider_configured(
-            self.fallback_provider
-        )
+        return self._is_provider_configured(
+            self.primary_provider
+        ) or self._is_provider_configured(self.fallback_provider)
 
     def _is_provider_configured(self, provider: str) -> bool:
         normalized = (provider or "").strip().lower()
@@ -324,9 +390,11 @@ class GroqLLMClient:
     def _pacific_day_key() -> str:
         return datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y%m%d")
 
-    def _respect_gemini_rate_limit_for_key(self, api_key: str) -> None:
+    def _respect_gemini_rate_limit_for_key(
+        self, api_key: str, model_name: str | None = None
+    ) -> None:
         key_fp = self._key_fingerprint(api_key)
-        model = self.gemini_model
+        model = model_name or self.gemini_model
 
         cooldown_key = f"scraping:llm:gemini:cooldown:{model}:{key_fp}"
         cooldown_until = float(cache.get(cooldown_key) or 0.0)
@@ -342,7 +410,9 @@ class GroqLLMClient:
             daily_value = int(cache.get(daily_counter_key) or 0)
             if daily_value >= self.gemini_max_rpd:
                 now_pt = datetime.now(ZoneInfo("America/Los_Angeles"))
-                midnight_pt = now_pt.replace(hour=23, minute=59, second=59, microsecond=0)
+                midnight_pt = now_pt.replace(
+                    hour=23, minute=59, second=59, microsecond=0
+                )
                 cooldown = max(60, int((midnight_pt - now_pt).total_seconds()))
                 cache.set(cooldown_key, time.time() + cooldown, timeout=cooldown)
                 self.last_status_code = 429
@@ -367,6 +437,20 @@ class GroqLLMClient:
             rpm_key = f"scraping:llm:gemini:rpm:{model}:{key_fp}:{minute_bucket}"
 
         self._cache_incr_with_ttl(rpm_key, ttl_seconds=125)
+
+    def _gemini_models_to_try(self) -> list[str]:
+        configured = [self.gemini_model]
+        fallback_csv = str(
+            getattr(settings, "GEMINI_SCRAPING_MODEL_FALLBACKS", "gemini-2.0-flash")
+            or "gemini-2.0-flash"
+        )
+        configured.extend(part.strip() for part in fallback_csv.split(","))
+
+        models: list[str] = []
+        for model_name in configured:
+            if model_name and model_name not in models:
+                models.append(model_name)
+        return models
 
     def _chat_with_groq(self, system: str, user: str) -> str | None:
         if not self.api_key and not self._groq_key_pool:
@@ -421,7 +505,9 @@ class GroqLLMClient:
                     key_hint = current_key[-6:] if len(current_key) > 6 else "***"
                     logger.info(
                         "Groq 429 on key ...%s, rotating to next key (attempt %d/%d)",
-                        key_hint, attempt + 1, max_attempts,
+                        key_hint,
+                        attempt + 1,
+                        max_attempts,
                     )
                     continue  # Try the next key immediately, no sleep
                 elif status_code == 413:
@@ -442,12 +528,7 @@ class GroqLLMClient:
             self.last_status_code = None
             return None
 
-        combined_prompt = (
-            "System instructions:\n"
-            f"{system}\n\n"
-            "User request:\n"
-            f"{user}"
-        )
+        combined_prompt = f"System instructions:\n{system}\n\nUser request:\n{user}"
         payload = {
             "contents": [
                 {
@@ -461,102 +542,113 @@ class GroqLLMClient:
             },
         }
 
-        num_keys = max(len(self._gemini_key_pool), 1)
-        max_attempts = max(num_keys + 1, self.gemini_max_retries + 1)
+        models_to_try = self._gemini_models_to_try()
+        for model_index, active_model in enumerate(models_to_try):
+            num_keys = max(len(self._gemini_key_pool), 1)
+            max_attempts = max(num_keys + 1, self.gemini_max_retries + 1)
 
-        for attempt in range(max_attempts):
-            current_key = self._next_gemini_key()
-            try:
-                self._respect_gemini_rate_limit_for_key(current_key)
-            except RuntimeError:
-                continue
-
-            url = GEMINI_CHAT_URL_TEMPLATE.format(
-                model=quote_plus(self.gemini_model),
-                api_key=quote_plus(current_key),
-            )
-
-            try:
-                resp = self._session.post(
-                    url,
-                    headers={"Content-Type": "application/json"},
-                    json=payload,
-                    timeout=self.gemini_timeout,
-                )
-                self.last_status_code = int(resp.status_code)
-                resp.raise_for_status()
-                data = resp.json()
-
-                candidates = data.get("candidates") or []
-                if not candidates:
-                    self.last_error_message = "gemini_no_candidates"
-                    return None
-
-                content = candidates[0].get("content") or {}
-                parts = content.get("parts") or []
-                if not parts:
-                    self.last_error_message = "gemini_empty_parts"
-                    return None
-
-                text = parts[0].get("text")
-                if not isinstance(text, str) or not text.strip():
-                    self.last_error_message = "gemini_empty_text"
-                    return None
-
-                self.last_provider_used = "gemini"
-                return text
-            except requests.Timeout:
-                self.last_status_code = 408
-                self.last_error_message = "timeout"
-                logger.info("Gemini API timeout after %ds", self.gemini_timeout)
-                break
-            except requests.RequestException as exc:
-                response = getattr(exc, "response", None)
-                status_code = getattr(response, "status_code", None)
-                if isinstance(status_code, int):
-                    self.last_status_code = status_code
-                self.last_error_message = str(exc)
-
-                if status_code == 429:
-                    key_hint = current_key[-6:] if len(current_key) > 6 else "***"
-                    retry_after = 0.0
-                    if response is not None:
-                        try:
-                            retry_after = float(response.headers.get("Retry-After") or 0.0)
-                        except (TypeError, ValueError):
-                            retry_after = 0.0
-
-                    cooldown = max(self.gemini_429_cooldown_seconds, retry_after)
-                    cooldown_key = (
-                        f"scraping:llm:gemini:cooldown:{self.gemini_model}:"
-                        f"{self._key_fingerprint(current_key)}"
-                    )
-                    cache.set(
-                        cooldown_key,
-                        time.time() + cooldown,
-                        timeout=int(max(1.0, cooldown + 5.0)),
-                    )
-                    logger.info(
-                        "Gemini 429 on key ...%s, cooldown=%.1fs, rotating (attempt %d/%d)",
-                        key_hint,
-                        cooldown,
-                        attempt + 1,
-                        max_attempts,
-                    )
+            for attempt in range(max_attempts):
+                current_key = self._next_gemini_key()
+                try:
+                    self._respect_gemini_rate_limit_for_key(current_key, active_model)
+                except RuntimeError:
                     continue
-                else:
+
+                url = GEMINI_CHAT_URL_TEMPLATE.format(
+                    model=quote_plus(active_model),
+                    api_key=quote_plus(current_key),
+                )
+
+                try:
+                    resp = self._session.post(
+                        url,
+                        headers={"Content-Type": "application/json"},
+                        json=payload,
+                        timeout=self.gemini_timeout,
+                    )
+                    self.last_status_code = int(resp.status_code)
+                    resp.raise_for_status()
+                    data = resp.json()
+
+                    candidates = data.get("candidates") or []
+                    if not candidates:
+                        self.last_error_message = "gemini_no_candidates"
+                        return None
+
+                    content = candidates[0].get("content") or {}
+                    parts = content.get("parts") or []
+                    if not parts:
+                        self.last_error_message = "gemini_empty_parts"
+                        return None
+
+                    text = parts[0].get("text")
+                    if not isinstance(text, str) or not text.strip():
+                        self.last_error_message = "gemini_empty_text"
+                        return None
+
+                    self.last_provider_used = "gemini"
+                    return text
+                except requests.Timeout:
+                    self.last_status_code = 408
+                    self.last_error_message = "timeout"
+                    logger.info("Gemini API timeout after %ds", self.gemini_timeout)
+                    break
+                except requests.RequestException as exc:
+                    response = getattr(exc, "response", None)
+                    status_code = getattr(response, "status_code", None)
+                    if isinstance(status_code, int):
+                        self.last_status_code = status_code
+                    self.last_error_message = str(exc)
+
+                    if status_code == 404 and model_index < len(models_to_try) - 1:
+                        logger.info(
+                            "Gemini model unavailable (%s); trying fallback model %s",
+                            active_model,
+                            models_to_try[model_index + 1],
+                        )
+                        break
+
+                    if status_code == 429:
+                        key_hint = current_key[-6:] if len(current_key) > 6 else "***"
+                        retry_after = 0.0
+                        if response is not None:
+                            try:
+                                retry_after = float(
+                                    response.headers.get("Retry-After") or 0.0
+                                )
+                            except (TypeError, ValueError):
+                                retry_after = 0.0
+
+                        cooldown = max(self.gemini_429_cooldown_seconds, retry_after)
+                        cooldown_key = (
+                            f"scraping:llm:gemini:cooldown:{active_model}:"
+                            f"{self._key_fingerprint(current_key)}"
+                        )
+                        cache.set(
+                            cooldown_key,
+                            time.time() + cooldown,
+                            timeout=int(max(1.0, cooldown + 5.0)),
+                        )
+                        logger.info(
+                            "Gemini 429 on key ...%s, cooldown=%.1fs, rotating (attempt %d/%d)",
+                            key_hint,
+                            cooldown,
+                            attempt + 1,
+                            max_attempts,
+                        )
+                        continue
                     logger.warning("Gemini API request failed: %s", exc)
-            except (KeyError, IndexError, TypeError, ValueError):
-                self.last_error_message = "Unexpected Gemini response structure"
-                logger.warning("Unexpected Gemini response structure")
+                except (KeyError, IndexError, TypeError, ValueError):
+                    self.last_error_message = "Unexpected Gemini response structure"
+                    logger.warning("Unexpected Gemini response structure")
 
-            if attempt < max_attempts - 1 and self._is_retryable_status(
-                self.last_status_code
-            ):
-                time.sleep(0.5 * (attempt + 1))
-                continue
+                if attempt < max_attempts - 1 and self._is_retryable_status(
+                    self.last_status_code
+                ):
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
 
-            break
+                break
 
         return None
 

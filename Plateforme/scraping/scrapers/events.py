@@ -706,17 +706,66 @@ class EventScraper(BaseScraper):
             return None
 
         soup = BeautifulSoup(response.text, "html.parser")
-        title = self._safe_text(
-            soup.title.get_text(" ", strip=True) if soup.title else ""
-        )
-        if not title:
-            meta_title = soup.find("meta", attrs={"property": "og:title"})
-            title = self._safe_text(meta_title.get("content") if meta_title else "")
+
+        # ── Clean boilerplate before extracting text ──
+        # Remove navigation, header, footer, sidebar, and other non-content elements
+        for tag_name in (
+            "nav", "header", "footer", "aside", "script", "style",
+            "noscript", "iframe", "form",
+        ):
+            for tag in soup.find_all(tag_name):
+                tag.decompose()
+
+        # Remove elements by common CSS classes/IDs for navigation and boilerplate
+        for selector in (
+            ".navbar", ".nav", ".navigation", ".menu", ".sidebar",
+            ".footer", ".header", ".breadcrumb", ".breadcrumbs",
+            ".cookie-banner", ".cookie-notice", ".cookie-consent",
+            "#navbar", "#nav", "#navigation", "#menu", "#sidebar",
+            "#footer", "#header", "#breadcrumbs",
+            "[role='navigation']", "[role='banner']", "[role='contentinfo']",
+        ):
+            try:
+                for el in soup.select(selector):
+                    el.decompose()
+            except Exception:
+                pass
+
+        # Extract title — prefer og:title or clean <title> tag
+        title = None
+        meta_title = soup.find("meta", attrs={"property": "og:title"})
+        if meta_title:
+            title = self._safe_text(meta_title.get("content"))
+        if not title and soup.title:
+            title = self._safe_text(soup.title.get_text(" ", strip=True))
         if not title:
             title = self._safe_text(row.section_label or row.url)
 
-        text_blob = self._safe_text(" ".join(soup.stripped_strings))
-        description = text_blob[:2000] if text_blob else title
+        # Try to extract main content from semantic elements first
+        main_content = None
+        for main_selector in (
+            "main", "article", "[role='main']",
+            ".content", ".main-content", ".post-content",
+            "#content", "#main", "#main-content",
+        ):
+            try:
+                main_el = soup.select_one(main_selector)
+                if main_el:
+                    main_content = self._safe_text(
+                        " ".join(main_el.stripped_strings)
+                    )
+                    if main_content and len(main_content) > 50:
+                        break
+                    main_content = None
+            except Exception:
+                pass
+
+        if not main_content:
+            # Fallback: use cleaned soup body text
+            text_blob = self._safe_text(" ".join(soup.stripped_strings))
+            main_content = text_blob
+
+        description = main_content[:2000] if main_content else title
         if not description:
             description = title
 
@@ -994,18 +1043,13 @@ class EventScraper(BaseScraper):
         return any(keyword in lowered for keyword in self.DISCOVERY_PRIORITY_KEYWORDS)
 
     def _build_search_queries(self) -> list[str]:
-        query_limit = max(
-            3,
-            min(
-                self._to_int(getattr(SS, "EVENTS_SEARCH_QUERY_LIMIT", 14), 14),
-                40,
-            ),
-        )
         current_year = timezone.now().date().year
         years = (current_year, current_year + 1)
 
         candidates: list[str] = []
-        candidates.extend(self.get_active_search_queries(self.category))
+        active_queries = self.get_active_search_queries(self.category)
+        candidates.extend(active_queries)
+        has_custom_queries = bool(active_queries)
 
         # IMPORTANT: Only fallback to hardcoded defaults if the user has NOT provided any custom AI Prompts.
         if not candidates:
@@ -1028,6 +1072,18 @@ class EventScraper(BaseScraper):
             seen.add(dedupe_key)
             deduped.append(normalized)
 
+        if has_custom_queries:
+            # Respect user-defined prompts without the small default cap.
+            # Keep a hard safety ceiling to avoid runaway query counts.
+            return deduped[:200]
+
+        query_limit = max(
+            3,
+            min(
+                self._to_int(getattr(SS, "EVENTS_SEARCH_QUERY_LIMIT", 14), 14),
+                40,
+            ),
+        )
         return deduped[:query_limit]
 
     def _candidate_dedupe_key(self, candidate: dict) -> tuple[str, str, str]:
@@ -1294,10 +1350,13 @@ class EventScraper(BaseScraper):
     def _is_viable_search_result(
         self, title: str, content: str, source_url: str
     ) -> bool:
-        del content
-        # Pre-extraction policy: keep thin snippets and rely on LLM normalization,
-        # as long as the result provides a valid URL and a title.
-        return bool(self._safe_url(source_url) and self._safe_text(title))
+        # Pre-extraction policy: check URL and title exist, and verify
+        # minimal NLP/AI relevance signals to avoid ingesting completely
+        # irrelevant content (e.g. university admin announcements).
+        if not (self._safe_url(source_url) and self._safe_text(title)):
+            return False
+        # Check for minimal relevance signal in title + content
+        return self._has_nlp_relevance_signal(title, content, source_url)
 
     def _is_viable_candidate(self, candidate: dict) -> bool:
         if not isinstance(candidate, dict):
@@ -1356,6 +1415,40 @@ class EventScraper(BaseScraper):
         if source_cfg.get("allow_low_quality_listing_source") is True:
             return False
         return True
+
+    def _has_nlp_relevance_signal(
+        self, title: str, content: str, source_url: str
+    ) -> bool:
+        """Check if combined text has at least one NLP/AI relevance signal.
+
+        This prevents completely irrelevant content (university announcements,
+        fellowship programs, exam results) from entering the extraction pipeline.
+        """
+        blob = f"{title} {content} {source_url}".lower()
+
+        # Check topic relevance tokens
+        if any(token in blob for token in self.TOPIC_RELEVANCE_TOKENS):
+            return True
+
+        # Check known event codes
+        normalized_blob = f" {blob} "
+        if any(
+            f" {code} " in normalized_blob
+            for code in self.TOPIC_RELEVANCE_EVENT_CODES
+        ):
+            return True
+
+        # Check event signal tokens (conference, workshop, etc.)
+        if any(token in blob for token in self.EVENT_SIGNAL_TOKENS):
+            return True
+
+        # Check URL for trusted host tokens
+        if any(
+            token in blob for token in self.WEB_DISCOVERY_TRUSTED_HOST_TOKENS
+        ):
+            return True
+
+        return False
 
     def _map_extracted_payload_to_candidate(
         self,
@@ -1692,6 +1785,8 @@ class EventScraper(BaseScraper):
                 "translation_status": candidate_data.get(
                     "translation_status", "pending"
                 ),
+                "relevance_score": candidate_data.get("relevance_score"),
+                "extraction_confidence": candidate_data.get("extraction_confidence"),
             }
         )
 
@@ -2107,6 +2202,9 @@ class EventScraper(BaseScraper):
         if "priority_score" not in normalized:
             normalized["priority_score"] = EVENT_PRIORITY_SCORES["global"]
 
+        normalized["relevance_score"] = item_dict.get("relevance_score")
+        normalized["extraction_confidence"] = item_dict.get("extraction_confidence")
+
         return normalized
 
     def _passes_hard_event_rules(self, item_dict: dict) -> tuple[bool, str]:
@@ -2270,7 +2368,7 @@ class EventScraper(BaseScraper):
         candidate = text[:10]
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", candidate):
             return None
-            
+
         try:
             return date.fromisoformat(candidate)
         except ValueError:
