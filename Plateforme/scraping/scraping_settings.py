@@ -265,6 +265,12 @@ class ScrapingSettings:
     EVENTS_SEARCH_QUERY_LIMIT: int = _env_int("SCRAPING_EVENTS_SEARCH_QUERY_LIMIT", 14)
     """Maximum number of Tavily queries executed in one events run."""
 
+    PROMPT_MAX_ACTIVE_PER_CATEGORY: int = _env_int(
+        "SCRAPING_PROMPT_MAX_ACTIVE_PER_CATEGORY",
+        _django_int_setting("GEMINI_SCRAPING_MAX_RPD", 20),
+    )
+    """Maximum active prompts allowed per category to reduce free-tier LLM quota pressure."""
+
     EVENTS_EXTRACTION_BATCH_SIZE: int = _env_int(
         "SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE", 8
     )

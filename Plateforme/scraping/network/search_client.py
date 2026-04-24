@@ -15,13 +15,19 @@ class TavilySearchClient:
 
     def __init__(self, api_key: str | None = None, **client_kwargs: Any) -> None:
         self.client = None
+        self._client_kwargs = client_kwargs
         self._disabled_reason = ""
         self._disabled_logged = False
-        self.api_key = api_key or self._resolve_api_key()
-        if not self.api_key:
-            self._disabled_reason = (
-                "Neither SCRAPING_TAVILY_API_KEY nor TAVILY_API_KEY is configured"
-            )
+
+        self.api_keys = []
+        if api_key:
+            self.api_keys.append(api_key)
+        else:
+            self.api_keys = self._resolve_api_keys()
+
+        self.current_key_idx = 0
+        if not self.api_keys:
+            self._disabled_reason = "No Tavily API keys configured"
             return
 
         try:
@@ -31,7 +37,9 @@ class TavilySearchClient:
                 "tavily-python is not installed. Install it with: pip install tavily-python"
             ) from exc
 
-        self.client = TavilyClient(api_key=self.api_key, **client_kwargs)
+        self.client = TavilyClient(
+            api_key=self.api_keys[self.current_key_idx], **self._client_kwargs
+        )
 
     @property
     def is_enabled(self) -> bool:
@@ -42,20 +50,18 @@ class TavilySearchClient:
         return self._disabled_reason
 
     @staticmethod
-    def _resolve_api_key() -> str:
-        scraping_configured = getattr(settings, "SCRAPING_TAVILY_API_KEY", "") or ""
-        if scraping_configured.strip():
-            return scraping_configured.strip()
-
-        configured = getattr(settings, "TAVILY_API_KEY", "") or ""
-        if configured.strip():
-            return configured.strip()
-
-        scraping_env = os.environ.get("SCRAPING_TAVILY_API_KEY", "").strip()
-        if scraping_env:
-            return scraping_env
-
-        return os.environ.get("TAVILY_API_KEY", "").strip()
+    def _resolve_api_keys() -> list[str]:
+        keys = []
+        env_vars = [
+            "SCRAPING_TAVILY_API_KEY",
+            "SCRAPING_TAVILY_BACKUP_API_KEY",
+            "TAVILY_API_KEY",
+        ]
+        for env_var in env_vars:
+            val = getattr(settings, env_var, "") or os.environ.get(env_var, "")
+            if val and val.strip() and val.strip() not in keys:
+                keys.append(val.strip())
+        return keys
 
     async def _search(
         self,
@@ -103,18 +109,39 @@ class TavilySearchClient:
                 or "exceeds your plan" in lowered
                 or "quota" in lowered
             ):
-                self._disabled_reason = (
-                    "Tavily plan usage limit reached; client disabled for this run"
-                )
-                self.client = None
-                logger.warning(
-                    "Tavily disabled for current run due to plan usage limit: %s",
-                    message,
-                )
-                return []
+                self.current_key_idx += 1
+                if self.current_key_idx < len(self.api_keys):
+                    logger.warning(
+                        "Tavily API key exhausted. Switching to backup key..."
+                    )
+                    from tavily import TavilyClient
 
-            logger.error("Tavily search failed: %s", exc)
-            return []
+                    self.client = TavilyClient(
+                        api_key=self.api_keys[self.current_key_idx],
+                        **self._client_kwargs,
+                    )
+                    try:
+                        response = await asyncio.to_thread(
+                            self.client.search,
+                            query=query_text,
+                            **request_config,
+                        )
+                    except Exception as retry_exc:
+                        logger.error(
+                            "Tavily search failed with backup key: %s", retry_exc
+                        )
+                        return []
+                else:
+                    self._disabled_reason = "Tavily plan usage limits reached on all keys; client disabled for this run"
+                    self.client = None
+                    logger.warning(
+                        "Tavily disabled for current run due to plan usage limit: %s",
+                        message,
+                    )
+                    return []
+            else:
+                logger.error("Tavily search failed: %s", exc)
+                return []
 
         if not isinstance(response, dict):
             return []
@@ -295,22 +322,6 @@ class TavilySearchClient:
                     "dumps.wikimedia.org",
                     "paperswithcode.com/datasets",
                 ],
-            },
-            max_results=max_results,
-        )
-
-    async def search_laws(
-        self,
-        query: str,
-        max_results: int | None = None,
-    ) -> list[dict]:
-        return await self._search(
-            query,
-            config={
-                "search_depth": "advanced",
-                "max_results": 10,
-                "include_answer": True,
-                "include_raw_content": True,
             },
             max_results=max_results,
         )

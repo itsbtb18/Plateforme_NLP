@@ -322,7 +322,11 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             payload = handle_partial_data(payload)
 
             confidence_report = calculate_item_confidence(self.category, payload)
-            confidence = max(0.0, min(1.0, float(confidence_report.get("score", 0.0))))
+            confidence_percent = max(
+                0.0,
+                min(100.0, float(confidence_report.get("percent", 0.0))),
+            )
+            confidence = confidence_percent / 100.0
 
             if isinstance(item_data, dict):
                 item_data["extraction_confidence"] = round(confidence, 3)
@@ -706,10 +710,19 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             return []
 
         queries: list[str] = []
+        max_active_prompts = max(
+            1,
+            min(
+                int(getattr(SS, "PROMPT_MAX_ACTIVE_PER_CATEGORY", 20) or 20),
+                200,
+            ),
+        )
         for row in queryset:
             query_text = (row.query_text or "").strip()
             if query_text:
                 queries.append(query_text)
+            if len(queries) >= max_active_prompts:
+                break
 
         return queries
 

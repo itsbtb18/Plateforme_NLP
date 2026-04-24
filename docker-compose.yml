@@ -3,7 +3,7 @@ services:
   # Keep PG image compatible with existing on-disk data.
   db:
     profiles: ["scraping", "full"]
-    image: pgvector/pgvector:pg16
+    image: ankane/pgvector:latest
     container_name: nlp_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
@@ -159,6 +159,7 @@ services:
       SCRAPING_LLM_MODE: ${SCRAPING_LLM_MODE:-primary_with_fallback}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       SCRAPING_TAVILY_API_KEY: ${SCRAPING_TAVILY_API_KEY:-}
+      SCRAPING_TAVILY_BACKUP_API_KEY: ${SCRAPING_TAVILY_BACKUP_API_KEY:-}
       TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
       SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
       SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
@@ -233,6 +234,7 @@ services:
       EXA_ENABLED: ${EXA_ENABLED:-false}
       # ---- Tavily Web Search ----
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      SCRAPING_TAVILY_BACKUP_API_KEY: ${SCRAPING_TAVILY_BACKUP_API_KEY:-}
       TAVILY_ENABLED: ${TAVILY_ENABLED:-false}
       TS_SERVICE_TIMEOUT_SECONDS: ${TS_SERVICE_TIMEOUT_SECONDS:-420}
       ELASTICSEARCH_HOST: http://elasticsearch:9200
@@ -247,7 +249,7 @@ services:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
     ports:
-      - "8001:8000"
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -444,6 +446,7 @@ services:
       SCRAPING_LLM_MODE: ${SCRAPING_LLM_MODE:-primary_with_fallback}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       SCRAPING_TAVILY_API_KEY: ${SCRAPING_TAVILY_API_KEY:-}
+      SCRAPING_TAVILY_BACKUP_API_KEY: ${SCRAPING_TAVILY_BACKUP_API_KEY:-}
       TAVILY_ENABLED: ${TAVILY_ENABLED:-true}
       SCRAPING_MANUAL_ONLY: ${SCRAPING_MANUAL_ONLY:-true}
       SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}

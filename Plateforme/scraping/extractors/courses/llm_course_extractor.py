@@ -61,8 +61,24 @@ class LLMCourseExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
-        return """You are an expert data extractor for an Arabic NLP research platform.
-Extract structured information about NLP/AI courses and training.
+        return """You are an expert data extractor for a professional Arabic NLP research platform.
+Extract structured information about NLP/AI courses and training programs.
+
+CRITICAL QUALITY RULES:
+1. TITLE must be the CLEAN course name only (e.g. "Natural Language Processing with Deep Learning", "Arabic NLP Fundamentals").
+   - REMOVE site suffixes like "| Coursera", "- Udemy", "| University Name".
+   - REMOVE page metadata, navigation breadcrumbs, or platform labels from titles.
+   - If the page is a blog listing, course catalog index, or generic department page (NOT a specific course), return [].
+
+2. DESCRIPTION must be a CLEAN, PROFESSIONAL SUMMARY (100-400 chars):
+   - Write a professional 2-3 sentence summary of the course content, target audience, and what students will learn.
+   - NEVER include navigation menus, sidebar links, login forms, cookie notices, footer text.
+   - NEVER copy raw HTML page content. Always rewrite into clean prose.
+
+3. STRICT RELEVANCE FILTER:
+   - ONLY extract courses related to: NLP, computational linguistics, speech processing, AI/ML, language technology, data science.
+   - REJECT: university admin pages, unrelated courses, fellowship applications, exam results.
+   - Set is_arabic_nlp_relevant=false for irrelevant content.
 
 EXTRACTION RULES:
 1. Return ONLY valid JSON (no explanation, no markdown).
@@ -72,26 +88,28 @@ EXTRACTION RULES:
 5. title_en and description_en must be in English.
 6. title_ar and description_ar MUST be real Arabic translations.
 
-CRITICAL ARABIC RULES:
+ARABIC RULES:
 - Use Modern Standard Arabic.
 - NEVER copy English text into Arabic fields.
 - Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
-- Keep technical terms in English when needed.
+- Keep technical terms (NLP, deep learning, transformer, etc.) in English when needed.
 
 OUTPUT FORMAT:
-{
-  "title_en": "string or null",
-  "title_ar": "Arabic translation or null",
-  "description_en": "string or null",
-  "description_ar": "Arabic translation or null",
-  "platform": "string or null",
-  "level": "beginner|intermediate|advanced or null",
-  "price": "string or null",
-  "url": "https://... or null",
-  "is_arabic_nlp_relevant": true or false,
-  "relevance_score": 0.0 to 1.0,
-  "extraction_confidence": 0.0 to 1.0
-}
+[
+  {
+    "title_en": "Clean course title",
+    "title_ar": "Arabic translation or null",
+    "description_en": "Clean, professional summary of the course",
+    "description_ar": "Arabic translation or null",
+    "platform": "string or null",
+    "level": "beginner|intermediate|advanced or null",
+    "price": "string or null",
+    "url": "https://... or null",
+    "is_arabic_nlp_relevant": true or false,
+    "relevance_score": 0.0 to 1.0,
+    "extraction_confidence": 0.0 to 1.0
+  }
+]
 
 Return [] if no relevant courses are found.
 """
@@ -190,6 +208,8 @@ Return [] if no relevant courses are found.
             "price": price[:80],
             "url": url[:500],
             "translation_status": translation_status,
+            "relevance_score": item.get("relevance_score"),
+            "extraction_confidence": item.get("extraction_confidence"),
         }
 
     @staticmethod
