@@ -141,6 +141,11 @@ def inbox(request):
         title, avatar_url, subtitle, other = _conversation_display(conv, request.user)
         last_msg = conv.messages.select_related("sender").order_by("-created_at").first()
         unread_count = conv.messages.filter(is_read=False).exclude(sender=request.user).count()
+        is_pending_request = (
+            conv.conversation_type == Conversation.ConversationType.PRIVATE
+            and conv.status == Conversation.ConversationStatus.REQUEST
+            and not conv.is_accepted
+        )
         row = {
             "conversation": conv,
             "title": title,
@@ -154,7 +159,7 @@ def inbox(request):
             "is_project_chat": False,
             "thread_url": reverse("direct_messages:thread", kwargs={"conversation_id": conv.id}),
         }
-        if conv.is_request_for(request.user):
+        if is_pending_request:
             request_conversations.append(row)
         else:
             primary_conversations.append(row)

@@ -15,6 +15,7 @@ class GeminiProvider(Provider):
         self.api_key = settings.TS_GEMINI_API_KEY
         self.model = settings.TS_GEMINI_MODEL
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        self.timeout_seconds = max(10.0, float(settings.TS_PROVIDER_HTTP_TIMEOUT_SECONDS))
 
     async def translate(self, *, text: str, source_language: str, target_language: str) -> str:
         prompt = PromptEngine.translation_prompt(
@@ -49,7 +50,7 @@ class GeminiProvider(Provider):
             "generationConfig": generation_config,
         }
         url = f"{self.base_url}/models/{self.model}:generateContent"
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
             response = await client.post(url, params={"key": self.api_key}, json=payload)
             try:
                 response.raise_for_status()

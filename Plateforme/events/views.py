@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import UTC, datetime, time
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
@@ -14,11 +15,12 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_GET
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -213,6 +215,96 @@ def event_ics_export(request, pk):
     )
     response["Content-Disposition"] = f'attachment; filename="{safe_title}.ics"'
     return response
+
+
+@require_GET
+def event_convert_to_text(request, pk):
+    """
+    API endpoint: extract raw text from an event attached file.
+    Supports PDF (with OCR fallback), DOCX, and plain text formats.
+    """
+    queryset = Event.objects.select_related("created_by")
+    if request.user.is_staff or request.user.is_superuser:
+        event = get_object_or_404(queryset, pk=pk)
+    else:
+        event = get_object_or_404(
+            queryset.filter(Q(approval_status="approved") | Q(created_by=request.user)),
+            pk=pk,
+        )
+
+    if not event.attachment:
+        return JsonResponse(
+            {"success": False, "error": _("This event has no attached file.")},
+            status=400,
+        )
+
+    file_path = event.attachment.path
+    if not os.path.isfile(file_path):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": _("The file could not be found on the server."),
+            },
+            status=404,
+        )
+
+    filename = os.path.basename(file_path)
+    ext = os.path.splitext(filename)[1].lower()
+
+    try:
+        from resources.views import (
+            _extract_text_from_docx,
+            _extract_text_from_pdf,
+            _extract_text_from_txt,
+        )
+
+        extraction_meta: dict[str, int | float | bool] = {}
+        if ext == ".pdf":
+            text, extraction_meta = _extract_text_from_pdf(file_path)
+        elif ext in (".docx", ".doc"):
+            text = _extract_text_from_docx(file_path)
+        elif ext in (".txt", ".md", ".csv", ".json", ".xml", ".log"):
+            text = _extract_text_from_txt(file_path)
+        else:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": _("Unsupported file format: %(ext)s") % {"ext": ext},
+                },
+                status=400,
+            )
+
+        if not text or not text.strip():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": _(
+                        "No text could be extracted from this document. It may be empty or contain only images without recognisable text."
+                    ),
+                },
+                status=200,
+            )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "text": text,
+                "filename": filename,
+                "char_count": len(text),
+                "word_count": len(text.split()),
+                **extraction_meta,
+            }
+        )
+
+    except Exception:
+        logger.exception("Text extraction failed for event %s", pk)
+        return JsonResponse(
+            {
+                "success": False,
+                "error": _("An error occurred while processing the document."),
+            },
+            status=500,
+        )
 
 
 class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):

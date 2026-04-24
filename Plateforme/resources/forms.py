@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from django import forms
 from django.utils.translation import gettext_lazy as _, get_language
@@ -265,13 +266,14 @@ class ResourceForm(forms.Form):
     publication_date = forms.DateField(
         label=_("Publication Date *"),
         required=False,
+        input_formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"],
         widget=forms.DateInput(
             attrs={
                 "class": "form-control",
                 "type": "text",
                 "placeholder": "dd/mm/yyyy",
             },
-            format="%Y-%m-%d",
+            format="%d/%m/%Y",
         ),
     )
 
@@ -482,6 +484,17 @@ class ResourceForm(forms.Form):
 
         cleaned_data = super().clean()
         resource_type = cleaned_data.get("resource_type")
+
+        # Accept Arabic-Indic digits and mixed separators for article publication date.
+        if resource_type == "article" and "publication_date" in self.errors:
+            raw_date = (self.data.get("publication_date") or "").strip()
+            if raw_date:
+                normalized_date = self._normalize_date_input(raw_date)
+                parsed_date = self._parse_date_with_known_formats(normalized_date)
+                if parsed_date is not None:
+                    cleaned_data["publication_date"] = parsed_date
+                    self.errors.pop("publication_date", None)
+
         title_en = (cleaned_data.get("title_en") or "").strip()
         title_ar = (cleaned_data.get("title_ar") or "").strip()
         description_en = (cleaned_data.get("description_en") or "").strip()
@@ -534,6 +547,10 @@ class ResourceForm(forms.Form):
             self.add_error("description_ar", message)
 
         for field in required_fields:
+            if field in self.errors:
+                # Keep field-level validator error (e.g. invalid date format)
+                # and avoid adding a second confusing "required" error.
+                continue
             if not cleaned_data.get(field):
                 logger.warning(f"[RESOURCE_FORM] Missing required field: {field}")
                 self.add_error(
@@ -583,6 +600,20 @@ class ResourceForm(forms.Form):
             logger.info("[RESOURCE_FORM] ✓ Form validation passed")
 
         return cleaned_data
+
+    def _normalize_date_input(self, value):
+        digit_map = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+        normalized = value.translate(digit_map)
+        normalized = normalized.replace("٫", "/").replace("،", "/").replace(".", "/")
+        return normalized
+
+    def _parse_date_with_known_formats(self, value):
+        for fmt in ["%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d", "%m/%d/%Y"]:
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+        return None
 
     def clean_uploaded_file(self):
         """Validate uploaded file size."""

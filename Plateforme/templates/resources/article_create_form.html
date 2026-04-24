@@ -2,7 +2,11 @@
 {% load static crispy_forms_tags i18n %}
 
 {% block title %}
-{% if object %}{% trans "Edit Article" %}{% else %}{% trans "Create New Article" %}{% endif %} - {% trans "Resources" %}
+{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+{% if object %}تعديل المقالة{% else %}إضافة مقالة جديدة{% endif %} - الموارد
+{% else %}
+{% if object %}Edit Article{% else %}Create New Article{% endif %} - Resources
+{% endif %}
 {% endblock %}
 
 {% block extra_styles %}
@@ -196,8 +200,8 @@ html[dir="rtl"] .translation-toggle { flex-direction: row-reverse; }
 html[dir="rtl"] .translation-toggle-content { flex-direction: row-reverse; }
 html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; text-align: right; }
 html[dir="rtl"] .icon-file-preview { flex-direction: row-reverse; text-align: right; }
-html[dir="rtl"] .page-hero { text-align: right; }
-html[dir="rtl"] .page-hero .breadcrumb { justify-content: flex-end; }
+html[dir="rtl"] .page-hero { text-align: center; }
+html[dir="rtl"] .page-hero .breadcrumb { justify-content: center; }
 
 /* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
 .card {
@@ -946,9 +950,9 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
     <div class="page-hero">
         <!-- Breadcrumb -->
         <ol class="breadcrumb">
-            <li><a href="{% url 'resources:article_list' %}">{% trans "Resources" %}</a></li>
+            <li><a href="{% url 'resources:article_list' %}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الموارد{% else %}Resources{% endif %}</a></li>
             <li><span class="separator"><i class="bi bi-chevron-left"></i></span></li>
-            <li class="current">{% if object %}{% trans "Edit Article" %}{% else %}{% trans "New Article" %}{% endif %}</li>
+            <li class="current">{% if object %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل المقالة{% else %}Edit Article{% endif %}{% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مقالة جديدة{% else %}New Article{% endif %}{% endif %}</li>
         </ol>
 
         <!-- Icon -->
@@ -1012,7 +1016,7 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
             <div class="alert alert-error" role="alert">
                 <div class="alert-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
                 <div class="alert-content">
-                    <h4>{% trans "Please correct the following errors:" %}</h4>
+                    <h4>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}يرجى تصحيح الأخطاء التالية:{% else %}Please correct the following errors:{% endif %}</h4>
                     {% if form.non_field_errors %}
                         <ul>{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
                     {% endif %}
@@ -1045,38 +1049,38 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
                     <!-- Title English -->
                     <div class="form-group">
-                        <label for="id_title_en">{% trans "Title (English)" %} <span class="required">*</span></label>
+                        <label for="id_title_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان (بالإنجليزية){% else %}Title (English){% endif %} <span class="required">*</span></label>
                         {{ form.title_en }}
                     </div>
 
                     <!-- Language Row -->
                     <div class="form-group">
-                        <label for="id_language">{% trans "Language" %} <span class="required">*</span></label>
+                        <label for="id_language">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اللغة{% else %}Language{% endif %} <span class="required">*</span></label>
                         {{ form.language }}
                     </div>
 
                     <!-- Journal & Publication Date Row -->
                     <div class="field-row">
                         <div class="form-group">
-                            <label for="id_journal">{% trans "Journal" %} <span class="required">*</span></label>
+                            <label for="id_journal">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المجلة{% else %}Journal{% endif %} <span class="required">*</span></label>
                             {{ form.journal }}
                         </div>
                         <div class="form-group">
-                            <label for="id_publication_date">{% trans "Publication Date" %} <span class="required">*</span></label>
+                            <label for="id_publication_date">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تاريخ النشر{% else %}Publication Date{% endif %} <span class="required">*</span></label>
                             {{ form.publication_date }}
                         </div>
                     </div>
 
                     <!-- DOI -->
                     <div class="form-group">
-                        <label for="id_doi">{% trans "DOI" %}</label>
+                        <label for="id_doi">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}معرّف DOI{% else %}DOI{% endif %}</label>
                         {{ form.doi }}
-                        <span class="form-text">{% trans "Digital Object Identifier (e.g., 10.1234/abcd)" %}</span>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المعرّف الرقمي للمحتوى (مثال: 10.1234/abcd){% else %}Digital Object Identifier (e.g., 10.1234/abcd){% endif %}</span>
                     </div>
 
                     <!-- Description English -->
                     <div class="form-group">
-                        <label for="id_description_en">{% trans "Description (English)" %}</label>
+                        <label for="id_description_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف (بالإنجليزية){% else %}Description (English){% endif %}</label>
                         {{ form.description_en }}
                         <div class="char-counter-wrap">
                             <span class="char-counter" id="en-counter">0 / 2000</span>
@@ -1085,9 +1089,9 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
                     <!-- Keywords -->
                     <div class="form-group">
-                        <label for="id_keywords">{% trans "Keywords" %}</label>
+                        <label for="id_keywords">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</label>
                         {{ form.keywords }}
-                        <span class="form-text">{% trans "Comma-separated keywords to help users discover your article" %}</span>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل الكلمات المفتاحية مفصولة بفواصل لمساعدة المستخدمين على اكتشاف مقالتك{% else %}Comma-separated keywords to help users discover your article{% endif %}</span>
                     </div>
 
                 </div>
@@ -1098,8 +1102,8 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                 <div class="card-header">
                     <div class="card-header-icon purple"><i class="bi bi-file-pdf"></i></div>
                     <div class="card-header-text">
-                        <h2>{% trans "Article File" %}</h2>
-                        <p>{% trans "Upload your article file (PDF, DOCX) or provide access link" %}</p>
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ملف المقالة{% else %}Article File{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ارفع ملف المقالة (PDF أو DOCX) أو أضف رابط الوصول{% else %}Upload your article file (PDF, DOCX) or provide access link{% endif %}</p>
                     </div>
                 </div>
                 <div class="card-body">
@@ -1114,13 +1118,13 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                             <div class="icon-upload-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسحب ملف المقالة وأفلته هنا{% else %}{% trans "Drag & drop your article file" %}{% endif %}</div>
                             <div class="icon-upload-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أو اضغط للاختيار{% else %}{% trans "or click to browse" %}{% endif %}</div>
                             <div class="icon-upload-formats">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}PDF، DOCX، أو أنواع أخرى · الحد الأقصى 50MB{% else %}PDF, DOCX or other formats · 50MB max{% endif %}</div>
-                            <input type="file" id="icon-input" name="uploaded_file" accept="*/*" aria-label="{% trans 'Choose file' %}">
+                            <input type="file" id="icon-input" name="uploaded_file" accept="*/*" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}اختر ملفًا{% else %}Choose file{% endif %}">
                         </div>
                         <div class="icon-file-preview" id="icon-file-preview">
                             <div class="icon-file-icon"><i class="bi bi-file-earmark-check"></i></div>
                             <div class="icon-file-info">
-                                <div class="icon-file-name" id="icon-file-name">article.pdf</div>
-                                <div class="icon-file-size" id="icon-file-size">0 KB</div>
+                                <div class="icon-file-name" id="icon-file-name">ملف-مقالة.pdf</div>
+                                <div class="icon-file-size" id="icon-file-size">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}0 كيلوبايت{% else %}0 KB{% endif %}</div>
                             </div>
                             <button type="button" class="icon-file-remove" id="icon-file-remove">
                                 <i class="bi bi-x-lg"></i>
@@ -1130,13 +1134,13 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
                     <!-- Access Link -->
                     <div class="form-group">
-                        <label for="id_access_link">{% trans "Access Link" %}</label>
+                        <label for="id_access_link">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط الوصول{% else %}Access Link{% endif %}</label>
                         <div class="input-with-icon">
                             <i class="bi bi-link-45deg input-icon"></i>
                             {{ form.access_link }}
                         </div>
                         <div id="access-feedback"></div>
-                        <span class="form-text">{% trans "External URL where the article can be accessed (optional)" %}</span>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط خارجي يمكن عبره الوصول إلى المقالة (اختياري){% else %}External URL where the article can be accessed (optional){% endif %}</span>
                     </div>
 
                 </div>
@@ -1157,37 +1161,37 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
                     <!-- Title English -->
                     <div class="form-group">
-                        <label for="id_title_en">{% trans "Title (English)" %} <span class="required">*</span></label>
+                        <label for="id_title_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان (بالإنجليزية){% else %}Title (English){% endif %} <span class="required">*</span></label>
                         {{ form.title_en }}
                     </div>
 
                     <!-- Language Row -->
                     <div class="form-group">
-                        <label for="id_language">{% trans "Language" %} <span class="required">*</span></label>
+                        <label for="id_language">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اللغة{% else %}Language{% endif %} <span class="required">*</span></label>
                         {{ form.language }}
                     </div>
 
                     <!-- Supervisor & Institution Row -->
                     <div class="field-row">
                         <div class="form-group">
-                            <label for="id_supervisor">{% trans "Supervisor" %} <span class="required">*</span></label>
+                            <label for="id_supervisor">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المشرف{% else %}Supervisor{% endif %} <span class="required">*</span></label>
                             {{ form.supervisor }}
                         </div>
                         <div class="form-group">
-                            <label for="id_thesis_institution">{% trans "Institution" %} <span class="required">*</span></label>
+                            <label for="id_thesis_institution">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسة{% else %}Institution{% endif %} <span class="required">*</span></label>
                             {{ form.thesis_institution }}
                         </div>
                     </div>
 
                     <!-- Defense Year -->
                     <div class="form-group">
-                        <label for="id_defense_year">{% trans "Defense Year" %} <span class="required">*</span></label>
+                        <label for="id_defense_year">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}سنة المناقشة{% else %}Defense Year{% endif %} <span class="required">*</span></label>
                         {{ form.defense_year }}
                     </div>
 
                     <!-- Description English -->
                     <div class="form-group">
-                        <label for="id_description_en">{% trans "Description (English)" %}</label>
+                        <label for="id_description_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف (بالإنجليزية){% else %}Description (English){% endif %}</label>
                         {{ form.description_en }}
                         <div class="char-counter-wrap">
                             <span class="char-counter" id="en-counter">0 / 2000</span>
@@ -1196,9 +1200,9 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
                     <!-- Keywords -->
                     <div class="form-group">
-                        <label for="id_keywords">{% trans "Keywords" %}</label>
+                        <label for="id_keywords">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</label>
                         {{ form.keywords }}
-                        <span class="form-text">{% trans "Comma-separated keywords to help users discover your thesis" %}</span>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل الكلمات المفتاحية مفصولة بفواصل لمساعدة المستخدمين على اكتشاف أطروحتك{% else %}Comma-separated keywords to help users discover your thesis{% endif %}</span>
                     </div>
 
                 </div>
@@ -1209,8 +1213,8 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                 <div class="card-header">
                     <div class="card-header-icon purple"><i class="bi bi-file-pdf"></i></div>
                     <div class="card-header-text">
-                        <h2>{% trans "Thesis File" %}</h2>
-                        <p>{% trans "Upload your thesis file (PDF, DOCX) or provide access link" %}</p>
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ملف الأطروحة{% else %}Thesis File{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ارفع ملف الأطروحة (PDF أو DOCX) أو أضف رابط الوصول{% else %}Upload your thesis file (PDF, DOCX) or provide access link{% endif %}</p>
                     </div>
                 </div>
                 <div class="card-body">
@@ -1225,13 +1229,13 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                             <div class="icon-upload-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسحب ملف الأطروحة وأفلته هنا{% else %}{% trans "Drag & drop your thesis file" %}{% endif %}</div>
                             <div class="icon-upload-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أو اضغط للاختيار{% else %}{% trans "or click to browse" %}{% endif %}</div>
                             <div class="icon-upload-formats">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}PDF، DOCX، أو أنواع أخرى · الحد الأقصى 50MB{% else %}PDF, DOCX or other formats · 50MB max{% endif %}</div>
-                            <input type="file" id="icon-input-thesis" name="uploaded_file" accept="*/*" aria-label="{% trans 'Choose file' %}">
+                            <input type="file" id="icon-input-thesis" name="uploaded_file" accept="*/*" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}اختر ملفًا{% else %}Choose file{% endif %}">
                         </div>
                         <div class="icon-file-preview" id="icon-file-preview-thesis">
                             <div class="icon-file-icon"><i class="bi bi-file-earmark-check"></i></div>
                             <div class="icon-file-info">
-                                <div class="icon-file-name" id="icon-file-name-thesis">thesis.pdf</div>
-                                <div class="icon-file-size" id="icon-file-size-thesis">0 KB</div>
+                                <div class="icon-file-name" id="icon-file-name-thesis">ملف-أطروحة.pdf</div>
+                                <div class="icon-file-size" id="icon-file-size-thesis">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}0 كيلوبايت{% else %}0 KB{% endif %}</div>
                             </div>
                             <button type="button" class="icon-file-remove" id="icon-file-remove-thesis">
                                 <i class="bi bi-x-lg"></i>
@@ -1241,13 +1245,13 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
                     <!-- Access Link -->
                     <div class="form-group">
-                        <label for="id_access_link">{% trans "Access Link" %}</label>
+                        <label for="id_access_link">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط الوصول{% else %}Access Link{% endif %}</label>
                         <div class="input-with-icon">
                             <i class="bi bi-link-45deg input-icon"></i>
                             {{ form.access_link }}
                         </div>
                         <div id="access-feedback-thesis"></div>
-                        <span class="form-text">{% trans "External URL where the thesis can be accessed (optional)" %}</span>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط خارجي يمكن عبره الوصول إلى الأطروحة (اختياري){% else %}External URL where the thesis can be accessed (optional){% endif %}</span>
                     </div>
 
                 </div>
@@ -1268,37 +1272,37 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
                     <!-- Title English -->
                     <div class="form-group">
-                        <label for="id_title_en">{% trans "Title (English)" %} <span class="required">*</span></label>
+                        <label for="id_title_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان (بالإنجليزية){% else %}Title (English){% endif %} <span class="required">*</span></label>
                         {{ form.title_en }}
                     </div>
 
                     <!-- Language Row -->
                     <div class="form-group">
-                        <label for="id_language">{% trans "Language" %} <span class="required">*</span></label>
+                        <label for="id_language">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اللغة{% else %}Language{% endif %} <span class="required">*</span></label>
                         {{ form.language }}
                     </div>
 
                     <!-- Academic Level & Institution Row -->
                     <div class="field-row">
                         <div class="form-group">
-                            <label for="id_memoir_level">{% trans "Academic Level" %} <span class="required">*</span></label>
+                            <label for="id_memoir_level">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المستوى الأكاديمي{% else %}Academic Level{% endif %} <span class="required">*</span></label>
                             {{ form.memoir_level }}
                         </div>
                         <div class="form-group">
-                            <label for="id_memoir_institution">{% trans "Institution" %} <span class="required">*</span></label>
+                            <label for="id_memoir_institution">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسة{% else %}Institution{% endif %} <span class="required">*</span></label>
                             {{ form.memoir_institution }}
                         </div>
                     </div>
 
                     <!-- Defense Year -->
                     <div class="form-group">
-                        <label for="id_memoir_defense_year">{% trans "Defense Year" %} <span class="required">*</span></label>
+                        <label for="id_memoir_defense_year">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}سنة المناقشة{% else %}Defense Year{% endif %} <span class="required">*</span></label>
                         {{ form.memoir_defense_year }}
                     </div>
 
                     <!-- Description English -->
                     <div class="form-group">
-                        <label for="id_description_en">{% trans "Description (English)" %}</label>
+                        <label for="id_description_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف (بالإنجليزية){% else %}Description (English){% endif %}</label>
                         {{ form.description_en }}
                         <div class="char-counter-wrap">
                             <span class="char-counter" id="en-counter">0 / 2000</span>
@@ -1307,9 +1311,9 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
                     <!-- Keywords -->
                     <div class="form-group">
-                        <label for="id_keywords">{% trans "Keywords" %}</label>
+                        <label for="id_keywords">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</label>
                         {{ form.keywords }}
-                        <span class="form-text">{% trans "Comma-separated keywords to help users discover your memoir" %}</span>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل الكلمات المفتاحية مفصولة بفواصل لمساعدة المستخدمين على اكتشاف مذكرتك{% else %}Comma-separated keywords to help users discover your memoir{% endif %}</span>
                     </div>
 
                 </div>
@@ -1320,8 +1324,8 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                 <div class="card-header">
                     <div class="card-header-icon purple"><i class="bi bi-file-pdf"></i></div>
                     <div class="card-header-text">
-                        <h2>{% trans "Memoir File" %}</h2>
-                        <p>{% trans "Upload your memoir file (PDF, DOCX) or provide access link" %}</p>
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ملف المذكرة{% else %}Memoir File{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ارفع ملف المذكرة (PDF أو DOCX) أو أضف رابط الوصول{% else %}Upload your memoir file (PDF, DOCX) or provide access link{% endif %}</p>
                     </div>
                 </div>
                 <div class="card-body">
@@ -1336,13 +1340,13 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                             <div class="icon-upload-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسحب ملف المذكرة وأفلته هنا{% else %}{% trans "Drag & drop your memoir file" %}{% endif %}</div>
                             <div class="icon-upload-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أو اضغط للاختيار{% else %}{% trans "or click to browse" %}{% endif %}</div>
                             <div class="icon-upload-formats">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}PDF، DOCX، أو أنواع أخرى · الحد الأقصى 50MB{% else %}PDF, DOCX or other formats · 50MB max{% endif %}</div>
-                            <input type="file" id="icon-input-memoir" name="uploaded_file" accept="*/*" aria-label="{% trans 'Choose file' %}">
+                            <input type="file" id="icon-input-memoir" name="uploaded_file" accept="*/*" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}اختر ملفًا{% else %}Choose file{% endif %}">
                         </div>
                         <div class="icon-file-preview" id="icon-file-preview-memoir">
                             <div class="icon-file-icon"><i class="bi bi-file-earmark-check"></i></div>
                             <div class="icon-file-info">
-                                <div class="icon-file-name" id="icon-file-name-memoir">memoir.pdf</div>
-                                <div class="icon-file-size" id="icon-file-size-memoir">0 KB</div>
+                                <div class="icon-file-name" id="icon-file-name-memoir">ملف-مذكرة.pdf</div>
+                                <div class="icon-file-size" id="icon-file-size-memoir">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}0 كيلوبايت{% else %}0 KB{% endif %}</div>
                             </div>
                             <button type="button" class="icon-file-remove" id="icon-file-remove-memoir">
                                 <i class="bi bi-x-lg"></i>
@@ -1352,13 +1356,13 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
 
                     <!-- Access Link -->
                     <div class="form-group">
-                        <label for="id_access_link">{% trans "Access Link" %}</label>
+                        <label for="id_access_link">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط الوصول{% else %}Access Link{% endif %}</label>
                         <div class="input-with-icon">
                             <i class="bi bi-link-45deg input-icon"></i>
                             {{ form.access_link }}
                         </div>
                         <div id="access-feedback-memoir"></div>
-                        <span class="form-text">{% trans "External URL where the memoir can be accessed (optional)" %}</span>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط خارجي يمكن عبره الوصول إلى المذكرة (اختياري){% else %}External URL where the memoir can be accessed (optional){% endif %}</span>
                     </div>
 
                 </div>
@@ -1370,8 +1374,8 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                 <div class="card-header">
                     <div class="card-header-icon teal"><i class="bi bi-translate"></i></div>
                     <div class="card-header-text">
-                        <h2>{% trans "Multilingual Content" %}</h2>
-                        <p>{% trans "Add Arabic translations for your document information" %}</p>
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المحتوى متعدد اللغات{% else %}Multilingual Content{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أضف الترجمات العربية لمعلومات المستند{% else %}Add Arabic translations for your document information{% endif %}</p>
                     </div>
                 </div>
                 <div class="card-body">
@@ -1381,8 +1385,8 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                         <div class="translation-toggle-content">
                             <i class="bi bi-globe2"></i>
                             <div>
-                                <h4>{% trans "Arabic Translation" %}</h4>
-                                <p>{% trans "Enable to add Arabic title & description" %}</p>
+                                <h4>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الترجمة العربية{% else %}Arabic Translation{% endif %}</h4>
+                                <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}فعّل لإضافة العنوان والوصف بالعربية{% else %}Enable to add Arabic title & description{% endif %}</p>
                             </div>
                         </div>
                         <label class="toggle-switch">
@@ -1399,12 +1403,12 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                         </div>
 
                         <div class="form-group">
-                            <label for="id_title_ar">{% trans "Title (Arabic)" %}</label>
+                            <label for="id_title_ar">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان (بالعربية){% else %}Title (Arabic){% endif %}</label>
                             {{ form.title_ar }}
                         </div>
 
                         <div class="form-group">
-                            <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
+                            <label for="id_description_ar">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف (بالعربية){% else %}Description (Arabic){% endif %}</label>
                             {{ form.description_ar }}
                             <div class="char-counter-wrap">
                                 <span class="char-counter" id="ar-counter">0 / 2000</span>
@@ -1420,7 +1424,7 @@ html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 
                         <span class="spinner"></span>
                         <i class="bi bi-check2 btn-icon"></i>
                         <span class="btn-text">
-                            {% if object %}{% trans "Update Document" %}{% else %}{% trans "Submit Document" %}{% endif %}
+                            {% if object %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحديث المستند{% else %}Update Document{% endif %}{% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إرسال المستند{% else %}Submit Document{% endif %}{% endif %}
                         </span>
                     </button>
                     <a href="{% url 'resources:article_list' %}" class="btn-cancel">
@@ -1488,9 +1492,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to format file size
         function formatSize(bytes) {
-            if (!bytes || bytes === 0) return '0 Bytes';
+            const isArabicUI = document.documentElement.lang === 'ar' || document.documentElement.dir === 'rtl';
+            if (!bytes || bytes === 0) return isArabicUI ? '0 بايت' : '0 Bytes';
             const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const sizes = isArabicUI
+                ? ['بايت', 'كيلوبايت', 'ميغابايت', 'غيغابايت']
+                : ['Bytes', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
@@ -1582,6 +1589,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===== URL Validation =====
     function validateUrl(inputEl, feedbackEl) {
+        const isArabic = "{{ request.LANGUAGE_CODE|slice:':2' }}" === 'ar';
         const val = inputEl.value.trim();
         const pattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$/;
 
@@ -1593,12 +1601,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (pattern.test(val)) {
             inputEl.classList.add('url-valid');
             if (feedbackEl) {
-                feedbackEl.innerHTML = '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> Valid URL</span>';
+                feedbackEl.innerHTML = isArabic
+                    ? '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> رابط صحيح</span>'
+                    : '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> Valid URL</span>';
             }
         } else {
             inputEl.classList.add('url-invalid');
             if (feedbackEl) {
-                feedbackEl.innerHTML = '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> Please enter a valid URL (https://...)</span>';
+                feedbackEl.innerHTML = isArabic
+                    ? '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> يرجى إدخال رابط صحيح (https://...)</span>'
+                    : '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> Please enter a valid URL (https://...)</span>';
             }
         }
     }
