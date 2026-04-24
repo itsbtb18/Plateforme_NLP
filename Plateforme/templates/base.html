@@ -2046,30 +2046,30 @@
             }
 
             .search-bar-shell {
-                min-width: 220px;
                 position: relative;
+                min-width: 44px;
             }
 
             .search-icon-btn {
-                width: min(320px, 28vw);
-                height: 44px;
-                padding: 0 0.9rem 0 0.95rem !important;
-                border-radius: 999px;
-                background: linear-gradient(160deg, #111736 0%, #171d42 100%);
-                border: 1px solid rgba(255, 255, 255, 0.08);
+                width: 48px;
+                height: 48px;
+                padding: 0 !important;
+                border-radius: 0;
+                background: transparent;
+                border: 0;
                 display: inline-flex;
                 align-items: center;
-                justify-content: flex-start;
-                gap: 0.65rem;
-                box-shadow: 0 10px 24px rgba(7, 10, 26, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-                transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+                justify-content: center;
+                box-shadow: none;
+                transition: transform 0.15s ease, color 0.15s ease;
                 position: relative;
+                cursor: pointer;
             }
 
             .search-icon-btn:hover,
             .search-icon-btn:focus-visible {
-                background: linear-gradient(160deg, #161d45 0%, #1c2453 100%);
-                box-shadow: 0 12px 28px rgba(7, 10, 26, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+                background: transparent;
+                box-shadow: none;
                 transform: translateY(-1px);
             }
 
@@ -2080,46 +2080,8 @@
 
             .search-icon-btn i:first-child {
                 color: #f8fbff;
-                font-size: 1rem;
+                font-size: 1.3rem;
                 line-height: 1;
-            }
-
-            .search-icon-btn .search-bar-input {
-                flex: 1;
-                min-width: 0;
-                height: 100%;
-                border: 0;
-                outline: 0;
-                background: transparent;
-                color: #f8fbff;
-                font-size: 0.95rem;
-                font-weight: 600;
-                padding: 0;
-            }
-
-            .search-icon-btn .search-bar-input::placeholder {
-                color: rgba(248, 251, 255, 0.72);
-                font-weight: 500;
-            }
-
-            .search-icon-btn .search-submit-inline {
-                width: 32px;
-                height: 32px;
-                border: 0;
-                border-radius: 999px;
-                background: rgba(255, 255, 255, 0.08);
-                color: #f8fbff;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                transition: background 0.15s ease, transform 0.15s ease;
-                flex-shrink: 0;
-            }
-
-            .search-icon-btn .search-submit-inline:hover {
-                background: rgba(255, 255, 255, 0.16);
-                transform: translateY(-1px);
             }
 
             .search-dropdown {
@@ -2134,6 +2096,9 @@
             }
 
             .search-input-wrapper {
+                display: flex;
+                align-items: center;
+                gap: 0.7rem;
                 background: linear-gradient(160deg, rgba(17, 23, 54, 0.96), rgba(23, 29, 66, 0.96));
                 border: 1px solid rgba(255, 255, 255, 0.14);
                 border-radius: 16px;
@@ -2148,6 +2113,11 @@
             }
 
             .search-input {
+                flex: 1;
+                min-width: 0;
+                border: 0 !important;
+                outline: 0 !important;
+                background: transparent !important;
                 color: #ffffff !important;
                 -webkit-text-fill-color: #ffffff;
                 font-size: 0.98rem;
@@ -2156,6 +2126,26 @@
             .search-input::placeholder {
                 color: rgba(255, 255, 255, 0.72);
                 opacity: 1;
+            }
+
+            .search-submit-btn {
+                width: 34px;
+                height: 34px;
+                border: 0;
+                border-radius: 999px;
+                background: rgba(167, 139, 250, 0.22);
+                color: #ffffff;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                cursor: pointer;
+                transition: background 0.15s ease, transform 0.15s ease;
+            }
+
+            .search-submit-btn:hover {
+                background: rgba(167, 139, 250, 0.34);
+                transform: translateY(-1px);
             }
 
             .search-autocomplete-item {
@@ -2230,31 +2220,24 @@
             </style>
             <div class="header-actions">
                 <div class="search-dropdown-container action-dropdown-container">
-                    <form class="search-icon-btn search-bar-shell"
-                          id="searchIconBtn"
-                          method="get"
-                          action="{% url 'search:global_search' %}">
+                    <button class="search-icon-btn search-bar-shell"
+                            id="searchIconBtn"
+                            type="button"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="{% trans 'Search' %}">
                         <i class="fas fa-search" aria-hidden="true"></i>
-                        <input type="text"
-                               name="q"
-                               class="search-bar-input"
-                               placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث...{% else %}{% trans 'Search' %}{% endif %}"
-                               autocomplete="off"
-                               aria-label="{% trans 'Search' %}">
-                        <button type="submit" class="search-submit-inline" aria-label="{% trans 'Search' %}">
-                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                        </button>
-                    </form>
+                    </button>
                     <div class="dropdown-panel search-dropdown" id="searchDropdown" role="menu" aria-labelledby="searchIconBtn">
                         <form class="search-form" method="get" action="{% url 'search:global_search' %}" style="padding: 1rem;">
                             <div class="search-input-wrapper">
                                     <input type="text" 
                                         name="q" 
                                         class="search-input" 
-                                        placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث عن مستخدم بالاسم أو البريد الإلكتروني...{% else %}{% trans 'Search users by name or email...' %}{% endif %}"
+                                        placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}ابحث...{% else %}{% trans 'Search...' %}{% endif %}"
                                         autocomplete="off">
                                 <button type="submit" class="search-submit-btn">
-                                    <i class="fas fa-arrow-right"></i>
+                                    <i class="fas fa-search"></i>
                                 </button>
                             </div>
                             <div class="search-autocomplete-results" id="searchDropdownResults" hidden></div>
@@ -3362,6 +3345,19 @@
                         }
                     });
                 }
+
+                searchIconBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (searchDropdown.classList.contains('show')) {
+                        closeSearchDropdown();
+                    } else {
+                        openSearchDropdown();
+                        if (searchInput) {
+                            setTimeout(() => searchInput.focus(), 0);
+                        }
+                    }
+                });
 
                 // Prevent dropdown from closing when clicking inside
                 searchDropdown.addEventListener('click', function(e) {
