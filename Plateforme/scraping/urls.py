@@ -191,6 +191,11 @@ urlpatterns = [
         views.run_custom_source,
         name="run_custom_source",
     ),
+    path(
+        "custom-element/<str:category>/",
+        views.run_custom_element,
+        name="run_custom_element",
+    ),
     path("sources/<uuid:source_id>/test/", views.test_source, name="test_source"),
     path(
         "sources/test-status/<str:job_id>/",

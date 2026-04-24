@@ -16,8 +16,10 @@ from collections import defaultdict
 from datetime import date, timedelta
 from ipaddress import ip_address, ip_network
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import urlencode, urlparse
 
+import requests
 from celery import current_app as current_celery_app
 from celery.result import AsyncResult
 from django.apps import apps
@@ -43,7 +45,7 @@ from feed.models import Post
 from resources.models import Course, NLPTool
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
-from scraping.intelligence import detect_trends, compute_relevance_score
+from scraping.intelligence import compute_relevance_score, detect_trends
 from scraping.scrapers.custom_scraper import CustomDomainScraper
 from scraping.validators.content_validator import ContentValidator
 from scraping.validators.network_validator import NetworkValidator
@@ -67,6 +69,11 @@ from .tasks import (
     validate_source_async,
 )
 from .translation import ArabicTranslator
+
+try:
+    from bs4 import BeautifulSoup
+except Exception:  # pragma: no cover - optional dependency guard
+    BeautifulSoup = None
 
 try:
     from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -4255,7 +4262,7 @@ def scraping_result_detail(request, item_id):
         "location_en": location_en, "location": location_en,
     }
     _extra_fields = (
-        "job_title", "dataset_name", "platform", "level", "price", 
+        "job_title", "dataset_name", "platform", "level", "price",
         "institution_name", "deadline", "paper_url", "download_url",
         "published_date", "access_link"
     )
@@ -4756,6 +4763,336 @@ def run_quick_scrape(request, category):
             },
             status=500,
         )
+
+
+_CUSTOM_ELEMENT_SEARCH_METHOD = {
+    "events": "search_events",
+    "tools": "search_tools",
+    "courses": "search_courses",
+    "news": "search_news",
+    "opportunities": "search_opportunities",
+    "corpus": "search_corpus",
+}
+
+_CUSTOM_ELEMENT_LABEL = {
+    "events": "event",
+    "tools": "tool",
+    "courses": "course",
+    "news": "news item",
+    "opportunities": "opportunity",
+    "corpus": "corpus item",
+}
+
+
+def _normalize_custom_element_url(raw_url: str) -> str:
+    candidate = str(raw_url or "").strip()
+    if not candidate:
+        return ""
+    parsed = urlparse(candidate)
+    if not parsed.scheme:
+        candidate = f"https://{candidate}"
+        parsed = urlparse(candidate)
+    if parsed.scheme not in {"http", "https"}:
+        return ""
+    if not parsed.netloc:
+        return ""
+    return candidate
+
+
+def _build_custom_element_search_row(element_url: str) -> dict[str, str]:
+    response = requests.get(
+        element_url,
+        timeout=(5, 20),
+        headers={"User-Agent": "Mozilla/5.0 NLPPlatformCustomElement/1.0"},
+    )
+    response.raise_for_status()
+
+    raw_text = response.text or ""
+    content_type = str(response.headers.get("Content-Type") or "").lower()
+
+    title = ""
+    content = ""
+    if "html" in content_type and BeautifulSoup is not None:
+        soup = BeautifulSoup(raw_text, "html.parser")
+        for tag_name in ("script", "style", "noscript"):
+            for tag in soup.find_all(tag_name):
+                tag.decompose()
+
+        meta_title = soup.find("meta", attrs={"property": "og:title"})
+        if meta_title:
+            title = str(meta_title.get("content") or "").strip()
+        if not title and soup.title:
+            title = str(soup.title.get_text(" ", strip=True) or "").strip()
+
+        content = " ".join(soup.stripped_strings)
+    else:
+        content = re.sub(r"\s+", " ", raw_text or "").strip()
+
+    title = str(title or element_url).strip()[:240]
+    content = re.sub(r"\s+", " ", content or "").strip()[:7000]
+
+    if not content and not title:
+        raise ValueError("URL fetched but did not provide readable content")
+
+    return {
+        "title": title,
+        "url": element_url,
+        "content": content,
+    }
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def run_custom_element(request, category):
+    """Scrape one specific URL through the normal category pipeline."""
+    _log_scraping_action(request)
+
+    if not _check_rate_limit(
+        request,
+        scope="custom_element_trigger",
+        max_calls=30,
+        period=3600,
+    ):
+        return JsonResponse(
+            {"error": "Too many custom element requests. Max 30 per hour."},
+            status=429,
+            headers={"Retry-After": "3600"},
+        )
+
+    staff_error = _require_staff(request)
+    if staff_error:
+        return staff_error
+
+    if category not in CATEGORY_META:
+        return JsonResponse(
+            {"status": "error", "message": f"Unknown category: {category}"},
+            status=400,
+        )
+
+    payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+    element_url = _normalize_custom_element_url(payload.get("url"))
+    if not element_url:
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": "Please provide a valid http(s) URL.",
+            },
+            status=400,
+        )
+
+    run = ScrapingRun.objects.create(
+        category=category,
+        status="running",
+        items_updated=0,
+        triggered_by=request.user,
+        current_source="custom_element",
+        current_step="Custom element: validating URL",
+        current_message="Custom element scrape started",
+        current_item=element_url[:255],
+        progress_total=3,
+    )
+
+    try:
+        search_row = _build_custom_element_search_row(element_url)
+    except Exception as exc:
+        message = f"cant scrap element because URL could not be fetched: {exc}"
+        run.status = "failed"
+        run.errors = message
+        run.current_step = "Custom element: fetch failed"
+        run.current_message = message[:255]
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "status",
+                "errors",
+                "current_step",
+                "current_message",
+                "completed_at",
+            ]
+        )
+        return JsonResponse(
+            {
+                "status": "error",
+                "run_id": str(run.pk),
+                "message": message,
+            },
+            status=400,
+        )
+
+    from scraping.network.search_client import TavilySearchClient
+
+    search_method_name = _CUSTOM_ELEMENT_SEARCH_METHOD.get(category)
+    if not search_method_name:
+        message = "cant scrap element because category pipeline is not available"
+        run.status = "failed"
+        run.errors = message
+        run.current_step = "Custom element: unsupported category"
+        run.current_message = message[:255]
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "status",
+                "errors",
+                "current_step",
+                "current_message",
+                "completed_at",
+            ]
+        )
+        return JsonResponse(
+            {
+                "status": "error",
+                "run_id": str(run.pk),
+                "message": message,
+            },
+            status=400,
+        )
+
+    async def _fake_search_method(self, query, max_results=None):
+        del self, query, max_results
+        return [search_row]
+
+    scraper = get_scraper(category)
+    if hasattr(scraper, "bind_progress_run"):
+        scraper.bind_progress_run(run)
+
+    try:
+        with patch.object(
+            scraper,
+            "get_active_search_queries",
+            return_value=[f"custom_url:{element_url}"],
+        ), patch.object(
+            TavilySearchClient,
+            search_method_name,
+            _fake_search_method,
+        ):
+            result = scraper.run()
+    except Exception as exc:
+        message = f"cant scrap element because pipeline failed: {exc}"
+        run.status = "failed"
+        run.errors = message
+        run.current_step = "Custom element: scraper failed"
+        run.current_message = message[:255]
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "status",
+                "errors",
+                "current_step",
+                "current_message",
+                "completed_at",
+            ]
+        )
+        logger.exception("Custom element scrape failed for category=%s", category)
+        return JsonResponse(
+            {
+                "status": "error",
+                "run_id": str(run.pk),
+                "message": message,
+            },
+            status=500,
+        )
+
+    items_found = int(result.get("items_found", 0) or 0)
+    items_created = int(result.get("items_created", 0) or 0)
+    items_updated = int(result.get("items_updated", 0) or 0)
+    items_skipped = int(result.get("items_skipped", 0) or 0)
+    result_errors = result.get("errors", [])
+    if not isinstance(result_errors, list):
+        result_errors = [str(result_errors)] if result_errors else []
+
+    if (items_created + items_updated) <= 0:
+        item_label = _CUSTOM_ELEMENT_LABEL.get(category, "item")
+        message = (
+            f"cant scrap element because its not a {item_label} "
+            f"or it failed validation for category '{category}'."
+        )
+        if result_errors:
+            message = f"{message} Details: {' | '.join(str(err) for err in result_errors if err)}"
+
+        run.items_found = items_found
+        run.items_created = items_created
+        run.items_updated = items_updated
+        run.items_skipped = items_skipped
+        run.errors = message
+        run.status = "failed"
+        run.current_source = "custom_element"
+        run.current_step = "Custom element: rejected by category validation"
+        run.current_message = message[:255]
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "items_found",
+                "items_created",
+                "items_updated",
+                "items_skipped",
+                "errors",
+                "status",
+                "current_source",
+                "current_step",
+                "current_message",
+                "completed_at",
+            ]
+        )
+
+        return JsonResponse(
+            {
+                "status": "error",
+                "run_id": str(run.pk),
+                "message": message,
+                "items_found": items_found,
+                "items_created": items_created,
+                "items_updated": items_updated,
+                "items_skipped": items_skipped,
+                "errors": result_errors,
+            },
+            status=422,
+        )
+
+    run.items_found = items_found
+    run.items_created = items_created
+    run.items_updated = items_updated
+    run.items_skipped = items_skipped
+    run.errors = "\n".join(str(err) for err in result_errors if err)
+    run.status = "completed"
+    run.current_source = "custom_element"
+    run.current_step = "Custom element completed"
+    run.current_message = (
+        f"Custom element complete: {items_created} Created, "
+        f"{items_updated} Updated, {items_skipped} Skipped"
+    )[:255]
+    run.completed_at = timezone.now()
+    run.save(
+        update_fields=[
+            "items_found",
+            "items_created",
+            "items_updated",
+            "items_skipped",
+            "errors",
+            "status",
+            "current_source",
+            "current_step",
+            "current_message",
+            "completed_at",
+        ]
+    )
+
+    return JsonResponse(
+        {
+            "status": "success",
+            "mode": "custom_element",
+            "run_id": str(run.pk),
+            "items_found": items_found,
+            "items_created": items_created,
+            "items_updated": items_updated,
+            "items_skipped": items_skipped,
+            "errors": result_errors,
+            "results": result.get("results", []),
+            "duration": run.duration,
+            "message": run.current_message,
+        }
+    )
 
 
 @login_required
