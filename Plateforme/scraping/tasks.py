@@ -44,7 +44,6 @@ SUPPORTED_SCRAPER_CATEGORIES = (
     "news",
     "opportunities",
     "corpus",
-    "laws",
 )
 SUPPORTED_SCRAPER_CATEGORY_SET = set(SUPPORTED_SCRAPER_CATEGORIES)
 

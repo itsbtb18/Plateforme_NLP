@@ -61,42 +61,60 @@ class LLMCorpusExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
-        return """You are an expert data extractor for an Arabic NLP research platform.
-    Extract structured information about corpora and datasets.
+        return """You are an expert data extractor for a professional Arabic NLP research platform.
+Extract structured information about corpora and datasets.
 
-    EXTRACTION RULES:
-    1. Return ONLY valid JSON (no explanation, no markdown).
-    2. Return a JSON array of dataset objects.
-    3. If unknown, return null.
-    4. Do NOT invent dataset size, license, or URLs.
-    5. dataset_name and description_en must be in English.
-    6. title_ar and description_ar MUST be real Arabic translations.
+CRITICAL QUALITY RULES:
+1. DATASET NAME must be the CLEAN corpus/dataset name only (e.g. "Arabic Gigaword", "OSIAN Corpus").
+   - REMOVE site suffixes like "| Hugging Face", "- GitHub", "| University Name".
+   - REMOVE page metadata, navigation breadcrumbs, or repository paths from names.
+   - If the page is a blog listing, author archive, or generic department page (NOT an actual dataset), return [].
 
-    CRITICAL ARABIC RULES:
-    - Use Modern Standard Arabic.
-    - NEVER copy English text into Arabic fields.
-    - Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
-    - Keep technical terms in English when needed.
+2. DESCRIPTION must be a CLEAN, PROFESSIONAL SUMMARY (100-400 chars):
+   - Write a professional 2-3 sentence summary describing the dataset, its size, domain, and intended use.
+   - NEVER include navigation menus, sidebar links, login forms, cookie notices, footer text.
+   - NEVER copy raw HTML page content. Always rewrite into clean prose.
 
-    OUTPUT FORMAT:
-    {
-      "dataset_name": "string or null",
-      "title_ar": "Arabic translation or null",
-      "description_en": "string or null",
-      "description_ar": "Arabic translation or null",
-      "language_variants": ["string", "..."] or [],
-      "size_estimate": "string or null",
-      "size": "string or null",
-      "license": "string or null",
-      "download_url": "https://... or null",
-      "paper_url": "https://... or null",
-      "is_arabic_nlp_relevant": true or false,
-      "relevance_score": 0.0 to 1.0,
-      "extraction_confidence": 0.0 to 1.0
-    }
+3. STRICT RELEVANCE FILTER:
+   - ONLY extract items that are actual NLP/language corpora or datasets.
+   - REJECT: university admin announcements, fellowship applications, exam results, general news.
+   - Set is_arabic_nlp_relevant=false for irrelevant content.
 
-    Return [] if no relevant datasets are found.
-    """
+EXTRACTION RULES:
+1. Return ONLY valid JSON (no explanation, no markdown).
+2. Return a JSON array of dataset objects.
+3. If unknown, return null.
+4. Do NOT invent dataset size, license, or URLs.
+5. dataset_name and description_en must be in English.
+6. title_ar and description_ar MUST be real Arabic translations.
+
+ARABIC RULES:
+- Use Modern Standard Arabic.
+- NEVER copy English text into Arabic fields.
+- Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
+- Keep technical terms (NLP, corpus, tokenizer, etc.) in English when needed.
+
+OUTPUT FORMAT:
+[
+  {
+    "dataset_name": "Clean dataset/corpus name",
+    "title_ar": "Arabic translation or null",
+    "description_en": "Clean, professional summary of the dataset",
+    "description_ar": "Arabic translation or null",
+    "language_variants": ["string", "..."] or [],
+    "size_estimate": "string or null",
+    "size": "string or null",
+    "license": "string or null",
+    "download_url": "https://... or null",
+    "paper_url": "https://... or null",
+    "is_arabic_nlp_relevant": true or false,
+    "relevance_score": 0.0 to 1.0,
+    "extraction_confidence": 0.0 to 1.0
+  }
+]
+
+Return [] if no relevant datasets are found.
+"""
 
     @staticmethod
     def _normalize_search_results(search_results: list[dict]) -> list[dict[str, str]]:
@@ -191,6 +209,8 @@ class LLMCorpusExtractor:
             "download_url": download_url[:500],
             "paper_url": paper_url[:500],
             "translation_status": translation_status,
+            "relevance_score": item.get("relevance_score"),
+            "extraction_confidence": item.get("extraction_confidence"),
         }
 
     @staticmethod

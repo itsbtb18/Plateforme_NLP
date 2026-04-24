@@ -16,8 +16,7 @@ from django.urls import re_path
 
 logger = logging.getLogger(__name__)
 
-# ============================================
-# HEALTH CHECK (lightweight, no DB/template)
+
 # ============================================
 def health_check(request):
     return JsonResponse({"status": "ok"})
@@ -57,17 +56,12 @@ localized_patterns = [
     path("chatbot/", include("chatbot.urls")),
     path("messages/", include("direct_messages.urls", namespace="direct_messages")),
     path("sharing/", include("sharing.urls", namespace="sharing")),
+    path("scraping/", include("scraping.urls")),
     path("", include("pages.urls")),
     path("", include("translate.urls")),
     path("admin/", admin.site.urls),
 ]
 
-try:
-    localized_patterns.insert(
-        -3, path("scraping/", include("scraping.urls", namespace="scraping"))
-    )
-except Exception as exc:
-    logger.warning("scraping URLs disabled at startup: %s", exc)
 
 urlpatterns += i18n_patterns(*localized_patterns)
 

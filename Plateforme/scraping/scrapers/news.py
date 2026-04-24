@@ -6,16 +6,16 @@ import logging
 import re
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 from asgiref.sync import async_to_sync
-from django.apps import apps as django_apps
 from django.db import transaction
+from django.db.models import Model
 from django.utils import timezone
 
+from feed.models import Post
 from scraping.extractors.news.llm_news_extractor import LLMNewsExtractor
-from scraping.field_mapping import get_auto_translate_fields
 from scraping.network.search_client import TavilySearchClient
-from scraping.translation.arabic_translator import ArabicTranslator
 from scraping.utils import infer_translation_status
 
 from .base import BaseScraper
@@ -24,29 +24,15 @@ logger = logging.getLogger(__name__)
 
 
 class NewsScraper(BaseScraper):
-    """Discover Arabic NLP news from web search and LLM extraction."""
+    """Discover Arabic NLP news/papers from web search and LLM extraction."""
 
     name = "Arabic NLP News (Tavily + Groq)"
     category = "news"
     API_CALL_DELAY_SECONDS = 2
-    STATUS_CONFIDENCE_DELTA = 0.15
-
-    MODEL_CANDIDATES = (
-        ("QA", "Post"),
-        ("events", "News"),
-        ("resources", "News"),
-        ("feed", "Post"),
-    )
+    STATUS_CONFIDENCE_DELTA = 15.0
 
     def scrape(self):
-        model = self._resolve_model()
-        if model is None:
-            self._log_error(
-                "news_model_missing",
-                "No News model found in configured model candidates",
-                source=self.name,
-            )
-            return
+        from feed.models import Post
 
         try:
             search_client = TavilySearchClient()
@@ -136,18 +122,7 @@ class NewsScraper(BaseScraper):
             logger.warning("No news candidates extracted from Tavily results.")
             return
 
-        translator = ArabicTranslator()
-        fields_to_translate = [
-            "title_ar",
-            "description_ar",
-            "short_description_ar",
-            "summary_ar",
-            *get_auto_translate_fields(self.category),
-        ]
-        candidates = translator.batch_translate(candidates, fields=fields_to_translate)
-
-        fields = self._model_fields(model)
-        author = self._resolve_system_user_if_needed(fields)
+        author = self.get_system_user()
 
         total_candidates = len(candidates)
         self.emit_progress(
@@ -163,9 +138,7 @@ class NewsScraper(BaseScraper):
                 total_candidates,
                 f"💾 Saving item {candidate_index}/{total_candidates}",
                 current_item=(
-                    str(
-                        candidate.get("title_en") or candidate.get("title") or ""
-                    ).strip()
+                    str(candidate.get("title_en") or candidate.get("title") or "").strip()
                     if isinstance(candidate, dict)
                     else ""
                 ),
@@ -183,164 +156,79 @@ class NewsScraper(BaseScraper):
                 self.items_skipped += 1
                 continue
 
-            lookup = self._build_lookup(fields, normalized)
-            if lookup is None:
-                self._log_error(
-                    "news_lookup_unavailable",
-                    "No compatible unique lookup field found for model",
-                    source=self.name,
-                    url=normalized.get("source_url") or "",
-                )
-                self.items_skipped += 1
-                continue
-
-            defaults = self._build_defaults(fields, normalized, author)
-            now = timezone.now()
+            lookup = {"title_en": normalized["title_en"]}
+            model_fields = {f.name for f in Post._meta.get_fields()}
+            defaults = self._build_defaults(model_fields, normalized, author)
 
             try:
                 with transaction.atomic():
-                    obj = model.objects.select_for_update().filter(**lookup).first()
-                    if obj is not None:
-                        if "last_scraped_at" in fields:
-                            defaults["last_scraped_at"] = now
-                        if "update_counter" in fields:
-                            defaults["update_counter"] = (
-                                int(getattr(obj, "update_counter", 0) or 0) + 1
-                            )
-                        existing_status = str(
-                            getattr(obj, "scrape_status", "") or ""
-                        ).upper()
-                        if self._is_terminal_review_status(existing_status):
-                            defaults = self._build_terminal_status_update_defaults(
-                                existing_obj=obj,
-                                incoming_defaults=defaults,
-                                metadata_fields={
-                                    "last_scraped_at",
-                                    "update_counter",
-                                    "update_date",
-                                },
-                            )
-                        elif (
-                            str(defaults.get("scrape_status") or "").upper()
-                            == "REJECTED"
-                        ):
-                            defaults["scrape_status"] = "REJECTED"
-                            defaults["validation_notes"] = self._append_validation_note(
-                                str(defaults.get("validation_notes") or ""),
-                                "Auto-marked REJECTED due to confidence_score below 50%.",
-                            )
-                        else:
-                            defaults["scrape_status"] = "PENDING_REVIEW"
+                    news_obj = Post.objects.select_for_update().filter(**lookup).first()
+                    if news_obj is not None:
+                        is_terminal = self._is_approved_record(news_obj)
+                        has_higher_confidence = self._is_significantly_higher_confidence(
+                            incoming_confidence=defaults.get("confidence_score"),
+                            existing_confidence=getattr(news_obj, "confidence_score", None),
+                        )
 
-                        for field_name, field_value in defaults.items():
-                            setattr(obj, field_name, field_value)
-                        obj.save()
+                        if is_terminal and not has_higher_confidence:
+                            # Limited update (metadata only)
+                            limited_fields = {"last_scraped_at", "update_counter"}
+                            for f in limited_fields:
+                                if f in model_fields:
+                                    setattr(news_obj, f, defaults.get(f, getattr(news_obj, f)))
+                        else:
+                            # Full update or standard update
+                            for field_name, field_value in defaults.items():
+                                setattr(news_obj, field_name, field_value)
+
+                        news_obj.save()
                         created = False
                     else:
-                        semantic_queryset = self._recent_dedup_queryset(
-                            model.objects.only("id", "title", "title_en")
-                        )
-                        semantic_obj, semantic_score = self._find_semantic_title_match(
-                            semantic_queryset,
-                            normalized["title_en"],
-                            title_fields=("title_en", "title"),
-                        )
-                        if semantic_obj is not None:
-                            obj = semantic_obj
-                            defaults["last_scraped_at"] = now
-                            defaults["update_counter"] = (
-                                int(getattr(obj, "update_counter", 0) or 0) + 1
-                            )
-                            existing_status = str(
-                                getattr(obj, "scrape_status", "") or ""
-                            ).upper()
-                            if self._is_terminal_review_status(existing_status):
-                                defaults = self._build_terminal_status_update_defaults(
-                                    existing_obj=obj,
-                                    incoming_defaults=defaults,
-                                    metadata_fields={
-                                        "last_scraped_at",
-                                        "update_counter",
-                                        "update_date",
-                                    },
-                                )
-                            for field_name, field_value in defaults.items():
-                                setattr(obj, field_name, field_value)
-                            obj.save()
-                            created = False
-                        else:
-                            defaults.setdefault("scrape_status", "PENDING_REVIEW")
-                            if "last_scraped_at" in fields:
-                                defaults["last_scraped_at"] = now
-                            if "update_counter" in fields:
-                                defaults.setdefault("update_counter", 0)
-                            create_data = dict(defaults)
-                            create_data.update(lookup)
-                            obj = model.objects.create(**create_data)
-                            created = True
+                        news_obj = Post.objects.create(**defaults)
+                        created = True
+
+                    self._set_creation_flags(Post, news_obj.pk, model_fields)
+
             except Exception as exc:
                 self._log_error(
                     "news_upsert_failed",
                     str(exc),
                     source=normalized["title_en"],
-                    url=normalized.get("source_url") or "",
+                    url=normalized["source_url"],
                 )
                 self.items_skipped += 1
                 continue
 
             if created:
-                self._set_creation_flags(model, obj.pk, fields)
                 self.items_created += 1
             else:
                 self.items_updated += 1
-            self._track_saved_item_status(defaults)
+
+            self._track_saved_item_status(normalized)
 
             self.results.append(
                 {
                     "title": normalized["title_en"],
                     "description": self.truncate(normalized["summary_en"], 400),
-                    "type": "news",
-                    "url": normalized.get("source_url") or "",
+                    "url": normalized["source_url"],
                     "source_name": "Tavily Search + Groq",
-                    "source_url": normalized.get("source_url") or "",
+                    "source_url": normalized["source_url"],
+                    "source_domain": (
+                        urlparse(normalized["source_url"]).netloc or ""
+                    ).lower(),
                     "title_en": normalized["title_en"],
                     "title_ar": normalized["title_ar"],
-                    "description_en": normalized["summary_en"],
-                    "description_ar": normalized["summary_ar"],
-                    "published_date": normalized.get("published_date"),
+                    "published_date": normalized["published_date"],
+                    "confidence_score": normalized["confidence_score"],
                     "translation_status": normalized.get(
                         "translation_status", "pending"
                     ),
+                    "relevance_score": normalized.get("relevance_score"),
+                    "extraction_confidence": normalized.get("extraction_confidence"),
                 }
             )
 
-    def _resolve_model(self):
-        for app_label, model_name in self.MODEL_CANDIDATES:
-            try:
-                model = django_apps.get_model(app_label, model_name)
-            except LookupError:
-                continue
-            if model is not None:
-                return model
-        return None
-
-    @staticmethod
-    def _model_fields(model) -> set[str]:
-        return {
-            field.name
-            for field in model._meta.get_fields()
-            if getattr(field, "concrete", False)
-        }
-
-    def _resolve_system_user_if_needed(self, fields: set[str]):
-        if "author" in fields or "created_by" in fields:
-            try:
-                return self.get_system_user()
-            except Exception as exc:
-                logger.warning("System user unavailable for news scraper: %s", exc)
-        return None
-
-    def _build_lookup(self, fields: set[str], item: dict[str, Any]):
+    def _get_lookup(self, fields: set[str], item: dict[str, Any]) -> dict[str, Any] | None:
         source_url = item.get("source_url")
         if source_url:
             for candidate in ("source_url", "url", "access_link"):
@@ -516,6 +404,8 @@ class NewsScraper(BaseScraper):
                 item.get("confidence_score", item.get("extraction_confidence"))
             ),
             "translation_status": translation_status,
+            "relevance_score": item.get("relevance_score"),
+            "extraction_confidence": item.get("extraction_confidence"),
         }
 
     @staticmethod
@@ -553,15 +443,3 @@ class NewsScraper(BaseScraper):
         return incoming_confidence >= (
             existing_confidence + self.STATUS_CONFIDENCE_DELTA
         )
-
-    @staticmethod
-    def _append_validation_note(existing: str, note: str) -> str:
-        existing = (existing or "").strip()
-        note = (note or "").strip()
-        if not note:
-            return existing
-        if not existing:
-            return note
-        if note in existing:
-            return existing
-        return f"{existing}\n{note}"

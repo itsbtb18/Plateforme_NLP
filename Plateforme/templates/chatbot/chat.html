@@ -479,6 +479,7 @@ html[dir="rtl"] .jump-latest-btn{direction:rtl;}
 .msg-user{
     display:flex;justify-content:flex-end;align-items:center;gap:12px;
     animation:msgIn .3s ease both;padding:4px 0;width:100%;
+    min-width:0; /* Ensure flex container can shrink */
 }
 html[dir="rtl"] .msg-user{justify-content:flex-end;}
 @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -487,10 +488,14 @@ html[dir="rtl"] .msg-user{justify-content:flex-end;}
     max-width:75%;padding:14px 22px;
     background:var(--hub-surface);
     color:var(--hub-text-primary);
-    border-radius:var(--radius-full);
+    border-radius:var(--radius-lg); /* Slightly less round for large text blocks */
     border:1px solid var(--hub-border);
-    font-size:1rem;line-height:1.6;word-wrap:break-word;
+    font-size:1rem;line-height:1.6;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap; /* Preserve user newlines */
     font-weight:500;box-shadow:var(--shadow-xs);
+    min-width:0; /* Critical for flex child to not exceed parent */
 }
 html[dir="rtl"] .msg-bubble{border-radius:var(--radius-full)}
 
@@ -1161,6 +1166,7 @@ html[dir="rtl"] .search-mode-option .smo-text{align-items:flex-end;text-align:ri
 .msg-user{position:relative;}
 .msg-actions{
     display:flex;gap:6px;opacity:0;transition:opacity .2s;
+    flex-shrink: 0; /* Don't squash action buttons */
 }
 .msg-action-btn{
     width:32px;height:32px;border:none;background:transparent;
