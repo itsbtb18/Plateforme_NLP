@@ -43,7 +43,7 @@ from feed.models import Post
 from resources.models import Course, NLPTool
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
-from scraping.intelligence import detect_trends
+from scraping.intelligence import detect_trends, compute_relevance_score
 from scraping.scrapers.custom_scraper import CustomDomainScraper
 from scraping.validators.content_validator import ContentValidator
 from scraping.validators.network_validator import NetworkValidator
@@ -106,6 +106,26 @@ def _check_rate_limit(request, scope: str, max_calls: int, period: int) -> bool:
     return _enforce_rate_limit(_rate_key(request, scope=scope), max_calls, period)
 
 
+def _enforce_rate_limit(key: str, limit: int, window_seconds: int) -> bool:
+    """Fail-open cache-backed rate limiter to avoid blocking on cache issues."""
+    try:
+        if cache.add(key, 1, timeout=window_seconds):
+            return True
+        current = cache.incr(key)
+        return int(current) <= int(limit)
+    except ValueError:
+        # Key can expire between add/incr under concurrency; restart counter.
+        cache.set(key, 1, timeout=window_seconds)
+        return True
+    except Exception as exc:
+        logger.error("Rate limiter cache error: %s", exc)
+        logger.warning(
+            "RATE_LIMITER_CACHE_FAILURE: throttling may be degraded",
+            extra={"error": str(exc), "key": key},
+        )
+        return True
+
+
 def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
     def decorator(view_func):
         @functools.wraps(view_func)
@@ -132,6 +152,30 @@ def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
 
 logger = logging.getLogger(__name__)
 
+
+def _client_ip(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "unknown")
+
+
+def _log_scraping_action(request):
+    user_repr = (
+        getattr(request.user, "email", None)
+        or getattr(request.user, "username", None)
+        or "anonymous"
+    )
+    logger.info(
+        "scraping_action user=%s endpoint=%s method=%s timestamp=%s ip=%s",
+        user_repr,
+        request.path,
+        request.method,
+        timezone.now().isoformat(),
+        _client_ip(request),
+    )
+
+
 SCRAPING_NAV_CATEGORY_KEYS = (
     "events",
     "tools",
@@ -139,8 +183,17 @@ SCRAPING_NAV_CATEGORY_KEYS = (
     "opportunities",
     "courses",
     "news",
-    "laws",
 )
+
+
+def _prompt_limit_for_category(_category: str) -> int:
+    """Return the max active prompt limit applied to each category."""
+    configured = int(getattr(SS, "PROMPT_MAX_ACTIVE_PER_CATEGORY", 20) or 20)
+    return max(1, min(configured, 200))
+
+
+def _active_prompt_count(category: str) -> int:
+    return int(SearchQuery.objects.filter(category=category, is_active=True).count())
 
 
 DEFAULT_SCRAPING_SOURCES = {
@@ -291,84 +344,6 @@ def _ensure_default_search_queries() -> None:
                 query_text=query_text,
                 defaults={"is_active": True},
             )
-
-
-def _client_ip(request):
-    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "unknown")
-
-
-def _log_scraping_action(request):
-    user_repr = (
-        getattr(request.user, "email", None)
-        or getattr(request.user, "username", None)
-        or "anonymous"
-    )
-    logger.info(
-        "scraping_action user=%s endpoint=%s method=%s timestamp=%s ip=%s",
-        user_repr,
-        request.path,
-        request.method,
-        timezone.now().isoformat(),
-        _client_ip(request),
-    )
-
-
-def _enforce_rate_limit(key: str, limit: int, window_seconds: int) -> bool:
-    """
-    Thread-safe and multi-process-safe rate limiter.
-    Uses atomic Redis INCR with TTL to count requests
-    across all workers within a sliding window.
-    Returns True if request is allowed, False if limit exceeded.
-    """
-    import logging
-
-    from django.core.cache import cache
-
-    logger = logging.getLogger(__name__)
-
-    cache_key = f"rate_limit:{key}"
-
-    try:
-        # Try to increment - atomic operation
-        current = cache.get(cache_key)
-
-        if current is None:
-            # First request in this window
-            cache.set(cache_key, 1, timeout=window_seconds)
-            return True
-
-        if int(current) >= limit:
-            logger.info(
-                "rate_limit_exceeded",
-                extra={
-                    "key": key,
-                    "current": current,
-                    "limit": limit,
-                    "window_seconds": window_seconds,
-                },
-            )
-            return False
-
-        # Increment without resetting TTL
-        try:
-            cache.incr(cache_key)
-        except ValueError:
-            # Key expired between get and incr - reset
-            cache.set(cache_key, 1, timeout=window_seconds)
-
-        return True
-
-    except Exception as exc:
-        # Keep fail-open behavior but emit prominent logs for monitoring.
-        logger.error("Rate limiter cache error: %s", exc)
-        logger.warning(
-            "RATE_LIMITER_CACHE_FAILURE: throttling may be degraded",
-            extra={"error": str(exc), "key": key},
-        )
-        return True
 
 
 def _require_staff(request):
@@ -1485,8 +1460,11 @@ def scraping_dashboard_by_category(request, category: str):
     ai_prompts = list(
         SearchQuery.objects.filter(category=category_key, is_active=True)
         .order_by("id")
-        .values("id", "query_text", "is_active")[:6]
+        .values("id", "query_text", "is_active")
     )
+    max_active_prompts = _prompt_limit_for_category(category_key)
+    active_prompt_count = len(ai_prompts)
+    prompt_slots_remaining = max(0, max_active_prompts - active_prompt_count)
 
     recent_runs = ScrapingRun.objects.filter(category=category_key).order_by(
         "-started_at"
@@ -1551,6 +1529,9 @@ def scraping_dashboard_by_category(request, category: str):
         "kpi_approved": kpi_approved,
         "kpi_success_rate": kpi_success_rate,
         "ai_prompts": ai_prompts,
+        "max_active_prompts": max_active_prompts,
+        "active_prompt_count": active_prompt_count,
+        "prompt_slots_remaining": prompt_slots_remaining,
         "last_run_status": last_run_status,
         "last_run_time": last_run_time,
         "recent_run_snapshots": recent_run_snapshots,
@@ -1607,9 +1588,7 @@ def scraping_settings_page(request):
         "active": int(category_sources_qs.filter(is_active=True).count()),
         "inactive": int(category_sources_qs.filter(is_active=False).count()),
         "rss_enabled": int(category_sources_qs.filter(use_rss=True).count()),
-        "llm_enabled": int(
-            category_sources_qs.filter(use_llm_extraction=True).count()
-        ),
+        "llm_enabled": int(category_sources_qs.filter(use_llm_extraction=True).count()),
         "ssl_disabled": int(category_sources_qs.filter(verify_ssl=False).count()),
         "proxy_enabled": int(
             category_sources_qs.exclude(proxy_url__isnull=True)
@@ -1642,16 +1621,10 @@ def scraping_settings_page(request):
 
     validation_counts = {
         "GREEN": int(category_sources_qs.filter(validation_status="GREEN").count()),
-        "YELLOW": int(
-            category_sources_qs.filter(validation_status="YELLOW").count()
-        ),
+        "YELLOW": int(category_sources_qs.filter(validation_status="YELLOW").count()),
         "RED": int(category_sources_qs.filter(validation_status="RED").count()),
-        "PENDING": int(
-            category_sources_qs.filter(validation_status="PENDING").count()
-        ),
-        "UNKNOWN": int(
-            category_sources_qs.filter(validation_status="UNKNOWN").count()
-        ),
+        "PENDING": int(category_sources_qs.filter(validation_status="PENDING").count()),
+        "UNKNOWN": int(category_sources_qs.filter(validation_status="UNKNOWN").count()),
     }
 
     source_rows = []
@@ -1826,8 +1799,12 @@ def scraping_settings_page(request):
                     ),
                 },
                 {
-                    "label": ui("Automatic schedules enabled", "الجدولة التلقائية مفعلة"),
-                    "value": bool_no if bool(getattr(settings, "SCRAPING_MANUAL_ONLY", True)) else bool_yes,
+                    "label": ui(
+                        "Automatic schedules enabled", "الجدولة التلقائية مفعلة"
+                    ),
+                    "value": bool_no
+                    if bool(getattr(settings, "SCRAPING_MANUAL_ONLY", True))
+                    else bool_yes,
                     "hint": ui(
                         "If disabled, runs are manual-only.",
                         "عند تعطيلها تصبح التشغيلات يدوية فقط.",
@@ -1847,7 +1824,9 @@ def scraping_settings_page(request):
         "category_global_status_label": (
             ui("Global status: OK", "الحالة العامة: جيد")
             if has_active_sources
-            else ui("Global status: No active sources", "الحالة العامة: لا توجد مصادر نشطة")
+            else ui(
+                "Global status: No active sources", "الحالة العامة: لا توجد مصادر نشطة"
+            )
         ),
         "source_stats": source_stats,
         "schedule_tier_labels": schedule_tier_labels,
@@ -2173,76 +2152,6 @@ def _scraping_result_category_map():
                 ),
             }
 
-    law_model = _resolve_dynamic_model(
-        [
-            ("resources", "Law"),
-            ("events", "Law"),
-        ]
-    )
-    if law_model is not None:
-        title_field = _first_existing_field(
-            law_model,
-            "law_title",
-            "title",
-            "title_en",
-            "name",
-        )
-        description_field = _first_existing_field(
-            law_model,
-            "legal_text",
-            "description",
-            "description_en",
-            "summary",
-            "content",
-        )
-        source_field = _first_existing_field(
-            law_model,
-            "source_url",
-            "url",
-            "access_link",
-            "document_url",
-        )
-        date_field = _first_existing_field(
-            law_model,
-            "created_at",
-            "creation_date",
-            "updated_at",
-            "last_scraped_at",
-        )
-        status_field = _first_existing_field(
-            law_model,
-            "approval_status",
-            "status",
-        )
-
-        if (
-            title_field
-            and description_field
-            and source_field
-            and date_field
-            and status_field
-        ):
-            category_map["laws"] = {
-                "label": "Laws",
-                "model": law_model,
-                "title_field": title_field,
-                "description_field": description_field,
-                "source_field": source_field,
-                "date_field": date_field,
-                "status_field": status_field,
-                "entity_field": _first_existing_field(
-                    law_model,
-                    "category_tags",
-                    "keywords",
-                    "entities",
-                ),
-                "confidence_field": _first_existing_field(
-                    law_model,
-                    "confidence_score",
-                    "relevance_score",
-                ),
-            }
-
     return category_map
 
 
@@ -2323,9 +2232,7 @@ def _resolve_scraping_selected_category(request) -> str:
         return ""
 
     resolver_category = (
-        str((request.resolver_match.kwargs or {}).get("category") or "")
-        .strip()
-        .lower()
+        str((request.resolver_match.kwargs or {}).get("category") or "").strip().lower()
     )
     if resolver_category in SCRAPING_NAV_CATEGORY_KEYS:
         return resolver_category
@@ -2374,14 +2281,15 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         url_name = str(request.resolver_match.url_name or "")
         kwargs = request.resolver_match.kwargs or {}
 
-    if url_name == "category_dashboard":
+    if url_name == "category_dashboard" or url_name in {
+        "dashboard",
+        "scraping_dashboard",
+    }:
         breadcrumbs.append({"label": crumb("Hub", "المركز"), "url": ""})
-    elif url_name in {"dashboard", "scraping_dashboard"}:
-        breadcrumbs.append({"label": crumb("Hub", "المركز"), "url": ""})
-    elif url_name == "category_results":
-        breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
-    elif url_name in {"results", "scraping_results"}:
-        breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
+    elif url_name == "category_results" or url_name in {"results", "scraping_results"}:
+        breadcrumbs.append(
+            {"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""}
+        )
     elif url_name in {"result_detail", "scraping_result_detail"}:
         breadcrumbs.append(
             {
@@ -2399,17 +2307,17 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         if short_item_id:
             item_label = f"{item_label} #{short_item_id}"
         breadcrumbs.append({"label": item_label, "url": ""})
-    elif url_name == "category_analytics":
+    elif url_name == "category_analytics" or url_name in {
+        "scraping_analytics",
+        "analytics",
+    }:
         breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
-    elif url_name in {"scraping_analytics", "analytics"}:
-        breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
-    elif url_name == "category_sources":
+    elif url_name == "category_sources" or url_name in {"scraping_sources", "sources"}:
         breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
-    elif url_name in {"scraping_sources", "sources"}:
-        breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
-    elif url_name == "category_settings":
-        breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
-    elif url_name in {"settings", "scraping_settings"}:
+    elif url_name == "category_settings" or url_name in {
+        "settings",
+        "scraping_settings",
+    }:
         breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
 
     return breadcrumbs
@@ -2450,7 +2358,9 @@ def _scraping_shell_context(request, *, active_page: str) -> dict:
             except Exception:
                 admin_avatar_url = ""
 
-        if hasattr(request.user, "get_initials") and callable(request.user.get_initials):
+        if hasattr(request.user, "get_initials") and callable(
+            request.user.get_initials
+        ):
             initials_candidate = str(request.user.get_initials() or "").strip()
             if initials_candidate:
                 admin_initials = initials_candidate[:2].upper()
@@ -3211,31 +3121,47 @@ def _build_scraping_results_dataset(
             if title_en:
                 by_category_titles[cat_key].append(title_en)
 
-            base_rows.append(
-                {
-                    "selection_key": f"{cat_key}:{item_id_str}",
-                    "item_id": item_id_str,
-                    "title": title_en,
-                    "title_en": title_en,
-                    "title_ar": title_ar,
-                    "category": cat_key,
-                    "category_label": cfg["label"],
-                    "source_url": source_value,
-                    "source_domain": source_domain,
-                    "scraped_date": date_value,
-                    "description": description_value,
-                    "confidence_score": raw_confidence,
-                    "raw_translation_status": raw_translation_status,
-                    "status": _result_status_label(status_value),
-                    "status_badge": _result_status_badge(status_value),
-                    "detail_url": reverse(
-                        "scraping:scraping_result_detail", args=[obj.pk]
-                    )
-                    + f"?category={cat_key}"
-                    + (f"&run_id={selected_run_id}" if selected_run_id else ""),
-                    "run_id": selected_run_id,
-                }
+            # Populate all available model fields so the confidence
+            # calculator has real data to score (not just title/description).
+            row_data = {
+                "selection_key": f"{cat_key}:{item_id_str}",
+                "item_id": item_id_str,
+                "title": title_en,
+                "title_en": title_en,
+                "title_ar": title_ar,
+                "category": cat_key,
+                "category_label": cfg["label"],
+                "source_url": source_value,
+                "source_domain": source_domain,
+                "scraped_date": date_value,
+                "description": description_value,
+                "description_en": description_value,
+                "confidence_score": raw_confidence,
+                "raw_translation_status": raw_translation_status,
+                "status": _result_status_label(status_value),
+                "status_badge": _result_status_badge(status_value),
+                "detail_url": reverse(
+                    "scraping:scraping_result_detail", args=[obj.pk]
+                )
+                + f"?category={cat_key}"
+                + (f"&run_id={selected_run_id}" if selected_run_id else ""),
+                "run_id": selected_run_id,
+            }
+            # Pull in extra model fields that the confidence calculator
+            # checks (url, location, start_date, job_title, dataset_name, etc.)
+            _extra_fields = (
+                "url", "access_link", "location", "location_en",
+                "start_date", "end_date", "published_date",
+                "job_title", "institution_name", "deadline",
+                "dataset_name", "download_url", "paper_url",
+                "platform", "level", "price",
             )
+            for _ef in _extra_fields:
+                if _ef in model_field_names and _ef not in row_data:
+                    _val = getattr(obj, _ef, None)
+                    if _val is not None:
+                        row_data[_ef] = _val
+            base_rows.append(row_data)
 
     meta_by_item = defaultdict(dict)
     meta_by_title = defaultdict(dict)
@@ -3266,9 +3192,17 @@ def _build_scraping_results_dataset(
             row["title_en"]
         )
 
-        score = row["confidence_score"]
+        score = row.get("confidence_score")
         if meta and meta.relevance_score is not None:
             score = float(meta.relevance_score)
+
+        # Only compute a live score if no stored confidence is available.
+        # The stored confidence_score from the model is the authoritative value.
+        if score is None or score <= 0:
+            live_score = compute_relevance_score(category=cat_key, item_data=row)
+            if live_score > 0:
+                score = live_score
+
         if score is not None:
             score = round(float(score), 2)
 
@@ -4304,17 +4238,35 @@ def scraping_result_detail(request, item_id):
         raw_translation_status=raw_translation_status,
     )
 
-    title_en_score = 100 if title_en else 0
-    description_en_score = _text_quality_score(description_en, long_form=True)
-    date_score = 100 if scraped_date else 0
-    location_score = 100 if location_en else 0
-    url_score = 100 if source_url else 0
+    from scraping.intelligence import ConfidenceCalculator
+    calc = ConfidenceCalculator()
 
-    if confidence_score is None:
-        fallback_scores = [title_en_score, description_en_score, date_score, url_score]
-        if has_location:
-            fallback_scores.append(location_score)
-        confidence_score = round(sum(fallback_scores) / max(len(fallback_scores), 1), 1)
+    title_en_score = int(calc.score_field(title_en, "title") * 100)
+    description_en_score = int(calc.score_field(description_en, "description") * 100)
+    date_score = int(calc.score_field(str(scraped_date or ""), "date") * 100)
+    location_score = int(calc.score_field(location_en, "location") * 100)
+    url_score = int(calc.score_field(source_url, "url") * 100)
+
+    row_data = {
+        "title_en": title_en, "title": title_en,
+        "description_en": description_en, "description": description_en,
+        "url": source_url, "source_url": source_url,
+        "start_date": scraped_date, "scraped_date": scraped_date,
+        "location_en": location_en, "location": location_en,
+    }
+    _extra_fields = (
+        "job_title", "dataset_name", "platform", "level", "price", 
+        "institution_name", "deadline", "paper_url", "download_url",
+        "published_date", "access_link"
+    )
+    for _ef in _extra_fields:
+        if _ef in model_field_names:
+            row_data[_ef] = getattr(obj, _ef, None)
+
+    calc_report = calc.calculate(cat_key, row_data)
+
+    if confidence_score is None or confidence_score <= 0:
+        confidence_score = calc_report["percent"]
 
     overall_confidence = confidence_score
     if overall_confidence is None:
@@ -4955,6 +4907,23 @@ def generate_search_prompts(request):
     if category not in supported_categories:
         return JsonResponse({"error": "Unknown category"}, status=400)
 
+    max_active_prompts = _prompt_limit_for_category(category)
+    active_count = _active_prompt_count(category)
+    remaining_slots = max(0, max_active_prompts - active_count)
+    if remaining_slots <= 0:
+        return JsonResponse(
+            {
+                "error": (
+                    f"Prompt limit reached for {category} "
+                    f"({active_count}/{max_active_prompts})."
+                ),
+                "max_active_prompts": max_active_prompts,
+                "active_count": active_count,
+                "remaining_slots": 0,
+            },
+            status=400,
+        )
+
     existing_prompts = list(
         SearchQuery.objects.filter(category=category, is_active=True)
         .order_by("id")
@@ -5007,7 +4976,14 @@ Category-specific guidance:
     if not prompts:
         return JsonResponse({"error": "Could not parse prompts"}, status=502)
 
-    return JsonResponse({"prompts": prompts[:8]})
+    return JsonResponse(
+        {
+            "prompts": prompts[: min(8, remaining_slots)],
+            "max_active_prompts": max_active_prompts,
+            "active_count": active_count,
+            "remaining_slots": remaining_slots,
+        }
+    )
 
 
 @login_required
@@ -5032,14 +5008,51 @@ def add_prompt_api(request):
     if not query_text:
         return JsonResponse({"error": "query_text is required"}, status=400)
 
-    query_obj, created = SearchQuery.objects.get_or_create(
-        category=category,
-        query_text=query_text,
-        defaults={"is_active": is_active},
+    max_active_prompts = _prompt_limit_for_category(category)
+    active_count = _active_prompt_count(category)
+    query_obj = (
+        SearchQuery.objects.filter(category=category, query_text=query_text)
+        .order_by("id")
+        .first()
     )
-    if not created and query_obj.is_active != is_active:
+    created = False
+
+    if query_obj is None:
+        if is_active and active_count >= max_active_prompts:
+            return JsonResponse(
+                {
+                    "error": (
+                        f"Prompt limit reached for {category} "
+                        f"({active_count}/{max_active_prompts})."
+                    ),
+                    "max_active_prompts": max_active_prompts,
+                    "active_count": active_count,
+                },
+                status=400,
+            )
+        query_obj = SearchQuery.objects.create(
+            category=category,
+            query_text=query_text,
+            is_active=is_active,
+        )
+        created = True
+    elif query_obj.is_active != is_active:
+        if is_active and active_count >= max_active_prompts:
+            return JsonResponse(
+                {
+                    "error": (
+                        f"Prompt limit reached for {category} "
+                        f"({active_count}/{max_active_prompts})."
+                    ),
+                    "max_active_prompts": max_active_prompts,
+                    "active_count": active_count,
+                },
+                status=400,
+            )
         query_obj.is_active = is_active
         query_obj.save(update_fields=["is_active"])
+
+    updated_active_count = _active_prompt_count(category)
 
     return JsonResponse(
         {
@@ -5048,6 +5061,8 @@ def add_prompt_api(request):
             "query_text": query_obj.query_text,
             "is_active": bool(query_obj.is_active),
             "created": created,
+            "max_active_prompts": max_active_prompts,
+            "active_count": updated_active_count,
         }
     )
 
@@ -5092,23 +5107,18 @@ def toggle_prompt_api(request, query_id):
 @csrf_protect
 @rate_limit(max_calls=60, period_seconds=60, scope="action")
 def delete_prompt_api(request, query_id):
-    """Soft-delete one prompt by marking it inactive."""
+    """Hard-delete one prompt from the database."""
     _log_scraping_action(request)
 
     query_obj = SearchQuery.objects.filter(id=query_id).first()
     if query_obj is None:
         return JsonResponse({"error": "Prompt not found"}, status=404)
 
-    if query_obj.is_active:
-        query_obj.is_active = False
-        query_obj.save(update_fields=["is_active"])
+    query_obj.delete()
 
     return JsonResponse(
         {
-            "id": str(query_obj.id),
-            "category": query_obj.category,
-            "query_text": query_obj.query_text,
-            "is_active": False,
+            "id": str(query_id),
             "deleted": True,
         }
     )
@@ -5736,9 +5746,9 @@ def _collect_analytics_payload(window: dict) -> dict:
         existing_health_sources = {
             str(item.get("source") or "").strip().lower() for item in source_health
         }
-        for source in ScrapingSource.objects.filter(category=category, is_active=True).only(
-            "name"
-        ):
+        for source in ScrapingSource.objects.filter(
+            category=category, is_active=True
+        ).only("name"):
             source_name = str(source.name or "").strip()
             if not source_name:
                 continue
@@ -5841,9 +5851,9 @@ def _collect_analytics_payload(window: dict) -> dict:
 
         records_qs = model_cls.objects.all()
         if source_field and source_field in field_names:
-            records_qs = records_qs.exclude(**{f"{source_field}__isnull": True}).exclude(
-                **{source_field: ""}
-            )
+            records_qs = records_qs.exclude(
+                **{f"{source_field}__isnull": True}
+            ).exclude(**{source_field: ""})
         records_qs = _apply_date_window(records_qs, date_field, window)
 
         grouped = records_qs.values(f"{date_field}__date").annotate(total=Count("id"))
@@ -6725,7 +6735,9 @@ def update_source_settings(request, source_id):
     if schedule_tier not in allowed_tiers:
         return JsonResponse({"error": _("Invalid schedule tier")}, status=400)
 
-    interval_hours_raw = payload.get("schedule_interval_hours", source.schedule_interval_hours)
+    interval_hours_raw = payload.get(
+        "schedule_interval_hours", source.schedule_interval_hours
+    )
     try:
         interval_hours = int(interval_hours_raw)
     except (TypeError, ValueError):

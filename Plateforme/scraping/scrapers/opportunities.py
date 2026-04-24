@@ -322,6 +322,8 @@ class OpportunityScraper(BaseScraper):
                     "translation_status": normalized.get(
                         "translation_status", "pending"
                     ),
+                    "relevance_score": normalized.get("relevance_score"),
+                    "extraction_confidence": normalized.get("extraction_confidence"),
                 }
             )
 
@@ -505,6 +507,8 @@ class OpportunityScraper(BaseScraper):
                 item.get("confidence_score", item.get("extraction_confidence"))
             ),
             "translation_status": translation_status,
+            "relevance_score": item.get("relevance_score"),
+            "extraction_confidence": item.get("extraction_confidence"),
         }
 
     def _normalize_type(self, value: Any) -> str:

@@ -20,6 +20,7 @@ except Exception:
     def crontab(*args, **kwargs):
         return None
 
+
 # Load environment variables for local, non-Docker runs.
 from dotenv import load_dotenv
 
@@ -48,6 +49,7 @@ def _env_bool(name: str, default: bool = False, aliases: tuple[str, ...] = ()) -
 # Security & Debug
 SECRET_KEY = _env_str("DJANGO_SECRET_KEY", aliases=("SECRET_KEY",))
 DEBUG = _env_bool("DJANGO_DEBUG", default=False, aliases=("DEBUG",))
+FORMS_URLFIELD_ASSUME_HTTPS = True
 ALLOWED_HOSTS = _env_str(
     "DJANGO_ALLOWED_HOSTS",
     default="localhost,127.0.0.1",
@@ -402,7 +404,9 @@ ELASTICSEARCH_DSL_AUTO_REFRESH = True
 # Chatbot / FastAPI Configuration
 FASTAPI_URL = os.getenv("FASTAPI_URL", "http://fastapi:8000")
 FASTAPI_BROWSER_URL = os.getenv("FASTAPI_BROWSER_URL", "/ai")
-FASTAPI_LOCAL_BROWSER_URL = os.getenv("FASTAPI_LOCAL_BROWSER_URL", "http://localhost:8000")
+FASTAPI_LOCAL_BROWSER_URL = os.getenv(
+    "FASTAPI_LOCAL_BROWSER_URL", "http://localhost:8000"
+)
 FASTAPI_API_KEY = os.getenv("FASTAPI_API_KEY", "")
 CHATBOT_MAX_HISTORY = int(os.getenv("CHATBOT_MAX_HISTORY", "20"))
 CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "8192"))

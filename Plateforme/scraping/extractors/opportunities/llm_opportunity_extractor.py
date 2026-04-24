@@ -63,41 +63,59 @@ class LLMOpportunityExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
-        return """You are an expert data extractor for an Arabic NLP research platform.
-    Extract structured information about opportunities (jobs, PhD, postdoc, grants).
+        return """You are an expert data extractor for a professional Arabic NLP research platform.
+Extract structured information about opportunities (jobs, PhD positions, postdocs, grants, fellowships).
 
-    EXTRACTION RULES:
-    1. Return ONLY valid JSON (no explanation, no markdown).
-    2. Return a JSON array of opportunity objects.
-    3. If unknown, return null.
-    4. Do NOT invent deadlines, institutions, or URLs.
-    5. job_title and description must be in English.
-    6. title_ar and description_ar MUST be real Arabic translations.
+CRITICAL QUALITY RULES:
+1. JOB TITLE must be CLEAN and PROFESSIONAL (e.g. "PhD Position in Arabic NLP", "Postdoctoral Researcher in Computational Linguistics").
+   - REMOVE site suffixes like "| LinkedIn", "- Indeed", "| University Name".
+   - REMOVE page metadata, navigation breadcrumbs, or job board labels from titles.
+   - If the page is a job board index, blog listing, or generic department page (NOT a specific opportunity), return [].
 
-    CRITICAL ARABIC RULES:
-    - Use Modern Standard Arabic.
-    - NEVER copy English text into Arabic fields.
-    - Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
-    - Keep technical terms in English when needed.
+2. DESCRIPTION must be a CLEAN, PROFESSIONAL SUMMARY (100-400 chars):
+   - Write a professional 2-3 sentence summary of the position, requirements, and research focus.
+   - NEVER include navigation menus, sidebar links, login forms, cookie notices, footer text.
+   - NEVER copy raw HTML page content. Always rewrite into clean prose.
 
-    OUTPUT FORMAT:
-    {
-      "job_title": "string or null",
-      "title_ar": "Arabic translation or null",
-      "institution_name": "string or null",
-      "opportunity_type": "Job|Phd|PostDoc|Grant or null",
-      "deadline": "YYYY-MM-DD or null",
-      "location": "City, Country or Online or null",
-      "url": "https://... or null",
-      "description": "string or null",
-      "description_ar": "Arabic translation or null",
-      "is_arabic_nlp_relevant": true or false,
-      "relevance_score": 0.0 to 1.0,
-      "extraction_confidence": 0.0 to 1.0
-    }
+3. STRICT RELEVANCE FILTER:
+   - ONLY extract opportunities related to: NLP, computational linguistics, speech processing, AI/ML, language technology.
+   - REJECT: generic administrative jobs, unrelated scholarships, university announcements, exam results.
+   - Set is_arabic_nlp_relevant=false for irrelevant content.
 
-    Return [] if no relevant opportunities are found.
-    """
+EXTRACTION RULES:
+1. Return ONLY valid JSON (no explanation, no markdown).
+2. Return a JSON array of opportunity objects.
+3. If unknown, return null.
+4. Do NOT invent deadlines, institutions, or URLs.
+5. job_title and description must be in English.
+6. title_ar and description_ar MUST be real Arabic translations.
+
+ARABIC RULES:
+- Use Modern Standard Arabic.
+- NEVER copy English text into Arabic fields.
+- Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
+- Keep technical terms (NLP, PhD, postdoc, etc.) in English when needed.
+
+OUTPUT FORMAT:
+[
+  {
+    "job_title": "Clean position/opportunity title",
+    "title_ar": "Arabic translation or null",
+    "institution_name": "string or null",
+    "opportunity_type": "Job|Phd|PostDoc|Grant or null",
+    "deadline": "YYYY-MM-DD or null",
+    "location": "City, Country or Online or null",
+    "url": "https://... or null",
+    "description": "Clean, professional summary of the opportunity",
+    "description_ar": "Arabic translation or null",
+    "is_arabic_nlp_relevant": true or false,
+    "relevance_score": 0.0 to 1.0,
+    "extraction_confidence": 0.0 to 1.0
+  }
+]
+
+Return [] if no relevant opportunities are found.
+"""
 
     @staticmethod
     def _normalize_search_results(search_results: list[dict]) -> list[dict[str, str]]:
@@ -190,6 +208,8 @@ class LLMOpportunityExtractor:
             "description": description[:5000],
             "description_ar": description_ar[:5000] if description_ar else None,
             "translation_status": translation_status,
+            "relevance_score": item.get("relevance_score"),
+            "extraction_confidence": item.get("extraction_confidence"),
         }
 
     @staticmethod

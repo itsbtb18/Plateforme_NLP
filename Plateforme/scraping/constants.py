@@ -23,7 +23,6 @@ CANONICAL_CATEGORIES: list[str] = [
     "news",
     "opportunities",
     "corpus",
-    "laws",
 ]
 
 CATEGORY_META: dict[str, dict[str, str]] = {
@@ -74,14 +73,6 @@ CATEGORY_META: dict[str, dict[str, str]] = {
         "color": "red",
         "model_app": "resources",
         "model_name": "Corpus",
-    },
-    "laws": {
-        "label": "Laws",
-        "label_ar": "القوانين",
-        "icon": "balance-scale",
-        "color": "gray",
-        "model_app": "resources",
-        "model_name": "Law",
     },
 }
 

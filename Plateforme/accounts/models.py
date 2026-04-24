@@ -442,7 +442,7 @@ class Follow(models.Model):
         unique_together = [("follower", "following")]
         constraints = [
             models.CheckConstraint(
-                check=~models.Q(follower=models.F("following")),
+                condition=~models.Q(follower=models.F("following")),
                 name="follow_cannot_follow_self",
             )
         ]
@@ -497,7 +497,9 @@ class Experience(models.Model):
         self.project_url = (self.project_url or "").strip()
 
         if not self.institution_name:
-            raise ValidationError({"institution_name": _("Institution name is required.")})
+            raise ValidationError(
+                {"institution_name": _("Institution name is required.")}
+            )
 
         if not self.role_title:
             raise ValidationError({"role_title": _("Role title is required.")})
