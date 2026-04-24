@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load i18n static %}
 
 {% block title %}{{ event.get_localized_title }} | {% translate "Events" %}{% endblock %}
@@ -1372,7 +1372,7 @@ html[dir="rtl"] .ai-badge-inline {
                 {% if event.attachment %}
                 <button type="button" 
                         class="ed-btn-action btn-view" 
-                        onclick="openDocumentViewer('{{ event.attachment.url }}', null, '{{ event.pk }}', '{{ event.title|escapejs }}')">
+                    onclick="openDocumentViewer('{{ event.attachment.url }}', null, '{{ event.pk }}', '{{ event.title|escapejs }}', `{% url 'events:event-convert-to-text' event.pk %}`)">
                     <i class="bi bi-eye"></i>
                     <span>{% translate "View Document" %}</span>
                 </button>
@@ -1549,7 +1549,7 @@ html[dir="rtl"] .ai-badge-inline {
                     {% if event.attachment %}
                     <button type="button" 
                             class="event-action-btn primary"
-                            onclick="openDocumentViewer('{{ event.attachment.url }}', null, '{{ event.pk }}', '{{ event.title|escapejs }}')">
+                            onclick="openDocumentViewer('{{ event.attachment.url }}', null, '{{ event.pk }}', '{{ event.title|escapejs }}', `{% url 'events:event-convert-to-text' event.pk %}`)">
                         <i class="bi bi-eye"></i>
                         {% trans "View Document" %}
                     </button>
@@ -1672,6 +1672,23 @@ html[dir="rtl"] .ai-badge-inline {
         </aside>
     </main>
 </div>
+
+<script>
+    window.TS_WIDGET_CONFIG = {
+        csrfToken: '{{ csrf_token }}',
+        translateUrl: '{% url "translate:api_ts_translate" %}',
+        summarizeUrl: '{% url "translate:api_ts_summarize" %}',
+        sections: [
+            {
+                id: 'description',
+                label: '{% translate "Description" %}',
+                sourceText: `{{ event.description|striptags|escapejs }}`,
+                sourceLang: '{{ event.original_language|default:"en" }}'
+            }
+        ]
+    };
+</script>
+{% include "partials/ts_widget.html" %}
 
 {% include "components/document_viewer_modal.html" %}
 {% endblock %}

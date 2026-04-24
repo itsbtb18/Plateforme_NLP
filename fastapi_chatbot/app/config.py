@@ -49,7 +49,10 @@ class Settings(BaseSettings):
     # Provider selectors (chat vs internal workflows)
     LLM_PROVIDER_CHAT: str = "gemini"
     LLM_PROVIDER_INTERNAL: str = "gemini"
+<<<<<<< HEAD
+=======
 
+>>>>>>> 7d1949ab5abd2a2c919f8d3f5b7557b79427e222
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
@@ -121,6 +124,11 @@ class Settings(BaseSettings):
     # Web Search — Tavily (User-triggered web mode)
     TAVILY_API_KEY: str = ""
     TAVILY_ENABLED: bool = False
+
+    # Translation/Summarization Service (Global Scheduler)
+    TS_SERVICE_URL: str = "http://translation_summarization:8010"
+    TS_SERVICE_API_KEY: str = ""
+    TS_SERVICE_TIMEOUT_SECONDS: float = 420.0
 
     class Config:
         env_file = ".env"

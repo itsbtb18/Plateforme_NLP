@@ -1,5 +1,6 @@
 import datetime
 import json
+import os
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -365,6 +366,7 @@ from institutions.models import Institution
 from pages.security import ROLE_ADMIN, get_user_role
 
 from .models import (
+    NEWS_TYPE_META,
     AdminActivityLog,
     ContactMessage,
     NewsPublication,
@@ -572,32 +574,7 @@ def admin_opportunity_reject(request, pk):
     return redirect("pages:admin_opportunities")
 
 
-NEWS_TYPE_META = {
-    NewsPublication.TYPE_PAPER: {
-        "icon": "fa-file-lines",
-        "color": "#3B82F6",
-    },
-    NewsPublication.TYPE_DATASET: {
-        "icon": "fa-database",
-        "color": "#1D9E75",
-    },
-    NewsPublication.TYPE_TOOL: {
-        "icon": "fa-screwdriver-wrench",
-        "color": "#F59E0B",
-    },
-    NewsPublication.TYPE_EVENT: {
-        "icon": "fa-calendar-days",
-        "color": "#FF7F50",
-    },
-    NewsPublication.TYPE_THESIS: {
-        "icon": "fa-graduation-cap",
-        "color": "#534AB7",
-    },
-    NewsPublication.TYPE_NEWS: {
-        "icon": "fa-newspaper",
-        "color": "#6B7280",
-    },
-}
+# NEWS_TYPE_META is now imported from .models
 
 
 NEWS_LANGUAGE_OPTIONS = [
@@ -891,6 +868,92 @@ def publication_detail(request, publication_id):
         "type_meta": NEWS_TYPE_META,
     }
     return render(request, "news/publication_detail.html", context)
+
+
+@login_required
+def publication_convert_to_text(request, publication_id):
+    if request.method != "GET":
+        return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+
+    publication = get_object_or_404(
+        NewsPublication,
+        pk=publication_id,
+        status=NewsPublication.STATUS_PUBLISHED,
+    )
+
+    if not publication.pdf_file:
+        return JsonResponse(
+            {"success": False, "error": _("This publication has no uploaded file.")},
+            status=400,
+        )
+
+    file_path = publication.pdf_file.path
+    if not os.path.isfile(file_path):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": _("The file could not be found on the server."),
+            },
+            status=404,
+        )
+
+    filename = os.path.basename(file_path)
+    ext = os.path.splitext(filename)[1].lower()
+
+    try:
+        from resources.views import (
+            _extract_text_from_docx,
+            _extract_text_from_pdf,
+            _extract_text_from_txt,
+        )
+
+        extraction_meta: dict[str, int | float | bool] = {}
+        if ext == ".pdf":
+            text, extraction_meta = _extract_text_from_pdf(file_path)
+        elif ext in (".docx", ".doc"):
+            text = _extract_text_from_docx(file_path)
+        elif ext in (".txt", ".md", ".csv", ".json", ".xml", ".log"):
+            text = _extract_text_from_txt(file_path)
+        else:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": _("Unsupported file format: %(ext)s") % {"ext": ext},
+                },
+                status=400,
+            )
+
+        if not text or not text.strip():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": _(
+                        "No text could be extracted from this document. It may be empty or contain only images without recognisable text."
+                    ),
+                },
+                status=200,
+            )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "text": text,
+                "filename": filename,
+                "char_count": len(text),
+                "word_count": len(text.split()),
+                **extraction_meta,
+            }
+        )
+
+    except Exception as exc:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": _("An error occurred while processing the document: %(err)s")
+                % {"err": str(exc)},
+            },
+            status=500,
+        )
 
 
 @login_required

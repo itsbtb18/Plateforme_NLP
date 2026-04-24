@@ -212,7 +212,7 @@ class ResourceBase(models.Model):
         from django.utils.translation import get_language
 
         lang = get_language()
-        if lang == "ar" and self.title_ar:
+        if lang and lang.startswith("ar") and self.title_ar:
             return self.title_ar
         elif self.title_en:
             return self.title_en
@@ -223,7 +223,7 @@ class ResourceBase(models.Model):
         from django.utils.translation import get_language
 
         lang = get_language()
-        if lang == "ar" and self.description_ar:
+        if lang and lang.startswith("ar") and self.description_ar:
             return self.description_ar
         elif self.description_en:
             return self.description_en

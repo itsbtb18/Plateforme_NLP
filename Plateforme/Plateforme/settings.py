@@ -297,7 +297,7 @@ SESSION_SAVE_EVERY_REQUEST = True  # Extend session on each request
 
 # CSRF Security
 CSRF_COOKIE_SECURE = not DEBUG  # Use secure CSRF cookie in production
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 
 # Security Headers (for production)
@@ -412,6 +412,24 @@ CHATBOT_MAX_HISTORY = int(os.getenv("CHATBOT_MAX_HISTORY", "20"))
 CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "8192"))
 CHATBOT_TIMEOUT = int(os.getenv("CHATBOT_TIMEOUT", "180"))
 CHATBOT_MAX_FILE_SIZE = int(os.getenv("CHATBOT_MAX_FILE_SIZE", "20971520"))  # 20MB
+
+# Translation / Summarization Service
+TS_SERVICE_PORT = os.getenv("TS_SERVICE_PORT", "8010")
+# Auto-detect if we are running in Docker to set the correct host name for internal networking.
+IS_DOCKER = os.path.exists("/.dockerenv")
+DEFAULT_TS_HOST = "translation_summarization" if IS_DOCKER else "localhost"
+TS_SERVICE_HOST = os.getenv("TS_SERVICE_HOST", DEFAULT_TS_HOST)
+TS_SERVICE_URL = os.getenv(
+    "TS_SERVICE_URL",
+    f"http://{TS_SERVICE_HOST}:{TS_SERVICE_PORT}",
+)
+TS_SERVICE_API_KEY = os.getenv("TS_SERVICE_API_KEY", "")
+TS_SERVICE_TIMEOUT = int(
+    os.getenv(
+        "TS_SERVICE_TIMEOUT",
+        os.getenv("TS_SERVICE_TIMEOUT_SECONDS", "300"),
+    )
+)
 
 # Logging
 LOG_DIR = BASE_DIR / "logs"

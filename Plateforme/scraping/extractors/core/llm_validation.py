@@ -664,42 +664,31 @@ class GroqLLMClient:
 
     # ── Core chat call ──────────────────────────────────────────────
     def _chat(self, system: str, user: str) -> str | None:
-        """Send a chat completion request using configured routing policy."""
-        if not self.is_configured:
+        """Send a chat completion request via the global TS service scheduler."""
+        url = f"{getattr(settings, 'TS_SERVICE_URL', '').rstrip('/')}/chat"
+        headers = {
+            "X-TS-API-KEY": getattr(settings, "TS_SERVICE_API_KEY", ""),
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "system_prompt": system,
+            "user_prompt": user,
+            "user_id": "scraping_extractor",
+        }
+        
+        try:
+            resp = self._session.post(url, headers=headers, json=payload, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+            self.last_status_code = 200
+            self.last_provider_used = data.get("provider_used", "remote")
+            return data["output"]
+        except Exception as exc:
+            logger.warning("Scraping LLM call via TS service failed: %s", exc)
+            self.last_error_message = str(exc)
+            if hasattr(exc, "response") and exc.response is not None:
+                self.last_status_code = exc.response.status_code
             return None
-
-        self.last_status_code = None
-        self.last_error_message = ""
-
-        if self.mode == "fallback_only":
-            return self._call_provider(self.fallback_provider, system, user)
-
-        primary_response = self._call_provider(self.primary_provider, system, user)
-        if primary_response:
-            return primary_response
-
-        if self.mode == "primary_only":
-            return None
-
-        if self.mode != "primary_with_fallback":
-            return None
-
-        if not self._is_retryable_status(self.last_status_code):
-            return None
-
-        if self.fallback_provider == self.primary_provider:
-            return None
-
-        if not self._is_provider_configured(self.fallback_provider):
-            return None
-
-        logger.info(
-            "scraping_llm_fallback from=%s to=%s status=%s",
-            self.primary_provider,
-            self.fallback_provider,
-            self.last_status_code,
-        )
-        return self._call_provider(self.fallback_provider, system, user)
 
 
 # ─── JSON parsing helpers ──────────────────────────────────────────
