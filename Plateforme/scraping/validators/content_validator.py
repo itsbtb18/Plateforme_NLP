@@ -216,7 +216,7 @@ class ContentValidator:
     def _verdict_from_score(score: int) -> str:
         if score >= 60:
             return "RELEVANT"
-        if score >= 30:
+        if score >= 10:
             return "UNCERTAIN"
         return "IRRELEVANT"
 
