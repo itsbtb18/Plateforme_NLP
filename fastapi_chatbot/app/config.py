@@ -49,10 +49,6 @@ class Settings(BaseSettings):
     # Provider selectors (chat vs internal workflows)
     LLM_PROVIDER_CHAT: str = "gemini"
     LLM_PROVIDER_INTERNAL: str = "gemini"
-<<<<<<< HEAD
-=======
-
->>>>>>> 7d1949ab5abd2a2c919f8d3f5b7557b79427e222
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
