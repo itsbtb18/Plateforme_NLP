@@ -299,6 +299,7 @@ SESSION_SAVE_EVERY_REQUEST = True  # Extend session on each request
 CSRF_COOKIE_SECURE = not DEBUG  # Use secure CSRF cookie in production
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost:8888,http://127.0.0.1:8888").split(",")
 
 # Security Headers (for production)
 if not DEBUG:

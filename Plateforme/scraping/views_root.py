@@ -802,7 +802,7 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
     points, success_count = _build_source_health_points(source)
     attempts = len(points)
 
-    if attempts > 0:
+    if attempts > 0 and source.last_scraped:
         success_rate = int(round((success_count / attempts) * 100))
     elif health and int(health.total_attempts or 0) > 0:
         success_rate = int(
