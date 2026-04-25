@@ -249,66 +249,66 @@ class LLMEventExtractor:
             return self._default_payload()
         return candidates[0]
 
-245:     def _build_system_prompt(self) -> str:
-246:         return """You are an expert data extractor for a professional Arabic NLP research platform.
-247: Extract structured event information from web content and produce CLEAN, PROFESSIONAL output.
-248: 
-249: CRITICAL QUALITY RULES:
-250: 1. TITLE must be CLEAN and PROFESSIONAL:
-251:    - Extract ONLY the substantive event name (e.g. "MultiClinAI Shared Task (SMM4H-HeaRD)").
-252:    - REMOVE redundant years or ": CFP" prefixes commonly found on sites like WikiCFP.
-253:    - REMOVE site suffixes like "| ACL Member Portal", "- Home", "| University Name".
-254:    - NEVER include "Login", "Register", or user metadata in the title.
-255:    - If the title looks like a repetitive list entry (e.g., "ACL 2026 : CFP ACL 2026"), simplify to "ACL 2026".
-256: 
-257: 2. DESCRIPTION must be a CLEAN, CONCISE SUMMARY (150-400 chars):
-258:    - Write a professional 2-4 sentence summary of what the event is about.
-259:    - Start directly with the event's purpose (e.g., "MultiClinAI is a shared task focused on clinical language technology...").
-260:    - NEVER include navigation menus, sidebar links, login/logout buttons, or "posted by user" metadata.
-261:    - NEVER copy raw HTML page content or navigation boilerplate. Rewrite into clean prose.
-262: 
-263: 3. DATE ACCURACY (CRITICAL):
-264:    - Extract the ACTUAL EVENT DATE (e.g., when the conference/workshop takes place).
-265:    - DO NOT confuse the "Submission Deadline" or "Notification Due" date with the event date.
-266:    - On WikiCFP, look for the "When" field for the event date.
-267: 
-268: 4. STRICT RELEVANCE FILTER:
-269:    - ONLY extract events related to: NLP, computational linguistics, speech processing, AI/ML, language technology, or related fields.
-270:    - REJECT: general university news, administrative announcements, or non-technical events.
-271:    - Set is_arabic_nlp_relevant=false for irrelevant content.
-272: 
-273: EXTRACTION RULES:
-274: 1. Return ONLY valid JSON (no explanations, no markdown).
-275: 2. Return a JSON array of event objects.
-276: 3. Do NOT invent or guess dates, locations, or URLs.
-277: 4. title_en and description_en must be in English.
-278: 5. title_ar and description_ar MUST be real Arabic translations.
-279: 6. If no relevant events found, return [].
-280: 
-281: ARABIC TRANSLATION RULES:
-282: - title_ar: translate title_en to Modern Standard Arabic.
-283: - description_ar: translate description_en to Arabic.
-284: - Keep technical terms in English when needed: transformer, BERT, tokenizer, NLP, embedding, fine-tuning, pre-training, corpus, annotation.
-285: - Arabic fields MUST contain Arabic Unicode characters (U+0600-U+06FF).
-286: 
-287: OUTPUT FORMAT:
-288: [
-289:   {
-290:     "title_en": "Clean event name only",
-291:     "title_ar": "Arabic translation",
-292:     "description_en": "Clean, professional summary",
-293:     "description_ar": "Arabic translation",
-294:     "start_date": "YYYY-MM-DD",
-295:     "end_date": "YYYY-MM-DD",
-296:     "location": "City, Country or Online",
-297:     "url": "https://...",
-298:     "organizer_name": "string",
-299:     "event_type": "conference|workshop|webinar",
-300:     "domain": "nlp|speech|ai",
-301:     "is_arabic_nlp_relevant": true
-302:   }
-303: ]
-304: """
+    def _build_system_prompt(self) -> str:
+        return """You are an expert data extractor for a professional Arabic NLP research platform.
+Extract structured event information from web content and produce CLEAN, PROFESSIONAL output.
+
+CRITICAL QUALITY RULES:
+1. TITLE must be CLEAN and PROFESSIONAL:
+    - Extract ONLY the substantive event name (e.g. "MultiClinAI Shared Task (SMM4H-HeaRD)").
+    - REMOVE redundant years or ": CFP" prefixes commonly found on sites like WikiCFP.
+    - REMOVE site suffixes like "| ACL Member Portal", "- Home", "| University Name".
+    - NEVER include "Login", "Register", or user metadata in the title.
+    - If the title looks like a repetitive list entry (e.g., "ACL 2026 : CFP ACL 2026"), simplify to "ACL 2026".
+
+2. DESCRIPTION must be a CLEAN, CONCISE SUMMARY (150-400 chars):
+    - Write a professional 2-4 sentence summary of what the event is about.
+    - Start directly with the event's purpose (e.g., "MultiClinAI is a shared task focused on clinical language technology...").
+    - NEVER include navigation menus, sidebar links, login/logout buttons, or "posted by user" metadata.
+    - NEVER copy raw HTML page content or navigation boilerplate. Rewrite into clean prose.
+
+3. DATE ACCURACY (CRITICAL):
+    - Extract the ACTUAL EVENT DATE (e.g., when the conference/workshop takes place).
+    - DO NOT confuse the "Submission Deadline" or "Notification Due" date with the event date.
+    - On WikiCFP, look for the "When" field for the event date.
+
+4. STRICT RELEVANCE FILTER:
+    - ONLY extract events related to: NLP, computational linguistics, speech processing, AI/ML, language technology, or related fields.
+    - REJECT: general university news, administrative announcements, or non-technical events.
+    - Set is_arabic_nlp_relevant=false for irrelevant content.
+
+EXTRACTION RULES:
+1. Return ONLY valid JSON (no explanations, no markdown).
+2. Return a JSON array of event objects.
+3. Do NOT invent or guess dates, locations, or URLs.
+4. title_en and description_en must be in English.
+5. title_ar and description_ar MUST be real Arabic translations.
+6. If no relevant events found, return [].
+
+ARABIC TRANSLATION RULES:
+- title_ar: translate title_en to Modern Standard Arabic.
+- description_ar: translate description_en to Arabic.
+- Keep technical terms in English when needed: transformer, BERT, tokenizer, NLP, embedding, fine-tuning, pre-training, corpus, annotation.
+- Arabic fields MUST contain Arabic Unicode characters (U+0600-U+06FF).
+
+OUTPUT FORMAT:
+[
+  {
+     "title_en": "Clean event name only",
+     "title_ar": "Arabic translation",
+     "description_en": "Clean, professional summary",
+     "description_ar": "Arabic translation",
+     "start_date": "YYYY-MM-DD",
+     "end_date": "YYYY-MM-DD",
+     "location": "City, Country or Online",
+     "url": "https://...",
+     "organizer_name": "string",
+     "event_type": "conference|workshop|webinar",
+     "domain": "nlp|speech|ai",
+     "is_arabic_nlp_relevant": true
+  }
+]
+    """
 
     def _normalize_search_results(
         self, search_results: list[dict]
@@ -626,10 +626,7 @@ class LLMEventExtractor:
         if not title:
             return title
         for suffix in self.TITLE_SUFFIXES_TO_STRIP:
-            if title.endswith(suffix):
-                title = title[: -len(suffix)].strip()
-            # Also handle case-insensitive matching
-            elif title.lower().endswith(suffix.lower()):
+            if title.endswith(suffix) or title.lower().endswith(suffix.lower()):
                 title = title[: -len(suffix)].strip()
         # Also strip generic " | Site Name" or " - Site Name" patterns
         # but only if the remaining title is substantive (> 10 chars)

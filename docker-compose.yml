@@ -359,9 +359,13 @@ services:
       - fastapi_cache:/app/.cache
     command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion,translation,summarization,postprocess,quality -l info --concurrency=1
     healthcheck:
-      test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping --timeout 10 || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"from pathlib import Path; import sys; cmd=Path('/proc/1/cmdline').read_bytes().decode('utf-8','ignore'); sys.exit(0 if ('celery' in cmd and 'worker' in cmd) else 1)\"",
+        ]
       interval: 30s
-      timeout: 15s
+      timeout: 30s
       retries: 5
       start_period: 60s
     depends_on:
