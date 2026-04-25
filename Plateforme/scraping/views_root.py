@@ -847,7 +847,8 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
         or (source.consecutive_failures or 0)
     )
     failing = consecutive_failures >= 3 or (
-        success_rate is not None and success_rate < 40
+        success_rate is not None
+        and success_rate < 40
         and (attempts >= 3 or int(getattr(health, "total_attempts", 0) or 0) >= 3)
     )
 
@@ -3149,9 +3150,7 @@ def _build_scraping_results_dataset(
                 "raw_translation_status": raw_translation_status,
                 "status": _result_status_label(status_value),
                 "status_badge": _result_status_badge(status_value),
-                "detail_url": reverse(
-                    "scraping:scraping_result_detail", args=[obj.pk]
-                )
+                "detail_url": reverse("scraping:scraping_result_detail", args=[obj.pk])
                 + f"?category={cat_key}"
                 + (f"&run_id={selected_run_id}" if selected_run_id else ""),
                 "run_id": selected_run_id,
@@ -3159,11 +3158,22 @@ def _build_scraping_results_dataset(
             # Pull in extra model fields that the confidence calculator
             # checks (url, location, start_date, job_title, dataset_name, etc.)
             _extra_fields = (
-                "url", "access_link", "location", "location_en",
-                "start_date", "end_date", "published_date",
-                "job_title", "institution_name", "deadline",
-                "dataset_name", "download_url", "paper_url",
-                "platform", "level", "price",
+                "url",
+                "access_link",
+                "location",
+                "location_en",
+                "start_date",
+                "end_date",
+                "published_date",
+                "job_title",
+                "institution_name",
+                "deadline",
+                "dataset_name",
+                "download_url",
+                "paper_url",
+                "platform",
+                "level",
+                "price",
             )
             for _ef in _extra_fields:
                 if _ef in model_field_names and _ef not in row_data:
@@ -4248,6 +4258,7 @@ def scraping_result_detail(request, item_id):
     )
 
     from scraping.intelligence import ConfidenceCalculator
+
     calc = ConfidenceCalculator()
 
     title_en_score = int(calc.score_field(title_en, "title") * 100)
@@ -4257,16 +4268,29 @@ def scraping_result_detail(request, item_id):
     url_score = int(calc.score_field(source_url, "url") * 100)
 
     row_data = {
-        "title_en": title_en, "title": title_en,
-        "description_en": description_en, "description": description_en,
-        "url": source_url, "source_url": source_url,
-        "start_date": scraped_date, "scraped_date": scraped_date,
-        "location_en": location_en, "location": location_en,
+        "title_en": title_en,
+        "title": title_en,
+        "description_en": description_en,
+        "description": description_en,
+        "url": source_url,
+        "source_url": source_url,
+        "start_date": scraped_date,
+        "scraped_date": scraped_date,
+        "location_en": location_en,
+        "location": location_en,
     }
     _extra_fields = (
-        "job_title", "dataset_name", "platform", "level", "price",
-        "institution_name", "deadline", "paper_url", "download_url",
-        "published_date", "access_link"
+        "job_title",
+        "dataset_name",
+        "platform",
+        "level",
+        "price",
+        "institution_name",
+        "deadline",
+        "paper_url",
+        "download_url",
+        "published_date",
+        "access_link",
     )
     for _ef in _extra_fields:
         if _ef in model_field_names:
@@ -4960,14 +4984,17 @@ def run_custom_element(request, category):
         scraper.bind_progress_run(run)
 
     try:
-        with patch.object(
-            scraper,
-            "get_active_search_queries",
-            return_value=[f"custom_url:{element_url}"],
-        ), patch.object(
-            TavilySearchClient,
-            search_method_name,
-            _fake_search_method,
+        with (
+            patch.object(
+                scraper,
+                "get_active_search_queries",
+                return_value=[f"custom_url:{element_url}"],
+            ),
+            patch.object(
+                TavilySearchClient,
+                search_method_name,
+                _fake_search_method,
+            ),
         ):
             result = scraper.run()
     except Exception as exc:
@@ -5041,7 +5068,9 @@ def run_custom_element(request, category):
 
     # Success case (including skipped/duplicates)
     if items_skipped > 0 and (items_created + items_updated) == 0:
-        message = f"Element validated, but it already exists in the database for {category}."
+        message = (
+            f"Element validated, but it already exists in the database for {category}."
+        )
     else:
         message = f"Successfully scraped {items_created + items_updated} custom {category} element(s)."
 
@@ -5225,19 +5254,6 @@ def generate_search_prompts(request):
     max_active_prompts = _prompt_limit_for_category(category)
     active_count = _active_prompt_count(category)
     remaining_slots = max(0, max_active_prompts - active_count)
-    if remaining_slots <= 0:
-        return JsonResponse(
-            {
-                "error": (
-                    f"Prompt limit reached for {category} "
-                    f"({active_count}/{max_active_prompts})."
-                ),
-                "max_active_prompts": max_active_prompts,
-                "active_count": active_count,
-                "remaining_slots": 0,
-            },
-            status=400,
-        )
 
     existing_prompts = list(
         SearchQuery.objects.filter(category=category, is_active=True)
@@ -5291,14 +5307,23 @@ Category-specific guidance:
     if not prompts:
         return JsonResponse({"error": "Could not parse prompts"}, status=502)
 
-    return JsonResponse(
-        {
-            "prompts": prompts[: min(8, remaining_slots)],
-            "max_active_prompts": max_active_prompts,
-            "active_count": active_count,
-            "remaining_slots": remaining_slots,
-        }
-    )
+    prompt_payload = prompts[:8]
+    if remaining_slots > 0:
+        prompt_payload = prompt_payload[:remaining_slots]
+
+    response_payload = {
+        "prompts": prompt_payload,
+        "max_active_prompts": max_active_prompts,
+        "active_count": active_count,
+        "remaining_slots": remaining_slots,
+    }
+    if remaining_slots <= 0:
+        response_payload["warning"] = (
+            f"Prompt limit reached for {category} ({active_count}/{max_active_prompts}). "
+            "Delete one prompt to add a new suggestion."
+        )
+
+    return JsonResponse(response_payload)
 
 
 @login_required

@@ -1482,12 +1482,21 @@
 
     if (generateButton && generateUrl) {
       generateButton.addEventListener('click', async () => {
+        if (hasReachedPromptLimit()) {
+          const message = promptLimitMessage();
+          setFeedback(message, true);
+          showToast(message);
+          return;
+        }
+
         setGenerateLoading(true);
         try {
           const data = await postJson(generateUrl, { category: categoryKey });
           renderSuggestions(Array.isArray(data.prompts) ? data.prompts : []);
-        } catch (_error) {
-          showToast('Could not generate prompts. Try again.');
+        } catch (error) {
+          const message = error?.message || '{% trans "Could not generate prompts. Try again." %}';
+          setFeedback(message, true);
+          showToast(message);
         } finally {
           setGenerateLoading(false);
         }
