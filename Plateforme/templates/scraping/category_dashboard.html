@@ -923,6 +923,11 @@
       }
       feedback.textContent = message || '';
       feedback.style.color = isError ? '#b91c1c' : '#475569';
+
+      // If composer is closed and we have an error, show a toast too
+      if (isError && !composer.classList.contains('is-open')) {
+        showToast(message);
+      }
     }
 
     function openComposer() {
@@ -1024,6 +1029,18 @@
 
     function promptLimitMessage() {
       return `Maximum prompts reached for this category (${currentPromptCount()}/${maxPrompts}).`;
+    }
+
+    function updateHeaderBadge(current, max) {
+      const badge = document.querySelector('.cat-header-badge');
+      if (badge) {
+        badge.textContent = `${current}/${max} {% trans "prompts" %}`;
+      }
+      const helpText = composer.querySelector('.cat-prompt-help');
+      if (helpText) {
+        // Simple regex replace for "X/Y used"
+        helpText.textContent = helpText.textContent.replace(/\d+\/\d+/, `${current}/${max}`);
+      }
     }
 
     function setGenerateLoading(isLoading) {
@@ -1139,6 +1156,7 @@
       const existsInList = Array.from(promptsList.querySelectorAll('[data-prompt-id]')).some((node) => {
         return normalizePromptKey(node.dataset.promptText || '') === key;
       });
+
       if (!existsInList) {
         removeEmptyStateIfNeeded();
         promptsList.prepend(createPromptNode({
@@ -1148,6 +1166,11 @@
         }));
         ensureEmptyStateIfNeeded();
       }
+
+      if (data.active_count !== undefined && data.max_active_prompts !== undefined) {
+        updateHeaderBadge(data.active_count, data.max_active_prompts);
+      }
+
       refreshSuggestionStates();
       return data;
     }
@@ -1438,14 +1461,14 @@
     }
 
     addButton.addEventListener('click', () => {
-      if (hasReachedPromptLimit()) {
-        setFeedback(promptLimitMessage(), true);
-        return;
-      }
       if (composer.classList.contains('is-open')) {
         closeComposer();
       } else {
         openComposer();
+        // If limit is reached, show it inside the composer immediately
+        if (hasReachedPromptLimit()) {
+          setFeedback(promptLimitMessage(), true);
+        }
       }
     });
 
@@ -1482,12 +1505,21 @@
 
     if (generateButton && generateUrl) {
       generateButton.addEventListener('click', async () => {
+        if (hasReachedPromptLimit()) {
+          const message = promptLimitMessage();
+          setFeedback(message, true);
+          showToast(message);
+          return;
+        }
+
         setGenerateLoading(true);
         try {
           const data = await postJson(generateUrl, { category: categoryKey });
           renderSuggestions(Array.isArray(data.prompts) ? data.prompts : []);
-        } catch (_error) {
-          showToast('Could not generate prompts. Try again.');
+        } catch (error) {
+          const message = error?.message || '{% trans "Could not generate prompts. Try again." %}';
+          setFeedback(message, true);
+          showToast(message);
         } finally {
           setGenerateLoading(false);
         }
@@ -1577,11 +1609,15 @@
 
       deleteButton.disabled = true;
       try {
-        await postJson(deleteUrl, {});
+        const data = await postJson(deleteUrl, {});
         promptNode.remove();
         ensureEmptyStateIfNeeded();
         refreshSuggestionStates();
         setFeedback('{% trans "Prompt removed." %}');
+
+        if (data.active_count !== undefined && data.max_active_prompts !== undefined) {
+          updateHeaderBadge(data.active_count, data.max_active_prompts);
+        }
       } catch (error) {
         setFeedback(error.message || '{% trans "Unable to delete prompt." %}', true);
         deleteButton.disabled = false;
