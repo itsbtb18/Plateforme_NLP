@@ -1768,9 +1768,11 @@ body.light-mode .code-block-header{
                 const r=await fetch('{% url "chatbot:list_sessions" %}');
                 const d=await r.json();
                 if(!d.sessions||d.sessions.length===0){
-                    currentSessionId=null;
-                    persistCurrentSessionId();
-                    convList.innerHTML='<div style="padding:32px 16px;color:rgba(255,255,255,.35);text-align:center;font-size:.85rem">{% trans "No conversations yet" %}</div>';
+                    if(!currentSessionId){
+                        currentSessionId=null;
+                        persistCurrentSessionId();
+                        convList.innerHTML='<div style="padding:32px 16px;color:rgba(255,255,255,.35);text-align:center;font-size:.85rem">{% trans "No conversations yet" %}</div>';
+                    }
                     return;
                 }
                 if(!currentSessionId){

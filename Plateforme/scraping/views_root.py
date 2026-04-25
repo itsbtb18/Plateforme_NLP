@@ -710,7 +710,9 @@ def _source_color_token(category: str) -> str:
     return color_map.get(color_name, "#475569")
 
 
-def _health_band_for_rate(success_rate: int) -> str:
+def _health_band_for_rate(success_rate: int | None) -> str:
+    if success_rate is None:
+        return "none"
     if success_rate >= 80:
         return "green"
     if success_rate >= 40:
@@ -800,7 +802,7 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
     points, success_count = _build_source_health_points(source)
     attempts = len(points)
 
-    if attempts > 0:
+    if attempts > 0 and source.last_scraped:
         success_rate = int(round((success_count / attempts) * 100))
     elif health and int(health.total_attempts or 0) > 0:
         success_rate = int(
@@ -810,7 +812,7 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
             )
         )
     else:
-        success_rate = 0
+        success_rate = None
 
     now = timezone.now()
     recent_runs_qs = ScrapingRun.objects.filter(
@@ -845,7 +847,7 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
         or (source.consecutive_failures or 0)
     )
     failing = consecutive_failures >= 3 or (
-        success_rate < 40
+        success_rate is not None and success_rate < 40
         and (attempts >= 3 or int(getattr(health, "total_attempts", 0) or 0) >= 3)
     )
 
@@ -5002,7 +5004,7 @@ def run_custom_element(request, category):
     if not isinstance(result_errors, list):
         result_errors = [str(result_errors)] if result_errors else []
 
-    if (items_created + items_updated) <= 0:
+    if (items_created + items_updated + items_skipped) <= 0:
         item_label = _CUSTOM_ELEMENT_LABEL.get(category, "item")
         message = (
             f"cant scrap element because its not a {item_label} "
@@ -5021,20 +5023,7 @@ def run_custom_element(request, category):
         run.current_step = "Custom element: rejected by category validation"
         run.current_message = message[:255]
         run.completed_at = timezone.now()
-        run.save(
-            update_fields=[
-                "items_found",
-                "items_created",
-                "items_updated",
-                "items_skipped",
-                "errors",
-                "status",
-                "current_source",
-                "current_step",
-                "current_message",
-                "completed_at",
-            ]
-        )
+        run.save()
 
         return JsonResponse(
             {
@@ -5050,6 +5039,12 @@ def run_custom_element(request, category):
             status=422,
         )
 
+    # Success case (including skipped/duplicates)
+    if items_skipped > 0 and (items_created + items_updated) == 0:
+        message = f"Element validated, but it already exists in the database for {category}."
+    else:
+        message = f"Successfully scraped {items_created + items_updated} custom {category} element(s)."
+
     run.items_found = items_found
     run.items_created = items_created
     run.items_updated = items_updated
@@ -5058,26 +5053,9 @@ def run_custom_element(request, category):
     run.status = "completed"
     run.current_source = "custom_element"
     run.current_step = "Custom element completed"
-    run.current_message = (
-        f"Custom element complete: {items_created} Created, "
-        f"{items_updated} Updated, {items_skipped} Skipped"
-    )[:255]
+    run.current_message = message[:255]
     run.completed_at = timezone.now()
-    run.save(
-        update_fields=[
-            "items_found",
-            "items_created",
-            "items_updated",
-            "items_skipped",
-            "errors",
-            "status",
-            "current_source",
-            "current_step",
-            "current_message",
-            "completed_at",
-        ]
-    )
-
+    run.save()
     return JsonResponse(
         {
             "status": "success",

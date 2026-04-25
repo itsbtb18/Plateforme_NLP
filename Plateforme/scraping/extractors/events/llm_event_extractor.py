@@ -66,6 +66,14 @@ class LLMEventExtractor:
         r"All [Rr]ights [Rr]eserved",
         r"©\s*\d{4}",
         r"Powered by",
+        # WikiCFP specific
+        r"Home\s+Login\s+Register\s+Account\s+Logout",
+        r"Categories\s+CFPs\s+Post\s+a\s+CFP",
+        r"Conf\s+Series\s+My\s+List\s+Timeline\s+My\s+Archive",
+        r"On\s+iPhone\s+On\s+Android",
+        r"posted\s+by\s+user:\s+\w+",
+        r"tracked\s+by\s+\d+\s+users",
+        r"\[\s*display\s*\]\s*\[\s*hide\s*\]",
     )
 
     EVENT_SCHEMA_KEYS = (
@@ -247,22 +255,26 @@ Extract structured event information from web content and produce CLEAN, PROFESS
 
 CRITICAL QUALITY RULES:
 1. TITLE must be CLEAN and PROFESSIONAL:
-   - Extract ONLY the event name (e.g. "9th International Conference on Natural Language and Speech Processing (ICNLSP 2026)").
+   - Extract ONLY the substantive event name (e.g. "MultiClinAI Shared Task (SMM4H-HeaRD)").
+   - REMOVE redundant years or ": CFP" prefixes commonly found on sites like WikiCFP.
    - REMOVE site suffixes like "| ACL Member Portal", "- Home", "| University Name".
-   - REMOVE page metadata, navigation breadcrumbs, or author names from titles.
-   - If the page is an author archive, blog listing, or university announcement page (NOT an actual event), return [].
+   - NEVER include "Login", "Register", or user metadata in the title.
+   - If the title looks like a repetitive list entry (e.g., "ACL 2026 : CFP ACL 2026"), simplify to "ACL 2026".
 
 2. DESCRIPTION must be a CLEAN, CONCISE SUMMARY (150-400 chars):
    - Write a professional 2-4 sentence summary of what the event is about.
-   - Include: event purpose, key topics, important dates, and target audience.
-   - NEVER include navigation menus, sidebar links, login forms, cookie notices, footer text, or university department listings.
-   - NEVER copy raw HTML page content. Always rewrite into clean prose.
-   - If the page content is mostly navigation/boilerplate with no clear event info, return [].
+   - Start directly with the event's purpose (e.g., "MultiClinAI is a shared task focused on clinical language technology...").
+   - NEVER include navigation menus, sidebar links, login/logout buttons, or "posted by user" metadata.
+   - NEVER copy raw HTML page content or navigation boilerplate. Rewrite into clean prose.
 
-3. STRICT RELEVANCE FILTER:
+3. DATE ACCURACY (CRITICAL):
+   - Extract the ACTUAL EVENT DATE (e.g., when the conference/workshop takes place).
+   - DO NOT confuse the "Submission Deadline" or "Notification Due" date with the event date.
+   - On WikiCFP, look for the "When" field for the event date.
+
+4. STRICT RELEVANCE FILTER:
    - ONLY extract events related to: NLP, computational linguistics, speech processing, AI/ML, language technology, or related fields.
-   - REJECT: university administrative announcements, fellowship/scholarship applications, exam results, general news, student affairs.
-   - REJECT: pages that are author archives, blog listing pages, or generic department pages.
+   - REJECT: general university news, administrative announcements, or non-technical events.
    - Set is_arabic_nlp_relevant=false for irrelevant content.
 
 EXTRACTION RULES:
@@ -278,34 +290,22 @@ ARABIC TRANSLATION RULES:
 - description_ar: translate description_en to Arabic.
 - Keep technical terms in English when needed: transformer, BERT, tokenizer, NLP, embedding, fine-tuning, pre-training, corpus, annotation.
 - Arabic fields MUST contain Arabic Unicode characters (U+0600-U+06FF).
-- NEVER copy English text into Arabic fields. If you cannot translate, return null.
 
 OUTPUT FORMAT:
 [
   {
     "title_en": "Clean event name only",
-    "title_ar": "Arabic translation or null",
-    "description_en": "Clean, professional 2-4 sentence summary",
-    "description_ar": "Arabic translation or null",
-    "start_date": "YYYY-MM-DD or null",
-    "end_date": "YYYY-MM-DD or null",
-    "location": "City, Country or Online or null",
-    "url": "https://... or null",
-    "organizer": "string or null",
-    "event_type": "conference|workshop|webinar|other or null",
-    "language": "arabic|english|multilingual or null",
-    "is_arabic_nlp_relevant": true or false,
-    "relevance_score": 0.0 to 1.0,
-    "extraction_confidence": 0.0 to 1.0,
-    "source_url": "must match one input url or null",
-    "source_name": "Tavily Search",
-    "website": "https://... or null",
-    "registration_link": "https://... or null",
-    "attachment_url": "https://... or null",
-    "banner_image_url": "https://... or null",
-    "organizer_name": "string or null",
-    "domain": "nlp|speech|computer_vision|ai or null",
-    "tags": ["string", "..."] or null
+    "title_ar": "Arabic translation",
+    "description_en": "Clean, professional summary",
+    "description_ar": "Arabic translation",
+    "start_date": "YYYY-MM-DD",
+    "end_date": "YYYY-MM-DD",
+    "location": "City, Country or Online",
+    "url": "https://...",
+    "organizer_name": "string",
+    "event_type": "conference|workshop|webinar",
+    "domain": "nlp|speech|ai",
+    "is_arabic_nlp_relevant": true
   }
 ]
 """

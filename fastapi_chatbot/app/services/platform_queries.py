@@ -65,11 +65,13 @@ class PlatformQueryService:
         params: Dict = {"lim": limit}
 
         if keyword:
-            conditions.append(
-                "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
-                "OR description ILIKE :kw)"
-            )
-            params["kw"] = f"%{keyword}%"
+            words = keyword.split()
+            for i, word in enumerate(words):
+                conditions.append(
+                    f"(title ILIKE :kw_course{i} OR title_ar ILIKE :kw_course{i} OR title_en ILIKE :kw_course{i} "
+                    f"OR description ILIKE :kw_course{i})"
+                )
+                params[f"kw_course{i}"] = f"%{word}%"
         if language:
             conditions.append("language = :lang")
             params["lang"] = language
@@ -114,11 +116,13 @@ class PlatformQueryService:
         params: Dict = {"lim": limit}
 
         if keyword:
-            conditions.append(
-                "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
-                "OR description ILIKE :kw)"
-            )
-            params["kw"] = f"%{keyword}%"
+            words = keyword.split()
+            for i, word in enumerate(words):
+                conditions.append(
+                    f"(title ILIKE :kw{i} OR title_ar ILIKE :kw{i} OR title_en ILIKE :kw{i} "
+                    f"OR description ILIKE :kw{i})"
+                )
+                params[f"kw{i}"] = f"%{word}%"
         if doc_type in ("article", "thesis", "memoir"):
             conditions.append("document_type = :dtype")
             params["dtype"] = doc_type
@@ -129,7 +133,7 @@ class PlatformQueryService:
         where = " AND ".join(conditions)
         query = text(f"""
             SELECT id::text, title, title_ar, title_en, description,
-                   document_type, file_format, language,
+                   document_type, uploaded_file, language,
                    creation_date, views_count
             FROM resources_document
             WHERE {where}
@@ -145,7 +149,7 @@ class PlatformQueryService:
                 "description": (r["description"] or "")[:300],
                 "url": f"/resources/article/{r['id']}/",
                 "document_type": r["document_type"],
-                "format": r["file_format"],
+                "format": r["uploaded_file"].split(".")[-1] if r["uploaded_file"] else None,
                 "language": r["language"],
                 "created_at": str(r["creation_date"]) if r["creation_date"] else None,
                 "views": r["views_count"],
@@ -164,11 +168,13 @@ class PlatformQueryService:
         params: Dict = {"lim": limit}
 
         if keyword:
-            conditions.append(
-                "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
-                "OR description ILIKE :kw)"
-            )
-            params["kw"] = f"%{keyword}%"
+            words = keyword.split()
+            for i, word in enumerate(words):
+                conditions.append(
+                    f"(title ILIKE :kw_tool{i} OR title_ar ILIKE :kw_tool{i} OR title_en ILIKE :kw_tool{i} "
+                    f"OR description ILIKE :kw_tool{i})"
+                )
+                params[f"kw_tool{i}"] = f"%{word}%"
         if language:
             conditions.append("language = :lang")
             params["lang"] = language
@@ -212,11 +218,13 @@ class PlatformQueryService:
         params: Dict = {"lim": limit}
 
         if keyword:
-            conditions.append(
-                "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
-                "OR description ILIKE :kw)"
-            )
-            params["kw"] = f"%{keyword}%"
+            words = keyword.split()
+            for i, word in enumerate(words):
+                conditions.append(
+                    f"(title ILIKE :kw_corp{i} OR title_ar ILIKE :kw_corp{i} OR title_en ILIKE :kw_corp{i} "
+                    f"OR description ILIKE :kw_corp{i})"
+                )
+                params[f"kw_corp{i}"] = f"%{word}%"
         if language:
             conditions.append("language = :lang")
             params["lang"] = language
@@ -263,11 +271,13 @@ class PlatformQueryService:
         params: Dict = {"lim": limit}
 
         if keyword:
-            conditions.append(
-                "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
-                "OR description ILIKE :kw OR domains ILIKE :kw)"
-            )
-            params["kw"] = f"%{keyword}%"
+            words = keyword.split()
+            for i, word in enumerate(words):
+                conditions.append(
+                    f"(title ILIKE :kw_event{i} OR title_ar ILIKE :kw_event{i} OR title_en ILIKE :kw_event{i} "
+                    f"OR description ILIKE :kw_event{i} OR domains ILIKE :kw_event{i})"
+                )
+                params[f"kw_event{i}"] = f"%{word}%"
         if event_type:
             conditions.append("event_type = :etype")
             params["etype"] = event_type
@@ -322,11 +332,13 @@ class PlatformQueryService:
         params: Dict = {"lim": limit}
 
         if keyword:
-            conditions.append(
-                "(i.name ILIKE :kw OR i.name_ar ILIKE :kw OR i.name_en ILIKE :kw "
-                "OR i.description ILIKE :kw OR i.city ILIKE :kw)"
-            )
-            params["kw"] = f"%{keyword}%"
+            words = keyword.split()
+            for i, word in enumerate(words):
+                conditions.append(
+                    f"(i.name ILIKE :kw{i} OR i.name_ar ILIKE :kw{i} OR i.name_en ILIKE :kw{i} "
+                    f"OR i.description ILIKE :kw{i} OR i.city ILIKE :kw{i})"
+                )
+                params[f"kw{i}"] = f"%{word}%"
         if institution_type:
             conditions.append("i.type = :itype")
             params["itype"] = institution_type
@@ -374,17 +386,19 @@ class PlatformQueryService:
         status: Optional[str] = None,
         limit: int = 10,
     ) -> List[Dict]:
-        conditions = ["approval_status = 'approved'"]
+        conditions = ["p.approval_status = 'approved'"]
         params: Dict = {"lim": limit}
 
         if keyword:
-            conditions.append(
-                "(title ILIKE :kw OR title_ar ILIKE :kw OR title_en ILIKE :kw "
-                "OR description ILIKE :kw)"
-            )
-            params["kw"] = f"%{keyword}%"
+            words = keyword.split()
+            for i, word in enumerate(words):
+                conditions.append(
+                    f"(p.title ILIKE :kw_proj{i} OR p.title_ar ILIKE :kw_proj{i} OR p.title_en ILIKE :kw_proj{i} "
+                    f"OR p.description ILIKE :kw_proj{i})"
+                )
+                params[f"kw_proj{i}"] = f"%{word}%"
         if status:
-            conditions.append("status = :st")
+            conditions.append("p.status = :st")
             params["st"] = status
 
         where = " AND ".join(conditions)
@@ -429,12 +443,14 @@ class PlatformQueryService:
         params: Dict = {"lim": limit}
 
         if keyword:
-            conditions.append(
-                "(u.full_name ILIKE :kw OR u.full_name_ar ILIKE :kw "
-                "OR u.full_name_en ILIKE :kw OR u.email ILIKE :kw "
-                "OR SPLIT_PART(u.email, '@', 1) ILIKE :kw)"
-            )
-            params["kw"] = f"%{keyword}%"
+            words = keyword.split()
+            for i, word in enumerate(words):
+                conditions.append(
+                    f"(u.full_name ILIKE :kw_auth{i} OR u.full_name_ar ILIKE :kw_auth{i} "
+                    f"OR u.full_name_en ILIKE :kw_auth{i} OR u.email ILIKE :kw_auth{i} "
+                    f"OR SPLIT_PART(u.email, '@', 1) ILIKE :kw_auth{i})"
+                )
+                params[f"kw_auth{i}"] = f"%{word}%"
 
         where = " AND ".join(conditions)
         query = text(f"""
@@ -1222,6 +1238,104 @@ class PlatformQueryService:
 
         return results[:limit]
 
+
+    async def get_resource_by_id(self, db: AsyncSession, resource_id: str) -> Optional[Dict]:
+        """Fetch a specific resource (article/thesis/tool/etc.) by its UUID."""
+        # Try articles/documents first
+        query = text("""
+            SELECT id::text, title, title_ar, title_en, description,
+                   document_type, uploaded_file, language,
+                   creation_date, views_count
+            FROM resources_document
+            WHERE id = :rid
+        """)
+        r = (await db.execute(query, {"rid": resource_id})).mappings().first()
+        if r:
+            return {
+                "id": r["id"],
+                "type": "document",
+                "title": r["title_en"] or r["title_ar"] or r["title"],
+                "description": (r["description"] or "")[:300],
+                "url": f"/resources/article/{r['id']}/",
+                "document_type": r["document_type"],
+                "format": r["uploaded_file"].split(".")[-1] if r["uploaded_file"] else None,
+                "language": r["language"],
+                "created_at": str(r["creation_date"]) if r["creation_date"] else None,
+                "views": r["views_count"],
+            }
+        
+        # Try tools
+        query = text("""
+            SELECT id::text, title, title_ar, title_en, description,
+                   tool_type, version, supported_languages, language,
+                   creation_date, views_count
+            FROM resources_nlptool
+            WHERE id = :rid
+        """)
+        r = (await db.execute(query, {"rid": resource_id})).mappings().first()
+        if r:
+            return {
+                "id": r["id"],
+                "type": "tool",
+                "title": r["title_en"] or r["title_ar"] or r["title"],
+                "description": (r["description"] or "")[:300],
+                "url": f"/resources/tool/{r['id']}/",
+                "tool_type": r["tool_type"],
+                "version": r["version"],
+                "languages": r["supported_languages"],
+                "created_at": str(r["creation_date"]) if r["creation_date"] else None,
+                "views": r["views_count"],
+            }
+        return None
+
+    async def get_institution_by_id(self, db: AsyncSession, inst_id: str) -> Optional[Dict]:
+        query = text("""
+            SELECT i.id::text, i.name, i.name_ar, i.name_en,
+                   i.type, i.city, i.city_ar, i.city_en,
+                   i.website, i.description,
+                   c.name_en AS country_name, c.code AS country_code
+            FROM institutions_institution i
+            LEFT JOIN institutions_country c ON i.country_id = c.id
+            WHERE i.id = :iid
+        """)
+        r = (await db.execute(query, {"iid": inst_id})).mappings().first()
+        if r:
+            return {
+                "id": r["id"],
+                "type": "institution",
+                "name": r["name_en"] or r["name_ar"] or r["name"],
+                "url": f"/institutions/{r['id']}/",
+                "institution_type": r["type"],
+                "city": r["city_en"] or r["city_ar"] or r["city"],
+                "country": r["country_name"],
+                "country_code": r["country_code"],
+                "website": r["website"],
+                "description": (r["description"] or "")[:300],
+            }
+        return None
+
+    async def get_project_by_id(self, db: AsyncSession, project_id: str) -> Optional[Dict]:
+        query = text("""
+            SELECT p.id::text, p.title, p.title_ar, p.title_en, p.description,
+                   p.status, p.date_start, p.date_end, p.created_at,
+                   i.name AS institution_name
+            FROM projects_project p
+            LEFT JOIN institutions_institution i ON p.institution_id = i.id
+            WHERE p.id = :pid
+        """)
+        r = (await db.execute(query, {"pid": project_id})).mappings().first()
+        if r:
+            return {
+                "id": r["id"],
+                "type": "project",
+                "title": r["title_en"] or r["title_ar"] or r["title"],
+                "description": (r["description"] or "")[:300],
+                "url": f"/projects/{r['id']}/",
+                "status": r["status"],
+                "institution": r["institution_name"],
+                "start_date": str(r["date_start"]) if r["date_start"] else None,
+            }
+        return None
 
 # Singleton
 _platform_query_service: Optional[PlatformQueryService] = None
