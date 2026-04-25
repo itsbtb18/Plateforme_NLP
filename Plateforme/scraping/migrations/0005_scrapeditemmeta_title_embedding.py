@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL("CREATE EXTENSION IF NOT EXISTS vector;"),
         migrations.AddField(
             model_name='scrapeditemmeta',
             name='title_embedding',

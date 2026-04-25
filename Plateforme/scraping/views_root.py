@@ -710,7 +710,9 @@ def _source_color_token(category: str) -> str:
     return color_map.get(color_name, "#475569")
 
 
-def _health_band_for_rate(success_rate: int) -> str:
+def _health_band_for_rate(success_rate: int | None) -> str:
+    if success_rate is None:
+        return "none"
     if success_rate >= 80:
         return "green"
     if success_rate >= 40:
@@ -800,7 +802,7 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
     points, success_count = _build_source_health_points(source)
     attempts = len(points)
 
-    if attempts > 0:
+    if attempts > 0 and source.last_scraped:
         success_rate = int(round((success_count / attempts) * 100))
     elif health and int(health.total_attempts or 0) > 0:
         success_rate = int(
@@ -810,7 +812,7 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
             )
         )
     else:
-        success_rate = 0
+        success_rate = None
 
     now = timezone.now()
     recent_runs_qs = ScrapingRun.objects.filter(
@@ -845,7 +847,7 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
         or (source.consecutive_failures or 0)
     )
     failing = consecutive_failures >= 3 or (
-        success_rate < 40
+        success_rate is not None and success_rate < 40
         and (attempts >= 3 or int(getattr(health, "total_attempts", 0) or 0) >= 3)
     )
 

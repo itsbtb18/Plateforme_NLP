@@ -1122,11 +1122,11 @@
             <td>
               <div class="src-health">
                 <div class="src-health-top">
-                  <span>{{ row.success_rate }}%</span>
+                  <span>{% if row.success_rate is not None %}{{ row.success_rate }}%{% else %}{% trans "N/A" %}{% endif %}</span>
                   <span>{% blocktrans with failures=row.consecutive_failures %}{{ failures }} failures{% endblocktrans %}</span>
                 </div>
                 <div class="src-health-track">
-                  <span class="src-health-fill {{ row.health_band }}" style="width: {{ row.success_rate }}%;"></span>
+                  <span class="src-health-fill {{ row.health_band }}" style="width: {% if row.success_rate is not None %}{{ row.success_rate }}{% else %}0{% endif %}%;"></span>
                 </div>
                 <div class="src-spark" aria-label="{% trans 'Recent run health' %}">
                   {% for point in row.health_points|slice:":10" %}

@@ -219,11 +219,11 @@ class QueryClassifier:
 
         # Greetings → general_knowledge (no retrieval needed)
         if _GREETING_RE.match(q):
-            return self._build_classification("general_knowledge", language, 0.99)
+            return self._build_classification("general_knowledge", language, 0.99, q)
 
         # Identity questions → general_knowledge
         if _IDENTITY_RE.search(q):
-            return self._build_classification("general_knowledge", language, 0.99)
+            return self._build_classification("general_knowledge", language, 0.99, q)
 
         # Memory commands → no retrieval needed (fast-path)
         for regex, intent_name in _MEMORY_REGEX_MAP:
@@ -242,7 +242,7 @@ class QueryClassifier:
                     "Memory intent fast-path: %s for query '%s'",
                     resolved_intent, q[:60],
                 )
-                return self._build_classification(resolved_intent, language, 0.97)
+                return self._build_classification(resolved_intent, language, 0.97, q)
 
         return None
 
@@ -282,7 +282,7 @@ class QueryClassifier:
         )
 
         if top_score == 0:
-            return self._build_classification("conceptual_question", language, 0.50)
+            return self._build_classification("conceptual_question", language, 0.50, q)
 
         if is_ambiguous:
             confidence = min(top_score, 0.60)
@@ -296,19 +296,16 @@ class QueryClassifier:
         else:
             confidence = top_score
 
-        result = self._build_classification(top_intent, language, confidence)
+        result = self._build_classification(top_intent, language, confidence, q)
 
         if self._force_legal_when_explicit(q, result.intent):
             logger.info(
                 "Classifier correction: forcing legal_query for explicit legal wording"
             )
-            return self._build_classification("legal_query", language, 0.90)
+            return self._build_classification("legal_query", language, 0.90, q)
 
         if self._force_conceptual_for_answer_analysis(q, result.intent):
-            return self._build_classification("conceptual_question", language, 0.80)
-
-        if top_intent == "platform_query":
-            result.detected_resource_type = extract_resource_type(q)
+            return self._build_classification("conceptual_question", language, 0.80, q)
 
         return result
 
@@ -393,14 +390,14 @@ class QueryClassifier:
                     "LLM classification: query='%s' → intent=%s lang=%s",
                     q[:60], intent, language,
                 )
-                result = self._build_classification(intent, language, 0.95)
+                result = self._build_classification(intent, language, 0.95, q)
 
                 if self._force_legal_when_explicit(q, result.intent):
                     logger.info(
                         "Classifier correction: forcing legal_query for explicit legal wording"
                     )
                     return self._build_classification(
-                        "legal_query", language, 0.92,
+                        "legal_query", language, 0.92, q
                     )
 
                 if self._force_conceptual_for_answer_analysis(q, result.intent):
@@ -409,11 +406,8 @@ class QueryClassifier:
                         "for pasted-answer analysis query"
                     )
                     return self._build_classification(
-                        "conceptual_question", language, 0.90,
+                        "conceptual_question", language, 0.90, q
                     )
-
-                if intent == "platform_query":
-                    result.detected_resource_type = extract_resource_type(q)
 
                 return result
             else:
@@ -550,13 +544,16 @@ class QueryClassifier:
         lower = text.lower()
         return any(kw in lower for kw in PLATFORM_KEYWORDS)
 
-    @staticmethod
     def _build_classification(
-        intent: str, language: str, confidence: float,
+        self,
+        intent: str,
+        language: str,
+        confidence: float,
+        text: Optional[str] = None,
     ) -> QueryClassification:
         """Construct a QueryClassification from intent name."""
         params = _INTENT_PARAMS.get(intent, {})
-        return QueryClassification(
+        cls = QueryClassification(
             intent=intent,
             language=language,
             confidence=confidence,
@@ -565,6 +562,9 @@ class QueryClassifier:
             use_postgresql=params.get("use_postgresql", False),
             use_llm_direct=params.get("use_llm_direct", False),
         )
+        if intent == "platform_query" and text:
+            cls.detected_resource_type = extract_resource_type(text)
+        return cls
 
 
 # ---------------------------------------------------------------------------

@@ -87,18 +87,55 @@ PLATFORM_PATTERNS = [
     re.compile(r"\bمن كتب\b"),
     re.compile(
         r"\b(?:list|show me|find|give|get)\b.*\b(?:courses?|articles?|thes[ei]s|"
-        r"memoirs?|tools?|corpus|corpora|events?|institutions?|projects?|authors?|resources?|forum|topics?)\b",
+        r"memoirs?|tools?|corpus|corpora|events?|institutions?|centers?|laboratories?|labs?|projects?|authors?|resources?|forum|topics?)\b",
         re.I,
     ),
     re.compile(
         r"\b(?:trouver|montrer|lister)\b.*\b(?:cours|articles?|thèses?|"
-        r"mémoires?|outils?|corpus|événements?|institutions?|projets?|forum|sujets?)\b",
+        r"mémoires?|outils?|corpus|événements?|institutions?|centres?|laboratoires?|projets?|forum|sujets?)\b",
         re.I,
     ),
     re.compile(
         r"\b(?:أعرض|اعثر|قائمة)\b.*\b(?:دورة|مقال|أطروحة|مذكرة|أداة|"
-        r"مجموعة|حدث|مؤسسة|مشروع|منتدى|موضوع)\b",
+        r"مجموعة|حدث|مؤسسة|مركز|مراكز|مخبر|مخابر|مشروع|منتدى|موضوع)\b",
     ),
+    # --- Suggest / recommend + platform entity keywords ---
+    # Catches queries like "suggest me summarization tool",
+    # "recommend a course for NLP", "any tools for translation?" etc.
+    re.compile(
+        r"\b(?:suggest|recommend|any|best|top|popular|available)\b"
+        r".*\b(?:courses?|tools?|articles?|thes[ei]s|memoirs?|corpus|corpora|"
+        r"events?|institutions?|centers?|laboratories?|labs?|projects?|resources?|forums?|topics?)\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:courses?|tools?|articles?|thes[ei]s|memoirs?|corpus|corpora|"
+        r"events?|institutions?|centers?|laboratories?|labs?|projects?|resources?)\b"
+        r".*\b(?:for|about|related to|on|in the platform)\b",
+        re.I,
+    ),
+    # French: "suggère/recommande un outil/cours"
+    re.compile(
+        r"\b(?:sugg[èe]rer?|sugg[èe]re|recommander?|recommande|proposer?|propose|meilleur[es]?|disponibles?)\b"
+        r".*\b(?:cours|outils?|articles?|thèses?|mémoires?|corpus|"
+        r"événements?|institutions?|centres?|laboratoires?|projets?|ressources?)\b",
+        re.I,
+    ),
+    # Arabic: "اقترح/أوصي أداة/دورة"
+    re.compile(
+        r"(?:اقترح|أوصي|أفضل|متاح)"
+        r".*(?:دورة|أداة|أدوات|مقال|أطروحة|مذكرة|مؤسسة|مركز|مراكز|مخبر|مخابر|مشروع|حدث)",
+    ),
+    # "in the platform / on the platform / platform's"
+    re.compile(
+        r"\b(?:in|on|from|of)\s+(?:the\s+)?platform\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:dans|sur|de)\s+(?:la\s+)?plateforme\b",
+        re.I,
+    ),
+    re.compile(r"في المنصة|على المنصة|من المنصة"),
 ]
 
 PLATFORM_KEYWORDS = {
@@ -459,6 +496,14 @@ RESOURCE_TYPE_MAP = {
     "institutions": "institution",
     "university": "institution",
     "universities": "institution",
+    "center": "institution",
+    "centers": "institution",
+    "research center": "institution",
+    "research centers": "institution",
+    "laboratory": "institution",
+    "laboratories": "institution",
+    "lab": "institution",
+    "labs": "institution",
     "project": "project",
     "projects": "project",
     "researcher": "author",
@@ -482,6 +527,15 @@ RESOURCE_TYPE_MAP = {
     "conférence": "event",
     "atelier": "event",
     "séminaire": "event",
+    "institution": "institution",
+    "institutions": "institution",
+    "université": "institution",
+    "universités": "institution",
+    "centre": "institution",
+    "centres": "institution",
+    "laboratoire": "institution",
+    "laboratoires": "institution",
+    "labo": "institution",
     "projet": "project",
     "projets": "project",
     "auteur": "author",
@@ -503,6 +557,10 @@ RESOURCE_TYPE_MAP = {
     "ندوة": "event",
     "مؤسسة": "institution",
     "جامعة": "institution",
+    "مركز": "institution",
+    "مراكز": "institution",
+    "مخبر": "institution",
+    "مخابر": "institution",
     "مشروع": "project",
     "مشاريع": "project",
     "باحث": "author",
