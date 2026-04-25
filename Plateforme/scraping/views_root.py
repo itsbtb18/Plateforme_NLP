@@ -5293,7 +5293,8 @@ Category-specific guidance:
 """
 
     try:
-        llm_client = GroqLLMClient(timeout=10, max_retries=1)
+        # Use a longer timeout for generation as it can be slow
+        llm_client = GroqLLMClient(timeout=30, max_retries=1)
         llm_text = llm_client._chat_with_groq(system_prompt, user_prompt)
     except Exception as exc:
         logger.warning(
@@ -5454,12 +5455,19 @@ def delete_prompt_api(request, query_id):
     if query_obj is None:
         return JsonResponse({"error": "Prompt not found"}, status=404)
 
-    query_obj.delete()
+    category = query_obj.category
+    query_obj.is_active = False
+    query_obj.save(update_fields=["is_active"])
+
+    updated_active_count = _active_prompt_count(category)
+    max_active_prompts = _prompt_limit_for_category(category)
 
     return JsonResponse(
         {
             "id": str(query_id),
             "deleted": True,
+            "active_count": updated_active_count,
+            "max_active_prompts": max_active_prompts,
         }
     )
 
