@@ -1,0 +1,798 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+' ==============================
+' IDENTITE
+' ==============================
+abstract class Person {
+  +id: UUID
+  +email: String
+  +full_name: String
+  +passwordHash: String
+  +role: String
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  +getDisplayName(): String
+  +updateProfile(): void
+  +changePassword(): void
+}
+
+class User {
+  +status: String
+  +isActive: Boolean
+  +isVerified: Boolean
+  +lastLogin: DateTime
+  +reputationScore: int
+  +save(): void
+  +verifyEmail(): void
+  +ban(): void
+  +unban(): void
+}
+
+class Admin {
+  +adminLevel: String
+  +department: String
+  +createSection(): void
+  +validateSection(): void
+  +assignRole(): void
+  +revokeRole(): void
+  +viewSystemLogs(): void
+}
+
+Person <|-- User
+Person <|-- Admin
+
+class UserProfile {
+  +bio: Text
+  +country: String
+  +avatar: String
+  +website: String
+  +linkedinUrl: String
+  +githubUrl: String
+  +getProfile(): void
+  +updateAvatar(): void
+  +updateBio(): void
+}
+
+User "1" *-- "1" UserProfile : composition
+
+class Friendship {
+  +id: UUID
+  +userId1: UUID
+  +userId2: UUID
+  +status: String
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  +accept(): void
+  +decline(): void
+  +block(): void
+}
+
+class Follow {
+  +id: UUID
+  +followerId: UUID
+  +followedId: UUID
+  +createdAt: DateTime
+  +unfollow(): void
+}
+
+User "1" -- "0..*" Friendship
+User "1" -- "0..*" Follow
+
+' ==============================
+' INSTITUTION
+' ==============================
+class Country {
+  +name: String
+  +code: String
+  +region: String
+  +population: int
+  +addInstitution(): void
+}
+
+class Specialty {
+  +name: String
+  +domain: String
+  +description: Text
+  +updateDomain(): void
+}
+
+class Institution {
+  +id: UUID
+  +name: String
+  +type: String
+  +address: String
+  +website: String
+  +contactEmail: String
+  +isVerified: Boolean
+  +validate(): void
+  +updateInfo(): void
+  +addSpecialty(): void
+}
+
+Country "1" o-- "0..*" Institution : aggregation
+Institution "*" -- "*" Specialty
+User --> Institution
+
+' ==============================
+' PLATEFORME SECTION (BASE)
+' ==============================
+abstract class PlatformSection {
+  +id: UUID
+  +name: String
+  +slug: String
+  +status: String
+  +description: Text
+  +isActive: Boolean
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  +publish(): void
+  +archive(): void
+  +getStats(): Map
+  +updateDescription(): void
+}
+
+Admin --> PlatformSection : manage
+
+' ==============================
+' SECTION : COMMUNITY
+' ==============================
+class CommunitySection {
+  +membersCount: int
+  +rules: Text
+  +getMembers(): List
+  +joinCommunity(): void
+  +leaveCommunity(): void
+}
+
+PlatformSection <|-- CommunitySection
+
+' --- Feed ---
+class FeedSection {
+  +postsCount: int
+  +getPosts(): List
+  +refreshFeed(): void
+  +filterPosts(): List
+}
+
+CommunitySection "1" *-- "1" FeedSection
+
+class Post {
+  +id: UUID
+  +authorId: UUID
+  +title: String
+  +content: Text
+  +mediaUrl: String
+  +likesCount: int
+  +viewsCount: int
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  +publish(): void
+  +like(): void
+  +edit(): void
+  +delete(): void
+  +addComment(): void
+}
+
+class PostComment {
+  +id: UUID
+  +postId: UUID
+  +authorId: UUID
+  +content: Text
+  +likesCount: int
+  +createdAt: DateTime
+  +reply(): void
+  +like(): void
+  +edit(): void
+  +delete(): void
+}
+
+class Question {
+  +id: UUID
+  +authorId: UUID
+  +title: String
+  +content: Text
+  +tags: List<String>
+  +upvotes: int
+  +downvotes: int
+  +views: int
+  +isSolved: Boolean
+  +ask(): void
+  +edit(): void
+  +close(): void
+  +addAnswer(): void
+}
+
+class Answer {
+  +id: UUID
+  +questionId: UUID
+  +authorId: UUID
+  +content: Text
+  +upvotes: int
+  +downvotes: int
+  +isAccepted: Boolean
+  +createdAt: DateTime
+  +vote(): void
+  +edit(): void
+  +accept(): void
+}
+
+User "1" -- "0..*" Post
+FeedSection "1" o-- "0..*" Post : aggregation
+Post "1" *-- "0..*" PostComment : composition
+User --> Question
+User --> Answer
+Question "1" *-- "0..*" Answer : composition
+
+' --- Forum ---
+class ForumSection {
+  +topicsCount: int
+  +categories: List<String>
+  +moderate(): void
+  +createCategory(): void
+}
+
+CommunitySection "1" *-- "1" ForumSection
+
+class Topic {
+  +id: UUID
+  +authorId: UUID
+  +title: String
+  +category: String
+  +views: int
+  +repliesCount: int
+  +isPinned: Boolean
+  +isClosed: Boolean
+  +createdAt: DateTime
+  +create(): void
+  +close(): void
+  +pin(): void
+  +unpin(): void
+  +delete(): void
+}
+
+class ForumChatRoom {
+  +id: UUID
+  +topicId: UUID
+  +name: String
+  +isOpen: Boolean
+  +createdAt: DateTime
+  +open(): void
+  +close(): void
+  +join(): void
+  +leave(): void
+}
+
+class ForumMessage {
+  +id: UUID
+  +roomId: UUID
+  +authorId: UUID
+  +content: Text
+  +isEdited: Boolean
+  +createdAt: DateTime
+  +send(): void
+  +edit(): void
+  +delete(): void
+}
+
+ForumSection "1" o-- "0..*" Topic : aggregation
+Topic "1" *-- "0..*" ForumChatRoom : composition
+ForumChatRoom "1" *-- "0..*" ForumMessage : composition
+
+' --- Projects ---
+class ProjectSection {
+  +projectsCount: int
+  +createProject(): void
+  +searchProjects(): List
+}
+
+CommunitySection "1" *-- "1" ProjectSection
+
+class Project {
+  +id: UUID
+  +ownerId: UUID
+  +title: String
+  +description: Text
+  +status: String
+  +budget: float
+  +tags: List<String>
+  +startDate: Date
+  +endDate: Date
+  +start(): void
+  +close(): void
+  +updateStatus(): void
+  +addMember(): void
+  +removeMember(): void
+}
+
+class ProjectMember {
+  +userId: UUID
+  +projectId: UUID
+  +role: String
+  +joinedAt: DateTime
+  +updateRole(): void
+  +leaveProject(): void
+}
+
+class ProjectChatRoom {
+  +id: UUID
+  +projectId: UUID
+  +name: String
+  +isActive: Boolean
+  +createdAt: DateTime
+  +open(): void
+  +close(): void
+  +addMessage(): void
+}
+
+class ProjectChatMessage {
+  +id: UUID
+  +roomId: UUID
+  +authorId: UUID
+  +content: Text
+  +createdAt: DateTime
+  +send(): void
+  +edit(): void
+  +delete(): void
+}
+
+class ProjectTask {
+  +id: UUID
+  +projectId: UUID
+  +assigneeId: UUID
+  +title: String
+  +description: Text
+  +status: String
+  +dueDate: Date
+  +createdAt: DateTime
+  +assign(): void
+  +updateStatus(): void
+  +delete(): void
+}
+
+ProjectSection "1" o-- "0..*" Project : aggregation
+Project "1" *-- "0..*" ProjectMember : composition
+Project "1" *-- "1" ProjectChatRoom : composition
+ProjectChatRoom "1" *-- "0..*" ProjectChatMessage : composition
+Project "1" *-- "0..*" ProjectTask : composition
+User --> Project
+
+' ==============================
+' SECTION : RESOURCES
+' ==============================
+class ResourcesSection {
+  +resourcesCount: int
+  +addResource(): void
+  +filterByType(): List
+  +searchResources(): List
+  +getMostPopular(): List
+}
+
+PlatformSection <|-- ResourcesSection
+
+abstract class ResourceBase {
+  +id: UUID
+  +authorId: UUID
+  +title: String
+  +description: Text
+  +thumbnail: String
+  +views: int
+  +downloads: int
+  +tags: List<String>
+  +createdAt: DateTime
+  +updatedAt: DateTime
+  +delete(): void
+  +publish(): void
+  +update(): void
+  +incrementViews(): void
+}
+
+ResourcesSection "1" o-- "0..*" ResourceBase : aggregation
+
+' --- Content (Articles, Thesis, Memoire) ---
+class ArticleSection {
+  +articlesCount: int
+  +filter(): List
+  +addArticle(): void
+}
+
+ResourceBase <|-- ArticleSection
+
+class Article {
+  +authors: List<String>
+  +journal: String
+  +volume: String
+  +issue: String
+  +pages: String
+  +abstract: Text
+  +keywords: String
+  +doi: String
+  +publishedDate: Date
+  +read(): void
+  +downloadPdf(): void
+  +cite(): String
+}
+
+class Thesis {
+  +university: String
+  +supervisor: String
+  +degree: String
+  +abstract: Text
+  +keywords: String
+  +defenseDate: Date
+  +grade: String
+  +download(): void
+  +read(): void
+}
+
+class Memoire {
+  +university: String
+  +supervisor: String
+  +degree: String
+  +abstract: Text
+  +keywords: String
+  +year: int
+  +download(): void
+  +read(): void
+}
+
+ArticleSection "1" o-- "0..*" Article : aggregation
+ArticleSection "1" o-- "0..*" Thesis : aggregation
+ArticleSection "1" o-- "0..*" Memoire : aggregation
+
+' --- Courses ---
+class CoursesSection {
+  +coursesCount: int
+  +filterByLevel(): List
+  +addCourse(): void
+  +searchCourses(): List
+}
+
+ResourceBase <|-- CoursesSection
+
+class Course {
+  +instructorId: UUID
+  +rating: float
+  +enrolledCount: int
+  +syllabus: Text
+  +price: float
+  +level: String
+  +duration: int
+  +language: String
+  +enroll(): void
+  +updatePrice(): void
+  +rateCourse(): void
+}
+
+class CourseModule {
+  +id: UUID
+  +courseId: UUID
+  +title: String
+  +description: Text
+  +order: int
+  +duration: int
+  +addLesson(): void
+  +removeLesson(): void
+}
+
+class CourseLesson {
+  +id: UUID
+  +moduleId: UUID
+  +title: String
+  +videoUrl: String
+  +content: Text
+  +order: int
+  +duration: int
+  +isCompleted: Boolean
+  +play(): void
+  +markAsCompleted(): void
+}
+
+CoursesSection "1" o-- "0..*" Course : aggregation
+Course "1" *-- "0..*" CourseModule : composition
+CourseModule "1" *-- "0..*" CourseLesson : composition
+
+' --- Tools ---
+class ToolsSection {
+  +toolsCount: int
+  +addTool(): void
+  +searchTools(): List
+}
+
+ResourceBase <|-- ToolsSection
+
+class Tool {
+  +developer: String
+  +license: String
+  +documentationUrl: String
+  +rating: float
+  +version: String
+  +category: String
+  +downloadUrl: String
+  +isFree: Boolean
+  +download(): void
+  +updateVersion(): void
+  +rateTool(): void
+}
+
+ToolsSection "1" o-- "0..*" Tool : aggregation
+
+' --- Corpus ---
+class CorpusSection {
+  +corporaCount: int
+  +addCorpus(): void
+  +searchCorpora(): List
+}
+
+ResourceBase <|-- CorpusSection
+
+class Corpus {
+  +domain: String
+  +license: String
+  +version: String
+  +description: Text
+  +size: int
+  +format: String
+  +language: String
+  +download(): void
+  +updateCorpus(): void
+}
+
+CorpusSection "1" o-- "0..*" Corpus : aggregation
+
+' ==============================
+' SECTION : EVENTS
+' ==============================
+class EventsSection {
+  +eventsCount: int
+  +getUpcoming(): List
+  +createEvent(): void
+  +searchEvents(): List
+}
+
+PlatformSection <|-- EventsSection
+
+class Event {
+  +id: UUID
+  +organizerId: UUID
+  +title: String
+  +description: Text
+  +bannerUrl: String
+  +price: float
+  +tags: List<String>
+  +startDate: DateTime
+  +endDate: DateTime
+  +location: String
+  +isOnline: Boolean
+  +capacity: int
+  +schedule(): void
+  +cancel(): void
+  +updateDetails(): void
+  +register(): void
+  +getAttendees(): List
+}
+
+class EventRegistration {
+  +id: UUID
+  +eventId: UUID
+  +userId: UUID
+  +paymentStatus: String
+  +registeredAt: DateTime
+  +status: String
+  +confirm(): void
+  +cancel(): void
+}
+
+class Speaker {
+  +id: UUID
+  +eventId: UUID
+  +name: String
+  +bio: Text
+  +organization: String
+  +topic: String
+  +imageUrl: String
+  +linkedInUrl: String
+  +updateBio(): void
+}
+
+EventsSection "1" o-- "0..*" Event : aggregation
+Event "1" *-- "0..*" EventRegistration : composition
+Event "1" *-- "0..*" Speaker : composition
+User --> EventRegistration
+
+' ==============================
+' SECTION : NEWS
+' ==============================
+class NewsSection {
+  +articlesCount: int
+  +getLatest(): List
+  +addNews(): void
+  +filterByCategory(): List
+}
+
+PlatformSection <|-- NewsSection
+
+class News {
+  +id: UUID
+  +authorId: UUID
+  +title: String
+  +content: Text
+  +source: String
+  +imageUrl: String
+  +tags: List<String>
+  +views: int
+  +publishedAt: DateTime
+  +category: String
+  +publish(): void
+  +edit(): void
+  +delete(): void
+}
+
+class NewsTag {
+  +id: UUID
+  +name: String
+  +addTag(): void
+}
+
+NewsSection "1" o-- "0..*" News : aggregation
+News "*" -- "*" NewsTag
+
+' ==============================
+' SECTION : OPPORTUNITIES
+' ==============================
+class OpportunitiesSection {
+  +opportunitiesCount: int
+  +filterByType(): List
+  +addOpportunity(): void
+  +searchOpportunities(): List
+}
+
+PlatformSection <|-- OpportunitiesSection
+
+class Opportunity {
+  +id: UUID
+  +organizationId: UUID
+  +title: String
+  +description: Text
+  +type: String
+  +salaryRange: String
+  +requirements: Text
+  +deadline: Date
+  +location: String
+  +isRemote: Boolean
+  +isActive: Boolean
+  +apply(): void
+  +close(): void
+  +updateDetails(): void
+}
+
+class OpportunityApplication {
+  +id: UUID
+  +opportunityId: UUID
+  +userId: UUID
+  +coverLetter: Text
+  +appliedAt: DateTime
+  +status: String
+  +resume: String
+  +submit(): void
+  +updateStatus(): void
+  +withdraw(): void
+}
+
+OpportunitiesSection "1" o-- "0..*" Opportunity : aggregation
+Opportunity "1" *-- "0..*" OpportunityApplication : composition
+User --> OpportunityApplication
+
+' ==============================
+' SECTION : INSTITUTIONS
+' ==============================
+class InstitutionsSection {
+  +institutionsCount: int
+  +search(): List
+  +addInstitution(): void
+  +filterByType(): List
+}
+
+PlatformSection <|-- InstitutionsSection
+InstitutionsSection "1" o-- "0..*" Institution : aggregation
+
+' ==============================
+' ADMIN PANEL
+' ==============================
+class AdminPanel {
+  +getDashboard(): Map
+  +getStats(): Map
+  +manageUsers(): void
+  +moderateContent(): void
+  +viewAuditLogs(): void
+  +configureSettings(): void
+  +manageRoles(): void
+}
+
+class AdminLog {
+  +id: UUID
+  +adminId: UUID
+  +ipAddress: String
+  +action: String
+  +targetType: String
+  +targetId: UUID
+  +details: Text
+  +performedAt: DateTime
+  +getDetails(): Text
+}
+
+class AdminRole {
+  +id: UUID
+  +name: String
+  +description: Text
+  +permissions: List
+  +createdAt: DateTime
+  +addPermission(): void
+  +removePermission(): void
+}
+
+Admin "1" *-- "1" AdminPanel : composition
+AdminPanel "1" *-- "0..*" AdminLog : composition
+Admin "*" -- "*" AdminRole
+
+' ==============================
+' CHATBOT
+' ==============================
+class ChatbotSection {
+  +isEnabled: Boolean
+  +model: String
+  +apiKey: String
+  +temperature: float
+  +maxTokens: int
+  +enable(): void
+  +disable(): void
+  +updateSettings(): void
+}
+
+PlatformSection <|-- ChatbotSection
+
+class ChatSession {
+  +sessionId: UUID
+  +userId: UUID
+  +isActive: Boolean
+  +startedAt: DateTime
+  +updatedAt: DateTime
+  +context: Text
+  +summary: Text
+  +start(): void
+  +end(): void
+  +clearHistory(): void
+  +getHistory(): List
+}
+
+class ChatMessage {
+  +id: UUID
+  +sessionId: UUID
+  +content: Text
+  +role: String
+  +tokensUsed: int
+  +sentAt: DateTime
+  +send(): void
+  +edit(): void
+  +delete(): void
+}
+
+class ChatFeedback {
+  +id: UUID
+  +messageId: UUID
+  +userId: UUID
+  +rating: int
+  +comment: Text
+  +submittedAt: DateTime
+  +submit(): void
+  +updateFeedback(): void
+}
+
+ChatbotSection "1" o-- "0..*" ChatSession : aggregation
+User --> ChatSession
+ChatSession "1" *-- "0..*" ChatMessage : composition
+ChatMessage "1" *-- "0..*" ChatFeedback : composition
+
+@enduml
