@@ -514,6 +514,9 @@ GEMINI_SCRAPING_MAX_RETRIES = int(os.getenv("GEMINI_SCRAPING_MAX_RETRIES", "2"))
 GEMINI_SCRAPING_MAX_RPM = int(os.getenv("GEMINI_SCRAPING_MAX_RPM", "10"))
 PLAYWRIGHT_THRESHOLD = int(os.environ.get("PLAYWRIGHT_THRESHOLD", "200"))
 
+# Mock mode for scraping evaluations
+SCRAPING_MOCK_LLM = _env_bool("SCRAPING_MOCK_LLM", default=False)
+
 # ============================================
 # CELERY CONFIGURATION
 # ============================================

@@ -159,13 +159,13 @@ class ScrapingSettings:
     """Histogram buckets for enrichment step duration metrics."""
 
     # ── DEDUPLICATION POLICY ────────────────────────────────────────────
-    JACCARD_THRESHOLD: float = _env_float("SCRAPING_JACCARD_THRESHOLD", 0.85)
+    JACCARD_THRESHOLD: float = _env_float("SCRAPING_JACCARD_THRESHOLD", 0.75)
     """Jaccard similarity threshold for loose deduplication."""
 
-    STRICT_JACCARD: float = _env_float("SCRAPING_STRICT_JACCARD", 0.90)
+    STRICT_JACCARD: float = _env_float("SCRAPING_STRICT_JACCARD", 0.80)
     """Jaccard similarity threshold for strict deduplication."""
 
-    SEMANTIC_FALLBACK: float = _env_float("SCRAPING_SEMANTIC_FALLBACK", 0.88)
+    SEMANTIC_FALLBACK: float = _env_float("SCRAPING_SEMANTIC_FALLBACK", 0.75)
     """Cosine similarity threshold for semantic dedup fallback."""
 
     DEDUP_WINDOW: int = _env_int("SCRAPING_DEDUP_WINDOW", 500)

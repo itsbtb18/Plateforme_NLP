@@ -12,10 +12,24 @@ class GeminiProvider(Provider):
 
     def __init__(self) -> None:
         settings = get_settings()
-        self.api_key = settings.TS_GEMINI_API_KEY
+        self.api_keys = self._load_keys(settings.TS_GEMINI_API_KEYS) or ([settings.TS_GEMINI_API_KEY] if settings.TS_GEMINI_API_KEY else [])
         self.model = settings.TS_GEMINI_MODEL
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
         self.timeout_seconds = max(10.0, float(settings.TS_PROVIDER_HTTP_TIMEOUT_SECONDS))
+        self._current_key_idx = 0
+
+    def _load_keys(self, keys_str: str) -> list[str]:
+        if not keys_str: return []
+        return [k.strip() for k in keys_str.split(",") if k.strip()]
+
+    def _get_api_key(self) -> str:
+        if not self.api_keys:
+            raise RuntimeError("TS_GEMINI_API_KEY is not configured")
+        return self.api_keys[self._current_key_idx]
+
+    def _rotate_key(self):
+        if self.api_keys:
+            self._current_key_idx = (self._current_key_idx + 1) % len(self.api_keys)
 
     async def translate(self, *, text: str, source_language: str, target_language: str) -> str:
         prompt = PromptEngine.translation_prompt(
@@ -38,36 +52,42 @@ class GeminiProvider(Provider):
         return await self._generate(prompt, max_output_tokens=1536)
 
     async def _generate(self, prompt: str, max_output_tokens: int | None = None) -> str:
-        if not self.api_key:
-            raise RuntimeError("TS_GEMINI_API_KEY is not configured")
+        max_attempts = len(self.api_keys) or 1
+        last_error = None
 
-        generation_config: dict[str, object] = {"temperature": 0.1}
-        if max_output_tokens is not None:
-            generation_config["maxOutputTokens"] = max_output_tokens
+        for attempt in range(max_attempts):
+            api_key = self._get_api_key()
+            generation_config: dict[str, object] = {"temperature": 0.1}
+            if max_output_tokens is not None:
+                generation_config["maxOutputTokens"] = max_output_tokens
 
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": generation_config,
-        }
-        url = f"{self.base_url}/models/{self.model}:generateContent"
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-            response = await client.post(url, params={"key": self.api_key}, json=payload)
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": generation_config,
+            }
+            url = f"{self.base_url}/models/{self.model}:generateContent"
             try:
-                response.raise_for_status()
+                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                    response = await client.post(url, params={"key": api_key}, json=payload)
+                    response.raise_for_status()
+                    data = response.json()
             except httpx.HTTPStatusError as exc:
+                last_error = exc
                 if response.status_code == 429:
-                    retry_after = response.headers.get("Retry-After")
-                    if retry_after:
-                        raise RuntimeError(f"Gemini rate limit (429). retry after {retry_after}") from exc
-                    raise RuntimeError("Gemini rate limit (429)") from exc
+                    self._rotate_key()
+                    continue
                 raise
-            data = response.json()
+            except Exception as exc:
+                last_error = exc
+                raise
 
-        candidates = data.get("candidates") or []
-        if not candidates:
-            return ""
-        parts = (candidates[0].get("content") or {}).get("parts") or []
-        return "\n".join(str(p.get("text", "")).strip() for p in parts if p.get("text")).strip()
+            candidates = data.get("candidates") or []
+            if not candidates:
+                return ""
+            parts = (candidates[0].get("content") or {}).get("parts") or []
+            return "\n".join(str(p.get("text", "")).strip() for p in parts if p.get("text")).strip()
+
+        raise last_error or RuntimeError("Gemini generate failed after rotation")
 
     @staticmethod
     def _translation_max_tokens(text: str) -> int:
