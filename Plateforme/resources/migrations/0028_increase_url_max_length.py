@@ -6,8 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('resources', '0025_add_document_scrape_fields'),
-        ('resources', '0012_nlptool_thumbnail'),
+        ('resources', '0027_merge_20260424_2011'),
     ]
 
     operations = [

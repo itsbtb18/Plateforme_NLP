@@ -7,9 +7,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
 
     TS_GEMINI_API_KEY: str = ""
+    TS_GEMINI_API_KEYS: str = ""
     TS_GEMINI_MODEL: str = "gemini-2.0-flash"
 
     TS_GROQ_API_KEY: str = ""
+    TS_GROQ_API_KEYS: str = ""
     TS_GROQ_TRANSLATION_MODEL: str = "llama-3.3-70b-versatile"
     TS_GROQ_SUMMARIZATION_MODEL: str = "llama-3.3-70b-versatile"
 
@@ -29,10 +31,11 @@ class Settings(BaseSettings):
     TS_RATE_LIMIT_REFILL_WINDOW_SECONDS: int = 60
     TS_QUEUE_MAX_SIZE_PER_USER: int = 20
     TS_QUEUE_WAIT_TIMEOUT_SECONDS: int = 900
-    TS_PROVIDER_GEMINI_BUCKET_CAPACITY: int = 1
-    TS_PROVIDER_GEMINI_BUCKET_WINDOW_SECONDS: int = 12
-    TS_PROVIDER_GROQ_BUCKET_CAPACITY: int = 1
-    TS_PROVIDER_GROQ_BUCKET_WINDOW_SECONDS: int = 12
+    TS_PROVIDER_GEMINI_BUCKET_CAPACITY: int = 5
+    TS_PROVIDER_GEMINI_BUCKET_WINDOW_SECONDS: int = 5
+    TS_PROVIDER_GROQ_BUCKET_CAPACITY: int = 5
+    TS_PROVIDER_GROQ_BUCKET_WINDOW_SECONDS: int = 5
+    TS_GLOBAL_REQUESTS_PER_MINUTE: int = 120
 
     # Resilience for large inputs: exponential retry when provider returns rate-limit responses.
     TS_RATE_LIMIT_MAX_RETRIES: int = 5
@@ -41,8 +44,8 @@ class Settings(BaseSettings):
     TS_PROVIDER_HARD_QUOTA_COOLDOWN_SECONDS: float = 300.0
     # Short per-provider timeout and circuit breaker for resilience
     TS_PROVIDER_TIMEOUT_SECONDS: float = 10.0
-    TS_CIRCUIT_BREAKER_THRESHOLD: int = 3
-    TS_CIRCUIT_BREAKER_COOLDOWN_SECONDS: float = 60.0
+    TS_CIRCUIT_BREAKER_THRESHOLD: int = 20
+    TS_CIRCUIT_BREAKER_COOLDOWN_SECONDS: float = 30.0
     TS_PROVIDER_CALL_DELAY_SECONDS: float = 0.3
     TS_PROVIDER_MAX_CONCURRENCY: int = 2
 

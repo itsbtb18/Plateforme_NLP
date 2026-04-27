@@ -6830,8 +6830,6 @@ def scraping_sources_page(request):
         category_scope = _resolve_scraping_nav_category(request)
 
     sources_queryset = ScrapingSource.objects.all()
-    if category_scope:
-        sources_queryset = sources_queryset.filter(category=category_scope)
 
     sources = list(sources_queryset.order_by("category", "name"))
     rows = [_build_source_row_payload(source) for source in sources]

@@ -17,61 +17,48 @@ class ConfidenceCalculator:
     # Optional fields: bonus points that push toward 90-100%.
     FIELD_WEIGHTS = {
         "news": {
-            "title_en": 0.30,
-            "description_en": 0.30,
-            "url": 0.15,
-            "source_url": 0.10,
-            "published_date": 0.15,
+            "title_en": 0.40,
+            "description_en": 0.40,
+            "url": 0.10,
+            "source_url": 0.05,
+            "published_date": 0.05,
         },
         "events": {
-            "title_en": 0.25,
-            "title": 0.05,
-            "description_en": 0.20,
-            "description": 0.05,
+            "title_en": 0.35,
+            "description_en": 0.35,
             "start_date": 0.10,
-            "scraped_date": 0.05,
-            "source_url": 0.10,
-            "source_domain": 0.05,
+            "source_url": 0.05,
             "url": 0.05,
             "location_en": 0.05,
-            "location": 0.03,
-            "end_date": 0.02,
+            "scraped_date": 0.05,
         },
         "tools": {
-            "title_en": 0.30,
-            "description_en": 0.30,
-            "access_link": 0.15,
+            "title_en": 0.40,
+            "description_en": 0.35,
+            "access_link": 0.10,
             "url": 0.10,
-            "source_url": 0.10,
-            "capabilities": 0.05,
+            "source_url": 0.05,
         },
         "opportunities": {
-            "job_title": 0.25,
-            "title_en": 0.05,
-            "description": 0.25,
-            "description_en": 0.05,
+            "job_title": 0.40,
+            "description": 0.35,
             "url": 0.15,
-            "source_url": 0.10,
-            "institution_name": 0.10,
-            "deadline": 0.05,
+            "source_url": 0.05,
+            "institution_name": 0.05,
         },
         "corpus": {
-            "dataset_name": 0.25,
-            "title_en": 0.05,
-            "description_en": 0.30,
-            "download_url": 0.15,
-            "url": 0.10,
-            "source_url": 0.10,
-            "paper_url": 0.05,
+            "dataset_name": 0.40,
+            "description_en": 0.40,
+            "download_url": 0.10,
+            "url": 0.05,
+            "source_url": 0.05,
         },
         "courses": {
-            "title_en": 0.25,
-            "description_en": 0.25,
-            "url": 0.15,
-            "source_url": 0.10,
-            "platform": 0.10,
-            "level": 0.10,
-            "price": 0.05,
+            "title_en": 0.40,
+            "description_en": 0.40,
+            "url": 0.10,
+            "source_url": 0.05,
+            "platform": 0.05,
         },
     }
 
@@ -80,35 +67,32 @@ class ConfidenceCalculator:
         if not weights:
             return {"percent": 75.0, "details": {}}
 
-        total_weight = 0
         weighted_score = 0
         details = {}
         fields_present = 0
-        fields_total = 0
+        fields_total = len(weights)
 
         for field, weight in weights.items():
-            total_weight += weight
-            fields_total += 1
             val = item_data.get(field)
-
             score = self.score_field(val, field_name=field)
-            if score > 0:
+            if score > 0.1: # Threshold for "present"
                 fields_present += 1
             weighted_score += weight * score
             details[field] = round(score, 2)
 
-        raw_score = weighted_score / total_weight if total_weight > 0 else 0
+        # Base confidence from field weights
+        raw_score = weighted_score 
 
-        # Presence bonus with conservative floors to avoid collapsing all
-        # records into the same high-confidence band.
+        # Boost: If Title + Description are strong, the item is likely high confidence.
+        # We add a small linearity boost for completeness.
         presence_ratio = fields_present / fields_total if fields_total > 0 else 0
-        if presence_ratio >= 0.5:
-            raw_score = max(raw_score, 0.58)
-        if presence_ratio >= 0.7:
-            raw_score = max(raw_score, 0.68)
+        boost = 0.15 * presence_ratio
+        
+        final_score = raw_score + boost
 
+        # Final clamping
         return {
-            "percent": round(raw_score * 100, 1),
+            "percent": round(min(0.99, final_score) * 100, 1),
             "details": details,
         }
 
