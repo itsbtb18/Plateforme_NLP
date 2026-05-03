@@ -55,6 +55,14 @@ class GroqProvider(Provider):
             max_words=max_words,
         )
         return await self._chat(prompt=prompt, model=self.model_summarize, max_tokens=1024)
+    
+    async def chat(self, *, system_prompt: str, user_prompt: str, max_tokens: int = 2048) -> str:
+        return await self._chat(
+            prompt=f"{system_prompt}\n\n{user_prompt}",
+            model=self.model_translate,
+            max_tokens=max_tokens
+        )
+
 
     async def _chat(self, *, prompt: str, model: str, max_tokens: int) -> str:
         max_attempts = len(self.api_keys) or 1

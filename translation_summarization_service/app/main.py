@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import traceback
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -57,6 +58,8 @@ def _service_error_to_http(exc: Exception) -> None:
             detail="AI provider authentication failed. Check provider API keys.",
         )
 
+    print(f"TS_DEBUG: _service_error_to_http caught: {message}")
+    traceback.print_exc()
     raise HTTPException(status_code=502, detail=message)
 
 

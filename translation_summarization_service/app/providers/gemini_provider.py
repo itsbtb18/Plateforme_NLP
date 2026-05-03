@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import httpx
+from fastapi import HTTPException
 
 from app.config import get_settings
 from app.prompt_engine import PromptEngine
@@ -13,6 +14,8 @@ class GeminiProvider(Provider):
     def __init__(self) -> None:
         settings = get_settings()
         self.api_keys = self._load_keys(settings.TS_GEMINI_API_KEYS) or ([settings.TS_GEMINI_API_KEY] if settings.TS_GEMINI_API_KEY else [])
+        print(f"TS_DEBUG: GeminiProvider loaded {len(self.api_keys)} keys")
+
         self.model = settings.TS_GEMINI_MODEL
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
         self.timeout_seconds = max(10.0, float(settings.TS_PROVIDER_HTTP_TIMEOUT_SECONDS))
@@ -51,12 +54,18 @@ class GeminiProvider(Provider):
         )
         return await self._generate(prompt, max_output_tokens=1536)
 
+    async def chat(self, *, system_prompt: str, user_prompt: str, max_tokens: int = 2048) -> str:
+        prompt = f"{system_prompt}\n\n{user_prompt}"
+        return await self._generate(prompt, max_output_tokens=max_tokens)
+
+
     async def _generate(self, prompt: str, max_output_tokens: int | None = None) -> str:
         max_attempts = len(self.api_keys) or 1
         last_error = None
 
         for attempt in range(max_attempts):
             api_key = self._get_api_key()
+            print(f"TS_DEBUG: Gemini attempt {attempt+1}/{max_attempts} with key ...{api_key[-5:]}")
             generation_config: dict[str, object] = {"temperature": 0.1}
             if max_output_tokens is not None:
                 generation_config["maxOutputTokens"] = max_output_tokens
@@ -74,20 +83,28 @@ class GeminiProvider(Provider):
             except httpx.HTTPStatusError as exc:
                 last_error = exc
                 if response.status_code == 429:
+                    print(f"TS_DEBUG: Key ...{api_key[-5:]} rate limited (429)")
                     self._rotate_key()
                     continue
+                print(f"TS_DEBUG: Key ...{api_key[-5:]} failed with {response.status_code}")
                 raise
             except Exception as exc:
                 last_error = exc
+                print(f"TS_DEBUG: Key ...{api_key[-5:]} failed with {str(exc)}")
                 raise
 
             candidates = data.get("candidates") or []
             if not candidates:
+                print(f"TS_DEBUG: Key ...{api_key[-5:]} returned no candidates")
                 return ""
             parts = (candidates[0].get("content") or {}).get("parts") or []
             return "\n".join(str(p.get("text", "")).strip() for p in parts if p.get("text")).strip()
 
-        raise last_error or RuntimeError("Gemini generate failed after rotation")
+        print(f"TS_DEBUG: All {max_attempts} keys in pool are exhausted (rate-limited)")
+        raise HTTPException(
+            status_code=429,
+            detail=f"All {max_attempts} API keys in the rotation pool are currently rate-limited. Please wait 60s for quota reset or add more keys to TS_GEMINI_API_KEYS."
+        )
 
     @staticmethod
     def _translation_max_tokens(text: str) -> int:

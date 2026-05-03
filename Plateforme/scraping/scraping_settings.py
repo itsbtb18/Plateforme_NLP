@@ -267,7 +267,7 @@ class ScrapingSettings:
 
     PROMPT_MAX_ACTIVE_PER_CATEGORY: int = _env_int(
         "SCRAPING_PROMPT_MAX_ACTIVE_PER_CATEGORY",
-        _django_int_setting("GEMINI_SCRAPING_MAX_RPD", 20),
+        _django_int_setting("GEMINI_SCRAPING_MAX_RPD", 50),
     )
     """Maximum active prompts allowed per category to reduce free-tier LLM quota pressure."""
 

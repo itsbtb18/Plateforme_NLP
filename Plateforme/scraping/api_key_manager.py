@@ -97,12 +97,12 @@ class APIKeyManager:
         new_idx = (old_idx + 1) % len(keys)
         self.redis.set(self._get_index_key(provider), new_idx)
         
-        # FIX A: If we rotated back to 0 and the cycle was fast (< 30s), quarantine the provider
+        # FIX A: If we rotated back to 0 and the cycle was fast (< 5s), quarantine the provider
         if new_idx == 0 and provider in self._cycle_start_time:
             duration = time.time() - self._cycle_start_time[provider]
-            if duration < 30:
-                self._provider_global_failure_until[provider] = datetime.now() + timedelta(minutes=60)
-                logger.critical(f"Provider {provider} en quarantaine globale pendant 60 min (Full cycle failure in {duration:.1f}s)")
+            if duration < 5:
+                self._provider_global_failure_until[provider] = datetime.now() + timedelta(minutes=1)
+                logger.critical(f"Provider {provider} en quarantaine globale pendant 1 min (Full cycle failure in {duration:.1f}s)")
 
         # Log rotation
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -117,9 +117,7 @@ class APIKeyManager:
     @contextmanager
     def use_key(self, provider: str):
         """Context manager to automatically rotate key on common rate limit errors."""
-        # FIX B: 2s delay before every call
-        if provider in ["groq", "gemini"]:
-            time.sleep(2)
+        # No delay here
 
         key = self.get_current_key(provider)
         if not key:
@@ -135,10 +133,9 @@ class APIKeyManager:
             if is_rate_limit or is_quota:
                 reason = "rate_limit" if is_rate_limit else "quota_exceeded"
                 
-                # FIX B: Sleep 60s before rotating if it's a rate limit
+                # No delay here
                 if is_rate_limit:
-                    logger.warning(f"429 detected for {provider}, sleeping 60s before key rotation...")
-                    time.sleep(60)
+                    logger.warning(f"429 detected for {provider}, rotating immediately...")
                 
                 self.rotate_key(provider, reason=reason)
                 raise
