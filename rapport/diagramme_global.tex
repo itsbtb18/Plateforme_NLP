@@ -1,0 +1,121 @@
+\documentclass[12pt,a4paper]{article}
+
+% --- PACKAGES ---
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[margin=1cm, landscape]{geometry} 
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{float}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, shadows, calc, shapes.geometric}
+
+% --- COULEURS ---
+\definecolor{primary}{RGB}{31, 73, 125}
+\definecolor{lightblue}{RGB}{240, 248, 255}
+\definecolor{uml_border}{RGB}{44, 62, 80}
+
+\begin{document}
+
+\section*{Architecture de Données : Diagramme de Classes Global (Détail Exhaustif)}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.99\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.8cm and 1.5cm,
+    uml_class/.style={
+        rectangle, draw=uml_border, fill=lightblue, rounded corners=1pt,
+        align=left, inner sep=6pt, font=\tiny\ttfamily,
+        minimum width=4.2cm, drop shadow={opacity=0.2}
+    },
+    title/.style={
+        font=\bfseries\tiny, color=white, fill=primary, 
+        minimum width=4.2cm, minimum height=0.6cm, draw=uml_border
+    },
+    assoc/.style={-{Stealth[length=6pt]}, thick, draw=uml_border!80},
+    aggr/.style={-{Diamond[open, length=8pt]}, thick, draw=uml_border!80},
+    card/.style={font=\tiny\bfseries, color=black!90}
+]
+
+    % --- PACKAGE 1: IDENTITY & COMMUNITY ---
+    \node[title] (tUser) {\textbf{User (Django)}};
+    \node[uml_class, below=0pt of tUser] (cUser) {
+        - username: CharField \\ - email: EmailField \\ - password: Hash \\ - is\_staff: Boolean
+    };
+
+    \node[title, below=1cm of cUser] (tProfile) {\textbf{Profile}};
+    \node[uml_class, below=0pt of tProfile] (cProfile) {
+        - user: OneToOneField \\ - bio: TextField \\ - avatar: ImageField \\ - reputation: Integer
+    };
+
+    \node[title, right=2.5cm of tUser] (tPost) {\textbf{Post (News/Feed)}};
+    \node[uml_class, below=0pt of tPost] (cPost) {
+        - title: CharField \\ - content: RichTextField \\ - author: ForeignKey \\ - views: Integer
+    };
+
+    \node[title, below=1.2cm of cPost] (tForum) {\textbf{ForumThread}};
+    \node[uml_class, below=0pt of tForum] (cForum) {
+        - title: CharField \\ - category: FK \\ - author: FK \\ - is\_closed: Boolean
+    };
+
+    % --- PACKAGE 2: RESOURCES ---
+    \node[title, below=4.5cm of cProfile] (tInst) {\textbf{Institution}};
+    \node[uml_class, below=0pt of tInst] (cInst) {
+        - name: CharField \\ - website: URLField \\ - country: CharField \\ - ror\_id: CharField
+    };
+
+    \node[title, right=1.2cm of tInst] (tCourse) {\textbf{Course}};
+    \node[uml_class, below=0pt of tCourse] (cCourse) {
+        - title: CharField \\ - platform: CharField \\ - instructor: CharField \\ - institution: FK
+    };
+
+    \node[title, right=1.2cm of tCourse] (tTool) {\textbf{NLPTool}};
+    \node[uml_class, below=0pt of tTool] (cTool) {
+        - title: CharField \\ - github\_url: URLField \\ - capabilities: JSON \\ - license: CharField
+    };
+
+    \node[title, below=1.5cm of cCourse] (tProject) {\textbf{Project}};
+    \node[uml_class, below=0pt of tProject] (cProject) {
+        - title: CharField \\ - repo\_url: URLField \\ - author: FK \\ - status: Choice
+    };
+
+    % --- PACKAGE 3: SYSTEM & SERVICES ---
+    \node[title, right=2.5cm of tPost] (tEvent) {\textbf{Event}};
+    \node[uml_class, below=0pt of tEvent] (cEvent) {
+        - title: CharField \\ - start\_date: Date \\ - location: CharField \\ - organizer: FK
+    };
+
+    \node[title, below=1.2cm of cEvent] (tOpp) {\textbf{Opportunity}};
+    \node[uml_class, below=0pt of tOpp] (cOpp) {
+        - job\_title: CharField \\ - institution: FK \\ - deadline: Date \\ - type: Choice
+    };
+
+    \node[title, right=2.5cm of tEvent] (tScrap) {\textbf{ScrapingSource}};
+    \node[uml_class, below=0pt of tScrap] (cScrap) {
+        - name: CharField \\ - url: URLField \\ - category: Choice \\ - is\_active: Boolean
+    };
+
+    \node[title, below=1.2cm of cScrap] (tChat) {\textbf{ChatSession}};
+    \node[uml_class, below=0pt of tChat] (cChat) {
+        - user: FK \\ - started\_at: DateTime \\ - platform: CharField
+    };
+
+    % --- RELATIONS ---
+    \draw[assoc] (cProfile) -- node[pos=0.1, card, left]{1} node[pos=0.9, card, left]{1} (cUser);
+    \draw[aggr] (cPost) -- node[pos=0.1, card, above]{*} node[pos=0.9, card, above]{1} (cUser);
+    \draw[aggr] (cCourse) -- node[pos=0.1, card, above]{*} node[pos=0.9, card, above]{1} (cInst);
+    \draw[aggr] (cOpp) -- node[pos=0.1, card, right]{*} node[pos=0.9, card, right]{1} (cInst);
+    \draw[assoc] (cProject) -| node[pos=0.1, card, left]{*} node[pos=0.9, card, right]{1} (cUser);
+
+    \begin{scope}[on background layer]
+        \node[draw=gray, dashed, fill=gray!2, inner sep=15pt, fit=(tUser) (cForum), label={[primary]above:\textbf{IDENTITY \& COMMUNITY}}] {};
+        \node[draw=gray, dashed, fill=gray!2, inner sep=15pt, fit=(tInst) (tTool) (tProject), label={[primary]above:\textbf{RESOURCES}}] {};
+        \node[draw=gray, dashed, fill=gray!2, inner sep=15pt, fit=(tEvent) (cChat), label={[primary]above:\textbf{SYSTEM \& SERVICES}}] {};
+    \end{scope}
+
+\end{tikzpicture}}
+\caption{Diagramme de classes global unifié - Plateforme NLP.}
+\end{figure}
+
+\end{document}

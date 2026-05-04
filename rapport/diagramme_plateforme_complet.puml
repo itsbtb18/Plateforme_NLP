@@ -1,0 +1,688 @@
+@startuml
+skinparam classAttributeIconSize 0
+hide empty members
+
+' ==============================
+' IDENTITE / ADMINISTRATION
+' ==============================
+abstract class Person {
+  +id: UUID
+  +email: EmailField
+  +full_name: CharField
+  +created_at: DateTimeField
+  +get_display_name(): str
+}
+
+class User {
+  +id: UUIDField
+  +email: EmailField
+  +full_name: CharField
+  +status: CharField
+  +is_active: BooleanField
+  +is_verified: BooleanField
+  +speciality: CharField
+  +avatar: ImageField
+  +institution_id: UUID
+  +save(): void
+  +get_localized_full_name(): str
+  +get_localized_bio(): str
+}
+
+class Admin {
+  +id: UUID
+  +admin_level: CharField
+  +can_create_section: Boolean
+  +can_validate_section: Boolean
+  +createSection(section: PlatformSection): void
+  +validateSection(section: PlatformSection): void
+  +approveContent(contentId: UUID): void
+}
+
+Person <|-- User
+Person <|-- Admin
+
+class UserProfile {
+  +id: UUID
+  +user_id: UUID
+  +bio: TextField
+  +orcid: CharField
+  +github_username: CharField
+  +linkedin_url: URLField
+  +website: URLField
+  +institution_id: UUID
+  +country: CharField
+  +avatar: ImageField
+  +show_online_status: BooleanField
+  +get_display_name(): str
+}
+
+class Friendship {
+  +id: UUID
+  +requester_id: UUID
+  +addressee_id: UUID
+  +status: CharField
+  +created_at: DateTimeField
+  +updated_at: DateTimeField
+}
+
+class Follow {
+  +follower_id: UUID
+  +following_id: UUID
+  +created_at: DateTimeField
+}
+
+class Experience {
+  +id: UUID
+  +user_id: UUID
+  +experience_type: CharField
+  +institution_name: CharField
+  +role_title: CharField
+  +start_date: DateField
+  +end_date: DateField
+  +is_current: BooleanField
+  +description: TextField
+}
+
+User "1" -- "0..1" UserProfile : profile
+User "1" -- "0..*" Friendship : requester
+User "1" -- "0..*" Friendship : addressee
+User "1" -- "0..*" Follow : follower
+User "1" -- "0..*" Follow : following
+User "1" -- "0..*" Experience
+
+' ==============================
+' SECTIONS (ENTITES SEPAREES)
+' ==============================
+abstract class PlatformSection {
+  +id: UUID
+  +name: CharField
+  +description: TextField
+  +status: CharField
+  +created_at: DateTimeField
+  +updated_at: DateTimeField
+  +created_by_admin_id: UUID
+  +validated_by_admin_id: UUID
+  +validate(): bool
+  +publish(): void
+  +archive(): void
+}
+
+class ResourcesSection {
+  +resources_count: IntegerField
+  +addResource(resourceId: UUID): void
+}
+
+class CommunitySection {
+  +communities_count: IntegerField
+  +moderateContent(contentId: UUID): void
+}
+
+class FeedSection {
+  +posts_count: IntegerField
+}
+
+class ForumSection {
+  +topics_count: IntegerField
+}
+
+class ProjectSection {
+  +projects_count: IntegerField
+}
+
+class NewsSection {
+  +publications_count: IntegerField
+}
+
+class OpportunitiesSection {
+  +opportunities_count: IntegerField
+}
+
+class EventsSection {
+  +events_count: IntegerField
+}
+
+class InstitutionsSection {
+  +institutions_count: IntegerField
+}
+
+class ChatbotSection {
+  +sessions_count: IntegerField
+  +feedback_avg: FloatField
+}
+
+class AdminPanelSection {
+  +audit_enabled: BooleanField
+  +security_enabled: BooleanField
+  +viewLogs(): void
+  +blockUpload(fileName: str): void
+  +changeUserStatus(userId: UUID, status: str): void
+}
+
+PlatformSection <|-- ResourcesSection
+PlatformSection <|-- CommunitySection
+PlatformSection <|-- NewsSection
+PlatformSection <|-- OpportunitiesSection
+PlatformSection <|-- EventsSection
+PlatformSection <|-- InstitutionsSection
+PlatformSection <|-- ChatbotSection
+PlatformSection <|-- AdminPanelSection
+
+CommunitySection <|-- FeedSection
+CommunitySection <|-- ForumSection
+CommunitySection <|-- ProjectSection
+
+Admin "1" --> "0..*" PlatformSection : create
+Admin "1" --> "0..*" PlatformSection : validate
+
+' ==============================
+' INSTITUTIONS
+' ==============================
+class Country {
+  +id: Integer
+  +name_en: CharField
+  +name_ar: CharField
+  +code: CharField
+}
+
+class Specialty {
+  +id: Integer
+  +name_en: CharField
+  +name_ar: CharField
+  +code: CharField
+}
+
+class Institution {
+  +id: UUIDField
+  +name: CharField
+  +name_ar: CharField
+  +name_en: CharField
+  +acronym: CharField
+  +ror_id: CharField
+  +type: CharField
+  +city: CharField
+  +website: URLField
+  +email: EmailField
+  +approval_status: CharField
+  +created_by_id: UUID
+  +get_localized_name(): str
+  +get_localized_description(): str
+}
+
+Country "1" -- "0..*" Institution
+Institution "*" -- "*" Specialty
+User "0..*" --> "0..1" Institution
+Admin "1" --> "0..*" Institution : approve/reject
+InstitutionsSection "1" o-- "0..*" Institution
+
+' ==============================
+' RESOURCES
+' ==============================
+abstract class ResourceBase {
+  +id: UUIDField
+  +title: CharField
+  +title_ar: CharField
+  +title_en: CharField
+  +description: TextField
+  +language: CharField
+  +author_id: UUID
+  +approval_status: CharField
+  +views_count: PositiveIntegerField
+  +created_at: DateTimeField
+  +updated_at: DateTimeField
+  +is_deleted: BooleanField
+  +get_localized_title(): str
+  +get_localized_description(): str
+  +soft_delete(user: User): void
+  +restore(): void
+}
+
+class Course {
+  +field: CharField
+  +academic_level: CharField
+  +teacher_id: UUID
+  +institution_id: UUID
+  +academic_year: CharField
+  +platform: CharField
+  +price: DecimalField
+  +is_free: BooleanField
+}
+
+class Tools {
+  +tool_type: CharField
+  +version: CharField
+  +license: CharField
+  +github_url: URLField
+}
+
+class Corpus {
+  +name: CharField
+  +language: CharField
+  +size: IntegerField
+  +format: CharField
+  +source_url: URLField
+}
+
+class CourseComment {
+  +id: UUIDField
+  +course_id: UUID
+  +author_id: UUID
+  +content: TextField
+  +created_at: DateTimeField
+}
+
+class Document {
+  +id: UUIDField
+  +document_type: CharField
+  +authors: ManyToManyField<User>
+  +get_citation(): str
+  +get_detail_url(): str
+}
+
+class Thesis {
+  +id: UUIDField
+  +document_id: UUID
+  +supervisor: CharField
+  +institution_id: UUID
+  +defense_year: IntegerField
+}
+
+class Memoir {
+  +id: UUIDField
+  +document_id: UUID
+  +academic_level: CharField
+  +institution_id: UUID
+  +defense_year: IntegerField
+}
+
+class Article {
+  +id: UUIDField
+  +document_id: UUID
+  +doi: CharField
+  +journal: CharField
+  +publication_date: DateField
+}
+
+class MemoirArticle {
+  +id: UUID
+  +memoir_id: UUID
+  +article_id: UUID
+  +mapping_reason: CharField
+}
+
+class Law {
+  +id: UUIDField
+  +law_title: CharField
+  +authority: CharField
+  +publication_date: DateField
+  +source_url: URLField
+  +approval_status: CharField
+  +created_by_id: UUID
+}
+
+ResourceBase <|-- Course
+ResourceBase <|-- NLPTool
+ResourceBase <|-- Corpus
+ResourceBase <|-- Document
+Document "1" -- "0..1" Thesis
+Document "1" -- "0..1" Memoir
+Document "1" -- "0..1" Article
+Article "1" -- "0..1" MemoirArticle
+Memoir "1" -- "0..1" MemoirArticle
+Course "1" -- "0..*" CourseComment
+Institution "1" -- "0..*" Course
+Institution "1" -- "0..*" Thesis
+Institution "1" -- "0..*" Memoir
+Admin "1" --> "0..*" ResourceBase : approve/reject
+ResourcesSection "1" o-- "0..*" ResourceBase
+
+' ==============================
+' COMMUNITY -> FEED
+' ==============================
+class Question {
+  +id: Integer
+  +author_id: UUID
+  +title: CharField
+  +description: TextField
+  +created_at: DateTimeField
+}
+
+class Answer {
+  +id: Integer
+  +question_id: Integer
+  +author_id: UUID
+  +content: TextField
+  +created_at: DateTimeField
+}
+
+class Post {
+  +id: UUIDField
+  +author_id: UUID
+  +title: CharField
+  +content: TextField
+  +news_category: CharField
+  +approval_status: CharField
+  +scrape_status: CharField
+  +approved_by_id: UUID
+  +created_at: DateTimeField
+  +view_count: PositiveIntegerField
+  +get_localized_title(): str
+}
+
+class Comment {
+  +id: UUIDField
+  +post_id: UUID
+  +author_id: UUID
+  +parent_id: UUID
+  +content: TextField
+  +created_at: DateTimeField
+}
+
+Question "1" -- "0..*" Answer
+User "1" -- "0..*" Question
+User "1" -- "0..*" Answer
+User "1" -- "0..*" Post
+Post "1" -- "0..*" Comment
+User "1" -- "0..*" Comment
+User "*" -- "*" Post : likes
+User "*" -- "*" Comment : likes
+Admin "1" --> "0..*" Post : approve/reject
+FeedSection "1" o-- "0..*" Post
+
+' ==============================
+' COMMUNITY -> FORUM
+' ==============================
+class Topic {
+  +id: UUIDField
+  +title: CharField
+  +description: TextField
+  +creator_id: UUID
+  +approval_status: CharField
+  +related_project_id: UUID
+  +related_event_id: UUID
+  +related_news_id: UUID
+  +is_deleted: BooleanField
+}
+
+class ChatRoom {
+  +id: UUIDField
+  +topic_id: UUID
+  +name: CharField
+  +creator_id: UUID
+  +created_at: DateTimeField
+}
+
+class ForumMessage {
+  +id: UUIDField
+  +chatroom_id: UUID
+  +user_id: UUID
+  +parent_id: UUID
+  +content: TextField
+  +timestamp: DateTimeField
+}
+
+class BannedUser {
+  +id: UUIDField
+  +chatroom_id: UUID
+  +user_id: UUID
+  +banned_by_id: UUID
+  +banned_at: DateTimeField
+  +reason: TextField
+}
+
+Topic "1" -- "0..*" ChatRoom
+ChatRoom "1" -- "0..*" ForumMessage
+ChatRoom "1" -- "0..*" BannedUser
+User "1" -- "0..*" Topic : creator
+User "1" -- "0..*" ForumMessage
+Admin "1" --> "0..*" Topic : approve/reject
+ForumSection "1" o-- "0..*" Topic
+
+' ==============================
+' COMMUNITY -> PROJECTS
+' ==============================
+class Project {
+  +id: UUIDField
+  +title: CharField
+  +institution_id: UUID
+  +coordinator_id: UUID
+  +status: CharField
+  +approval_status: CharField
+  +description: TextField
+  +date_start: DateField
+  +date_end: DateField
+  +is_deleted: BooleanField
+}
+
+class ProjectMember {
+  +id: UUIDField
+  +project_id: UUID
+  +member_id: UUID
+  +role: CharField
+  +status: CharField
+  +leave_request_status: CharField
+}
+
+class ProjectInvitation {
+  +id: UUIDField
+  +project_id: UUID
+  +invited_user_id: UUID
+  +invited_by_id: UUID
+  +status: CharField
+}
+
+class ProjectChatRoom {
+  +id: UUIDField
+  +project_id: UUID
+  +created_at: DateTimeField
+}
+
+class ProjectChatMessage {
+  +id: UUIDField
+  +room_id: UUID
+  +sender_id: UUID
+  +message_type: CharField
+  +content: TextField
+  +file_path: FileField
+  +is_deleted: BooleanField
+}
+
+Project "1" -- "0..*" ProjectMember
+Project "1" -- "0..*" ProjectInvitation
+Project "1" -- "1" ProjectChatRoom
+ProjectChatRoom "1" -- "0..*" ProjectChatMessage
+User "1" -- "0..*" Project : coordinator
+User "1" -- "0..*" ProjectMember
+Institution "1" -- "0..*" Project
+Admin "1" --> "0..*" Project : approve/reject
+ProjectSection "1" o-- "0..*" Project
+
+' ==============================
+' NEWS / OPPORTUNITIES / EVENTS
+' ==============================
+class NewsPublication {
+  +id: Integer
+  +title: CharField
+  +type: CharField
+  +abstract: TextField
+  +year: IntegerField
+  +status: CharField
+  +created_by_id: UUID
+}
+
+class Opportunity {
+  +id: UUIDField
+  +title: CharField
+  +opportunity_type: CharField
+  +institution_id: UUID
+  +deadline: DateField
+  +status: CharField
+  +approval_status: CharField
+  +created_by_id: UUID
+  +approved_by_id: UUID
+}
+
+class Event {
+  +id: UUIDField
+  +title: CharField
+  +event_type: CharField
+  +organizer_id: UUID
+  +start_date: DateField
+  +end_date: DateField
+  +approval_status: CharField
+  +created_by_id: UUID
+  +approved_by_id: UUID
+}
+
+class EventRegistration {
+  +id: Integer
+  +event_id: UUID
+  +user_id: UUID
+  +registration_date: DateTimeField
+}
+
+class Speaker {
+  +id: UUIDField
+  +event_id: UUID
+  +name: CharField
+  +affiliation: CharField
+  +talk_title: CharField
+}
+
+NewsSection "1" o-- "0..*" NewsPublication
+OpportunitiesSection "1" o-- "0..*" Opportunity
+EventsSection "1" o-- "0..*" Event
+Event "1" -- "0..*" EventRegistration
+Event "1" -- "0..*" Speaker
+Institution "1" -- "0..*" Event : organizer
+Institution "1" -- "0..*" Opportunity
+Admin "1" --> "0..*" NewsPublication : moderate
+Admin "1" --> "0..*" Opportunity : approve/reject
+Admin "1" --> "0..*" Event : approve/reject
+
+' ==============================
+' CHATBOT
+' ==============================
+class ChatSession {
+  +id: UUIDField
+  +user_id: UUID
+  +fastapi_session_id: CharField
+  +title: CharField
+  +is_active: BooleanField
+  +content_type: CharField
+  +object_id: CharField
+  +created_at: DateTimeField
+}
+
+class ChatMessage {
+  +id: UUIDField
+  +session_id: UUID
+  +message_type: CharField
+  +content: TextField
+  +timestamp: DateTimeField
+  +source: CharField
+}
+
+class ChatFeedback {
+  +id: UUIDField
+  +message_id: UUID
+  +user_id: UUID
+  +rating: IntegerField
+  +comment: TextField
+  +created_at: DateTimeField
+}
+
+ChatSession "1" -- "0..*" ChatMessage
+ChatMessage "1" -- "0..*" ChatFeedback
+User "1" -- "0..*" ChatSession
+User "1" -- "0..*" ChatFeedback
+ChatbotSection "1" o-- "0..*" ChatSession
+
+' ==============================
+' ADMIN PANEL / AUDIT
+' ==============================
+class Stats {
+  +date: DateField
+  +users_count: IntegerField
+  +publications_count: IntegerField
+  +corpora_count: IntegerField
+  +tools_count: IntegerField
+  +projects_count: IntegerField
+  +visits_count: IntegerField
+}
+
+class UserStatusHistory {
+  +id: Integer
+  +user_id: UUID
+  +old_status: CharField
+  +new_status: CharField
+  +changed_by_id: UUID
+  +change_date: DateTimeField
+  +reason: TextField
+  +log_change(...): UserStatusHistory
+}
+
+class ContactMessage {
+  +id: Integer
+  +user_id: UUID
+  +name: CharField
+  +email: EmailField
+  +subject: CharField
+  +message: TextField
+  +status: CharField
+  +responded_by_id: UUID
+}
+
+class AdminActivityLog {
+  +id: Integer
+  +admin_user_id: UUID
+  +role_snapshot: CharField
+  +action: CharField
+  +path: CharField
+  +http_method: CharField
+  +target_type: CharField
+  +target_id: CharField
+  +occurred_at: DateTimeField
+}
+
+class BlockedUpload {
+  +id: Integer
+  +user_id: UUID
+  +file_name: CharField
+  +reason: CharField
+  +ip_address: CharField
+  +blocked_at: DateTimeField
+}
+
+class SecurityLog {
+  +id: Integer
+  +user_id: UUID
+  +role: CharField
+  +action: CharField
+  +method: CharField
+  +ip_address: CharField
+  +path: CharField
+  +created_at: DateTimeField
+}
+
+AdminPanelSection "1" o-- "0..*" AdminActivityLog
+AdminPanelSection "1" o-- "0..*" SecurityLog
+AdminPanelSection "1" o-- "0..*" BlockedUpload
+AdminPanelSection "1" o-- "0..*" UserStatusHistory
+AdminPanelSection "1" o-- "0..*" ContactMessage
+AdminPanelSection "1" o-- "0..*" Stats
+
+Admin "1" --> "0..*" AdminActivityLog
+Admin "1" --> "0..*" SecurityLog
+Admin "1" --> "0..*" UserStatusHistory
+
+note right of Admin
+Admin est une specialisation metier de Person
+(implementation Django: droits staff/superuser).
+end note
+
+note bottom of Corpus
+Classe conceptuelle ajoutee pour la section Resources
+(corpora_count existe dans Stats).
+end note
+
+@enduml

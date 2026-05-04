@@ -1,0 +1,81 @@
+\section{Module de Traduction et de Résumé}
+Ce module assure la conversion linguistique et la synthèse documentaire via une architecture résiliente.
+
+\subsection{Architecture du Pipeline de Traduction (10 Étapes)}
+Le pipeline de traduction suit une séquence standardisée en dix étapes :
+\begin{enumerate}
+    \item Entrée, 2. Validation, 3. Mémoire courte, 4. Préparation, 5. Segmentation, 6. Exécution, 7. Sélection, 8. Continuité, 9. Finalisation, 10. Sortie.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.9\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.1cm and 1.2cm,
+    group_box/.style={rectangle, draw=gray!50, fill=white, rounded corners=8pt, inner sep=10pt, font=\small\bfseries},
+    process/.style={rectangle, draw=black!70, fill=white, rounded corners=3pt, minimum width=2.8cm, minimum height=0.7cm, align=center, font=\scriptsize\bfseries, drop shadow={opacity=0.1}},
+    database/.style={cylinder, shape border rotate=90, draw=black!70, fill=boxorange!40, minimum width=1.5cm, minimum height=0.8cm, aspect=0.25, align=center, font=\scriptsize\bfseries},
+    arrow/.style={-{Stealth[length=5pt]}, thick, draw=black!60}
+]
+    \node[process, fill=boxred!50] (t1) {1. Entrée};
+    \node[process, below=of t1, fill=boxblue!50] (t2) {2. Validation};
+    \node[database, right=2cm of t1] (t3) {3. Cache Redis};
+    \node[process, below=of t3, fill=boxblue!50] (t4) {4. Préparation};
+    \node[process, right=2cm of t3, fill=boxgreen!50] (t5) {5. Segmentation};
+    \node[process, below=of t5, fill=boxgreen!50] (t6) {6. Gemini/Groq};
+    \node[process, below=of t6, fill=boxgreen!50] (t7) {7. Sélection};
+    \node[process, right=2cm of t5, fill=boxred!50] (t8) {8. Repli};
+    \node[process, below=of t8, fill=boxblue!50] (t9) {9. Finalisation};
+    \node[process, below=of t9, fill=boxblue!50] (t10) {10. Sortie};
+
+    \begin{scope}[on background layer]
+        \node[group_box, fit=(t1) (t2)] (g1) {};
+        \node[group_box, fit=(t3) (t4)] (g2) {};
+        \node[group_box, fit=(t5) (t7)] (g3) {};
+        \node[group_box, fit=(t8) (t10)] (g4) {};
+    \end{scope}
+
+    \draw[arrow] (t1) -- (t2); \draw[arrow] (t2.east) -- (t3.west);
+    \draw[arrow] (t3) -- (t4); \draw[arrow] (t4.east) -- (t5.west);
+    \draw[arrow] (t5) -- (t6); \draw[arrow] (t6) -- (t7);
+    \draw[arrow] (t7.east) -- (t8.west); \draw[arrow] (t8) -- (t9); \draw[arrow] (t9) -- (t10);
+\end{tikzpicture}}
+\caption{Architecture technique du pipeline de traduction.}
+\end{figure}
+
+\subsection{Architecture du Pipeline de Résumé (8 Étapes)}
+Le pipeline de résumé suit une orchestration par sections :
+\begin{enumerate}
+    \item Entrée, 2. Validation, 3. Cache, 4. Structuration, 5. Génération, 6. Agrégation, 7. Continuité, 8. Sortie.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.9\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.1cm and 1.5cm,
+    group_box/.style={rectangle, draw=gray!50, fill=white, rounded corners=8pt, inner sep=10pt, font=\small\bfseries},
+    process/.style={rectangle, draw=black!70, fill=white, rounded corners=3pt, minimum width=3cm, minimum height=0.8cm, align=center, font=\scriptsize\bfseries, drop shadow={opacity=0.1}},
+    database/.style={cylinder, shape border rotate=90, draw=black!70, fill=boxorange!40, minimum width=1.5cm, minimum height=0.8cm, aspect=0.25, align=center, font=\scriptsize\bfseries}
+]
+    \node[process, fill=boxred!40] (r1) {1. Entrée};
+    \node[process, below=of r1, fill=boxblue!40] (r2) {2. Validation};
+    \node[database, right=2cm of r1] (r3) {3. Cache Redis};
+    \node[process, below=of r3, fill=boxblue!40] (r4) {4. Structuration};
+    \node[process, right=2cm of r3, fill=boxgreen!40] (r5) {5. Génération};
+    \node[process, below=of r5, fill=boxgreen!40] (r6) {6. Agrégation};
+    \node[process, right=2cm of r5, fill=boxorange!40] (r7) {7. Continuité};
+    \node[process, below=of r7, fill=boxblue!40] (r8) {8. Sortie};
+
+    \begin{scope}[on background layer]
+        \node[group_box, fit=(r1) (r2)] {}; \node[group_box, fit=(r3) (r4)] {};
+        \node[group_box, fit=(r5) (r6)] {}; \node[group_box, fit=(r7) (r8)] {};
+    \end{scope}
+
+    \draw[->, thick] (r1) -- (r2); \draw[->, thick] (r2.east) -- (r3.west);
+    \draw[->, thick] (r3) -- (r4); \draw[->, thick] (r4.east) -- (r5.west);
+    \draw[->, thick] (r5) -- (r6); \draw[->, thick] (r6.east) -- (r7.west);
+    \draw[->, thick] (r7) -- (r8);
+\end{tikzpicture}}
+\caption{Architecture technique du pipeline de résumé.}
+\end{figure}

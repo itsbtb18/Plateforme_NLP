@@ -1,0 +1,63 @@
+\section{Module de Web Scraping Automatisé}
+Le module de web scraping est responsable de l'acquisition proactive des connaissances pour la plateforme.
+
+\subsection{Architecture Globale du Scraping}
+L'architecture globale combine découverte, extraction IA et persistance intelligente.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    comp/.style={rectangle, draw=black!70, fill=white, rounded corners=3pt, minimum width=3.8cm, minimum height=0.9cm, align=center, font=\small\bfseries, drop shadow={opacity=0.2}},
+    db/.style={cylinder, shape border rotate=90, draw=black!70, fill=white, minimum width=1.5cm, minimum height=1cm, aspect=0.25, align=center, font=\small\bfseries},
+    group_box/.style={rectangle, draw=gray!50, fill=gray!5, rounded corners=10pt, inner sep=15pt, font=\bfseries\color{primary}},
+    arrow/.style={-{Stealth[length=6pt]}, thick, draw=black!60}
+]
+    \node[comp, fill=secondary!10] (tavily) {Discovery Layer\\(Tavily API)};
+    \node[db, right=3cm of tavily, fill=primary!10] (redis) {Redis Queue\\\& State};
+    \node[comp, below=1cm of redis, fill=primary!5] (workers) {Celery Workers\\(Distributed Process)};
+    \node[comp, right=3cm of redis, fill=secondary!5] (llm) {LLM Extraction Engine\\(Gemini / Groq)};
+    \node[db, below=2cm of workers, fill=primary!20] (pg) {PostgreSQL\\(pgvector Embeddings)};
+
+    \begin{scope}[on background layer]
+        \node[group_box, fit=(tavily), label=above:1. DÉCOUVERTE] (g1) {};
+        \node[group_box, fit=(redis) (workers), label=above:2. ORCHESTRATION] (g2) {};
+        \node[group_box, fit=(llm), label=above:3. MOTEUR IA] (g3) {};
+        \node[group_box, fit=(pg), label=below:4. STOCKAGE] (g4) {};
+    \end{scope}
+
+    \draw[arrow] (g1.east) -- (redis.west); \draw[arrow] (redis) -- (workers);
+    \draw[arrow] (workers.east) -- ++(1,0) |- (llm.west);
+    \draw[arrow] (llm.south) |- ++(0,-0.5) -| (pg.north);
+\end{tikzpicture}}
+\caption{Architecture globale du module de scraping.}
+\end{figure}
+
+\subsection{Pipeline de Scraping en 5 Étapes}
+Le pipeline opérationnel suit ces étapes clés :
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=0.8cm,
+    main_box/.style={rectangle, draw=primary, fill=lightblue, rounded corners=5pt, minimum width=3.5cm, minimum height=1.2cm, align=center, font=\small\bfseries},
+    sub_text/.style={font=\tiny\color{gray}, align=left},
+    arrow/.style={-{Stealth[length=6pt]}, thick, draw=primary!70}
+]
+    \node[main_box] (t1) {1. TRIGGER};
+    \node[sub_text, below=0.1cm of t1] (st1) {$\bullet$ Admin UI\\$\bullet$ Celery Beat};
+    \node[main_box, right=of t1] (t2) {2. DISCOVERY};
+    \node[sub_text, below=0.1cm of t2] (st2) {$\bullet$ Tavily API\\$\bullet$ Query Gen};
+    \node[main_box, right=of t2, fill=boxorange!40] (t3) {3. EXTRACTION};
+    \node[sub_text, below=0.1cm of t3] (st3) {$\bullet$ LLM Parse\\$\bullet$ JSON Recover};
+    \node[main_box, right=of t3] (t4) {4. VALIDATION};
+    \node[sub_text, below=0.1cm of t4] (st4) {$\bullet$ Network Probes\\$\bullet$ Conf. Score};
+    \node[main_box, right=of t4, fill=boxgreen!40] (t5) {5. PERSISTENCE};
+    \node[sub_text, below=0.1cm of t5] (st5) {$\bullet$ Django ORM\\$\bullet$ Dedup};
+
+    \draw[arrow] (t1) -- (t2); \draw[arrow] (t2) -- (t3); \draw[arrow] (t3) -- (t4); \draw[arrow] (t4) -- (t5);
+\end{tikzpicture}}
+\caption{Pipeline opérationnel du scraping.}
+\end{figure}

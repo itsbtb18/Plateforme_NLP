@@ -1,0 +1,151 @@
+\documentclass[12pt,a4paper]{report}
+
+% =============================================================================
+% PREAMBULE
+% =============================================================================
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, shadows, calc, shapes.geometric}
+
+% Couleurs
+\definecolor{primary}{RGB}{31, 73, 125}
+\definecolor{secondary}{RGB}{0, 112, 192}
+\definecolor{lightblue}{RGB}{235, 245, 255}
+\definecolor{uml_border}{RGB}{40, 60, 80}
+\definecolor{boxorange}{RGB}{255, 245, 220}
+\definecolor{boxgreen}{RGB}{230, 250, 230}
+\definecolor{boxred}{RGB}{255, 235, 235}
+
+% Styles de titres
+\titleformat{\section}{\color{primary}\Large\bfseries}{\thesection.}{0.6em}{}[\color{primary}\rule{\linewidth}{0.8pt}]
+\titleformat{\subsection}{\color{primary}\large\bfseries}{\thesubsection}{0.6em}{}
+
+\begin{document}
+
+% --- PAGE DE GARDE ---
+\begin{titlepage}
+    \centering
+    \vspace*{5cm}
+    {\Huge \bfseries Plateforme Collaborative NLP}\\[1.5cm]
+    {\Large Rapport Technique Intégré (PFE)}\\[2cm]
+    \vfill
+    {\large Avril 2026}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% =============================================================================
+% SECTION 1 : MODULE TRADUCTION ET RÉSUMÉ
+% =============================================================================
+\section{Module de Traduction et de Résumé}
+Ce module assure la conversion linguistique et la synthèse documentaire via une architecture résiliente basée sur les LLM.
+
+\subsection{Pipeline de Traduction (10 Étapes)}
+\begin{figure}[H]
+\centering
+\resizebox{0.9\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1cm and 1cm,
+    process/.style={rectangle, draw=black!70, fill=white, rounded corners=3pt, minimum width=2.8cm, minimum height=0.7cm, align=center, font=\scriptsize\bfseries, drop shadow={opacity=0.1}},
+    database/.style={cylinder, shape border rotate=90, draw=black!70, fill=boxorange!40, minimum width=1.5cm, minimum height=0.8cm, aspect=0.25, align=center, font=\scriptsize\bfseries}
+]
+    \node[process, fill=boxred!50] (t1) {1. Entrée};
+    \node[process, below=of t1, fill=lightblue!50] (t2) {2. Validation};
+    \node[database, right=2cm of t1] (t3) {3. Cache Redis};
+    \node[process, below=of t3, fill=lightblue!50] (t4) {4. Préparation};
+    \node[process, right=2cm of t3, fill=boxgreen!50] (t5) {5. Segmentation};
+    \node[process, below=of t5, fill=boxgreen!50] (t6) {6. Gemini/Groq};
+    \node[process, below=of t6, fill=boxgreen!50] (t7) {7. Sélection};
+    \node[process, right=2cm of t5, fill=boxred!50] (t8) {8. Repli};
+    \node[process, below=of t8, fill=lightblue!50] (t9) {9. Finalisation};
+    \node[process, below=of t9, fill=lightblue!50] (t10) {10. Sortie};
+
+    \draw[->] (t1) -- (t2); \draw[->] (t2.east) -- (t3.west);
+    \draw[->] (t3) -- (t4); \draw[->] (t4.east) -- (t5.west);
+    \draw[->] (t5) -- (t6); \draw[->] (t6) -- (t7);
+    \draw[->] (t7.east) -- (t8.west); \draw[->] (t8) -- (t9); \draw[->] (t9) -- (t10);
+\end{tikzpicture}}
+\caption{Architecture technique du pipeline de traduction.}
+\end{figure}
+
+% =============================================================================
+% SECTION 2 : MODULE DE WEB SCRAPING
+% =============================================================================
+\newpage
+\section{Module de Web Scraping Automatisé}
+
+\subsection{Architecture Globale du Scraping}
+\begin{figure}[H]
+\centering
+\resizebox{0.9\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    comp/.style={rectangle, draw=black!70, fill=white, rounded corners=3pt, minimum width=3.5cm, minimum height=0.9cm, align=center, font=\small\bfseries, drop shadow={opacity=0.1}},
+    db/.style={cylinder, shape border rotate=90, draw=black!70, fill=white, minimum width=1.5cm, minimum height=1cm, aspect=0.25, align=center, font=\small\bfseries},
+    arrow/.style={-{Stealth[length=5pt]}, thick, draw=black!60}
+]
+    \node[comp, fill=secondary!10] (d) {Discovery Layer (Tavily)};
+    \node[comp, right=2cm of d, fill=primary!10] (r) {Redis Queue};
+    \node[comp, below=1cm of r, fill=primary!5] (w) {Celery Workers};
+    \node[comp, right=2cm of r, fill=secondary!5] (ia) {LLM Extraction};
+    \node[db, below=1.5cm of w, fill=primary!20] (pg) {PostgreSQL (pgvector)};
+
+    \draw[arrow] (d) -- (r); \draw[arrow] (r) -- (w);
+    \draw[arrow] (w.east) -- ++(0.5,0) |- (ia.west);
+    \draw[arrow] (ia.south) |- ++(0,-0.5) -| (pg.north);
+\end{tikzpicture}}
+\caption{Architecture globale du module de scraping.}
+\end{figure}
+
+% =============================================================================
+% SECTION 3 : DIAGRAMME DE CLASSES
+% =============================================================================
+\newpage
+\section{Diagramme de Classes Global}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.99\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    cls/.style={rectangle, draw=uml_border, fill=lightblue, align=left, inner sep=5pt, font=\tiny\ttfamily, minimum width=3.8cm, drop shadow},
+    title/.style={font=\bfseries\tiny, color=white, fill=primary, minimum width=3.8cm, minimum height=0.4cm, draw=uml_border},
+    arrow/.style={-{Diamond[open]}, thick, draw=uml_border!80},
+    card/.style={font=\tiny\bfseries}
+]
+    % --- CLASSES ---
+    \node[title] (tU) {\textbf{User / Profile}};
+    \node[cls, below=0pt of tU] (cU) { - username \\ - email \\ - reputation \\ - avatar };
+
+    \node[title, right=1.5cm of tU] (tP) {\textbf{Post / Forum}};
+    \node[cls, below=0pt of tP] (cP) { - title \\ - content \\ - author (FK) \\ - views };
+
+    \node[title, below=2cm of cU] (tC) {\textbf{Course / Tool}};
+    \node[cls, below=0pt of tC] (cC) { - title \\ - url \\ - institution (FK) };
+
+    \node[title, right=1.5cm of tC] (tI) {\textbf{Institution}};
+    \node[cls, below=0pt of tI] (cI) { - name \\ - country \\ - website };
+
+    \node[title, right=1.5cm of tP] (tE) {\textbf{Event / Opp.}};
+    \node[cls, below=0pt of tE] (cE) { - title \\ - date \\ - institution (FK) };
+
+    % --- RELATIONS ---
+    \draw[arrow] (cP) -- node[pos=0.1, card, above]{*} node[pos=0.9, card, above]{1} (cU);
+    \draw[arrow] (cC) -- node[pos=0.1, card, above]{*} node[pos=0.9, card, above]{1} (cI);
+    \draw[arrow] (cE) -- node[pos=0.1, card, left]{*} node[pos=0.9, card, left]{1} (cI);
+
+\end{tikzpicture}}
+\caption{Diagramme de classes complet de la plateforme.}
+\end{figure}
+
+\end{document}
