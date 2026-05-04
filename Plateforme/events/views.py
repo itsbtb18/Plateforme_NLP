@@ -1,5 +1,8 @@
 import logging
+<<<<<<< HEAD
 import os
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from datetime import UTC, datetime, time
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
@@ -15,12 +18,19 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
 from django.db.models import Q
+<<<<<<< HEAD
 from django.http import HttpResponse, JsonResponse
+=======
+from django.http import HttpResponse
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+<<<<<<< HEAD
 from django.views.decorators.http import require_GET
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -217,6 +227,7 @@ def event_ics_export(request, pk):
     return response
 
 
+<<<<<<< HEAD
 @require_GET
 def event_convert_to_text(request, pk):
     """
@@ -307,6 +318,8 @@ def event_convert_to_text(request, pk):
         )
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 class EventCreateView(LoginAndVerifiedRequiredMixin, CreateView):
     """View for creating new events - Restricted."""
 

@@ -2,6 +2,11 @@ import logging
 import time
 from functools import wraps
 from typing import Any
+<<<<<<< HEAD
+=======
+import requests
+import json
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 # Import allauth LoginView
 from allauth.account.views import LoginView as AllauthLoginView
@@ -21,7 +26,11 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 from django.views import View
+<<<<<<< HEAD
 from django.views.decorators.csrf import ensure_csrf_cookie
+=======
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, UpdateView
 from notifications.models import Notification

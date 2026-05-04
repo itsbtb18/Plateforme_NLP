@@ -105,6 +105,7 @@ class CircuitBreaker:
     def record_failure(self, domain: str):
         self._breaker(domain).record_failure("legacy_failure")
 
+<<<<<<< HEAD
 import threading
 from datetime import datetime, timedelta
 
@@ -157,3 +158,7 @@ class LLMCircuitBreaker:
         return all(not self.is_available(p) for p in providers)
 
 llm_circuit_breaker = LLMCircuitBreaker()  # Singleton global
+=======
+    def record_success(self, domain: str):
+        self._breaker(domain).record_success()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e

@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+<<<<<<< HEAD
     REDIS_URL: str = "redis://redis:6379/0"
 
     TS_GEMINI_API_KEY: str = ""
@@ -12,6 +13,12 @@ class Settings(BaseSettings):
 
     TS_GROQ_API_KEY: str = ""
     TS_GROQ_API_KEYS: str = ""
+=======
+    TS_GEMINI_API_KEY: str = ""
+    TS_GEMINI_MODEL: str = "gemini-2.0-flash"
+
+    TS_GROQ_API_KEY: str = ""
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     TS_GROQ_TRANSLATION_MODEL: str = "llama-3.3-70b-versatile"
     TS_GROQ_SUMMARIZATION_MODEL: str = "llama-3.3-70b-versatile"
 
@@ -22,6 +29,7 @@ class Settings(BaseSettings):
     # Optional simple auth between gateway/services
     TS_SERVICE_API_KEY: str = ""
 
+<<<<<<< HEAD
     # Cache for repeated translation/summarization requests.
     TS_CACHE_TTL_SECONDS: int = 604800
 
@@ -59,11 +67,21 @@ class Settings(BaseSettings):
     TS_SUMMARIZATION_PROVIDER_PHASE_TIMEOUT_SECONDS: float = 15.0
     TS_SUMMARIZE_HTTP_HARD_TIMEOUT_SECONDS: float = 20.0
     TS_GLOBAL_MUTEX_WAIT_SECONDS: float = 8.0
+=======
+    # Resilience for large inputs: retry when provider returns rate-limit responses.
+    TS_RATE_LIMIT_MAX_RETRIES: int = 4
+    TS_RATE_LIMIT_BASE_DELAY_SECONDS: float = 1.0
+    TS_RATE_LIMIT_MAX_WAIT_SECONDS: float = 20.0
+    TS_INTER_CHUNK_DELAY_SECONDS: float = 1.1
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+<<<<<<< HEAD
         extra = "ignore"
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 
 @lru_cache

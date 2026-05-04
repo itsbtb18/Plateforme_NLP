@@ -6,6 +6,7 @@ import os
 from typing import Any
 
 from django.conf import settings
+<<<<<<< HEAD
 from scraping.api_key_manager import api_key_manager
 
 logger = logging.getLogger(__name__)
@@ -15,12 +16,18 @@ def _get_direct_scraper():
     from scraping.scrapers.direct_source_scraper import DirectSourceScraper
     return DirectSourceScraper()
 
+=======
+
+logger = logging.getLogger(__name__)
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 class TavilySearchClient:
     """Async wrapper around the official Tavily search client."""
 
     def __init__(self, api_key: str | None = None, **client_kwargs: Any) -> None:
         self.client = None
+<<<<<<< HEAD
         self._client_kwargs = client_kwargs
         self._disabled_reason = ""
         self._disabled_logged = False
@@ -31,6 +38,15 @@ class TavilySearchClient:
             
         if not self.api_keys:
             self._disabled_reason = "No Tavily API keys configured"
+=======
+        self._disabled_reason = ""
+        self._disabled_logged = False
+        self.api_key = api_key or self._resolve_api_key()
+        if not self.api_key:
+            self._disabled_reason = (
+                "Neither SCRAPING_TAVILY_API_KEY nor TAVILY_API_KEY is configured"
+            )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             return
 
         try:
@@ -40,6 +56,7 @@ class TavilySearchClient:
                 "tavily-python is not installed. Install it with: pip install tavily-python"
             ) from exc
 
+<<<<<<< HEAD
         current_key = api_key_manager.get_current_key("tavily")
         if not current_key and self.api_keys:
             current_key = self.api_keys[0]
@@ -47,6 +64,9 @@ class TavilySearchClient:
         self.client = TavilyClient(
             api_key=current_key, **self._client_kwargs
         )
+=======
+        self.client = TavilyClient(api_key=self.api_key, **client_kwargs)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     @property
     def is_enabled(self) -> bool:
@@ -56,6 +76,24 @@ class TavilySearchClient:
     def disabled_reason(self) -> str:
         return self._disabled_reason
 
+<<<<<<< HEAD
+=======
+    @staticmethod
+    def _resolve_api_key() -> str:
+        scraping_configured = getattr(settings, "SCRAPING_TAVILY_API_KEY", "") or ""
+        if scraping_configured.strip():
+            return scraping_configured.strip()
+
+        configured = getattr(settings, "TAVILY_API_KEY", "") or ""
+        if configured.strip():
+            return configured.strip()
+
+        scraping_env = os.environ.get("SCRAPING_TAVILY_API_KEY", "").strip()
+        if scraping_env:
+            return scraping_env
+
+        return os.environ.get("TAVILY_API_KEY", "").strip()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     async def _search(
         self,
@@ -65,11 +103,14 @@ class TavilySearchClient:
         max_results: int | None = None,
     ) -> list[dict]:
         """Search Tavily with per-category configuration and return normalized items."""
+<<<<<<< HEAD
         from scraping.scrapers.circuit_breaker import llm_circuit_breaker
         if llm_circuit_breaker.skip_tavily_if_all_down():
             logger.warning("Tavily skippé : tous les LLM en quarantaine")
             return []
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         if self.client is None:
             if not self._disabled_logged:
                 logger.info(
@@ -107,6 +148,7 @@ class TavilySearchClient:
                 "usage limit" in lowered
                 or "exceeds your plan" in lowered
                 or "quota" in lowered
+<<<<<<< HEAD
                 or "429" in lowered
             ):
                 new_key = api_key_manager.rotate_key("tavily", reason="usage_limit")
@@ -131,6 +173,22 @@ class TavilySearchClient:
                 logger.error("Tavily search failed: %s", exc)
                 return []
 
+=======
+            ):
+                self._disabled_reason = (
+                    "Tavily plan usage limit reached; client disabled for this run"
+                )
+                self.client = None
+                logger.warning(
+                    "Tavily disabled for current run due to plan usage limit: %s",
+                    message,
+                )
+                return []
+
+            logger.error("Tavily search failed: %s", exc)
+            return []
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         if not isinstance(response, dict):
             return []
 
@@ -179,10 +237,34 @@ class TavilySearchClient:
         query: str,
         max_results: int | None = None,
     ) -> list[dict]:
+<<<<<<< HEAD
         """Override: Use DirectSourceScraper instead of Tavily for events."""
         logger.info("SearchClient: Using DirectSourceScraper for events (Tavily bypass)")
         scraper = _get_direct_scraper()
         return await scraper.scrape_events()
+=======
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 10,
+                "include_answer": True,
+                "include_raw_content": True,
+                "include_domains": [
+                    "aclanthology.org",
+                    "aclweb.org",
+                    "arxiv.org",
+                    "semanticscholar.org",
+                    "eventbrite.com",
+                    "confcal.net",
+                    "wikicfp.com",
+                    "researchgate.net",
+                ],
+                "topic": "general",
+            },
+            max_results=max_results,
+        )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     async def search_tools(
         self,
@@ -204,10 +286,13 @@ class TavilySearchClient:
                     "paperswithcode.com",
                     "camel-lab.github.io",
                     "farasa.qcri.org",
+<<<<<<< HEAD
                     "sourceforge.net",
                     "bitbucket.org",
                     "gitlab.com",
                     "crane.io",
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 ],
             },
             max_results=max_results,
@@ -222,7 +307,11 @@ class TavilySearchClient:
             query,
             config={
                 "search_depth": "advanced",
+<<<<<<< HEAD
                 "max_results": 10,
+=======
+                "max_results": 8,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 "include_domains": [
                     "coursera.org",
                     "edx.org",
@@ -231,8 +320,11 @@ class TavilySearchClient:
                     "mooc.org",
                     "futurelearn.com",
                     "datacamp.com",
+<<<<<<< HEAD
                     "linkedin.com/learning",
                     "khanacademy.org",
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 ],
             },
             max_results=max_results,
@@ -246,10 +338,18 @@ class TavilySearchClient:
         return await self._search(
             query,
             config={
+<<<<<<< HEAD
                 "search_depth": "advanced",
                 "max_results": 15,
                 "include_answer": True,
                 "topic": "general",
+=======
+                "search_depth": "basic",
+                "max_results": 15,
+                "include_answer": True,
+                "topic": "news",
+                "days": 30,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             },
             max_results=max_results,
         )
@@ -259,10 +359,31 @@ class TavilySearchClient:
         query: str,
         max_results: int | None = None,
     ) -> list[dict]:
+<<<<<<< HEAD
         """Override: Use DirectSourceScraper instead of Tavily for opportunities."""
         logger.info("SearchClient: Using DirectSourceScraper for opportunities (Tavily bypass)")
         scraper = _get_direct_scraper()
         return await scraper.scrape_opportunities()
+=======
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 10,
+                "include_domains": [
+                    "academicpositions.eu",
+                    "scholarshipdb.net",
+                    "euraxess.ec.europa.eu",
+                    "jobs.ac.uk",
+                    "mbzuai.ac.ae",
+                    "qcri.org",
+                    "kaust.edu.sa",
+                    "aub.edu.lb",
+                ],
+            },
+            max_results=max_results,
+        )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     async def search_corpus(
         self,
@@ -282,16 +403,39 @@ class TavilySearchClient:
                     "elra.info",
                     "clarin.eu",
                     "dumps.wikimedia.org",
+<<<<<<< HEAD
                     "paperswithcode.com",
                     "kaggle.com",
                     "zenodo.org",
                     "figshare.com",
                     "commoncrawl.org",
+=======
+                    "paperswithcode.com/datasets",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 ],
             },
             max_results=max_results,
         )
 
+<<<<<<< HEAD
+=======
+    async def search_laws(
+        self,
+        query: str,
+        max_results: int | None = None,
+    ) -> list[dict]:
+        return await self._search(
+            query,
+            config={
+                "search_depth": "advanced",
+                "max_results": 10,
+                "include_answer": True,
+                "include_raw_content": True,
+            },
+            max_results=max_results,
+        )
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     async def search_web(self, query: str, max_results: int = 15) -> list[dict]:
         """Compatibility API used by legacy callers."""
         throttle_seconds = getattr(settings, "SCRAPING_API_CALL_DELAY_SECONDS", 0)

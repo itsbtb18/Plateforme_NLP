@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+<<<<<<< HEAD
 import hashlib
 import inspect
 import json
@@ -22,11 +23,17 @@ try:
 except Exception:  # pragma: no cover - optional dependency fallback at runtime
     GoogleTranslator = None
 
+=======
+import re
+from typing import Awaitable, Callable
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from app.config import get_settings
 from app.providers.gemini_provider import GeminiProvider
 from app.providers.groq_provider import GroqProvider
 
 
+<<<<<<< HEAD
 logger = logging.getLogger(__name__)
 
 INSTANCE_ID = uuid.uuid4().hex[:8]
@@ -52,10 +59,16 @@ class TranslationSummarizationService:
     def __init__(self) -> None:
         self.settings = get_settings()
         self.instance_id = INSTANCE_ID
+=======
+class TranslationSummarizationService:
+    def __init__(self) -> None:
+        self.settings = get_settings()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         self.providers = {
             "gemini": GeminiProvider(),
             "groq": GroqProvider(),
         }
+<<<<<<< HEAD
         self._provider_cooldowns: dict[str, float] = {}
         self._provider_failure_counts: dict[str, int] = {}  # Circuit breaker: count consecutive failures
         self._provider_last_failure: dict[str, float] = {}  # Track time of last failure for reset
@@ -92,6 +105,8 @@ class TranslationSummarizationService:
         derived = 60.0 / float(rpm)
         configured = float(getattr(self.settings, "TS_GLOBAL_MIN_INTERVAL_SECONDS", self.GLOBAL_MIN_INTERVAL_SECONDS))
         return max(derived, configured, 1.0)
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     def provider_order(self) -> list[str]:
         primary = self.settings.TS_PRIMARY_PROVIDER.strip().lower()
@@ -105,6 +120,7 @@ class TranslationSummarizationService:
 
         return [primary, fallback]
 
+<<<<<<< HEAD
     def _provider_cooldown_remaining(self, provider_name: str) -> float:
         cooldown_until = self._provider_cooldowns.get(provider_name, 0.0)
         return max(0.0, cooldown_until - time.monotonic())
@@ -653,6 +669,131 @@ class TranslationSummarizationService:
 
         raise RuntimeError("Chat failed: " + " | ".join(errors))
 
+=======
+    async def translate(self, *, text: str, source_language: str, target_language: str) -> tuple[str, str, bool]:
+        errors: list[str] = []
+        prepared_text = self._prepare_text_for_translation(text)
+        chunks = self._split_into_chunks(prepared_text)
+        order = self.provider_order()
+        for idx, name in enumerate(order):
+            provider = self.providers[name]
+            try:
+                translated_chunks: list[str] = []
+                for i, chunk in enumerate(chunks):
+                    translated = await self._call_with_rate_limit_retry(
+                        provider_name=name,
+                        op=lambda c=chunk: provider.translate(
+                            text=c,
+                            source_language=source_language,
+                            target_language=target_language,
+                        ),
+                    )
+                    translated = self._post_process_translation(translated)
+                    if self._looks_like_summary(source_text=chunk, translated_text=translated):
+                        raise RuntimeError("provider output looks summarized/compressed, not full translation")
+                    translated_chunks.append(translated)
+
+                    if i < len(chunks) - 1 and self.settings.TS_INTER_CHUNK_DELAY_SECONDS > 0:
+                        await asyncio.sleep(self.settings.TS_INTER_CHUNK_DELAY_SECONDS)
+
+                output = self._merge_chunks(translated_chunks)
+                if self._looks_like_summary(source_text=text, translated_text=output):
+                    raise RuntimeError("provider output looks summarized/compressed, not full translation")
+                return output, name, idx > 0
+            except Exception as exc:
+                safe_error = self._sanitize_error_message(str(exc))
+                errors.append(f"{name}: {safe_error}")
+                continue
+        raise RuntimeError("All providers failed: " + " | ".join(errors))
+
+    async def summarize(self, *, text: str, language: str, style: str, max_words: int | None) -> tuple[str, str, bool]:
+        errors: list[str] = []
+        prepared_text = self._prepare_text_for_summarization(text)
+        sections = self._split_into_sections(prepared_text)
+        order = self.provider_order()
+        for idx, name in enumerate(order):
+            provider = self.providers[name]
+            try:
+                summarized_sections: list[dict[str, str | int]] = []
+                for section in sections:
+                    section_title = str(section["title"])
+                    section_level = int(section["level"])
+                    section_body = str(section["content"]).strip() or section_title
+
+                    section_chunks = self._split_into_chunks(section_body, max_chars=2800)
+                    chunk_summaries: list[str] = []
+                    for i, chunk in enumerate(section_chunks):
+                        words = len(chunk.split())
+                        section_target_words = self._estimate_section_summary_words(words, max_words)
+                        chunk_summary = await self._call_with_rate_limit_retry(
+                            provider_name=name,
+                            op=lambda c=chunk, w=section_target_words: provider.summarize(
+                                text=c,
+                                language=language,
+                                style=f"section::{style}",
+                                max_words=w,
+                            ),
+                        )
+                        chunk_summaries.append(self._post_process_summary(chunk_summary))
+
+                        if i < len(section_chunks) - 1 and self.settings.TS_INTER_CHUNK_DELAY_SECONDS > 0:
+                            await asyncio.sleep(self.settings.TS_INTER_CHUNK_DELAY_SECONDS)
+
+                    if len(chunk_summaries) > 1:
+                        merged_for_section = "\n\n".join(chunk_summaries)
+                        final_words = self._estimate_section_summary_words(len(section_body.split()), max_words)
+                        section_summary = await self._call_with_rate_limit_retry(
+                            provider_name=name,
+                            op=lambda m=merged_for_section, w=final_words: provider.summarize(
+                                text=m,
+                                language=language,
+                                style=f"section-final::{style}",
+                                max_words=w,
+                            ),
+                        )
+                        section_summary = self._post_process_summary(section_summary)
+                    else:
+                        section_summary = chunk_summaries[0] if chunk_summaries else ""
+
+                    summarized_sections.append(
+                        {
+                            "title": section_title,
+                            "level": section_level,
+                            "summary": section_summary,
+                        }
+                    )
+
+                output = self._render_structured_summary(summarized_sections)
+                return output, name, idx > 0
+            except Exception as exc:
+                safe_error = self._sanitize_error_message(str(exc))
+                errors.append(f"{name}: {safe_error}")
+                continue
+
+        # Graceful degradation: when all upstream providers are rate-limited,
+        # generate an extractive local summary instead of failing the request.
+        if self._all_errors_rate_limited(errors):
+            fallback_sections: list[dict[str, str | int]] = []
+            for section in sections:
+                section_title = str(section["title"])
+                section_level = int(section["level"])
+                section_body = str(section["content"]).strip() or section_title
+                section_target_words = self._estimate_section_summary_words(len(section_body.split()), max_words)
+                section_summary = self._local_section_summary(section_body, target_words=section_target_words)
+                fallback_sections.append(
+                    {
+                        "title": section_title,
+                        "level": section_level,
+                        "summary": section_summary,
+                    }
+                )
+
+            output = self._render_structured_summary(fallback_sections)
+            return output, "local-fallback", True
+
+        raise RuntimeError("All providers failed: " + " | ".join(errors))
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     @staticmethod
     def _sanitize_error_message(message: str) -> str:
         text = str(message or "")
@@ -660,6 +801,7 @@ class TranslationSummarizationService:
         text = re.sub(r"([?&](?:key|api_key|token)=)[^&\s]+", r"\1***", text, flags=re.IGNORECASE)
         return text
 
+<<<<<<< HEAD
     async def _call_with_rate_limit_retry(
         self,
         *,
@@ -682,10 +824,17 @@ class TranslationSummarizationService:
             chunk_id or "root",
             self.instance_id,
         )
+=======
+    async def _call_with_rate_limit_retry(self, *, provider_name: str, op: Callable[[], Awaitable[str]]) -> str:
+        max_retries = max(0, int(self.settings.TS_RATE_LIMIT_MAX_RETRIES))
+        base_delay = max(0.1, float(self.settings.TS_RATE_LIMIT_BASE_DELAY_SECONDS))
+        max_wait = max(base_delay, float(self.settings.TS_RATE_LIMIT_MAX_WAIT_SECONDS))
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
         last_exc: Exception | None = None
         for attempt in range(max_retries + 1):
             try:
+<<<<<<< HEAD
                 await self._await_global_request_slot()
                 result = await asyncio.wait_for(op(), timeout=op_timeout)
                 logger.info(
@@ -760,6 +909,32 @@ class TranslationSummarizationService:
 
         message = self._sanitize_error_message(str(last_exc)) if last_exc else "provider error"
         raise RuntimeError(f"{provider_name}: {message}")
+=======
+                return await op()
+            except Exception as exc:
+                last_exc = exc
+                if not self._is_rate_limit_error(exc):
+                    raise
+
+                if attempt >= max_retries:
+                    break
+
+                # Prefer provider-advised wait, fallback to exponential backoff.
+                advised_wait = self._extract_retry_after_seconds(str(exc))
+                if advised_wait is not None and advised_wait > max_wait:
+                    raise RuntimeError(
+                        f"Provider {provider_name} rate limit asks waiting {advised_wait:.1f}s, "
+                        f"exceeding max wait {max_wait:.1f}s"
+                    ) from exc
+
+                backoff_wait = base_delay * (2 ** attempt)
+                wait_seconds = advised_wait if advised_wait is not None else backoff_wait
+                wait_seconds = max(base_delay, min(wait_seconds, max_wait))
+                await asyncio.sleep(wait_seconds)
+
+        message = self._sanitize_error_message(str(last_exc)) if last_exc else "rate limit"
+        raise RuntimeError(f"Rate limit persisted for provider {provider_name}: {message}")
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     @staticmethod
     def _is_rate_limit_error(exc: Exception) -> bool:
@@ -772,6 +947,7 @@ class TranslationSummarizationService:
         )
 
     @staticmethod
+<<<<<<< HEAD
     def _is_hard_quota_error(exc: Exception) -> bool:
         msg = str(exc or "").lower()
         hard_quota_markers = (
@@ -813,6 +989,8 @@ class TranslationSummarizationService:
         return any(marker in msg for marker in transient_markers)
 
     @staticmethod
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     def _extract_retry_after_seconds(message: str) -> float | None:
         text = str(message or "")
 
@@ -848,7 +1026,11 @@ class TranslationSummarizationService:
         if not sentences:
             return source[:360]
 
+<<<<<<< HEAD
         max_words = max(120, min(600, int(target_words or 240)))
+=======
+        max_words = max(60, min(260, int(target_words or 120)))
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         selected: list[str] = []
         words_used = 0
 
@@ -876,6 +1058,10 @@ class TranslationSummarizationService:
         out_words = len(output.split())
         ratio = out_words / max(src_words, 1)
 
+<<<<<<< HEAD
+=======
+        # For sufficiently long inputs, a very short output is usually a summary/compression.
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         if src_words >= 120 and ratio < 0.45:
             return True
 
@@ -891,6 +1077,10 @@ class TranslationSummarizationService:
         if any(marker in lower_output for marker in summary_markers):
             return True
 
+<<<<<<< HEAD
+=======
+        # Too few lines compared to large multi-line source may indicate compression.
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         src_non_empty_lines = len([ln for ln in re.split(r"\r?\n", source) if ln.strip()])
         out_non_empty_lines = len([ln for ln in re.split(r"\r?\n", output) if ln.strip()])
         if src_non_empty_lines >= 20 and out_non_empty_lines < max(5, src_non_empty_lines // 4):
@@ -907,6 +1097,7 @@ class TranslationSummarizationService:
         prepared = re.sub(r"\n{3,}", "\n\n", prepared)
         return prepared.strip()
 
+<<<<<<< HEAD
     @classmethod
     def _prepare_text_for_summarization(cls, text: str) -> str:
         """Reuse translation preparation logic for summarization."""
@@ -1301,30 +1492,65 @@ class TranslationSummarizationService:
         chunks: list[str] = []
         current: list[str] = []
         current_len = 0
+=======
+    @staticmethod
+    def _split_into_chunks(text: str, max_chars: int = 5200) -> list[str]:
+        if len(text) <= max_chars:
+            return [text]
+
+        paragraphs = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
+        if not paragraphs:
+            return [text]
+
+        chunks: list[str] = []
+        current: list[str] = []
+        current_len = 0
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         def flush() -> None:
             nonlocal current, current_len
             if current:
                 chunks.append("\n\n".join(current).strip())
                 current = []
                 current_len = 0
+<<<<<<< HEAD
         for paragraph in paragraphs:
             if len(paragraph) > max_chars:
                 flush()
                 chunks.extend(cls._split_large_paragraph(paragraph, max_chars))
                 continue
+=======
+
+        for paragraph in paragraphs:
+            if len(paragraph) > max_chars:
+                flush()
+                chunks.extend(TranslationSummarizationService._split_large_paragraph(paragraph, max_chars))
+                continue
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             projected = current_len + len(paragraph) + (2 if current else 0)
             if projected > max_chars:
                 flush()
             current.append(paragraph)
             current_len += len(paragraph) + (2 if len(current) > 1 else 0)
+<<<<<<< HEAD
         flush()
         return chunks or [source]
+=======
+
+        flush()
+        return chunks or [text]
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     @staticmethod
     def _split_large_paragraph(paragraph: str, max_chars: int) -> list[str]:
         sentences = [s.strip() for s in re.split(r"(?<=[\.!\?؟])\s+", paragraph) if s.strip()]
         if not sentences:
             return [paragraph[:max_chars]] + ([paragraph[max_chars:]] if len(paragraph) > max_chars else [])
+<<<<<<< HEAD
+=======
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         parts: list[str] = []
         current = ""
         for sentence in sentences:
@@ -1337,6 +1563,10 @@ class TranslationSummarizationService:
                 if len(sentence) <= max_chars:
                     current = sentence
                 else:
+<<<<<<< HEAD
+=======
+                    # Hard split for very long sentence.
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                     hard_parts = [sentence[i:i + max_chars] for i in range(0, len(sentence), max_chars)]
                     parts.extend(hard_parts[:-1])
                     current = hard_parts[-1]
@@ -1349,11 +1579,16 @@ class TranslationSummarizationService:
         output = (text or "").replace("\r\n", "\n").replace("\r", "\n")
         output = re.sub(r"[ \t]+", " ", output)
         output = re.sub(r"\n{3,}", "\n\n", output)
+<<<<<<< HEAD
+=======
+        # Light punctuation spacing cleanup.
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         output = re.sub(r"\s+([,.;:!?])", r"\1", output)
         output = re.sub(r"([\(\[\{])\s+", r"\1", output)
         output = re.sub(r"\s+([\)\]\}])", r"\1", output)
         return output.strip()
 
+<<<<<<< HEAD
     async def _translate_with_google_fallback(self, *, text: str, source_language: str, target_language: str) -> str:
         if GoogleTranslator is None:
             raise RuntimeError("Google translation fallback is unavailable")
@@ -1399,10 +1634,13 @@ class TranslationSummarizationService:
         translator = GoogleTranslator(source=source_language, target=target_language)
         return str(translator.translate(text) or "")
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     @staticmethod
     def _merge_chunks(chunks: list[str]) -> str:
         return "\n\n".join(chunk.strip() for chunk in chunks if chunk and chunk.strip()).strip()
 
+<<<<<<< HEAD
 
 class _RedisMutexGuard:
     def __init__(self, client: Redis, key: str, token: str) -> None:
@@ -1428,3 +1666,162 @@ class _NullAsyncContext:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         pass
+=======
+    @staticmethod
+    def _prepare_text_for_summarization(text: str) -> str:
+        prepared = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+        prepared = re.sub(r"(?<=\w)-\n(?=\w)", "", prepared)
+        prepared = re.sub(r"[ \t]+", " ", prepared)
+        prepared = re.sub(r"\n{3,}", "\n\n", prepared)
+        return prepared.strip()
+
+    @staticmethod
+    def _is_heading_candidate(paragraph: str, next_paragraph: str | None) -> bool:
+        line = (paragraph or "").strip()
+        if not line:
+            return False
+
+        words = re.findall(r"\w+", line, flags=re.UNICODE)
+        word_count = len(words)
+        if word_count == 0:
+            return False
+
+        if len(line) > 140 or word_count > 16:
+            return False
+
+        if re.match(r"^\s*(\d+(?:\.\d+)*|[IVXLCM]+|[A-Z]|[A-Za-z]\))\s+", line):
+            return True
+
+        letters = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ\u0600-\u06FF]", line)
+        uppercase_letters = [ch for ch in letters if ch.upper() == ch and ch.lower() != ch]
+        upper_ratio = (len(uppercase_letters) / len(letters)) if letters else 0.0
+        if upper_ratio >= 0.65 and word_count <= 12:
+            return True
+
+        if line.endswith(":") and word_count <= 12:
+            return True
+
+        if next_paragraph and len(next_paragraph.strip()) > 80 and word_count <= 10:
+            return True
+
+        return False
+
+    @staticmethod
+    def _infer_heading_level(title: str) -> int:
+        line = (title or "").strip()
+        match = re.match(r"^(\d+(?:\.\d+)*)\s+", line)
+        if match:
+            return min(4, match.group(1).count(".") + 1)
+        if re.match(r"^[IVXLCM]+\s+", line):
+            return 1
+        return 2 if len(line.split()) <= 7 else 1
+
+    @classmethod
+    def _split_into_sections(cls, text: str) -> list[dict[str, str | int]]:
+        paragraphs = [p.strip() for p in re.split(r"\n{2,}", text or "") if p.strip()]
+        if not paragraphs:
+            return [{"title": "Document", "level": 1, "content": text or ""}]
+
+        sections: list[dict[str, str | int]] = []
+        current_title = "Document"
+        current_level = 1
+        current_body: list[str] = []
+
+        def flush_current() -> None:
+            body = "\n\n".join(current_body).strip()
+            if current_title.strip() or body:
+                sections.append(
+                    {
+                        "title": current_title.strip() or "Section",
+                        "level": current_level,
+                        "content": body,
+                    }
+                )
+
+        for idx, para in enumerate(paragraphs):
+            nxt = paragraphs[idx + 1] if idx + 1 < len(paragraphs) else None
+            if cls._is_heading_candidate(para, nxt):
+                flush_current()
+                current_title = para.strip()
+                current_level = cls._infer_heading_level(current_title)
+                current_body = []
+            else:
+                current_body.append(para)
+
+        flush_current()
+
+        # Ensure no section is dropped.
+        normalized_sections = [
+            s for s in sections if str(s.get("title", "")).strip() or str(s.get("content", "")).strip()
+        ]
+
+        # If no reliable headings were found, avoid a single giant catch-all block.
+        # Split long headingless documents into logical parts so each part is summarized independently.
+        if len(normalized_sections) == 1:
+            only = normalized_sections[0]
+            title = str(only.get("title") or "").strip().lower()
+            content = str(only.get("content") or "").strip()
+            if title == "document" and len(content) > 2800:
+                chunked = cls._split_into_chunks(content, max_chars=2600)
+                if len(chunked) > 1:
+                    return [
+                        {
+                            "title": f"Part {idx + 1}",
+                            "level": 2,
+                            "content": chunk,
+                        }
+                        for idx, chunk in enumerate(chunked)
+                    ]
+
+        return normalized_sections or [
+            {"title": "Document", "level": 1, "content": text or ""}
+        ]
+
+    @staticmethod
+    def _estimate_section_summary_words(source_words: int, global_max_words: int | None) -> int:
+        target = max(80, min(380, int(source_words * 0.25)))
+        if global_max_words is not None:
+            target = min(target, max(60, global_max_words))
+        return target
+
+    @staticmethod
+    def _post_process_summary(text: str) -> str:
+        output = (text or "").strip()
+        if not output:
+            return ""
+
+        # Preserve paragraph structure while normalizing noisy spacing.
+        output = output.replace("\r\n", "\n").replace("\r", "\n")
+        output = re.sub(r"\n{3,}", "\n\n", output)
+
+        cleaned_lines: list[str] = []
+        for line in output.split("\n"):
+            normalized = re.sub(r"[ \t]+", " ", line).strip()
+            normalized = re.sub(r"\s+([,.;:!?])", r"\1", normalized)
+            cleaned_lines.append(normalized)
+
+        return "\n".join(cleaned_lines).strip()
+
+    @staticmethod
+    def _render_structured_summary(sections: list[dict[str, str | int]]) -> str:
+        synthetic_titles = {
+            "document",
+            "summarize this combined text",
+            "summarize this combined text:",
+        }
+        rendered_parts: list[str] = []
+        for section in sections:
+            title = str(section.get("title") or "Section").strip()
+            level = int(section.get("level") or 1)
+            summary = str(section.get("summary") or "").strip()
+            normalized_title = title.lower().strip()
+
+            if normalized_title in synthetic_titles:
+                if summary:
+                    rendered_parts.append(summary)
+                continue
+
+            heading_prefix = "#" * max(1, min(level, 4))
+            rendered_parts.append(f"{heading_prefix} {title}\n→ {summary}")
+        return "\n\n".join(rendered_parts).strip()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e

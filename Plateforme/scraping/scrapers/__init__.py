@@ -12,6 +12,10 @@ from scraping.constants import (
 from .corpus import CorpusScraper
 from .courses import CourseScraper
 from .events import EventScraper
+<<<<<<< HEAD
+=======
+from .laws import LawScraper
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from .news import NewsScraper
 from .opportunities import OpportunityScraper
 from .tools import ToolScraper
@@ -23,6 +27,10 @@ SCRAPERS = {
     "news": NewsScraper,
     "opportunities": OpportunityScraper,
     "corpus": CorpusScraper,
+<<<<<<< HEAD
+=======
+    "laws": LawScraper,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 }
 
 _ICON_TO_FA = {
@@ -50,6 +58,10 @@ _CATEGORY_DESCRIPTIONS = {
     "news": "Arabic NLP and AI news and research highlights",
     "opportunities": "PhD, PostDoc, jobs, and grants in NLP/AI",
     "corpus": "Arabic NLP datasets and corpora",
+<<<<<<< HEAD
+=======
+    "laws": "Arabic NLP legal frameworks, AI regulations, and policy documents",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 }
 
 _CATEGORY_SOURCES = {
@@ -76,6 +88,12 @@ _CATEGORY_SOURCES = {
     "corpus": [
         "Tavily Search + Groq",
     ],
+<<<<<<< HEAD
+=======
+    "laws": [
+        "Tavily Search + Groq",
+    ],
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 }
 
 CATEGORY_META = {

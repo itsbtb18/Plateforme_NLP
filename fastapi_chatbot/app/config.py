@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     GROQ_INTERNAL_API_KEY: str = ""
     GROQ_INTERNAL_MODEL: str = "llama-3.1-8b-instant"
 
+<<<<<<< HEAD
+=======
+    # Groq API — CV Signup (Dedicated Key)
+    GROQ_CV_SIGNUP_API_KEY: str = ""
+    GROQ_CV_SIGNUP_MODEL: str = "llama-3.3-70b-versatile"
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     # Gemini API — Chatbot (User-facing)
     GENAI_API_KEY: str = ""
     GENAI_MODEL: str = "gemini-2.0-flash"
@@ -40,6 +47,7 @@ class Settings(BaseSettings):
     GENAI_INTERNAL_API_KEY: str = ""
     GENAI_INTERNAL_MODEL: str = "gemini-2.0-flash"
 
+<<<<<<< HEAD
     # Backward-compatible aliases (if older envs use GEMINI_* names)
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = ""
@@ -49,6 +57,12 @@ class Settings(BaseSettings):
     # Provider selectors (chat vs internal workflows)
     LLM_PROVIDER_CHAT: str = "gemini"
     LLM_PROVIDER_INTERNAL: str = "gemini"
+=======
+    # Provider selectors (chat vs internal workflows)
+    LLM_PROVIDER_CHAT: str = "gemini"
+    LLM_PROVIDER_INTERNAL: str = "gemini"
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
@@ -121,11 +135,14 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: str = ""
     TAVILY_ENABLED: bool = False
 
+<<<<<<< HEAD
     # Translation/Summarization Service (Global Scheduler)
     TS_SERVICE_URL: str = "http://translation_summarization:8010"
     TS_SERVICE_API_KEY: str = ""
     TS_SERVICE_TIMEOUT_SECONDS: float = 420.0
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     class Config:
         env_file = ".env"
         case_sensitive = True

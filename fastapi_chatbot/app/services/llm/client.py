@@ -97,12 +97,15 @@ class GroqClient:
           5) Session summary
         """
         # Phase 6: Use mode-specific prompt if available
+<<<<<<< HEAD
         # Normalize mode aliases
         if mode == "platform_guide":
             mode = "platform"
         elif mode == "legal_advisor":
             mode = "legal"
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         if mode and mode in MODE_SYSTEM_PROMPTS:
             mode_prompts = MODE_SYSTEM_PROMPTS[mode]
             system = mode_prompts.get(language, mode_prompts["en"])
@@ -273,7 +276,10 @@ class GroqClient:
         session_summary: Optional[str] = None,
         source_type: Optional[str] = None,
         username: Optional[str] = None,
+<<<<<<< HEAD
         mode: Optional[str] = None,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     ) -> AsyncGenerator[str, None]:
         """RAG-augmented answer generation — streams tokens as they arrive."""
         system = self._build_system_prompt(
@@ -281,7 +287,10 @@ class GroqClient:
             source_type=source_type,
             username=username,
             session_summary=session_summary,
+<<<<<<< HEAD
             mode=mode,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         )
 
         messages: List[ChatCompletionMessageParam] = [
@@ -363,6 +372,7 @@ class GroqClient:
                 break
             yield content
 
+<<<<<<< HEAD
     async def quick_answer(
         self,
         question: str,
@@ -376,6 +386,39 @@ class GroqClient:
             username=username,
             mode=mode,
         )
+=======
+    async def quick_answer(self, question: str, language: str = "en", username: Optional[str] = None) -> str:
+        """Answer without retrieved context.
+
+        Phase 10 — Safety: critical rules are included even without RAG.
+        Phase 13 — Anti-hallucination: domain-scoped guardrail.
+        The LLM is reminded it has no retrieved documents and must stay
+        within its domain expertise (Arabic NLP) or admit uncertainty.
+        """
+        system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
+        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
+
+        # Phase 9 — Conversational Mode guardrail (no RAG context)
+        guardrails = {
+            "ar": (
+                "\n\nأنت الآن في وضع المحادثة. استخدم معرفتك ومنطقك للإجابة بشكل طبيعي. "
+                "إذا لم تكن واثقاً من الإجابة، قل ذلك بصراحة. "
+                "لا تروّج للمنصة تلقائياً."
+            ),
+            "fr": (
+                "\n\nVous êtes en mode conversationnel. Utilisez vos connaissances et votre raisonnement pour répondre naturellement. "
+                "Si vous n'êtes pas sûr, dites-le clairement. "
+                "Ne faites pas la promotion de la plateforme spontanément."
+            ),
+            "en": (
+                "\n\nYou are in conversational mode. Use your knowledge and reasoning to answer naturally. "
+                "If you are unsure, say so clearly. "
+                "Do not promote the platform spontaneously."
+            ),
+        }
+        system += guardrails.get(language, guardrails["en"])
+        system += identity_hint(username, language)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
         messages: List[ChatCompletionMessageParam] = [
             {"role": "system", "content": system},
@@ -384,6 +427,7 @@ class GroqClient:
         return await self.chat_completion(messages, max_tokens=settings.GROQ_MAX_TOKENS)
 
     async def quick_answer_stream(
+<<<<<<< HEAD
         self,
         question: str,
         language: str = "en",
@@ -396,6 +440,20 @@ class GroqClient:
             username=username,
             mode=mode,
         )
+=======
+        self, question: str, language: str = "en", username: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        """Answer without context — streams tokens as they arrive."""
+        system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
+        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
+        guardrails = {
+            "ar": "\n\nأنت الآن في وضع المحادثة. استخدم معرفتك ومنطقك للإجابة بشكل طبيعي. إذا لم تكن واثقاً من الإجابة، قل ذلك بصراحة. لا تروّج للمنصة تلقائياً.",
+            "fr": "\n\nVous êtes en mode conversationnel. Utilisez vos connaissances et votre raisonnement pour répondre naturellement. Si vous n'êtes pas sûr, dites-le clairement. Ne faites pas la promotion de la plateforme spontanément.",
+            "en": "\n\nYou are in conversational mode. Use your knowledge and reasoning to answer naturally. If you are unsure, say so clearly. Do not promote the platform spontaneously.",
+        }
+        system += guardrails.get(language, guardrails["en"])
+        system += identity_hint(username, language)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
         messages: List[ChatCompletionMessageParam] = [
             {"role": "system", "content": system},
@@ -669,7 +727,10 @@ class GeminiClient:
         session_summary: Optional[str] = None,
         source_type: Optional[str] = None,
         username: Optional[str] = None,
+<<<<<<< HEAD
         mode: Optional[str] = None,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     ) -> AsyncGenerator[str, None]:
         answer = await self.generate_answer_with_context(
             question=question,
@@ -679,7 +740,10 @@ class GeminiClient:
             session_summary=session_summary,
             source_type=source_type,
             username=username,
+<<<<<<< HEAD
             mode=mode,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         )
         if answer:
             yield answer
@@ -690,6 +754,7 @@ class GeminiClient:
         question: str,
         language: str = "en",
         username: Optional[str] = None,
+<<<<<<< HEAD
         mode: Optional[str] = None,
     ) -> str:
         system = self._build_system_prompt(
@@ -697,6 +762,18 @@ class GeminiClient:
             username=username,
             mode=mode,
         )
+=======
+    ) -> str:
+        system = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["en"])
+        system += CRITICAL_RULES.get(language, CRITICAL_RULES["en"])
+        guardrails = {
+            "ar": "\n\nأنت الآن في وضع المحادثة. استخدم معرفتك ومنطقك للإجابة بشكل طبيعي. إذا لم تكن واثقاً من الإجابة، قل ذلك بصراحة. لا تروّج للمنصة تلقائياً.",
+            "fr": "\n\nVous êtes en mode conversationnel. Utilisez vos connaissances et votre raisonnement pour répondre naturellement. Si vous n'êtes pas sûr, dites-le clairement. Ne faites pas la promotion de la plateforme spontanément.",
+            "en": "\n\nYou are in conversational mode. Use your knowledge and reasoning to answer naturally. If you are unsure, say so clearly. Do not promote the platform spontaneously.",
+        }
+        system += guardrails.get(language, guardrails["en"])
+        system += identity_hint(username, language)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         messages: List[ChatCompletionMessageParam] = [
             {"role": "system", "content": system},
             {"role": "user", "content": question},
@@ -708,6 +785,7 @@ class GeminiClient:
         question: str,
         language: str = "en",
         username: Optional[str] = None,
+<<<<<<< HEAD
         mode: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         answer = await self.quick_answer(
@@ -716,6 +794,10 @@ class GeminiClient:
             username=username,
             mode=mode,
         )
+=======
+    ) -> AsyncGenerator[str, None]:
+        answer = await self.quick_answer(question=question, language=language, username=username)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         if answer:
             yield answer
 

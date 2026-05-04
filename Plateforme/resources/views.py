@@ -463,8 +463,11 @@ class ArticleListView(LoginAndVerifiedRequiredMixin, ListView):
                 | Q(description__icontains=search_query)
                 | Q(title_ar__icontains=search_query)
                 | Q(title_en__icontains=search_query)
+<<<<<<< HEAD
                 | Q(description_ar__icontains=search_query)
                 | Q(description_en__icontains=search_query)
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 | Q(keywords__icontains=search_query)
                 | Q(author__first_name__icontains=search_query)
                 | Q(author__last_name__icontains=search_query)
@@ -517,8 +520,11 @@ class ThesisListView(LoginAndVerifiedRequiredMixin, ListView):
                 | Q(description__icontains=search_query)
                 | Q(title_ar__icontains=search_query)
                 | Q(title_en__icontains=search_query)
+<<<<<<< HEAD
                 | Q(description_ar__icontains=search_query)
                 | Q(description_en__icontains=search_query)
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 | Q(keywords__icontains=search_query)
                 | Q(author__first_name__icontains=search_query)
                 | Q(author__last_name__icontains=search_query)
@@ -571,8 +577,11 @@ class MemoirListView(LoginAndVerifiedRequiredMixin, ListView):
                 | Q(description__icontains=search_query)
                 | Q(title_ar__icontains=search_query)
                 | Q(title_en__icontains=search_query)
+<<<<<<< HEAD
                 | Q(description_ar__icontains=search_query)
                 | Q(description_en__icontains=search_query)
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 | Q(keywords__icontains=search_query)
                 | Q(author__first_name__icontains=search_query)
                 | Q(author__last_name__icontains=search_query)

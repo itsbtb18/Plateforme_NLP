@@ -342,6 +342,7 @@
                   {% with file_url=m.file_path.url|lower %}
                     {% if '.jpg' in file_url or '.jpeg' in file_url or '.png' in file_url %}
                       <div class="pc-image"><img src="{{ m.file_path.url }}" alt="{% trans 'Attachment' %}"></div>
+<<<<<<< HEAD
                     {% elif '.pdf' in file_url or '.doc' in file_url or '.docx' in file_url or '.txt' in file_url or '.md' in file_url or '.json' in file_url or '.xml' in file_url or '.csv' in file_url or '.log' in file_url %}
                       <a href="#" class="pc-file-link" onclick="openDocumentViewer('{{ m.file_path.url|escapejs }}', null, '{{ project.pk }}', '{{ project.get_localized_title|default:project.title|escapejs }}'); return false;">
                         <i class="bi bi-stars"></i> {% trans "Open in AI Viewer" %}
@@ -349,6 +350,8 @@
                       <a href="{{ m.file_path.url }}" class="pc-file-link" target="_blank" rel="noopener">
                         <i class="bi bi-paperclip"></i> {% trans "Download file" %}
                       </a>
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                     {% else %}
                       <a href="{{ m.file_path.url }}" class="pc-file-link" target="_blank" rel="noopener">
                         <i class="bi bi-paperclip"></i> {% trans "Download file" %}
@@ -402,7 +405,10 @@
     </section>
   </div>
 </div>
+<<<<<<< HEAD
 {% include "components/document_viewer_modal.html" %}
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 {% endblock %}
 
 {% block extra_scripts %}
@@ -420,6 +426,7 @@
     const roomUrl = `${wsScheme}://${window.location.host}/ws/projects/chat/{{ project.id }}/`;
     const typingSuffix = typingEl ? (typingEl.dataset.typingSuffix || "is typing...") : "is typing...";
     const downloadLabel = roomEl ? (roomEl.dataset.downloadLabel || "Download file") : "Download file";
+<<<<<<< HEAD
     const openAiViewerLabel = "{% trans 'Open in AI Viewer' %}";
     const sentLabel = roomEl ? (roomEl.dataset.sentLabel || "Sent") : "Sent";
     const projectResourceId = "{{ project.pk }}";
@@ -432,6 +439,12 @@
       return /(\.pdf|\.doc|\.docx|\.txt|\.md|\.json|\.xml|\.csv|\.log)(\?|$)/.test(value);
     }
 
+=======
+    const sentLabel = roomEl ? (roomEl.dataset.sentLabel || "Sent") : "Sent";
+    let socket = null;
+    let typingTimer = null;
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     if (roomEl) roomEl.scrollTop = roomEl.scrollHeight;
 
     function connectSocket() {
@@ -455,6 +468,7 @@
       if (!roomEl) return;
       const isFile = data.message_type === "file" && data.file_url;
       const isImage = isFile && /(\.jpe?g|\.png|\.gif|\.webp)$/i.test(data.file_url || "");
+<<<<<<< HEAD
         const isDocLike = isFile && supportsDocViewer(data.file_url || "");
       const bubbleBody = isFile
         ? (isImage
@@ -462,6 +476,12 @@
           : (isDocLike
             ? `<a href="#" class="pc-file-link" onclick="openDocumentViewer('${data.file_url}', null, '${projectResourceId}', '${projectResourceTitle}'); return false;"><i class="bi bi-stars"></i> ${openAiViewerLabel}</a><a href="${data.file_url}" class="pc-file-link" target="_blank" rel="noopener"><i class="bi bi-paperclip"></i> ${downloadLabel}</a>${data.content ? `<div class="mt-1">${data.content}</div>` : ""}`
             : `<a href="${data.file_url}" class="pc-file-link" target="_blank" rel="noopener"><i class="bi bi-paperclip"></i> ${downloadLabel}</a>${data.content ? `<div class="mt-1">${data.content}</div>` : ""}`))
+=======
+      const bubbleBody = isFile
+        ? (isImage
+            ? `<div class="pc-image"><img src="${data.file_url}" alt="{% trans 'Attachment' %}"></div>${data.content ? `<div class="mt-1">${data.content}</div>` : ""}`
+            : `<a href="${data.file_url}" class="pc-file-link" target="_blank" rel="noopener"><i class="bi bi-paperclip"></i> ${downloadLabel}</a>${data.content ? `<div class="mt-1">${data.content}</div>` : ""}`)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         : (data.content || "");
       const row = document.createElement("div");
       row.className = "pc-row" + (data.is_current_user ? " mine" : "");

@@ -44,6 +44,10 @@ SUPPORTED_SCRAPER_CATEGORIES = (
     "news",
     "opportunities",
     "corpus",
+<<<<<<< HEAD
+=======
+    "laws",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 )
 SUPPORTED_SCRAPER_CATEGORY_SET = set(SUPPORTED_SCRAPER_CATEGORIES)
 
@@ -566,7 +570,11 @@ def _current_source_queries(source) -> list[str]:
     fallback_queries = list(
         SearchQuery.objects.filter(category=source.category, is_active=True)
         .order_by("id")
+<<<<<<< HEAD
         .values_list("query_text", flat=True)[:50]
+=======
+        .values_list("query_text", flat=True)[:10]
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     )
     if fallback_queries:
         return [str(v).strip() for v in fallback_queries if str(v or "").strip()]

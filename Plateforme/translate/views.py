@@ -1,5 +1,6 @@
 
 
+<<<<<<< HEAD
 import json
 import re
 
@@ -14,6 +15,17 @@ from django.views.decorators.http import require_POST
 
 # ── Language switcher (legacy, untouched) ──────────────────────
 
+=======
+import re
+
+from django.shortcuts import redirect
+from django.utils import translation
+from django.conf import settings
+from django.utils.translation import activate
+from django.http import HttpResponseRedirect
+
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 def switch_language(request):
     lang_code = request.GET.get('language')
     next_url = request.META.get('HTTP_REFERER', '/')
@@ -34,6 +46,7 @@ def switch_language(request):
 
         return response
 
+<<<<<<< HEAD
     return HttpResponseRedirect(next_url)
 
 
@@ -145,3 +158,6 @@ def api_ts_health(request):
     from translate.ts_client import ts_health
 
     return JsonResponse(ts_health())
+=======
+    return HttpResponseRedirect(next_url)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e

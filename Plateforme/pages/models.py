@@ -535,6 +535,7 @@ def news_pdf_upload_to(instance, filename):
     return f"news/pdfs/{timezone.now():%Y/%m}/{filename}"
 
 
+<<<<<<< HEAD
 NEWS_TYPE_META = {
     "paper": {
         "icon": "fa-file-lines",
@@ -563,6 +564,8 @@ NEWS_TYPE_META = {
 }
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 class NewsPublication(models.Model):
     TYPE_PAPER = "paper"
     TYPE_DATASET = "dataset"
@@ -636,6 +639,7 @@ class NewsPublication(models.Model):
     def __str__(self):
         return self.title
 
+<<<<<<< HEAD
     @property
     def type_meta(self):
         return NEWS_TYPE_META.get(self.type, NEWS_TYPE_META.get(self.TYPE_NEWS))
@@ -650,6 +654,8 @@ class NewsPublication(models.Model):
 
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     def get_absolute_url(self):
         from django.urls import reverse
 

@@ -5,7 +5,11 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
+<<<<<<< HEAD
         ("resources", "0014_merge_0012_0013_resources_branches"),
+=======
+        ("resources", "0013_drop_legacy_corpus_file_format_column"),
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     ]
 
     operations = [

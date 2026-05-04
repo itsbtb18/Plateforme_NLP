@@ -63,6 +63,7 @@ class LLMOpportunityExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
+<<<<<<< HEAD
         return """You are an expert data extractor for a professional Arabic NLP research platform.
 Extract structured information about opportunities (jobs, PhD positions, postdocs, grants, fellowships).
 
@@ -116,6 +117,43 @@ OUTPUT FORMAT:
 
 Return [] if no relevant opportunities are found.
 """
+=======
+        return """You are an expert data extractor for an Arabic NLP research platform.
+    Extract structured information about opportunities (jobs, PhD, postdoc, grants).
+
+    EXTRACTION RULES:
+    1. Return ONLY valid JSON (no explanation, no markdown).
+    2. Return a JSON array of opportunity objects.
+    3. If unknown, return null.
+    4. Do NOT invent deadlines, institutions, or URLs.
+    5. job_title and description must be in English.
+    6. title_ar and description_ar MUST be real Arabic translations.
+
+    CRITICAL ARABIC RULES:
+    - Use Modern Standard Arabic.
+    - NEVER copy English text into Arabic fields.
+    - Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
+    - Keep technical terms in English when needed.
+
+    OUTPUT FORMAT:
+    {
+      "job_title": "string or null",
+      "title_ar": "Arabic translation or null",
+      "institution_name": "string or null",
+      "opportunity_type": "Job|Phd|PostDoc|Grant or null",
+      "deadline": "YYYY-MM-DD or null",
+      "location": "City, Country or Online or null",
+      "url": "https://... or null",
+      "description": "string or null",
+      "description_ar": "Arabic translation or null",
+      "is_arabic_nlp_relevant": true or false,
+      "relevance_score": 0.0 to 1.0,
+      "extraction_confidence": 0.0 to 1.0
+    }
+
+    Return [] if no relevant opportunities are found.
+    """
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     @staticmethod
     def _normalize_search_results(search_results: list[dict]) -> list[dict[str, str]]:
@@ -208,8 +246,11 @@ Return [] if no relevant opportunities are found.
             "description": description[:5000],
             "description_ar": description_ar[:5000] if description_ar else None,
             "translation_status": translation_status,
+<<<<<<< HEAD
             "relevance_score": item.get("relevance_score"),
             "extraction_confidence": item.get("extraction_confidence"),
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         }
 
     @staticmethod

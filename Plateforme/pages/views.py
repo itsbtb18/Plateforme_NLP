@@ -1,6 +1,9 @@
 import datetime
 import json
+<<<<<<< HEAD
 import os
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -366,7 +369,10 @@ from institutions.models import Institution
 from pages.security import ROLE_ADMIN, get_user_role
 
 from .models import (
+<<<<<<< HEAD
     NEWS_TYPE_META,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     AdminActivityLog,
     ContactMessage,
     NewsPublication,
@@ -574,7 +580,36 @@ def admin_opportunity_reject(request, pk):
     return redirect("pages:admin_opportunities")
 
 
+<<<<<<< HEAD
 # NEWS_TYPE_META is now imported from .models
+=======
+NEWS_TYPE_META = {
+    NewsPublication.TYPE_PAPER: {
+        "icon": "fa-file-lines",
+        "color": "#3B82F6",
+    },
+    NewsPublication.TYPE_DATASET: {
+        "icon": "fa-database",
+        "color": "#1D9E75",
+    },
+    NewsPublication.TYPE_TOOL: {
+        "icon": "fa-screwdriver-wrench",
+        "color": "#F59E0B",
+    },
+    NewsPublication.TYPE_EVENT: {
+        "icon": "fa-calendar-days",
+        "color": "#FF7F50",
+    },
+    NewsPublication.TYPE_THESIS: {
+        "icon": "fa-graduation-cap",
+        "color": "#534AB7",
+    },
+    NewsPublication.TYPE_NEWS: {
+        "icon": "fa-newspaper",
+        "color": "#6B7280",
+    },
+}
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 
 NEWS_LANGUAGE_OPTIONS = [
@@ -871,6 +906,7 @@ def publication_detail(request, publication_id):
 
 
 @login_required
+<<<<<<< HEAD
 def publication_convert_to_text(request, publication_id):
     if request.method != "GET":
         return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
@@ -957,6 +993,8 @@ def publication_convert_to_text(request, publication_id):
 
 
 @login_required
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 @user_passes_test(is_admin)
 def admin_dashboard(request):
     """Main admin dashboard view"""

@@ -59,6 +59,7 @@ class LLMToolExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
+<<<<<<< HEAD
         return """You are an expert data extractor for a professional Arabic NLP research platform.
 Extract structured information about NLP tools and models from web content.
 
@@ -71,6 +72,11 @@ CRITICAL QUALITY RULES:
 3. ONLY extract actual NLP/AI tools and models.
    - REJECT: university pages, blog archives, generic announcements.
 
+=======
+        return """You are an expert data extractor for an Arabic NLP research platform.
+Extract structured information about NLP tools and models from web content.
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 EXTRACTION RULES:
 1. Return ONLY valid JSON (no explanation, no markdown).
 2. Return a JSON array of tool objects.
@@ -79,7 +85,11 @@ EXTRACTION RULES:
 5. title_en and description_en must be in English.
 6. title_ar and description_ar MUST be real Arabic translations.
 
+<<<<<<< HEAD
 ARABIC RULES:
+=======
+CRITICAL ARABIC RULES:
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 - Use Modern Standard Arabic.
 - NEVER copy English text into Arabic fields.
 - Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
@@ -87,11 +97,18 @@ ARABIC RULES:
     transformer, BERT, tokenizer, NLP, embedding, fine-tuning, pre-training.
 
 OUTPUT FORMAT:
+<<<<<<< HEAD
 [
   {
     "title_en": "Clean tool/model name",
     "title_ar": "Arabic translation or null",
     "description_en": "Clean, professional summary of what it does",
+=======
+{
+    "title_en": "string or null",
+    "title_ar": "Arabic translation or null",
+    "description_en": "string or null",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     "description_ar": "Arabic translation or null",
     "github_url": "https://... or null",
     "paper_url": "https://... or null",
@@ -102,8 +119,12 @@ OUTPUT FORMAT:
     "is_arabic_nlp_relevant": true or false,
     "relevance_score": 0.0 to 1.0,
     "extraction_confidence": 0.0 to 1.0
+<<<<<<< HEAD
   }
 ]
+=======
+}
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 Return [] if no relevant tools are found.
 """
@@ -203,8 +224,11 @@ Return [] if no relevant tools are found.
             "license": self._pick_text(item, "license")[:120],
             "capabilities": capabilities,
             "translation_status": translation_status,
+<<<<<<< HEAD
             "relevance_score": item.get("relevance_score"),
             "extraction_confidence": item.get("extraction_confidence"),
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         }
 
     @staticmethod

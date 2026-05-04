@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
 import asyncio
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 import os
 import sys
 
@@ -33,6 +36,7 @@ class _RateLimitedProvider:
         raise RuntimeError("rate_limit_exceeded")
 
 
+<<<<<<< HEAD
 class _RateLimitThenSuccessProvider:
     def __init__(self, success_output: str = "translated-ok") -> None:
         self.calls = 0
@@ -146,6 +150,8 @@ class _AsyncFakeRedisQueue:
         return len(self.lists.get(key, []))
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 def test_provider_order_from_env(monkeypatch):
     monkeypatch.setenv("TS_PRIMARY_PROVIDER", "gemini")
     monkeypatch.setenv("TS_FALLBACK_PROVIDER", "groq")
@@ -171,11 +177,16 @@ def test_translate_uses_fallback(monkeypatch):
         svc.translate(text="bonjour", source_language="fr", target_language="en")
     )
 
+<<<<<<< HEAD
     assert output
+=======
+    assert output == "fallback-translation"
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     assert provider == "groq"
     assert fallback is True
 
 
+<<<<<<< HEAD
 def test_translate_normalizes_language_aliases(monkeypatch):
     monkeypatch.setenv("TS_PRIMARY_PROVIDER", "groq")
     monkeypatch.setenv("TS_FALLBACK_PROVIDER", "gemini")
@@ -228,6 +239,8 @@ def test_summarize_auto_language_uses_text_inference(monkeypatch):
     assert capture.summarize_calls[0]["language"] == "ar"
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 def test_summarize_uses_primary(monkeypatch):
     monkeypatch.setenv("TS_PRIMARY_PROVIDER", "groq")
     monkeypatch.setenv("TS_FALLBACK_PROVIDER", "gemini")
@@ -248,6 +261,7 @@ def test_summarize_uses_primary(monkeypatch):
     assert fallback is False
 
 
+<<<<<<< HEAD
 def test_translate_uses_local_fallback_on_rate_limit(monkeypatch):
     monkeypatch.setenv("TS_PRIMARY_PROVIDER", "groq")
     monkeypatch.setenv("TS_FALLBACK_PROVIDER", "gemini")
@@ -661,6 +675,8 @@ def test_translate_allows_only_one_active_request_globally(monkeypatch):
     assert peak == 1
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 def test_summarize_uses_local_fallback_on_rate_limit(monkeypatch):
     monkeypatch.setenv("TS_PRIMARY_PROVIDER", "groq")
     monkeypatch.setenv("TS_FALLBACK_PROVIDER", "gemini")

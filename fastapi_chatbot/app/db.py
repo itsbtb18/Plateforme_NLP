@@ -66,8 +66,13 @@ async def init_db():
             logger.info("✅ Schema migrations applied successfully")
 
     except Exception as e:
+<<<<<<< HEAD
         logger.error(f"❌ Database initialization failed: {str(e)}")
         raise
+=======
+        logger.error(f"⚠️  Database initialization warning (non-critical): {str(e)}")
+        logger.info("Application will continue running. Database operations may fail.")
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

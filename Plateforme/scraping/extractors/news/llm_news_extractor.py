@@ -104,6 +104,7 @@ class LLMNewsExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
+<<<<<<< HEAD
         return """You are an expert data extractor for a professional Arabic NLP research platform.
 Extract structured information for research news and paper announcements.
 
@@ -124,6 +125,11 @@ CRITICAL QUALITY RULES:
    - REJECT: university admin announcements, fellowship/scholarship applications, exam results, general news.
    - Set is_arabic_nlp_relevant=false for irrelevant content.
 
+=======
+        return """You are an expert data extractor for an Arabic NLP research platform.
+Extract structured information for research news and paper announcements.
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 EXTRACTION RULES:
 1. Return ONLY valid JSON (no explanation, no markdown).
 2. Return a JSON array of news objects.
@@ -132,6 +138,7 @@ EXTRACTION RULES:
 5. title_en and summary_en must be in English.
 6. title_ar and summary_ar MUST be real Arabic translations.
 
+<<<<<<< HEAD
 ARABIC RULES:
 - Use Modern Standard Arabic.
 - NEVER copy English text into Arabic fields.
@@ -153,6 +160,27 @@ OUTPUT FORMAT:
     "extraction_confidence": 0.0 to 1.0
   }
 ]
+=======
+CRITICAL ARABIC RULES:
+- Use Modern Standard Arabic.
+- NEVER copy English text into Arabic fields.
+- Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
+- Keep technical terms in English when needed.
+
+OUTPUT FORMAT:
+{
+  "title_en": "string or null",
+  "title_ar": "Arabic translation or null",
+  "summary_en": "string or null",
+  "summary_ar": "Arabic translation or null",
+  "source_url": "https://... or null",
+  "published_date": "YYYY-MM-DD or null",
+  "tags": ["string", "..."] or [],
+  "is_arabic_nlp_relevant": true or false,
+  "relevance_score": 0.0 to 1.0,
+  "extraction_confidence": 0.0 to 1.0
+}
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 Return [] if no relevant news items are found.
 """
@@ -282,8 +310,11 @@ Return [] if no relevant news items are found.
             "published_date": published_date or None,
             "tags": tags,
             "translation_status": translation_status,
+<<<<<<< HEAD
             "relevance_score": self._pick_text(item, "relevance_score"),
             "extraction_confidence": self._pick_text(item, "extraction_confidence"),
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         }
 
     @staticmethod

@@ -298,7 +298,11 @@ class DiscoveredURL(models.Model):
             ),
             models.Index(
                 fields=["category", "status", "priority_score"],
+<<<<<<< HEAD
                 name="idx_discurl_pending_queue",
+=======
+                name="idx_discurl_pending_q",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             ),
         ]
 
@@ -621,12 +625,16 @@ class ScrapingSourceHealth(models.Model):
         now = timezone.now()
         with transaction.atomic():
             locked = self._locked()
+<<<<<<< HEAD
             
             # Exponential decay: 5 * (2 ^ (failures)) capped at 50
             # Sequence: 5, 10, 20, 40, 50
             decay = float(min(50.0, 5.0 * (2.0 ** min(locked.consecutive_failures, 4))))
             
             projected_health = max(0.0, locked.health_score - decay)
+=======
+            projected_health = max(0.0, locked.health_score - self.FAILURE_PENALTY)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             projected_failures = locked.consecutive_failures + 1
 
             updates = {
@@ -637,7 +645,11 @@ class ScrapingSourceHealth(models.Model):
                 "last_failure_at": now,
                 "health_score": Greatest(
                     Value(0.0),
+<<<<<<< HEAD
                     F("health_score") - Value(decay),
+=======
+                    F("health_score") - Value(self.FAILURE_PENALTY),
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 ),
             }
             if error:

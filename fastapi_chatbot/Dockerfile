@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 FROM python:3.11-slim AS development
+=======
+FROM python:3.11-bullseye AS development
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 WORKDIR /app
 
@@ -6,6 +10,19 @@ RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     curl \
+<<<<<<< HEAD
+=======
+    libxcb1 \
+    libx11-6 \
+    libxext6 \
+    libxrender1 \
+    libgomp1 \
+    libgl1-mesa-glx \
+    xvfb \
+    libfreetype6 \
+    libfontconfig1 \
+    libxkbcommon0 \
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

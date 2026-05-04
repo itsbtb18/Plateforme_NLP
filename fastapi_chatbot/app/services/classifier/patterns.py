@@ -87,16 +87,25 @@ PLATFORM_PATTERNS = [
     re.compile(r"\bمن كتب\b"),
     re.compile(
         r"\b(?:list|show me|find|give|get)\b.*\b(?:courses?|articles?|thes[ei]s|"
+<<<<<<< HEAD
         r"memoirs?|tools?|corpus|corpora|events?|institutions?|centers?|laboratories?|labs?|projects?|authors?|resources?|forum|topics?)\b",
+=======
+        r"memoirs?|tools?|corpus|corpora|events?|institutions?|projects?|authors?|resources?|forum|topics?)\b",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         re.I,
     ),
     re.compile(
         r"\b(?:trouver|montrer|lister)\b.*\b(?:cours|articles?|thèses?|"
+<<<<<<< HEAD
         r"mémoires?|outils?|corpus|événements?|institutions?|centres?|laboratoires?|projets?|forum|sujets?)\b",
+=======
+        r"mémoires?|outils?|corpus|événements?|institutions?|projets?|forum|sujets?)\b",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         re.I,
     ),
     re.compile(
         r"\b(?:أعرض|اعثر|قائمة)\b.*\b(?:دورة|مقال|أطروحة|مذكرة|أداة|"
+<<<<<<< HEAD
         r"مجموعة|حدث|مؤسسة|مركز|مراكز|مخبر|مخابر|مشروع|منتدى|موضوع)\b",
     ),
     # --- Suggest / recommend + platform entity keywords ---
@@ -136,6 +145,10 @@ PLATFORM_PATTERNS = [
         re.I,
     ),
     re.compile(r"في المنصة|على المنصة|من المنصة"),
+=======
+        r"مجموعة|حدث|مؤسسة|مشروع|منتدى|موضوع)\b",
+    ),
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 ]
 
 PLATFORM_KEYWORDS = {
@@ -496,6 +509,7 @@ RESOURCE_TYPE_MAP = {
     "institutions": "institution",
     "university": "institution",
     "universities": "institution",
+<<<<<<< HEAD
     "center": "institution",
     "centers": "institution",
     "research center": "institution",
@@ -504,6 +518,8 @@ RESOURCE_TYPE_MAP = {
     "laboratories": "institution",
     "lab": "institution",
     "labs": "institution",
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     "project": "project",
     "projects": "project",
     "researcher": "author",
@@ -527,6 +543,7 @@ RESOURCE_TYPE_MAP = {
     "conférence": "event",
     "atelier": "event",
     "séminaire": "event",
+<<<<<<< HEAD
     "institution": "institution",
     "institutions": "institution",
     "université": "institution",
@@ -536,6 +553,8 @@ RESOURCE_TYPE_MAP = {
     "laboratoire": "institution",
     "laboratoires": "institution",
     "labo": "institution",
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     "projet": "project",
     "projets": "project",
     "auteur": "author",
@@ -557,10 +576,13 @@ RESOURCE_TYPE_MAP = {
     "ندوة": "event",
     "مؤسسة": "institution",
     "جامعة": "institution",
+<<<<<<< HEAD
     "مركز": "institution",
     "مراكز": "institution",
     "مخبر": "institution",
     "مخابر": "institution",
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     "مشروع": "project",
     "مشاريع": "project",
     "باحث": "author",

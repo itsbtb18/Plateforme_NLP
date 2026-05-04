@@ -322,11 +322,15 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             payload = handle_partial_data(payload)
 
             confidence_report = calculate_item_confidence(self.category, payload)
+<<<<<<< HEAD
             confidence_percent = max(
                 0.0,
                 min(100.0, float(confidence_report.get("percent", 0.0))),
             )
             confidence = confidence_percent / 100.0
+=======
+            confidence = max(0.0, min(1.0, float(confidence_report.get("score", 0.0))))
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
             if isinstance(item_data, dict):
                 item_data["extraction_confidence"] = round(confidence, 3)
@@ -710,6 +714,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             return []
 
         queries: list[str] = []
+<<<<<<< HEAD
         max_active_prompts = max(
             1,
             min(
@@ -717,12 +722,17 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
                 200,
             ),
         )
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         for row in queryset:
             query_text = (row.query_text or "").strip()
             if query_text:
                 queries.append(query_text)
+<<<<<<< HEAD
             if len(queries) >= max_active_prompts:
                 break
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
         return queries
 
@@ -959,6 +969,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
 
     @staticmethod
     def _normalize_text(value: str) -> str:
+<<<<<<< HEAD
         if not value:
             return ""
         # Remove punctuation
@@ -967,6 +978,9 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
         stop_words = {"a", "an", "the", "and", "or", "in", "on", "at", "to", "for", "with", "of", "by"}
         tokens = [t for t in text.split() if t not in stop_words]
         return " ".join(tokens).strip()
+=======
+        return re.sub(r"\s+", " ", (value or "")).strip().lower()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     @staticmethod
     def _normalize_url(value: str, strip_www: bool = False) -> str:
@@ -984,6 +998,7 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
 
     @staticmethod
     def _title_similarity(left: str, right: str) -> float:
+<<<<<<< HEAD
         l_norm = BaseScraper._normalize_text(left)
         r_norm = BaseScraper._normalize_text(right)
         
@@ -1004,6 +1019,13 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
             return max(jaccard, seq_match)
             
         return jaccard
+=======
+        return SequenceMatcher(
+            None,
+            BaseScraper._normalize_text(left),
+            BaseScraper._normalize_text(right),
+        ).ratio()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     @staticmethod
     def _extract_instructor(value: str) -> str:

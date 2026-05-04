@@ -72,6 +72,11 @@ class EventScraper(BaseScraper):
     )
 
     BLOCKED_SOURCE_HOSTS = {
+<<<<<<< HEAD
+=======
+        "wikicfp.com",
+        "aclanthology.org",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         "allconferencealert.com",
         "allconferencealert.net",
         "conferencealert.com",
@@ -704,6 +709,7 @@ class EventScraper(BaseScraper):
             return None
 
         soup = BeautifulSoup(response.text, "html.parser")
+<<<<<<< HEAD
 
         # ── Clean boilerplate before extracting text ──
         # Remove navigation, header, footer, sidebar, and other non-content elements
@@ -764,6 +770,19 @@ class EventScraper(BaseScraper):
             main_content = text_blob
 
         description = main_content[:2000] if main_content else title
+=======
+        title = self._safe_text(
+            soup.title.get_text(" ", strip=True) if soup.title else ""
+        )
+        if not title:
+            meta_title = soup.find("meta", attrs={"property": "og:title"})
+            title = self._safe_text(meta_title.get("content") if meta_title else "")
+        if not title:
+            title = self._safe_text(row.section_label or row.url)
+
+        text_blob = self._safe_text(" ".join(soup.stripped_strings))
+        description = text_blob[:2000] if text_blob else title
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         if not description:
             description = title
 
@@ -1041,13 +1060,27 @@ class EventScraper(BaseScraper):
         return any(keyword in lowered for keyword in self.DISCOVERY_PRIORITY_KEYWORDS)
 
     def _build_search_queries(self) -> list[str]:
+<<<<<<< HEAD
+=======
+        query_limit = max(
+            3,
+            min(
+                self._to_int(getattr(SS, "EVENTS_SEARCH_QUERY_LIMIT", 14), 14),
+                40,
+            ),
+        )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         current_year = timezone.now().date().year
         years = (current_year, current_year + 1)
 
         candidates: list[str] = []
+<<<<<<< HEAD
         active_queries = self.get_active_search_queries(self.category)
         candidates.extend(active_queries)
         has_custom_queries = bool(active_queries)
+=======
+        candidates.extend(self.get_active_search_queries(self.category))
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
         # IMPORTANT: Only fallback to hardcoded defaults if the user has NOT provided any custom AI Prompts.
         if not candidates:
@@ -1070,6 +1103,7 @@ class EventScraper(BaseScraper):
             seen.add(dedupe_key)
             deduped.append(normalized)
 
+<<<<<<< HEAD
         if has_custom_queries:
             # Respect user-defined prompts without the small default cap.
             # Keep a hard safety ceiling to avoid runaway query counts.
@@ -1082,6 +1116,8 @@ class EventScraper(BaseScraper):
                 40,
             ),
         )
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         return deduped[:query_limit]
 
     def _candidate_dedupe_key(self, candidate: dict) -> tuple[str, str, str]:
@@ -1348,6 +1384,7 @@ class EventScraper(BaseScraper):
     def _is_viable_search_result(
         self, title: str, content: str, source_url: str
     ) -> bool:
+<<<<<<< HEAD
         # Pre-extraction policy: check URL and title exist, and verify
         # minimal NLP/AI relevance signals to avoid ingesting completely
         # irrelevant content (e.g. university admin announcements).
@@ -1355,6 +1392,12 @@ class EventScraper(BaseScraper):
             return False
         # Check for minimal relevance signal in title + content
         return self._has_nlp_relevance_signal(title, content, source_url)
+=======
+        del content
+        # Pre-extraction policy: keep thin snippets and rely on LLM normalization,
+        # as long as the result provides a valid URL and a title.
+        return bool(self._safe_url(source_url) and self._safe_text(title))
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     def _is_viable_candidate(self, candidate: dict) -> bool:
         if not isinstance(candidate, dict):
@@ -1414,6 +1457,7 @@ class EventScraper(BaseScraper):
             return False
         return True
 
+<<<<<<< HEAD
     def _has_nlp_relevance_signal(
         self, title: str, content: str, source_url: str
     ) -> bool:
@@ -1448,6 +1492,8 @@ class EventScraper(BaseScraper):
 
         return False
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     def _map_extracted_payload_to_candidate(
         self,
         *,
@@ -1783,8 +1829,11 @@ class EventScraper(BaseScraper):
                 "translation_status": candidate_data.get(
                     "translation_status", "pending"
                 ),
+<<<<<<< HEAD
                 "relevance_score": candidate_data.get("relevance_score"),
                 "extraction_confidence": candidate_data.get("extraction_confidence"),
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             }
         )
 
@@ -2200,9 +2249,12 @@ class EventScraper(BaseScraper):
         if "priority_score" not in normalized:
             normalized["priority_score"] = EVENT_PRIORITY_SCORES["global"]
 
+<<<<<<< HEAD
         normalized["relevance_score"] = item_dict.get("relevance_score")
         normalized["extraction_confidence"] = item_dict.get("extraction_confidence")
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         return normalized
 
     def _passes_hard_event_rules(self, item_dict: dict) -> tuple[bool, str]:
@@ -2366,7 +2418,11 @@ class EventScraper(BaseScraper):
         candidate = text[:10]
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", candidate):
             return None
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         try:
             return date.fromisoformat(candidate)
         except ValueError:

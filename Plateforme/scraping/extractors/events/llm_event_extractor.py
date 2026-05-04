@@ -22,6 +22,7 @@ class LLMEventExtractor:
     NEEDS_RESEARCH_PLACEHOLDER = "[NEEDS RESEARCH]"
 
     MAX_PROMPT_RESULTS = 5
+<<<<<<< HEAD
     MAX_TITLE_CHARS = 200
     MAX_URL_CHARS = 260
     MAX_CONTENT_CHARS_PER_RESULT = 800
@@ -75,6 +76,17 @@ class LLMEventExtractor:
         r"tracked\s+by\s+\d+\s+users",
         r"\[\s*display\s*\]\s*\[\s*hide\s*\]",
     )
+=======
+    MAX_TITLE_CHARS = 140
+    MAX_URL_CHARS = 260
+    MAX_CONTENT_CHARS_PER_RESULT = 340
+    MAX_PROMPT_CONTENT_CHARS_TOTAL = 1400
+
+    FALLBACK_PROMPT_RESULTS = 2
+    FALLBACK_TITLE_CHARS = 70
+    FALLBACK_URL_CHARS = 160
+    FALLBACK_CONTENT_CHARS = 120
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     EVENT_SCHEMA_KEYS = (
         "title_en",
@@ -250,6 +262,7 @@ class LLMEventExtractor:
         return candidates[0]
 
     def _build_system_prompt(self) -> str:
+<<<<<<< HEAD
         return """You are an expert data extractor for a professional Arabic NLP research platform.
 Extract structured event information from web content and produce CLEAN, PROFESSIONAL output.
 
@@ -276,10 +289,15 @@ CRITICAL QUALITY RULES:
     - ONLY extract events related to: NLP, computational linguistics, speech processing, AI/ML, language technology, or related fields.
     - REJECT: general university news, administrative announcements, or non-technical events.
     - Set is_arabic_nlp_relevant=false for irrelevant content.
+=======
+        return """You are an expert data extractor for an Arabic NLP research platform.
+Extract structured event information from web content.
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 EXTRACTION RULES:
 1. Return ONLY valid JSON (no explanations, no markdown).
 2. Return a JSON array of event objects.
+<<<<<<< HEAD
 3. Do NOT invent or guess dates, locations, or URLs.
 4. title_en and description_en must be in English.
 5. title_ar and description_ar MUST be real Arabic translations.
@@ -309,6 +327,61 @@ OUTPUT FORMAT:
   }
 ]
     """
+=======
+3. If the provided text is a short snippet, use your internal knowledge or the URL context to extract as much as possible, or mark fields as [NEEDS RESEARCH] instead of returning null.
+4. Do NOT invent or guess dates, locations, or URLs.
+5. title_en and description_en must be in English.
+6. title_ar and description_ar MUST be real Arabic translations.
+
+CRITICAL ARABIC RULES:
+- title_ar: translate title_en to Modern Standard Arabic.
+- description_ar: translate description_en to Arabic.
+- Use established Arabic NLP terminology.
+- Keep technical terms in English when needed:
+    transformer, BERT, tokenizer, NLP, embedding, fine-tuning,
+    pre-training, corpus, annotation.
+- Arabic fields MUST contain Arabic Unicode characters (U+0600-U+06FF).
+- NEVER copy English text into Arabic fields.
+- If you cannot translate, return null.
+
+OUTPUT FORMAT:
+- Return ONLY a JSON array.
+- Each object should use this structure:
+{
+    "title_en": "string or null",
+    "title_ar": "Arabic translation or null",
+    "description_en": "string, max 500 chars or null",
+    "description_ar": "Arabic translation or null",
+    "start_date": "YYYY-MM-DD or null",
+    "end_date": "YYYY-MM-DD or null",
+    "location": "City, Country or Online or null",
+    "url": "https://... or null",
+    "organizer": "string or null",
+    "event_type": "conference|workshop|webinar|other or null",
+    "language": "arabic|english|multilingual or null",
+    "is_arabic_nlp_relevant": true or false,
+    "relevance_score": 0.0 to 1.0,
+    "extraction_confidence": 0.0 to 1.0,
+    "source_url": "must match one input url or null",
+    "source_name": "Tavily Search",
+    "website": "https://... or null",
+    "registration_link": "https://... or null",
+    "attachment_url": "https://... or null",
+    "banner_image_url": "https://... or null",
+    "organizer_name": "string or null",
+    "domain": "nlp|speech|computer_vision|ai or null",
+    "tags": ["string", "..."] or null
+}
+
+RELEVANCE CRITERIA (is_arabic_nlp_relevant=true if):
+- Event is about Arabic language processing.
+- Event is about NLP/computational linguistics (any language).
+- Event is about AI/ML applied to Arabic.
+- Event is held in the Arab world.
+
+If no relevant events are found, return an empty JSON array: [].
+"""
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     def _normalize_search_results(
         self, search_results: list[dict]
@@ -324,7 +397,10 @@ OUTPUT FORMAT:
             title = (self._normalize_text(result.get("title")) or "")[
                 : self.MAX_TITLE_CHARS
             ]
+<<<<<<< HEAD
             title = self._clean_title_suffix(title)
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             url = (self._normalize_text(result.get("url")) or "")[: self.MAX_URL_CHARS]
 
             if url and url in seen_urls:
@@ -332,7 +408,10 @@ OUTPUT FORMAT:
 
             content = self._normalize_text(result.get("content")) or ""
             if content:
+<<<<<<< HEAD
                 content = self._strip_boilerplate(content)
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 content = content[: self.MAX_CONTENT_CHARS_PER_RESULT]
                 if remaining_content_budget <= 0:
                     content = ""
@@ -427,8 +506,11 @@ OUTPUT FORMAT:
             event_item.get("tags") or event_item.get("keywords")
         )
         event["source_name"] = self.SOURCE_NAME
+<<<<<<< HEAD
         event["relevance_score"] = event_item.get("relevance_score")
         event["extraction_confidence"] = event_item.get("extraction_confidence")
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
         if not event["title_en"]:
             return None
@@ -462,8 +544,11 @@ OUTPUT FORMAT:
             "tags": None,
             "source_url": None,
             "source_name": None,
+<<<<<<< HEAD
             "relevance_score": None,
             "extraction_confidence": None,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         }
 
     @staticmethod
@@ -479,14 +564,20 @@ OUTPUT FORMAT:
         text = self._normalize_text(value)
         if text is None:
             return None
+<<<<<<< HEAD
         text = self._clean_title_suffix(text)
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         return text[:300]
 
     def _normalize_description(self, value: Any) -> str | None:
         text = self._normalize_text(value)
         if text is None:
             return None
+<<<<<<< HEAD
         text = self._strip_boilerplate(text)
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         return text[:5000]
 
     def _normalize_domain(self, value: Any) -> str | None:
@@ -620,6 +711,7 @@ OUTPUT FORMAT:
             or "too many requests" in message
             or "rate limit" in message
         )
+<<<<<<< HEAD
 
     def _clean_title_suffix(self, title: str) -> str:
         """Remove common site-name suffixes from titles."""
@@ -676,3 +768,5 @@ OUTPUT FORMAT:
         result = _re.sub(r"\s{2,}", " ", result).strip()
 
         return result
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e

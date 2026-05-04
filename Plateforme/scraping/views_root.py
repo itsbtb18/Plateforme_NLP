@@ -10,17 +10,25 @@ import json
 import logging
 import os
 import re
+<<<<<<< HEAD
 import random
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 import threading
 import uuid
 from collections import defaultdict
 from datetime import date, timedelta
 from ipaddress import ip_address, ip_network
 from pathlib import Path
+<<<<<<< HEAD
 from unittest.mock import patch
 from urllib.parse import urlencode, urlparse
 
 import requests
+=======
+from urllib.parse import urlencode, urlparse
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from celery import current_app as current_celery_app
 from celery.result import AsyncResult
 from django.apps import apps
@@ -46,7 +54,11 @@ from feed.models import Post
 from resources.models import Course, NLPTool
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
+<<<<<<< HEAD
 from scraping.intelligence import compute_relevance_score, detect_trends
+=======
+from scraping.intelligence import detect_trends
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from scraping.scrapers.custom_scraper import CustomDomainScraper
 from scraping.validators.content_validator import ContentValidator
 from scraping.validators.network_validator import NetworkValidator
@@ -63,7 +75,10 @@ from .models import (
 )
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
 from .scraping_settings import scraping_settings as SS
+<<<<<<< HEAD
 from .hardcoded_prompts import HARDCODED_PROMPTS
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from .tasks import (
     push_scraping_progress,
     run_quick_scrape_task,
@@ -73,11 +88,14 @@ from .tasks import (
 from .translation import ArabicTranslator
 
 try:
+<<<<<<< HEAD
     from bs4 import BeautifulSoup
 except Exception:  # pragma: no cover - optional dependency guard
     BeautifulSoup = None
 
 try:
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 except ImportError:
     CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
@@ -115,6 +133,7 @@ def _check_rate_limit(request, scope: str, max_calls: int, period: int) -> bool:
     return _enforce_rate_limit(_rate_key(request, scope=scope), max_calls, period)
 
 
+<<<<<<< HEAD
 def _enforce_rate_limit(key: str, limit: int, window_seconds: int) -> bool:
     """Fail-open cache-backed rate limiter to avoid blocking on cache issues."""
     try:
@@ -135,6 +154,8 @@ def _enforce_rate_limit(key: str, limit: int, window_seconds: int) -> bool:
         return True
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
     def decorator(view_func):
         @functools.wraps(view_func)
@@ -161,6 +182,7 @@ def rate_limit(max_calls: int, period_seconds: int, scope: str = "global"):
 
 logger = logging.getLogger(__name__)
 
+<<<<<<< HEAD
 
 def _client_ip(request):
     xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
@@ -185,6 +207,8 @@ def _log_scraping_action(request):
     )
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 SCRAPING_NAV_CATEGORY_KEYS = (
     "events",
     "tools",
@@ -192,6 +216,7 @@ SCRAPING_NAV_CATEGORY_KEYS = (
     "opportunities",
     "courses",
     "news",
+<<<<<<< HEAD
 )
 
 
@@ -205,6 +230,12 @@ def _active_prompt_count(category: str) -> int:
     return int(SearchQuery.objects.filter(category=category, is_active=True).count())
 
 
+=======
+    "laws",
+)
+
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 DEFAULT_SCRAPING_SOURCES = {
     "events": [
         {"name": "WikiCFP", "url": "https://www.wikicfp.com"},
@@ -355,6 +386,87 @@ def _ensure_default_search_queries() -> None:
             )
 
 
+<<<<<<< HEAD
+=======
+def _client_ip(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "unknown")
+
+
+def _log_scraping_action(request):
+    user_repr = (
+        getattr(request.user, "email", None)
+        or getattr(request.user, "username", None)
+        or "anonymous"
+    )
+    logger.info(
+        "scraping_action user=%s endpoint=%s method=%s timestamp=%s ip=%s",
+        user_repr,
+        request.path,
+        request.method,
+        timezone.now().isoformat(),
+        _client_ip(request),
+    )
+
+
+def _enforce_rate_limit(key: str, limit: int, window_seconds: int) -> bool:
+    """
+    Thread-safe and multi-process-safe rate limiter.
+    Uses atomic Redis INCR with TTL to count requests
+    across all workers within a sliding window.
+    Returns True if request is allowed, False if limit exceeded.
+    """
+    import logging
+
+    from django.core.cache import cache
+
+    logger = logging.getLogger(__name__)
+
+    cache_key = f"rate_limit:{key}"
+
+    try:
+        # Try to increment - atomic operation
+        current = cache.get(cache_key)
+
+        if current is None:
+            # First request in this window
+            cache.set(cache_key, 1, timeout=window_seconds)
+            return True
+
+        if int(current) >= limit:
+            logger.info(
+                "rate_limit_exceeded",
+                extra={
+                    "key": key,
+                    "current": current,
+                    "limit": limit,
+                    "window_seconds": window_seconds,
+                },
+            )
+            return False
+
+        # Increment without resetting TTL
+        try:
+            cache.incr(cache_key)
+        except ValueError:
+            # Key expired between get and incr - reset
+            cache.set(cache_key, 1, timeout=window_seconds)
+
+        return True
+
+    except Exception as exc:
+        # Keep fail-open behavior but emit prominent logs for monitoring.
+        logger.error("Rate limiter cache error: %s", exc)
+        logger.warning(
+            "RATE_LIMITER_CACHE_FAILURE: throttling may be degraded",
+            extra={"error": str(exc), "key": key},
+        )
+        return True
+
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 def _require_staff(request):
     if not request.user.is_authenticated or not request.user.is_staff:
         return JsonResponse({"error": "Forbidden"}, status=403)
@@ -712,9 +824,13 @@ def _source_color_token(category: str) -> str:
     return color_map.get(color_name, "#475569")
 
 
+<<<<<<< HEAD
 def _health_band_for_rate(success_rate: int | None) -> str:
     if success_rate is None:
         return "none"
+=======
+def _health_band_for_rate(success_rate: int) -> str:
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     if success_rate >= 80:
         return "green"
     if success_rate >= 40:
@@ -804,7 +920,11 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
     points, success_count = _build_source_health_points(source)
     attempts = len(points)
 
+<<<<<<< HEAD
     if attempts > 0 and source.last_scraped:
+=======
+    if attempts > 0:
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         success_rate = int(round((success_count / attempts) * 100))
     elif health and int(health.total_attempts or 0) > 0:
         success_rate = int(
@@ -814,7 +934,11 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
             )
         )
     else:
+<<<<<<< HEAD
         success_rate = None
+=======
+        success_rate = 0
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     now = timezone.now()
     recent_runs_qs = ScrapingRun.objects.filter(
@@ -849,8 +973,12 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
         or (source.consecutive_failures or 0)
     )
     failing = consecutive_failures >= 3 or (
+<<<<<<< HEAD
         success_rate is not None
         and success_rate < 40
+=======
+        success_rate < 40
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         and (attempts >= 3 or int(getattr(health, "total_attempts", 0) or 0) >= 3)
     )
 
@@ -1471,12 +1599,18 @@ def scraping_dashboard_by_category(request, category: str):
 
     ai_prompts = list(
         SearchQuery.objects.filter(category=category_key, is_active=True)
+<<<<<<< HEAD
         .order_by("-id")
         .values("id", "query_text", "is_active")
     )
     max_active_prompts = _prompt_limit_for_category(category_key)
     active_prompt_count = len(ai_prompts)
     prompt_slots_remaining = max(0, max_active_prompts - active_prompt_count)
+=======
+        .order_by("id")
+        .values("id", "query_text", "is_active")[:6]
+    )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     recent_runs = ScrapingRun.objects.filter(category=category_key).order_by(
         "-started_at"
@@ -1541,9 +1675,12 @@ def scraping_dashboard_by_category(request, category: str):
         "kpi_approved": kpi_approved,
         "kpi_success_rate": kpi_success_rate,
         "ai_prompts": ai_prompts,
+<<<<<<< HEAD
         "max_active_prompts": max_active_prompts,
         "active_prompt_count": active_prompt_count,
         "prompt_slots_remaining": prompt_slots_remaining,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         "last_run_status": last_run_status,
         "last_run_time": last_run_time,
         "recent_run_snapshots": recent_run_snapshots,
@@ -1600,7 +1737,13 @@ def scraping_settings_page(request):
         "active": int(category_sources_qs.filter(is_active=True).count()),
         "inactive": int(category_sources_qs.filter(is_active=False).count()),
         "rss_enabled": int(category_sources_qs.filter(use_rss=True).count()),
+<<<<<<< HEAD
         "llm_enabled": int(category_sources_qs.filter(use_llm_extraction=True).count()),
+=======
+        "llm_enabled": int(
+            category_sources_qs.filter(use_llm_extraction=True).count()
+        ),
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         "ssl_disabled": int(category_sources_qs.filter(verify_ssl=False).count()),
         "proxy_enabled": int(
             category_sources_qs.exclude(proxy_url__isnull=True)
@@ -1633,10 +1776,23 @@ def scraping_settings_page(request):
 
     validation_counts = {
         "GREEN": int(category_sources_qs.filter(validation_status="GREEN").count()),
+<<<<<<< HEAD
         "YELLOW": int(category_sources_qs.filter(validation_status="YELLOW").count()),
         "RED": int(category_sources_qs.filter(validation_status="RED").count()),
         "PENDING": int(category_sources_qs.filter(validation_status="PENDING").count()),
         "UNKNOWN": int(category_sources_qs.filter(validation_status="UNKNOWN").count()),
+=======
+        "YELLOW": int(
+            category_sources_qs.filter(validation_status="YELLOW").count()
+        ),
+        "RED": int(category_sources_qs.filter(validation_status="RED").count()),
+        "PENDING": int(
+            category_sources_qs.filter(validation_status="PENDING").count()
+        ),
+        "UNKNOWN": int(
+            category_sources_qs.filter(validation_status="UNKNOWN").count()
+        ),
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     }
 
     source_rows = []
@@ -1811,12 +1967,17 @@ def scraping_settings_page(request):
                     ),
                 },
                 {
+<<<<<<< HEAD
                     "label": ui(
                         "Automatic schedules enabled", "الجدولة التلقائية مفعلة"
                     ),
                     "value": bool_no
                     if bool(getattr(settings, "SCRAPING_MANUAL_ONLY", True))
                     else bool_yes,
+=======
+                    "label": ui("Automatic schedules enabled", "الجدولة التلقائية مفعلة"),
+                    "value": bool_no if bool(getattr(settings, "SCRAPING_MANUAL_ONLY", True)) else bool_yes,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                     "hint": ui(
                         "If disabled, runs are manual-only.",
                         "عند تعطيلها تصبح التشغيلات يدوية فقط.",
@@ -1836,9 +1997,13 @@ def scraping_settings_page(request):
         "category_global_status_label": (
             ui("Global status: OK", "الحالة العامة: جيد")
             if has_active_sources
+<<<<<<< HEAD
             else ui(
                 "Global status: No active sources", "الحالة العامة: لا توجد مصادر نشطة"
             )
+=======
+            else ui("Global status: No active sources", "الحالة العامة: لا توجد مصادر نشطة")
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         ),
         "source_stats": source_stats,
         "schedule_tier_labels": schedule_tier_labels,
@@ -2164,6 +2329,79 @@ def _scraping_result_category_map():
                 ),
             }
 
+<<<<<<< HEAD
+=======
+    law_model = _resolve_dynamic_model(
+        [
+            ("resources", "Law"),
+            ("events", "Law"),
+        ]
+    )
+    if law_model is not None:
+        title_field = _first_existing_field(
+            law_model,
+            "law_title",
+            "title",
+            "title_en",
+            "name",
+        )
+        description_field = _first_existing_field(
+            law_model,
+            "legal_text",
+            "description",
+            "description_en",
+            "summary",
+            "content",
+        )
+        source_field = _first_existing_field(
+            law_model,
+            "source_url",
+            "url",
+            "access_link",
+            "document_url",
+        )
+        date_field = _first_existing_field(
+            law_model,
+            "created_at",
+            "creation_date",
+            "updated_at",
+            "last_scraped_at",
+        )
+        status_field = _first_existing_field(
+            law_model,
+            "approval_status",
+            "status",
+        )
+
+        if (
+            title_field
+            and description_field
+            and source_field
+            and date_field
+            and status_field
+        ):
+            category_map["laws"] = {
+                "label": "Laws",
+                "model": law_model,
+                "title_field": title_field,
+                "description_field": description_field,
+                "source_field": source_field,
+                "date_field": date_field,
+                "status_field": status_field,
+                "entity_field": _first_existing_field(
+                    law_model,
+                    "category_tags",
+                    "keywords",
+                    "entities",
+                ),
+                "confidence_field": _first_existing_field(
+                    law_model,
+                    "confidence_score",
+                    "relevance_score",
+                ),
+            }
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     return category_map
 
 
@@ -2244,7 +2482,13 @@ def _resolve_scraping_selected_category(request) -> str:
         return ""
 
     resolver_category = (
+<<<<<<< HEAD
         str((request.resolver_match.kwargs or {}).get("category") or "").strip().lower()
+=======
+        str((request.resolver_match.kwargs or {}).get("category") or "")
+        .strip()
+        .lower()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     )
     if resolver_category in SCRAPING_NAV_CATEGORY_KEYS:
         return resolver_category
@@ -2293,6 +2537,7 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         url_name = str(request.resolver_match.url_name or "")
         kwargs = request.resolver_match.kwargs or {}
 
+<<<<<<< HEAD
     if url_name == "category_dashboard" or url_name in {
         "dashboard",
         "scraping_dashboard",
@@ -2302,6 +2547,16 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         breadcrumbs.append(
             {"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""}
         )
+=======
+    if url_name == "category_dashboard":
+        breadcrumbs.append({"label": crumb("Hub", "المركز"), "url": ""})
+    elif url_name in {"dashboard", "scraping_dashboard"}:
+        breadcrumbs.append({"label": crumb("Hub", "المركز"), "url": ""})
+    elif url_name == "category_results":
+        breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
+    elif url_name in {"results", "scraping_results"}:
+        breadcrumbs.append({"label": crumb("Pending Queue", "قائمة المراجعة"), "url": ""})
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     elif url_name in {"result_detail", "scraping_result_detail"}:
         breadcrumbs.append(
             {
@@ -2319,6 +2574,7 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         if short_item_id:
             item_label = f"{item_label} #{short_item_id}"
         breadcrumbs.append({"label": item_label, "url": ""})
+<<<<<<< HEAD
     elif url_name == "category_analytics" or url_name in {
         "scraping_analytics",
         "analytics",
@@ -2330,6 +2586,19 @@ def _build_scraping_breadcrumbs(request) -> list[dict[str, str]]:
         "settings",
         "scraping_settings",
     }:
+=======
+    elif url_name == "category_analytics":
+        breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
+    elif url_name in {"scraping_analytics", "analytics"}:
+        breadcrumbs.append({"label": crumb("Analytics", "التحليلات"), "url": ""})
+    elif url_name == "category_sources":
+        breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
+    elif url_name in {"scraping_sources", "sources"}:
+        breadcrumbs.append({"label": crumb("Sources", "المصادر"), "url": ""})
+    elif url_name == "category_settings":
+        breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
+    elif url_name in {"settings", "scraping_settings"}:
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         breadcrumbs.append({"label": crumb("Settings", "الإعدادات"), "url": ""})
 
     return breadcrumbs
@@ -2370,9 +2639,13 @@ def _scraping_shell_context(request, *, active_page: str) -> dict:
             except Exception:
                 admin_avatar_url = ""
 
+<<<<<<< HEAD
         if hasattr(request.user, "get_initials") and callable(
             request.user.get_initials
         ):
+=======
+        if hasattr(request.user, "get_initials") and callable(request.user.get_initials):
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             initials_candidate = str(request.user.get_initials() or "").strip()
             if initials_candidate:
                 admin_initials = initials_candidate[:2].upper()
@@ -3133,6 +3406,7 @@ def _build_scraping_results_dataset(
             if title_en:
                 by_category_titles[cat_key].append(title_en)
 
+<<<<<<< HEAD
             # Populate all available model fields so the confidence
             # calculator has real data to score (not just title/description).
             row_data = {
@@ -3183,6 +3457,33 @@ def _build_scraping_results_dataset(
                     if _val is not None:
                         row_data[_ef] = _val
             base_rows.append(row_data)
+=======
+            base_rows.append(
+                {
+                    "selection_key": f"{cat_key}:{item_id_str}",
+                    "item_id": item_id_str,
+                    "title": title_en,
+                    "title_en": title_en,
+                    "title_ar": title_ar,
+                    "category": cat_key,
+                    "category_label": cfg["label"],
+                    "source_url": source_value,
+                    "source_domain": source_domain,
+                    "scraped_date": date_value,
+                    "description": description_value,
+                    "confidence_score": raw_confidence,
+                    "raw_translation_status": raw_translation_status,
+                    "status": _result_status_label(status_value),
+                    "status_badge": _result_status_badge(status_value),
+                    "detail_url": reverse(
+                        "scraping:scraping_result_detail", args=[obj.pk]
+                    )
+                    + f"?category={cat_key}"
+                    + (f"&run_id={selected_run_id}" if selected_run_id else ""),
+                    "run_id": selected_run_id,
+                }
+            )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     meta_by_item = defaultdict(dict)
     meta_by_title = defaultdict(dict)
@@ -3213,6 +3514,7 @@ def _build_scraping_results_dataset(
             row["title_en"]
         )
 
+<<<<<<< HEAD
         score = row.get("confidence_score")
         if meta and meta.relevance_score is not None:
             score = float(meta.relevance_score)
@@ -3224,6 +3526,11 @@ def _build_scraping_results_dataset(
             if live_score > 0:
                 score = live_score
 
+=======
+        score = row["confidence_score"]
+        if meta and meta.relevance_score is not None:
+            score = float(meta.relevance_score)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         if score is not None:
             score = round(float(score), 2)
 
@@ -4259,6 +4566,7 @@ def scraping_result_detail(request, item_id):
         raw_translation_status=raw_translation_status,
     )
 
+<<<<<<< HEAD
     from scraping.intelligence import ConfidenceCalculator
 
     calc = ConfidenceCalculator()
@@ -4302,6 +4610,19 @@ def scraping_result_detail(request, item_id):
 
     if confidence_score is None or confidence_score <= 0:
         confidence_score = calc_report["percent"]
+=======
+    title_en_score = 100 if title_en else 0
+    description_en_score = _text_quality_score(description_en, long_form=True)
+    date_score = 100 if scraped_date else 0
+    location_score = 100 if location_en else 0
+    url_score = 100 if source_url else 0
+
+    if confidence_score is None:
+        fallback_scores = [title_en_score, description_en_score, date_score, url_score]
+        if has_location:
+            fallback_scores.append(location_score)
+        confidence_score = round(sum(fallback_scores) / max(len(fallback_scores), 1), 1)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     overall_confidence = confidence_score
     if overall_confidence is None:
@@ -4793,6 +5114,7 @@ def run_quick_scrape(request, category):
         )
 
 
+<<<<<<< HEAD
 _CUSTOM_ELEMENT_SEARCH_METHOD = {
     "events": "search_events",
     "tools": "search_tools",
@@ -5104,6 +5426,8 @@ def run_custom_element(request, category):
     )
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 @login_required
 @user_passes_test(is_admin)
 @require_GET
@@ -5234,7 +5558,11 @@ def _parse_prompt_suggestions(raw_text: str) -> list[str]:
 @csrf_protect
 @rate_limit(max_calls=8, period_seconds=60, scope="action")
 def generate_search_prompts(request):
+<<<<<<< HEAD
     """Return 10 random search prompts from a hardcoded list of 50 per category."""
+=======
+    """Generate high-yield search prompts for one scraping category using Groq."""
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     _log_scraping_action(request)
     try:
         payload = json.loads(request.body.decode("utf-8")) if request.body else {}
@@ -5242,6 +5570,7 @@ def generate_search_prompts(request):
         payload = request.POST
 
     category = str(payload.get("category") or "").strip().lower()
+<<<<<<< HEAD
     if category not in HARDCODED_PROMPTS:
         return JsonResponse({"error": "Unknown category"}, status=400)
 
@@ -5289,6 +5618,72 @@ def generate_search_prompts(request):
         )
 
     return JsonResponse(response_payload)
+=======
+    supported_categories = {
+        "events",
+        "tools",
+        "corpus",
+        "courses",
+        "opportunities",
+        "news",
+    }
+    if category not in supported_categories:
+        return JsonResponse({"error": "Unknown category"}, status=400)
+
+    existing_prompts = list(
+        SearchQuery.objects.filter(category=category, is_active=True)
+        .order_by("id")
+        .values_list("query_text", flat=True)
+    )
+    current_year = timezone.now().year
+    existing_prompts_list = json.dumps(existing_prompts, ensure_ascii=False)
+
+    system_prompt = (
+        "You are an expert NLP data curator specializing in Arabic and MENA "
+        "region NLP research. Generate highly effective web search queries "
+        "designed to discover maximum new content for a scraping pipeline. "
+        "Each query must be distinct, specific, and target sources not "
+        "commonly indexed."
+    )
+    user_prompt = f"""Generate 8 diverse, high-yield search queries for the category: {category}
+
+Rules:
+- Each query must be unique and target a different angle (geographic, temporal, linguistic, institutional, event-type)
+- Mix English and Arabic queries (at least 2 Arabic queries)
+- Include site-specific modifiers for at least 2 queries (site:.edu, site:.ac.*, site:.org, site:github.com, site:huggingface.co)
+- Include current year ({current_year}) or next year ({current_year + 1}) in time-sensitive queries
+- Target MENA, Maghreb, Gulf region institutions explicitly in at least 1 query
+- Do NOT repeat any of these already-used prompts: {existing_prompts_list}
+
+Return ONLY a JSON array of strings. No explanation. No markdown. Example:
+["query one", "query two", ...]
+
+Category-specific guidance:
+- events: conferences, workshops, shared tasks, challenges, symposiums, seminars, hackathons
+- tools: GitHub repos, HuggingFace models, APIs, tokenizers, libraries, datasets tools
+- corpus: datasets, annotated corpora, speech corpora, text collections, benchmarks
+- courses: MOOCs, university courses, bootcamps, certifications, training programs
+- opportunities: PhD positions, postdocs, research internships, NLP job openings, grants
+- news: research papers, arXiv preprints, tech news, government AI initiatives, lab announcements
+"""
+
+    try:
+        llm_client = GroqLLMClient(timeout=10, max_retries=1)
+        llm_text = llm_client._chat_with_groq(system_prompt, user_prompt)
+    except Exception as exc:
+        logger.warning(
+            "generate_search_prompts_call_failed",
+            extra={"category": category, "error": str(exc)},
+            exc_info=False,
+        )
+        return JsonResponse({"error": "LLM call failed"}, status=502)
+
+    prompts = _parse_prompt_suggestions(llm_text)
+    if not prompts:
+        return JsonResponse({"error": "Could not parse prompts"}, status=502)
+
+    return JsonResponse({"prompts": prompts[:8]})
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 
 @login_required
@@ -5313,6 +5708,7 @@ def add_prompt_api(request):
     if not query_text:
         return JsonResponse({"error": "query_text is required"}, status=400)
 
+<<<<<<< HEAD
     max_active_prompts = _prompt_limit_for_category(category)
     active_count = _active_prompt_count(category)
     query_obj = (
@@ -5359,6 +5755,17 @@ def add_prompt_api(request):
 
     updated_active_count = _active_prompt_count(category)
 
+=======
+    query_obj, created = SearchQuery.objects.get_or_create(
+        category=category,
+        query_text=query_text,
+        defaults={"is_active": is_active},
+    )
+    if not created and query_obj.is_active != is_active:
+        query_obj.is_active = is_active
+        query_obj.save(update_fields=["is_active"])
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     return JsonResponse(
         {
             "id": str(query_obj.id),
@@ -5366,8 +5773,11 @@ def add_prompt_api(request):
             "query_text": query_obj.query_text,
             "is_active": bool(query_obj.is_active),
             "created": created,
+<<<<<<< HEAD
             "max_active_prompts": max_active_prompts,
             "active_count": updated_active_count,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         }
     )
 
@@ -5412,13 +5822,18 @@ def toggle_prompt_api(request, query_id):
 @csrf_protect
 @rate_limit(max_calls=60, period_seconds=60, scope="action")
 def delete_prompt_api(request, query_id):
+<<<<<<< HEAD
     """Hard-delete one prompt from the database."""
+=======
+    """Soft-delete one prompt by marking it inactive."""
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     _log_scraping_action(request)
 
     query_obj = SearchQuery.objects.filter(id=query_id).first()
     if query_obj is None:
         return JsonResponse({"error": "Prompt not found"}, status=404)
 
+<<<<<<< HEAD
     category = query_obj.category
     query_obj.is_active = False
     query_obj.save(update_fields=["is_active"])
@@ -5432,6 +5847,19 @@ def delete_prompt_api(request, query_id):
             "deleted": True,
             "active_count": updated_active_count,
             "max_active_prompts": max_active_prompts,
+=======
+    if query_obj.is_active:
+        query_obj.is_active = False
+        query_obj.save(update_fields=["is_active"])
+
+    return JsonResponse(
+        {
+            "id": str(query_obj.id),
+            "category": query_obj.category,
+            "query_text": query_obj.query_text,
+            "is_active": False,
+            "deleted": True,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         }
     )
 
@@ -6058,9 +6486,15 @@ def _collect_analytics_payload(window: dict) -> dict:
         existing_health_sources = {
             str(item.get("source") or "").strip().lower() for item in source_health
         }
+<<<<<<< HEAD
         for source in ScrapingSource.objects.filter(
             category=category, is_active=True
         ).only("name"):
+=======
+        for source in ScrapingSource.objects.filter(category=category, is_active=True).only(
+            "name"
+        ):
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             source_name = str(source.name or "").strip()
             if not source_name:
                 continue
@@ -6163,9 +6597,15 @@ def _collect_analytics_payload(window: dict) -> dict:
 
         records_qs = model_cls.objects.all()
         if source_field and source_field in field_names:
+<<<<<<< HEAD
             records_qs = records_qs.exclude(
                 **{f"{source_field}__isnull": True}
             ).exclude(**{source_field: ""})
+=======
+            records_qs = records_qs.exclude(**{f"{source_field}__isnull": True}).exclude(
+                **{source_field: ""}
+            )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         records_qs = _apply_date_window(records_qs, date_field, window)
 
         grouped = records_qs.values(f"{date_field}__date").annotate(total=Count("id"))
@@ -6794,6 +7234,11 @@ def scraping_sources_page(request):
         category_scope = _resolve_scraping_nav_category(request)
 
     sources_queryset = ScrapingSource.objects.all()
+<<<<<<< HEAD
+=======
+    if category_scope:
+        sources_queryset = sources_queryset.filter(category=category_scope)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     sources = list(sources_queryset.order_by("category", "name"))
     rows = [_build_source_row_payload(source) for source in sources]
@@ -7045,9 +7490,13 @@ def update_source_settings(request, source_id):
     if schedule_tier not in allowed_tiers:
         return JsonResponse({"error": _("Invalid schedule tier")}, status=400)
 
+<<<<<<< HEAD
     interval_hours_raw = payload.get(
         "schedule_interval_hours", source.schedule_interval_hours
     )
+=======
+    interval_hours_raw = payload.get("schedule_interval_hours", source.schedule_interval_hours)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     try:
         interval_hours = int(interval_hours_raw)
     except (TypeError, ValueError):

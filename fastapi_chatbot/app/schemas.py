@@ -298,3 +298,34 @@ class WebSearchResponse(BaseModel):
     source: str = Field(default="web_tavily", description="Source identifier")
     session_id: str = Field(default="", description="Session identifier")
 
+<<<<<<< HEAD
+=======
+
+# ---------------------------------------------------------------------------
+# CV Extraction schemas (for signup)
+# ---------------------------------------------------------------------------
+
+
+class ExperienceData(BaseModel):
+    """Experience entry extracted from CV"""
+
+    type: str = Field(..., description="Experience type: professional, internship, project, volunteer, event")
+    institution: str = Field(..., description="Company/Organization name")
+    role: str = Field(..., description="Job title or role")
+    startDate: Optional[str] = Field(None, description="Start date in YYYY-MM-DD format")
+    endDate: Optional[str] = Field(None, description="End date in YYYY-MM-DD format")
+    isCurrent: bool = Field(default=False, description="Whether this is current position")
+    description: Optional[str] = Field(None, description="Brief description of responsibilities")
+
+
+class CVExtractionResponse(BaseModel):
+    """Structured data extracted from CV during signup"""
+
+    firstName: str = Field(..., description="First name")
+    lastName: str = Field(..., description="Last name")
+    email: Optional[str] = Field(None, description="Email if found in CV")
+    bio: str = Field(..., description="Professional summary")
+    specialities: List[str] = Field(default=[], description="AI/tech specialities")
+    experiences: List[ExperienceData] = Field(default=[], description="Work experiences")
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e

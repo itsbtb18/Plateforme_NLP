@@ -80,6 +80,7 @@ def test_delete_prompt_api_soft_deletes_prompt(client):
     assert prompt.is_active is False
 
 
+<<<<<<< HEAD
 def test_category_dashboard_renders_all_active_prompts(client):
     client.force_login(_make_staff_user())
 
@@ -104,6 +105,8 @@ def test_category_dashboard_does_not_render_laws_category(client):
     assert "laws" not in response.content.decode("utf-8").lower()
 
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 def test_deleted_prompt_is_not_recreated_on_dashboard_seed(client):
     client.force_login(_make_staff_user())
 
@@ -118,6 +121,7 @@ def test_deleted_prompt_is_not_recreated_on_dashboard_seed(client):
     assert response.status_code == 200
     prompt.refresh_from_db()
     assert prompt.is_active is False
+<<<<<<< HEAD
 
 
 def test_add_prompt_api_rejects_when_category_prompt_limit_reached(client, monkeypatch):
@@ -165,3 +169,5 @@ def test_category_dashboard_includes_prompt_limit_metadata(client, monkeypatch):
     html = response.content.decode("utf-8")
     assert 'data-max-prompts="4"' in html
     assert 'data-active-prompts="2"' in html
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e

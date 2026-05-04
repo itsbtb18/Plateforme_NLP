@@ -777,6 +777,7 @@ class JoinProjectView(LoginAndVerifiedRequiredMixin, View):
             )
             return redirect("projects:project_detail", pk=pk)
 
+<<<<<<< HEAD
         # Vérifie si l'utilisateur n'est pas déjà membre (accepté ou en attente)
         existing_membership = ProjectMember.objects.filter(
             project=project, member=request.user
@@ -793,6 +794,16 @@ class JoinProjectView(LoginAndVerifiedRequiredMixin, View):
                 ProjectMember.objects.create(
                     project=project, member=request.user, role="member", status="pending"
                 )
+=======
+        # Vérifie si l'utilisateur n'est pas déjà membre
+        if not ProjectMember.objects.filter(
+            project=project, member=request.user
+        ).exists():
+            # Créer une demande en attente
+            ProjectMember.objects.create(
+                project=project, member=request.user, role="member", status="pending"
+            )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             # Notification au coordinateur du projet via le service
             NotificationService.create_membership_request(
                 recipient=project.coordinator, project=project, sender=request.user
@@ -1030,9 +1041,13 @@ class InviteProjectMembersView(LoginAndVerifiedRequiredMixin, View):
         existing_member_ids = set(
             str(uid)
             for uid in ProjectMember.objects.filter(
+<<<<<<< HEAD
                 project=project, 
                 member_id__in=invited_ids,
                 status__in=["accepted", "pending"]
+=======
+                project=project, member_id__in=invited_ids
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             ).values_list("member_id", flat=True)
         )
         existing_pending_ids = set(

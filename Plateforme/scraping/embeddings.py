@@ -5,6 +5,7 @@ Uses ``paraphrase-multilingual-MiniLM-L12-v2`` (384-dim) to generate
 title embeddings stored in pgvector for cosine-similarity lookups.
 """
 
+<<<<<<< HEAD
 import logging
 
 from django.db import connection
@@ -12,6 +13,11 @@ from sentence_transformers import SentenceTransformer
 
 _model = None
 logger = logging.getLogger(__name__)
+=======
+from sentence_transformers import SentenceTransformer
+
+_model = None
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 
 def get_embedding_model():
@@ -45,6 +51,7 @@ def find_semantic_duplicate(new_title, category, threshold=0.88):
 
     Returns ``None`` when no semantic duplicate exists above threshold.
     """
+<<<<<<< HEAD
     # pgvector operators are PostgreSQL-specific and can raise SQL errors on SQLite.
     if connection.vendor != "postgresql":
         return None
@@ -54,6 +61,9 @@ def find_semantic_duplicate(new_title, category, threshold=0.88):
     except Exception:
         logger.debug("pgvector_not_available_for_semantic_dedup", exc_info=True)
         return None
+=======
+    from pgvector.django import CosineDistance
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     from scraping.models import ScrapedItemMeta
 
@@ -61,6 +71,7 @@ def find_semantic_duplicate(new_title, category, threshold=0.88):
     if new_embedding is None:
         return None
 
+<<<<<<< HEAD
     try:
         return (
             ScrapedItemMeta.objects.filter(
@@ -75,3 +86,15 @@ def find_semantic_duplicate(new_title, category, threshold=0.88):
     except Exception:
         logger.debug("semantic_dedup_query_failed", exc_info=True)
         return None
+=======
+    return (
+        ScrapedItemMeta.objects.filter(
+            category=category,
+            title_embedding__isnull=False,
+        )
+        .annotate(distance=CosineDistance("title_embedding", new_embedding))
+        .filter(distance__lt=(1 - threshold))
+        .order_by("distance")
+        .first()
+    )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e

@@ -191,11 +191,14 @@ urlpatterns = [
         views.run_custom_source,
         name="run_custom_source",
     ),
+<<<<<<< HEAD
     path(
         "custom-element/<str:category>/",
         views.run_custom_element,
         name="run_custom_element",
     ),
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     path("sources/<uuid:source_id>/test/", views.test_source, name="test_source"),
     path(
         "sources/test-status/<str:job_id>/",

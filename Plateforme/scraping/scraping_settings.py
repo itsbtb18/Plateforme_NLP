@@ -159,6 +159,7 @@ class ScrapingSettings:
     """Histogram buckets for enrichment step duration metrics."""
 
     # ── DEDUPLICATION POLICY ────────────────────────────────────────────
+<<<<<<< HEAD
     JACCARD_THRESHOLD: float = _env_float("SCRAPING_JACCARD_THRESHOLD", 0.75)
     """Jaccard similarity threshold for loose deduplication."""
 
@@ -166,6 +167,15 @@ class ScrapingSettings:
     """Jaccard similarity threshold for strict deduplication."""
 
     SEMANTIC_FALLBACK: float = _env_float("SCRAPING_SEMANTIC_FALLBACK", 0.75)
+=======
+    JACCARD_THRESHOLD: float = _env_float("SCRAPING_JACCARD_THRESHOLD", 0.85)
+    """Jaccard similarity threshold for loose deduplication."""
+
+    STRICT_JACCARD: float = _env_float("SCRAPING_STRICT_JACCARD", 0.90)
+    """Jaccard similarity threshold for strict deduplication."""
+
+    SEMANTIC_FALLBACK: float = _env_float("SCRAPING_SEMANTIC_FALLBACK", 0.88)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     """Cosine similarity threshold for semantic dedup fallback."""
 
     DEDUP_WINDOW: int = _env_int("SCRAPING_DEDUP_WINDOW", 500)
@@ -265,12 +275,15 @@ class ScrapingSettings:
     EVENTS_SEARCH_QUERY_LIMIT: int = _env_int("SCRAPING_EVENTS_SEARCH_QUERY_LIMIT", 14)
     """Maximum number of Tavily queries executed in one events run."""
 
+<<<<<<< HEAD
     PROMPT_MAX_ACTIVE_PER_CATEGORY: int = _env_int(
         "SCRAPING_PROMPT_MAX_ACTIVE_PER_CATEGORY",
         _django_int_setting("GEMINI_SCRAPING_MAX_RPD", 50),
     )
     """Maximum active prompts allowed per category to reduce free-tier LLM quota pressure."""
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     EVENTS_EXTRACTION_BATCH_SIZE: int = _env_int(
         "SCRAPING_EVENTS_EXTRACTION_BATCH_SIZE", 8
     )

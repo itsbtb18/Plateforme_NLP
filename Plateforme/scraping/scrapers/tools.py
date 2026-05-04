@@ -284,8 +284,11 @@ class ToolScraper(BaseScraper):
                     "translation_status": normalized.get(
                         "translation_status", "pending"
                     ),
+<<<<<<< HEAD
                     "relevance_score": normalized.get("relevance_score"),
                     "extraction_confidence": normalized.get("extraction_confidence"),
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 }
             )
 
@@ -339,8 +342,11 @@ class ToolScraper(BaseScraper):
             "access_link": access_link,
             "tool_type": self._map_tool_type(capabilities, description_en),
             "translation_status": translation_status,
+<<<<<<< HEAD
             "relevance_score": item.get("relevance_score"),
             "extraction_confidence": item.get("extraction_confidence"),
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         }
 
     @staticmethod

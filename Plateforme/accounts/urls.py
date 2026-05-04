@@ -8,6 +8,10 @@ from .views import (
     TrashBinView, trash_restore_item, trash_delete_item,
     ExperienceCreateView, ExperienceUpdateView, ExperienceDeleteView,
 )
+<<<<<<< HEAD
+=======
+from .cv_extraction_proxy import extract_cv_signup, transliterate_name_ar
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from .two_factor_views import (
     OTPVerificationView,
     ResendOTPView,
@@ -20,6 +24,11 @@ from .two_factor_views import (
 app_name = 'accounts'
 urlpatterns = [
     path('signup/', SignUp.as_view(), name='signup'),
+<<<<<<< HEAD
+=======
+    path('extract-cv/', extract_cv_signup, name='extract_cv_signup'),  # CV extraction proxy
+    path('transliterate-name-ar/', transliterate_name_ar, name='transliterate_name_ar'),
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     path('login/', LoginView.as_view(), name='account_login'),
     path('profile/<uuid:pk>/', ProfileView.as_view(), name='profile'),
     path('profile/<uuid:pk>/edit/', ProfileEditView.as_view(), name='profile-edit'),

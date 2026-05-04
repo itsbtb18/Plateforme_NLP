@@ -61,6 +61,7 @@ class LLMCourseExtractor:
 
     @staticmethod
     def _system_prompt() -> str:
+<<<<<<< HEAD
         return """You are an expert data extractor for a professional Arabic NLP research platform.
 Extract structured information about NLP/AI courses and training programs.
 
@@ -79,6 +80,10 @@ CRITICAL QUALITY RULES:
    - ONLY extract courses related to: NLP, computational linguistics, speech processing, AI/ML, language technology, data science.
    - REJECT: university admin pages, unrelated courses, fellowship applications, exam results.
    - Set is_arabic_nlp_relevant=false for irrelevant content.
+=======
+        return """You are an expert data extractor for an Arabic NLP research platform.
+Extract structured information about NLP/AI courses and training.
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 EXTRACTION RULES:
 1. Return ONLY valid JSON (no explanation, no markdown).
@@ -88,6 +93,7 @@ EXTRACTION RULES:
 5. title_en and description_en must be in English.
 6. title_ar and description_ar MUST be real Arabic translations.
 
+<<<<<<< HEAD
 ARABIC RULES:
 - Use Modern Standard Arabic.
 - NEVER copy English text into Arabic fields.
@@ -110,6 +116,28 @@ OUTPUT FORMAT:
     "extraction_confidence": 0.0 to 1.0
   }
 ]
+=======
+CRITICAL ARABIC RULES:
+- Use Modern Standard Arabic.
+- NEVER copy English text into Arabic fields.
+- Arabic fields must contain Arabic Unicode characters (U+0600-U+06FF).
+- Keep technical terms in English when needed.
+
+OUTPUT FORMAT:
+{
+  "title_en": "string or null",
+  "title_ar": "Arabic translation or null",
+  "description_en": "string or null",
+  "description_ar": "Arabic translation or null",
+  "platform": "string or null",
+  "level": "beginner|intermediate|advanced or null",
+  "price": "string or null",
+  "url": "https://... or null",
+  "is_arabic_nlp_relevant": true or false,
+  "relevance_score": 0.0 to 1.0,
+  "extraction_confidence": 0.0 to 1.0
+}
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 Return [] if no relevant courses are found.
 """
@@ -208,8 +236,11 @@ Return [] if no relevant courses are found.
             "price": price[:80],
             "url": url[:500],
             "translation_status": translation_status,
+<<<<<<< HEAD
             "relevance_score": item.get("relevance_score"),
             "extraction_confidence": item.get("extraction_confidence"),
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         }
 
     @staticmethod

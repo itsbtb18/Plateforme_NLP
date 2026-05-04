@@ -30,6 +30,10 @@ from app.schemas import (
     PlatformDocumentIngestResponse,
     WebSearchRequest,
     WebSearchResponse,
+<<<<<<< HEAD
+=======
+    CVExtractionResponse,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 )
 from app.services.chat_logic import get_chat_logic
 from app.services.memory import get_session_service
@@ -648,6 +652,85 @@ async def ask_pdf_question_legacy(
 
 
 # ==================================================================
+<<<<<<< HEAD
+=======
+# CV Extraction for Signup
+# ==================================================================
+
+
+@app.post("/extract-cv-signup/", response_model=CVExtractionResponse)
+async def extract_cv_signup(file: UploadFile = File(...)):
+    """
+    Extract CV information for signup auto-fill.
+    
+    Accepts PDF or DOCX files, extracts text, and structures with Groq.
+    
+    Args:
+        file: PDF or DOCX file upload
+        
+    Returns:
+        Structured CV data with firstName, lastName, bio, specialities, experiences
+    """
+    # Validate file type by extension and MIME type
+    allowed_extensions = {".pdf", ".docx"}
+    allowed_types = {
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+    }
+    
+    filename_lower = file.filename.lower() if file.filename else ""
+    file_ext = None
+    for ext in allowed_extensions:
+        if filename_lower.endswith(ext):
+            file_ext = ext
+            break
+    
+    # Check both extension and MIME type (extension is more reliable)
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type '{file_ext}'. Allowed: PDF, DOCX"
+        )
+    
+    if file.content_type and file.content_type not in allowed_types:
+        logger.warning(f"Unusual MIME type for {filename_lower}: {file.content_type}, but extension is valid")
+    
+    # Validate file size (max 20MB)
+    max_size = 20 * 1024 * 1024
+    file_content = await file.read()
+    if len(file_content) > max_size:
+        raise HTTPException(
+            status_code=413,
+            detail="File too large. Maximum size: 20MB"
+        )
+    
+    try:
+        logger.info(f"Starting CV extraction for file: {file.filename}")
+        from app.services.cv_extraction_service import get_cv_extraction_service
+        
+        service = get_cv_extraction_service()
+        result = service.process_cv_file(file_content, file.filename)
+        
+        logger.info(f"Successfully extracted CV from {file.filename}")
+        return CVExtractionResponse(**result)
+    
+    except ValueError as e:
+        logger.error(f"CV extraction failed: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to process CV: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during CV extraction: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to process CV. Please try again."
+        )
+
+
+# ==================================================================
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 # Root
 # ==================================================================
 
@@ -672,6 +755,10 @@ async def root():
             "document_status": "GET /document_status/{id}",
             "list_documents": "GET /documents/{session_id}",
             "ask_document": "POST /ask_document",
+<<<<<<< HEAD
+=======
+            "extract_cv_signup": "POST /extract-cv-signup/ (for signup auto-fill)",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             "create_session": "POST /sessions",
             "list_sessions": "GET /sessions?user_id=...",
             "session_history": "GET /sessions/{id}/history",

@@ -13,6 +13,9 @@ class Provider(ABC):
     @abstractmethod
     async def summarize(self, *, text: str, language: str, style: str, max_words: int | None) -> str:
         raise NotImplementedError
+<<<<<<< HEAD
     @abstractmethod
     async def chat(self, *, system_prompt: str, user_prompt: str, max_tokens: int = 2048) -> str:
         raise NotImplementedError
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e

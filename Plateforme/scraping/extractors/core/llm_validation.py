@@ -32,8 +32,11 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 
+<<<<<<< HEAD
 from scraping.api_key_manager import api_key_manager
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 logger = logging.getLogger(__name__)
 
 # ─── Constants ──────────────────────────────────────────────────────
@@ -62,7 +65,11 @@ EXPECTED_KEYS = {
 
 # ─── Prompt templates ──────────────────────────────────────────────
 SYSTEM_PROMPT = """\
+<<<<<<< HEAD
 You are an expert Arabic-NLP data-quality assistant for a professional research platform.
+=======
+You are an expert Arabic-NLP data-quality assistant.
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 You receive a scraped item (JSON) from the web and must validate, enrich,
 and translate it.  Always reply with a SINGLE JSON object — no markdown
 fences, no commentary.
@@ -70,6 +77,7 @@ fences, no commentary.
 ### Your tasks
 1. **Relevance**: Is this item relevant to Natural Language Processing, \
 Computational Linguistics, or Arabic language technology?  \
+<<<<<<< HEAD
 Set `is_relevant` (bool) and `relevance_reason` (1 sentence). \
 Items about university admin, scholarships, exam results, or unrelated \
 announcements are NOT relevant.
@@ -90,6 +98,18 @@ footer text, or raw HTML page content. Always rewrite into clean prose.
 6. **Arabic translation**: `title_ar`, `description_ar` — faithful \
 Arabic translations in Modern Standard Arabic.  If Arabic text already exists, \
 improve it if needed. Keep technical terms (NLP, BERT, etc.) in English.
+=======
+Set `is_relevant` (bool) and `relevance_reason` (1 sentence).
+2. **Language detection**: `detected_language` — ISO-639-1 code of the \
+*dominant* language of the input content (e.g. "en", "ar", "fr").
+3. **Quality score**: `quality_score` — integer 0-100.  \
+100 = perfect academic content; 0 = garbage / spam.
+4. **Spam detection**: `is_spam` (bool), `spam_reason` (string, empty if not spam).
+5. **English title & description**: `title_en`, `description_en` — \
+clean, well-formed English text.  Fix typos, remove ads, normalise casing.
+6. **Arabic translation**: `title_ar`, `description_ar` — faithful \
+Arabic translations.  If Arabic text already exists, improve it if needed.
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 7. **Date normalisation**: `normalized_dates` — an object whose keys are \
 the original date field names and values are ISO-8601 strings (YYYY-MM-DD) \
 or null if unparseable.
@@ -131,6 +151,7 @@ Validate, enrich, translate, and return the strict JSON schema.\
 
 CUSTOM_EXTRACTION_INSTRUCTIONS = {
     "events": (
+<<<<<<< HEAD
         "Extract event entries from this page. For each event, provide: "
         "a CLEAN event title (no site suffixes), a professional 2-3 sentence description "
         "(no navigation menus or boilerplate), url, date (ISO YYYY-MM-DD), "
@@ -176,6 +197,28 @@ CUSTOM_EXTRACTION_INSTRUCTIONS = {
         "institution name, opportunity type (Job/PhD/PostDoc/Grant), deadline (ISO YYYY-MM-DD), "
         "location, application url. "
         "ONLY include NLP/AI/language technology positions. Return [] if no relevant opportunities found."
+=======
+        "Extract event entries from this page. Include title, description, url, date, "
+        "location, event_type (conference/workshop/seminar/cfp), and organizer if visible."
+    ),
+    "tools": (
+        "Extract from this page: tool name, what it does, programming language, "
+        "github link if present, license, installation command if shown, "
+        "supported languages (arabic/english/etc)."
+    ),
+    "news": (
+        "Extract research/news entries from this page. Include title, summary, url, "
+        "publication date, and source name if visible."
+    ),
+    "courses": (
+        "Extract: course title, instructor name, institution, course level "
+        "(beginner/intermediate/advanced), language of instruction, duration, "
+        "whether it is free, platform name."
+    ),
+    "institutions": (
+        "Extract: institution full name, acronym, type (university/research lab/center), "
+        "country, city, website, main research areas, director name if shown."
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     ),
 }
 
@@ -189,10 +232,14 @@ def build_custom_extraction_prompt(category: str, page_text: str) -> tuple[str, 
     )
 
     system_prompt = (
+<<<<<<< HEAD
         "You are a strict extraction assistant for a professional Arabic NLP research platform. "
         "Extract ONLY the MAIN item described in the center of the page. IGNORE sidebars, footers, "
         "and 'Related items' lists. Write CLEAN, PROFESSIONAL titles and descriptions. "
         "NEVER include navigation menus, sidebars, login forms, or boilerplate content. "
+=======
+        "You are a strict extraction assistant for Arabic NLP curation. "
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         "Return only a valid JSON array. No markdown. No explanation."
     )
     user_prompt = f"""
@@ -204,6 +251,7 @@ Task:
 Output format:
 - Return ONLY a JSON array.
 - Each object may include any relevant fields, but always include:
+<<<<<<< HEAD
   - title or name (CLEAN — no site suffixes like "| Site Name")
   - description (or summary) — a professional 2-3 sentence summary, NOT raw page content
   - url (if available)
@@ -211,6 +259,14 @@ Output format:
 - If no relevant items are present, return [].
 - Do not invent facts.
 - Do NOT include navigation menus, login forms, or other boilerplate in any field.
+=======
+  - title or name
+  - description (or summary)
+  - url (if available)
+  - date (if available, ISO YYYY-MM-DD preferred)
+- If no items are present, return [].
+- Do not invent facts.
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 Webpage text:
 {page_text}
@@ -241,6 +297,7 @@ class GroqLLMClient:
             settings, "GROQ_SCRAPING_MAX_RETRIES", 2
         )
 
+<<<<<<< HEAD
         self.primary_provider = (
             str(getattr(settings, "SCRAPING_LLM_PRIMARY_PROVIDER", "gemini"))
             .strip()
@@ -256,10 +313,22 @@ class GroqLLMClient:
             .strip()
             .lower()
         )
+=======
+        self.primary_provider = str(
+            getattr(settings, "SCRAPING_LLM_PRIMARY_PROVIDER", "gemini")
+        ).strip().lower()
+        self.fallback_provider = str(
+            getattr(settings, "SCRAPING_LLM_FALLBACK_PROVIDER", "groq")
+        ).strip().lower()
+        self.mode = str(
+            getattr(settings, "SCRAPING_LLM_MODE", "primary_with_fallback")
+        ).strip().lower()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
         self.gemini_api_key = str(
             getattr(settings, "GEMINI_SCRAPING_API_KEY", "") or ""
         ).strip()
+<<<<<<< HEAD
         _gemini_model_setting = str(
             getattr(settings, "GEMINI_SCRAPING_MODEL", "gemini-2.0-flash")
             or "gemini-2.0-flash"
@@ -268,6 +337,12 @@ class GroqLLMClient:
             self.gemini_model = "gemini-2.0-flash"
         else:
             self.gemini_model = _gemini_model_setting
+=======
+        self.gemini_model = str(
+            getattr(settings, "GEMINI_SCRAPING_MODEL", "gemini-1.5-flash")
+            or "gemini-1.5-flash"
+        ).strip()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         self.gemini_timeout = max(
             1,
             min(int(getattr(settings, "GEMINI_SCRAPING_TIMEOUT", 30) or 30), 60),
@@ -290,6 +365,7 @@ class GroqLLMClient:
         )
 
         self._session = requests.Session()
+<<<<<<< HEAD
         self.last_status_code = None
         self.last_error_message = ""
         self.last_provider_used = ""
@@ -305,6 +381,63 @@ class GroqLLMClient:
     @property
     def is_configured(self) -> bool:
         return bool(api_key_manager.get_current_key("groq") or api_key_manager.get_current_key("gemini"))
+=======
+        self.last_status_code: int | None = None
+        self.last_error_message: str = ""
+        self.last_provider_used: str = ""
+
+        # ── Groq API key rotation pool ──
+        _groq_candidates = [
+            str(getattr(settings, "GROQ_SCRAPING_API_KEY", "") or os.environ.get("GROQ_SCRAPING_API_KEY", "")).strip(),
+            str(getattr(settings, "GROQ_INTERNAL_API_KEY", "") or os.environ.get("GROQ_INTERNAL_API_KEY", "")).strip(),
+            str(getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")).strip(),
+        ]
+        self._groq_key_pool = [k for k in dict.fromkeys(_groq_candidates) if k]
+        self._groq_key_index = 0
+        if self._groq_key_pool:
+            logger.info("Groq key pool initialized with %d key(s)", len(self._groq_key_pool))
+            
+        # ── Gemini API key rotation pool ──
+        _gem_candidates = [
+            str(getattr(settings, "GEMINI_SCRAPING_API_KEY", "") or os.environ.get("GEMINI_SCRAPING_API_KEY", "")).strip(),
+            str(getattr(settings, "GEMINI_INTERNAL_API_KEY", "") or os.environ.get("GEMINI_INTERNAL_API_KEY", "")).strip(),
+            str(getattr(settings, "GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")).strip(),
+        ]
+        self._gemini_key_pool = [k for k in dict.fromkeys(_gem_candidates) if k]
+        self._gemini_key_index = 0
+        if self._gemini_key_pool:
+            logger.info("Gemini key pool initialized with %d key(s)", len(self._gemini_key_pool))
+
+    def _next_groq_key(self) -> str:
+        """Return the next API key from the rotation pool."""
+        if not self._groq_key_pool:
+            return self.api_key or ""
+        key = self._groq_key_pool[self._groq_key_index % len(self._groq_key_pool)]
+        self._groq_key_index += 1
+        return key
+
+    def _next_gemini_key(self) -> str:
+        """Return the next Gemini key from the pool."""
+        if not self._gemini_key_pool:
+            return self.gemini_api_key or ""
+        key = self._gemini_key_pool[self._gemini_key_index % len(self._gemini_key_pool)]
+        self._gemini_key_index += 1
+        return key
+
+    @property
+    def is_configured(self) -> bool:
+        return self._is_provider_configured(self.primary_provider) or self._is_provider_configured(
+            self.fallback_provider
+        )
+
+    def _is_provider_configured(self, provider: str) -> bool:
+        normalized = (provider or "").strip().lower()
+        if normalized == "gemini":
+            return bool(self.gemini_api_key or self._gemini_key_pool)
+        if normalized == "groq":
+            return bool(self.api_key or self._groq_key_pool)
+        return False
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     @staticmethod
     def _is_retryable_status(status_code: int | None) -> bool:
@@ -312,6 +445,7 @@ class GroqLLMClient:
             return True
         return status_code in {408, 409, 413, 429, 500, 502, 503, 504}
 
+<<<<<<< HEAD
     def _gemini_models_to_try(self) -> list[str]:
         configured = [self.gemini_model]
         fallback_csv = str(
@@ -327,6 +461,81 @@ class GroqLLMClient:
         return models
 
     def _chat_with_groq(self, system: str, user: str) -> str | None:
+=======
+    @staticmethod
+    def _key_fingerprint(api_key: str) -> str:
+        token = str(api_key or "").strip()
+        if not token:
+            return "no-key"
+        return sha1(token.encode("utf-8")).hexdigest()[:10]
+
+    @staticmethod
+    def _cache_incr_with_ttl(key: str, ttl_seconds: int) -> int:
+        value = cache.get(key)
+        if value is None:
+            cache.set(key, 1, timeout=max(1, int(ttl_seconds)))
+            return 1
+        try:
+            return int(cache.incr(key))
+        except ValueError:
+            cache.set(key, 1, timeout=max(1, int(ttl_seconds)))
+            return 1
+
+    @staticmethod
+    def _pacific_day_key() -> str:
+        return datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y%m%d")
+
+    def _respect_gemini_rate_limit_for_key(self, api_key: str) -> None:
+        key_fp = self._key_fingerprint(api_key)
+        model = self.gemini_model
+
+        cooldown_key = f"scraping:llm:gemini:cooldown:{model}:{key_fp}"
+        cooldown_until = float(cache.get(cooldown_key) or 0.0)
+        now = time.time()
+        if cooldown_until > now:
+            sleep_for = max(0.1, cooldown_until - now)
+            logger.info("Gemini cooldown sleep=%.2fs key=%s", sleep_for, key_fp)
+            time.sleep(sleep_for)
+
+        if self.gemini_max_rpd > 0:
+            day_key = self._pacific_day_key()
+            daily_counter_key = f"scraping:llm:gemini:rpd:{model}:{key_fp}:{day_key}"
+            daily_value = int(cache.get(daily_counter_key) or 0)
+            if daily_value >= self.gemini_max_rpd:
+                now_pt = datetime.now(ZoneInfo("America/Los_Angeles"))
+                midnight_pt = now_pt.replace(hour=23, minute=59, second=59, microsecond=0)
+                cooldown = max(60, int((midnight_pt - now_pt).total_seconds()))
+                cache.set(cooldown_key, time.time() + cooldown, timeout=cooldown)
+                self.last_status_code = 429
+                self.last_error_message = "gemini_rpd_quota_exhausted"
+                raise RuntimeError("gemini_rpd_quota_exhausted")
+
+            self._cache_incr_with_ttl(daily_counter_key, ttl_seconds=60 * 60 * 30)
+
+        minute_bucket = int(time.time() // 60)
+        rpm_key = f"scraping:llm:gemini:rpm:{model}:{key_fp}:{minute_bucket}"
+        rpm_value = int(cache.get(rpm_key) or 0)
+        if rpm_value >= self.gemini_max_rpm:
+            sleep_for = max(0.1, ((minute_bucket + 1) * 60) - time.time() + 0.05)
+            logger.info(
+                "Gemini preemptive RPM sleep=%.2fs model=%s key=%s",
+                sleep_for,
+                model,
+                key_fp,
+            )
+            time.sleep(sleep_for)
+            minute_bucket = int(time.time() // 60)
+            rpm_key = f"scraping:llm:gemini:rpm:{model}:{key_fp}:{minute_bucket}"
+
+        self._cache_incr_with_ttl(rpm_key, ttl_seconds=125)
+
+    def _chat_with_groq(self, system: str, user: str) -> str | None:
+        if not self.api_key and not self._groq_key_pool:
+            self.last_error_message = "groq_not_configured"
+            self.last_status_code = None
+            return None
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         payload = {
             "model": self.model,
             "messages": [
@@ -336,6 +545,7 @@ class GroqLLMClient:
             "temperature": 0.15,
             "max_tokens": 1200,
         }
+<<<<<<< HEAD
         
         # FIX B: 2s delay before every call
 
@@ -352,6 +562,14 @@ class GroqLLMClient:
             if not current_key:
                 break
                 
+=======
+
+        # Try each key in the pool. On 429, rotate to the next key instantly.
+        num_keys = max(len(self._groq_key_pool), 1)
+        max_attempts = num_keys + 1  # Try all keys + one retry on the first
+        for attempt in range(max_attempts):
+            current_key = self._next_groq_key()
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             headers = {
                 "Authorization": f"Bearer {current_key}",
                 "Content-Type": "application/json",
@@ -371,6 +589,7 @@ class GroqLLMClient:
             except requests.Timeout:
                 self.last_error_message = "timeout"
                 self.last_status_code = 408
+<<<<<<< HEAD
                 break
             except requests.RequestException as exc:
                 status_code = getattr(exc.response, "status_code", 0) if exc.response else 0
@@ -451,6 +670,158 @@ class GroqLLMClient:
                     break
                 except (KeyError, IndexError, TypeError):
                     break
+=======
+                logger.info("Groq API timeout after %ds", self.timeout)
+                break
+            except requests.RequestException as exc:
+                response = getattr(exc, "response", None)
+                status_code = getattr(response, "status_code", None)
+                if isinstance(status_code, int):
+                    self.last_status_code = status_code
+                self.last_error_message = str(exc)
+
+                if status_code == 429:
+                    key_hint = current_key[-6:] if len(current_key) > 6 else "***"
+                    logger.info(
+                        "Groq 429 on key ...%s, rotating to next key (attempt %d/%d)",
+                        key_hint, attempt + 1, max_attempts,
+                    )
+                    continue  # Try the next key immediately, no sleep
+                elif status_code == 413:
+                    logger.info("Groq API payload too large.")
+                else:
+                    logger.warning("Groq API request failed: %s", exc)
+            except (KeyError, IndexError):
+                self.last_error_message = "Unexpected Groq response structure"
+                logger.warning("Unexpected Groq response structure")
+
+            break
+
+        return None
+
+    def _chat_with_gemini(self, system: str, user: str) -> str | None:
+        if not self.gemini_api_key and not self._gemini_key_pool:
+            self.last_error_message = "gemini_not_configured"
+            self.last_status_code = None
+            return None
+
+        combined_prompt = (
+            "System instructions:\n"
+            f"{system}\n\n"
+            "User request:\n"
+            f"{user}"
+        )
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": combined_prompt}],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.15,
+                "maxOutputTokens": 1200,
+            },
+        }
+
+        num_keys = max(len(self._gemini_key_pool), 1)
+        max_attempts = max(num_keys + 1, self.gemini_max_retries + 1)
+
+        for attempt in range(max_attempts):
+            current_key = self._next_gemini_key()
+            try:
+                self._respect_gemini_rate_limit_for_key(current_key)
+            except RuntimeError:
+                continue
+
+            url = GEMINI_CHAT_URL_TEMPLATE.format(
+                model=quote_plus(self.gemini_model),
+                api_key=quote_plus(current_key),
+            )
+
+            try:
+                resp = self._session.post(
+                    url,
+                    headers={"Content-Type": "application/json"},
+                    json=payload,
+                    timeout=self.gemini_timeout,
+                )
+                self.last_status_code = int(resp.status_code)
+                resp.raise_for_status()
+                data = resp.json()
+
+                candidates = data.get("candidates") or []
+                if not candidates:
+                    self.last_error_message = "gemini_no_candidates"
+                    return None
+
+                content = candidates[0].get("content") or {}
+                parts = content.get("parts") or []
+                if not parts:
+                    self.last_error_message = "gemini_empty_parts"
+                    return None
+
+                text = parts[0].get("text")
+                if not isinstance(text, str) or not text.strip():
+                    self.last_error_message = "gemini_empty_text"
+                    return None
+
+                self.last_provider_used = "gemini"
+                return text
+            except requests.Timeout:
+                self.last_status_code = 408
+                self.last_error_message = "timeout"
+                logger.info("Gemini API timeout after %ds", self.gemini_timeout)
+                break
+            except requests.RequestException as exc:
+                response = getattr(exc, "response", None)
+                status_code = getattr(response, "status_code", None)
+                if isinstance(status_code, int):
+                    self.last_status_code = status_code
+                self.last_error_message = str(exc)
+
+                if status_code == 429:
+                    key_hint = current_key[-6:] if len(current_key) > 6 else "***"
+                    retry_after = 0.0
+                    if response is not None:
+                        try:
+                            retry_after = float(response.headers.get("Retry-After") or 0.0)
+                        except (TypeError, ValueError):
+                            retry_after = 0.0
+
+                    cooldown = max(self.gemini_429_cooldown_seconds, retry_after)
+                    cooldown_key = (
+                        f"scraping:llm:gemini:cooldown:{self.gemini_model}:"
+                        f"{self._key_fingerprint(current_key)}"
+                    )
+                    cache.set(
+                        cooldown_key,
+                        time.time() + cooldown,
+                        timeout=int(max(1.0, cooldown + 5.0)),
+                    )
+                    logger.info(
+                        "Gemini 429 on key ...%s, cooldown=%.1fs, rotating (attempt %d/%d)",
+                        key_hint,
+                        cooldown,
+                        attempt + 1,
+                        max_attempts,
+                    )
+                    continue
+                else:
+                    logger.warning("Gemini API request failed: %s", exc)
+            except (KeyError, IndexError, TypeError, ValueError):
+                self.last_error_message = "Unexpected Gemini response structure"
+                logger.warning("Unexpected Gemini response structure")
+
+            if attempt < max_attempts - 1 and self._is_retryable_status(
+                self.last_status_code
+            ):
+                time.sleep(0.5 * (attempt + 1))
+                continue
+
+            break
+
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         return None
 
     def _call_provider(self, provider: str, system: str, user: str) -> str | None:
@@ -465,6 +836,7 @@ class GroqLLMClient:
 
     # ── Core chat call ──────────────────────────────────────────────
     def _chat(self, system: str, user: str) -> str | None:
+<<<<<<< HEAD
         """Send a chat completion request via the global TS service scheduler.
         Falls back to local direct API calls if the service is unavailable.
         """
@@ -501,6 +873,44 @@ class GroqLLMClient:
         else:
             # Try Primary only
             return self._call_provider(self.primary_provider, system, user)
+=======
+        """Send a chat completion request using configured routing policy."""
+        if not self.is_configured:
+            return None
+
+        self.last_status_code = None
+        self.last_error_message = ""
+
+        if self.mode == "fallback_only":
+            return self._call_provider(self.fallback_provider, system, user)
+
+        primary_response = self._call_provider(self.primary_provider, system, user)
+        if primary_response:
+            return primary_response
+
+        if self.mode == "primary_only":
+            return None
+
+        if self.mode != "primary_with_fallback":
+            return None
+
+        if not self._is_retryable_status(self.last_status_code):
+            return None
+
+        if self.fallback_provider == self.primary_provider:
+            return None
+
+        if not self._is_provider_configured(self.fallback_provider):
+            return None
+
+        logger.info(
+            "scraping_llm_fallback from=%s to=%s status=%s",
+            self.primary_provider,
+            self.fallback_provider,
+            self.last_status_code,
+        )
+        return self._call_provider(self.fallback_provider, system, user)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 
 # ─── JSON parsing helpers ──────────────────────────────────────────

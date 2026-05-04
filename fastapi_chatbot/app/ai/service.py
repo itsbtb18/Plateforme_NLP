@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 import httpx
+=======
+from __future__ import annotations
+
+import asyncio
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from typing import Any
 
 from app.ai.cache import get_ai_cache
@@ -8,7 +14,10 @@ from app.ai.model_router import get_model_router
 from app.ai.quality import get_quality_service
 from app.ai.rag import get_rag_service
 from app.ai.storage import get_object_storage
+<<<<<<< HEAD
 from app.config import get_settings
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 
 class AIPipelineService:
@@ -20,6 +29,7 @@ class AIPipelineService:
         self.rag = get_rag_service()
         self.quality = get_quality_service()
         self.storage = get_object_storage()
+<<<<<<< HEAD
         self.settings = get_settings()
 
     async def _call_ts_service(self, endpoint: str, payload: dict) -> dict:
@@ -37,6 +47,8 @@ class AIPipelineService:
                 raise RuntimeError(f"TS service error: {exc.response.text}")
             except Exception as exc:
                 raise RuntimeError(f"Failed to reach TS service: {exc}")
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     @staticmethod
     def _low_confidence(text: str) -> bool:
@@ -111,6 +123,7 @@ class AIPipelineService:
             if cached:
                 return str(cached["text"])
 
+<<<<<<< HEAD
             try:
                 # Primary: Funnel through global scheduler
                 ts_resp = await self._call_ts_service(
@@ -137,13 +150,29 @@ class AIPipelineService:
                     ),
                 )
             
+=======
+            translated, provider_name = await self._run_with_fallback(
+                chain=chain,
+                call=lambda provider: provider.translate(
+                    text=chunk_text,
+                    source_language=cir.source_language,
+                    target_language=target_language,
+                    glossary=glossary,
+                    preserve_named_entities=payload.get("preserve_named_entities", True),
+                ),
+            )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             chosen_provider_name_holder["name"] = provider_name
             self.cache.set_json("translation", cache_key, {"text": translated}, ttl=60 * 60 * 24 * 7)
             return translated
 
+<<<<<<< HEAD
         translated_chunks = []
         for chunk in chunks:
             translated_chunks.append(await translate_chunk(chunk.text))
+=======
+        translated_chunks = await asyncio.gather(*(translate_chunk(chunk.text) for chunk in chunks))
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         translated_text = "\n\n".join(translated_chunks)
         quality = self.quality.translation_quality(
             source_text="\n".join(b.text for b in cir.structural_blocks),
@@ -161,7 +190,11 @@ class AIPipelineService:
             "quality": quality,
             "metadata": {
                 "chunk_count": len(chunks),
+<<<<<<< HEAD
                 "strategy": "sequential-structure-aware",
+=======
+                "strategy": "parallel-structure-aware",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 "estimated_cost_usd": sum(d.estimated_cost_usd for _, d in chain),
                 "estimated_latency_ms": min(d.estimated_latency_ms for _, d in chain),
             },
@@ -200,6 +233,7 @@ class AIPipelineService:
         total_tokens = sum(c.token_count for c in chunks)
         if total_tokens <= 1200:
             strategy = "single-pass"
+<<<<<<< HEAD
             try:
                 ts_resp = await self._call_ts_service(
                     "/summarize",
@@ -224,10 +258,23 @@ class AIPipelineService:
                         context_snippets=self.rag.retrieve(" ".join(c.text[:120] for c in chunks[:2]), limit=4),
                     ),
                 )
+=======
+            summary, chosen_provider_name = await self._run_with_fallback(
+                chain=chain,
+                call=lambda provider: provider.summarize(
+                    text="\n\n".join(c.text for c in chunks),
+                    language=cir.source_language,
+                    style=style,
+                    max_words=payload.get("max_words"),
+                    context_snippets=self.rag.retrieve(" ".join(c.text[:120] for c in chunks[:2]), limit=4),
+                ),
+            )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         elif total_tokens <= 7000:
             strategy = "map-reduce"
             mapped = []
             for c in chunks:
+<<<<<<< HEAD
                 try:
                     ts_resp = await self._call_ts_service(
                         "/summarize",
@@ -278,6 +325,29 @@ class AIPipelineService:
                         context_snippets=self.rag.retrieve(" ".join(mapped[:3]), limit=5),
                     ),
                 )
+=======
+                mapped_piece, chosen_provider_name = await self._run_with_fallback(
+                    chain=chain,
+                    call=lambda provider, chunk=c: provider.summarize(
+                        text=chunk.text,
+                        language=cir.source_language,
+                        style="brief",
+                        max_words=220,
+                        context_snippets=None,
+                    ),
+                )
+                mapped.append(mapped_piece)
+            summary, chosen_provider_name = await self._run_with_fallback(
+                chain=chain,
+                call=lambda provider: provider.summarize(
+                    text="\n\n".join(mapped),
+                    language=cir.source_language,
+                    style=style,
+                    max_words=payload.get("max_words"),
+                    context_snippets=self.rag.retrieve(" ".join(mapped[:3]), limit=5),
+                ),
+            )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         else:
             strategy = "hierarchical"
             section_buckets: dict[str, list[str]] = {}

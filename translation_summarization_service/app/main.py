@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
 import asyncio
 import re
 import traceback
+=======
+import re
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+<<<<<<< HEAD
 from app.schemas import ChatRequest, SummarizeRequest, TaskResponse, TranslateRequest
+=======
+from app.schemas import SummarizeRequest, TaskResponse, TranslateRequest
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 from app.service import TranslationSummarizationService
 
 app = FastAPI(title="Translation & Summarization Service", version="1.0.0")
@@ -35,12 +43,15 @@ def _service_error_to_http(exc: Exception) -> None:
     message = str(exc or "").strip() or "Translation/Summarization provider failed"
     lowered = message.lower()
 
+<<<<<<< HEAD
     if "queue" in lowered and "too many" in lowered:
         raise HTTPException(
             status_code=429,
             detail="Too many tasks in queue. Please wait for previous tasks to finish before adding more.",
         )
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     if "429" in lowered or "rate limit" in lowered or "too many requests" in lowered:
         retry_after_match = re.search(r"(?:retry after|try again in|waiting)\s*(\d+(?:\.\d+)?)", message, flags=re.IGNORECASE)
         retry_hint = ""
@@ -49,7 +60,11 @@ def _service_error_to_http(exc: Exception) -> None:
             retry_hint = f" Please retry after {retry_seconds}s."
         raise HTTPException(
             status_code=429,
+<<<<<<< HEAD
             detail=f"AI provider rate limit reached.{retry_hint} Please wait a moment and retry.",
+=======
+            detail=f"AI provider rate limit reached.{retry_hint}",
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         )
 
     if "api key" in lowered or "unauthorized" in lowered or "forbidden" in lowered:
@@ -58,8 +73,11 @@ def _service_error_to_http(exc: Exception) -> None:
             detail="AI provider authentication failed. Check provider API keys.",
         )
 
+<<<<<<< HEAD
     print(f"TS_DEBUG: _service_error_to_http caught: {message}")
     traceback.print_exc()
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     raise HTTPException(status_code=502, detail=message)
 
 
@@ -80,7 +98,10 @@ async def translate(req: TranslateRequest, x_ts_api_key: str | None = Header(def
             text=req.text,
             source_language=req.source_language,
             target_language=req.target_language,
+<<<<<<< HEAD
             user_id=req.user_id,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         )
     except Exception as exc:
         _service_error_to_http(exc)
@@ -96,6 +117,7 @@ async def translate(req: TranslateRequest, x_ts_api_key: str | None = Header(def
 async def summarize(req: SummarizeRequest, x_ts_api_key: str | None = Header(default=None)) -> TaskResponse:
     _authorize(x_ts_api_key)
     try:
+<<<<<<< HEAD
         hard_timeout = max(8.0, float(getattr(settings, "TS_SUMMARIZE_HTTP_HARD_TIMEOUT_SECONDS", 20.0)))
         output, provider_used, fallback_used = await asyncio.wait_for(
             svc.summarize(
@@ -115,6 +137,14 @@ async def summarize(req: SummarizeRequest, x_ts_api_key: str | None = Header(def
         output = local_output or prepared[:1000]
         provider_used = "local-timeout"
         fallback_used = True
+=======
+        output, provider_used, fallback_used = await svc.summarize(
+            text=req.text,
+            language=req.language,
+            style=req.style,
+            max_words=req.max_words,
+        )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     except Exception as exc:
         _service_error_to_http(exc)
     return TaskResponse(
@@ -123,6 +153,7 @@ async def summarize(req: SummarizeRequest, x_ts_api_key: str | None = Header(def
         provider_used=provider_used,
         fallback_used=fallback_used,
     )
+<<<<<<< HEAD
 
 
 @app.post("/chat", response_model=TaskResponse)
@@ -143,3 +174,5 @@ async def chat(req: ChatRequest, x_ts_api_key: str | None = Header(default=None)
         provider_used=provider_used,
         fallback_used=fallback_used,
     )
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+<<<<<<< HEAD
 {% load i18n static %}
 
 {% block title %}{{ publication.title }} | {% if LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار{% else %}News{% endif %}{% endblock %}
@@ -1017,4 +1018,98 @@ html[dir="rtl"] .pd-link-card {
 </script>
 {% include "components/document_viewer_modal.html" %}
 {% include "partials/ts_widget.html" %}
+=======
+{% load i18n %}
+{% block title %}{{ publication.title }}{% endblock %}
+
+{% block content %}
+<style>
+.pub-detail-shell{padding:1.25rem 0 2rem}
+.pub-detail-card{background:#fff;border:1px solid #e2e8f0;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,.06)}
+.pub-detail-hero{display:grid;grid-template-columns:360px 1fr;gap:0;background:linear-gradient(135deg,#f4f2ff,#f8fbff 55%,#eefaf7)}
+.pub-detail-cover{min-height:100%;display:flex;align-items:center;justify-content:center;padding:1rem}
+.pub-detail-cover img{width:100%;height:100%;max-height:360px;object-fit:cover;border-radius:22px}
+.pub-detail-info{padding:1.5rem}
+.pub-detail-type{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:999px;color:#fff;font-weight:800}
+.pub-detail-title{margin:.9rem 0 .7rem;font-size:2rem;font-weight:900;color:#0f172a}
+.pub-detail-meta{color:#475569;line-height:1.8}
+.pub-detail-section{padding:1.4rem 1.5rem;border-top:1px solid #e2e8f0}
+.pub-detail-section h2{margin:0 0 .8rem;font-size:1.15rem;font-weight:800;color:#0f172a}
+.pub-detail-text{color:#334155;line-height:1.75}
+.pub-detail-tags{display:flex;flex-wrap:wrap;gap:.5rem}
+.pub-detail-tag{background:#e6fffa;color:#116149;border-radius:999px;padding:.38rem .72rem;font-size:.82rem;font-weight:700}
+.pub-link-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem}
+.pub-link-card{display:flex;align-items:center;gap:.65rem;padding:1rem;border-radius:18px;border:1px solid #dbe4ff;background:#f8fbff;color:#0f172a;text-decoration:none;font-weight:700}
+@media (max-width:900px){.pub-detail-hero{grid-template-columns:1fr}}
+</style>
+
+<div class="pub-detail-shell">
+  <div class="pub-detail-card">
+    <div class="pub-detail-hero">
+      <div class="pub-detail-cover">
+        {% if publication.cover_image %}
+        <img src="{{ publication.cover_image.url }}" alt="{{ publication.title }}">
+        {% else %}
+        <i class="fas {{ publication.type_icon }}" style="font-size:4rem;color:{{ publication.type_color }}"></i>
+        {% endif %}
+      </div>
+      <div class="pub-detail-info">
+        <span class="pub-detail-type" style="background:{{ publication.type_color }}">
+          <i class="fas {{ publication.type_icon }}"></i>
+          {{ publication.get_type_display }}
+        </span>
+        <h1 class="pub-detail-title">{{ publication.title }}</h1>
+        <div class="pub-detail-meta">
+          <div><strong>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المؤلفون{% else %}Authors{% endif %}:</strong> {{ publication.authors_display|default:"-" }}</div>
+          <div><strong>{% if LANGUAGE_CODE|slice:":2" == "ar" %}السنة{% else %}Year{% endif %}:</strong> {{ publication.year }}</div>
+          {% if publication.venue %}<div><strong>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الجهة / المؤتمر{% else %}Venue{% endif %}:</strong> {{ publication.venue }}</div>{% endif %}
+          {% if publication.affiliations %}<div><strong>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الانتماءات{% else %}Affiliations{% endif %}:</strong> {{ publication.affiliations }}</div>{% endif %}
+          {% if publication.doi %}<div><strong>DOI:</strong> {{ publication.doi }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <section class="pub-detail-section">
+      <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الملخص{% else %}Abstract{% endif %}</h2>
+      <div class="pub-detail-text">{{ publication.abstract|linebreaks }}</div>
+    </section>
+
+    <section class="pub-detail-section">
+      <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مهام NLP واللغات{% else %}NLP Tasks & Languages{% endif %}</h2>
+      <div class="pub-detail-tags" style="margin-bottom:.8rem">
+        {% for task in publication.nlp_tasks %}
+        <span class="pub-detail-tag">{{ task }}</span>
+        {% endfor %}
+      </div>
+      <div class="pub-detail-tags">
+        {% for language in publication.languages %}
+        <span class="pub-detail-tag">{{ language }}</span>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if publication.keywords %}
+    <section class="pub-detail-section">
+      <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</h2>
+      <div class="pub-detail-tags">
+        {% for keyword in publication.keywords %}
+        <span class="pub-detail-tag">{{ keyword }}</span>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="pub-detail-section">
+      <h2>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الروابط والملفات{% else %}Links & Files{% endif %}</h2>
+      <div class="pub-link-grid">
+        {% if publication.pdf_url %}<a class="pub-link-card" href="{{ publication.pdf_url }}" target="_blank" rel="noopener"><i class="fas fa-file-pdf" style="color:#534AB7"></i><span>PDF / arXiv</span></a>{% endif %}
+        {% if publication.pdf_file %}<a class="pub-link-card" href="{{ publication.pdf_file.url }}" target="_blank" rel="noopener"><i class="fas fa-download" style="color:#534AB7"></i><span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تحميل PDF{% else %}Download PDF{% endif %}</span></a>{% endif %}
+        {% if publication.github_url %}<a class="pub-link-card" href="{{ publication.github_url }}" target="_blank" rel="noopener"><i class="fab fa-github" style="color:#534AB7"></i><span>GitHub</span></a>{% endif %}
+        {% if publication.dataset_url %}<a class="pub-link-card" href="{{ publication.dataset_url }}" target="_blank" rel="noopener"><i class="fas fa-database" style="color:#534AB7"></i><span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}البيانات / HuggingFace{% else %}Dataset / HuggingFace{% endif %}</span></a>{% endif %}
+        {% if publication.demo_url %}<a class="pub-link-card" href="{{ publication.demo_url }}" target="_blank" rel="noopener"><i class="fas fa-laptop-code" style="color:#534AB7"></i><span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العرض التجريبي{% else %}Demo{% endif %}</span></a>{% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 {% endblock %}

@@ -117,11 +117,18 @@ class QueryRouter:
         result = RoutingResult()
 
         logger.info(
+<<<<<<< HEAD
             "Routing: intent=%s lang=%s confidence=%.2f mode=%s",
             intent,
             lang,
             classification.confidence,
             mode,
+=======
+            "Routing: intent=%s lang=%s confidence=%.2f",
+            intent,
+            lang,
+            classification.confidence,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         )
 
         # ----- Phase 3: Strict LLM-direct mode -----
@@ -138,7 +145,10 @@ class QueryRouter:
                     lang,
                     collections=["nlp_knowledge", "platform_docs"],
                     top_k=settings.TOP_K_RESULTS,
+<<<<<<< HEAD
                     mode=mode,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 )
                 result.retrieved_docs = docs
                 result.primary_source = src if docs else "none"
@@ -224,7 +234,10 @@ class QueryRouter:
                 lang,
                 collections=collections,
                 top_k=settings.TOP_K_RESULTS,
+<<<<<<< HEAD
                 mode=mode,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             )
             result.retrieved_docs = docs
             result.primary_source = src
@@ -258,15 +271,22 @@ class QueryRouter:
         # ----- platform_query → type-filtered search -----
         if intent == "platform_query":
             res_type = classification.detected_resource_type
+<<<<<<< HEAD
             search_keyword = self._extract_search_term(question, res_type)
             logger.info("Platform Query Routing: keyword='%s' type=%s", search_keyword, res_type)
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
             if res_type:
                 # Type-specific search — only return the requested type
                 if res_type == "author":
                     platform = await self.platform_qs.search_authors(
                         db=db,
+<<<<<<< HEAD
                         keyword=search_keyword,
+=======
+                        keyword=None,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                         limit=10,
                     )
                 else:
@@ -293,14 +313,22 @@ class QueryRouter:
                         # Forum has no ES index — go straight to PostgreSQL
                         platform = await self.platform_qs.search_by_type(
                             db=db,
+<<<<<<< HEAD
                             keyword=search_keyword,
+=======
+                            keyword=question,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                             resource_type=res_type,
                             limit=10,
                         )
                     else:
                         try:
                             platform = await self.es_service.search(
+<<<<<<< HEAD
                                 search_keyword,
+=======
+                                question,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                                 indices=indices,
                                 total_limit=10,
                             )
@@ -311,6 +339,7 @@ class QueryRouter:
                             )
                             platform = await self.platform_qs.search_by_type(
                                 db=db,
+<<<<<<< HEAD
                                 keyword=search_keyword,
                                 resource_type=res_type,
                                 limit=10,
@@ -343,11 +372,21 @@ class QueryRouter:
                                 keyword=search_keyword,
                                 limit=10,
                             )
+=======
+                                keyword=question,
+                                resource_type=res_type,
+                                limit=10,
+                            )
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             else:
                 # No specific type detected — broad search
                 try:
                     platform = await self.es_service.search(
+<<<<<<< HEAD
                         search_keyword,
+=======
+                        question,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                         total_limit=10,
                     )
                 except Exception:
@@ -356,6 +395,7 @@ class QueryRouter:
                     )
                     platform = await self.platform_qs.unified_search(
                         db=db,
+<<<<<<< HEAD
                         keyword=search_keyword,
                         limit=10,
                     )
@@ -374,6 +414,16 @@ class QueryRouter:
                 result.primary_source = "platform"
             else:
                 logger.info("Platform Search: No cards found for keyword '%s'", search_keyword)
+=======
+                        keyword=question,
+                        limit=10,
+                    )
+
+            if platform:
+                result.platform_results = platform
+                result.primary_source = "platform"
+            else:
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 # Tell the LLM explicitly that the platform has no matching data
                 type_label = res_type or "content"
                 result.platform_results = [
@@ -391,21 +441,30 @@ class QueryRouter:
             # Keep platform_query responses clean: do not attach semantic NLP docs
             # when platform cards are already returned, to avoid mixed/confusing sources.
             if not platform:
+<<<<<<< HEAD
                 logger.info("Platform Search: Falling back to semantic doc retrieval (platform_docs/nlp_knowledge)")
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
                 docs, _ = await self._semantic_targeted(
                     question,
                     db,
                     lang,
                     collections=["platform_docs", "nlp_knowledge"],
                     top_k=3,
+<<<<<<< HEAD
                     mode=mode,
                 )
                 result.retrieved_docs = docs
                 logger.info("Platform Document Fallback: retrieved %d docs", len(docs))
+=======
+                )
+                result.retrieved_docs = docs
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             return result
 
         # ----- legal_query → Qdrant (law filter + same-language priority) -----
         if intent == "legal_query":
+<<<<<<< HEAD
             # If we are in Platform Guide mode, refuse to search legal documents
             if self._is_legal_forbidden(mode):
                 result.skip_retrieval = True
@@ -416,6 +475,8 @@ class QueryRouter:
                 }]
                 return result
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             docs = await search_legal_documents(
                 query=question,
                 db=db,
@@ -470,7 +531,10 @@ class QueryRouter:
                 lang,
                 collections=["nlp_knowledge", "platform_docs"],
                 top_k=settings.TOP_K_RESULTS,
+<<<<<<< HEAD
                 mode=mode,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             )
             result.retrieved_docs = docs
             result.primary_source = src if docs else LLM_SOURCE_LABEL
@@ -497,7 +561,10 @@ class QueryRouter:
             lang,
             user_country=user_country,
             user_city=user_city,
+<<<<<<< HEAD
             mode=mode,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         )
         result.retrieved_docs = docs
         result.primary_source = src
@@ -507,6 +574,7 @@ class QueryRouter:
     # Internal retrieval strategies
     # ------------------------------------------------------------------
 
+<<<<<<< HEAD
     async def _extract_semantic_cards(
         self,
         question: str,
@@ -594,6 +662,8 @@ class QueryRouter:
     # Internal retrieval strategies
     # ------------------------------------------------------------------
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     @staticmethod
     def _is_identity_question(question: str) -> bool:
         """Return True if the question is purely about the user's identity
@@ -705,16 +775,25 @@ class QueryRouter:
         *,
         user_country: Optional[str] = None,
         user_city: Optional[str] = None,
+<<<<<<< HEAD
         mode: Optional[str] = None,
     ) -> tuple[List[Dict], str]:
         """Search across all Qdrant collections (hybrid_search)."""
         include_legal = not self._is_legal_forbidden(mode)
+=======
+    ) -> tuple[List[Dict], str]:
+        """Search across all Qdrant collections (hybrid_search)."""
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         return await hybrid_search(
             query=question,
             db=db,
             user_country=user_country,
             user_city=user_city,
+<<<<<<< HEAD
             include_legal=include_legal,
+=======
+            include_legal=True,
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             language=language,
         )
 
@@ -739,16 +818,22 @@ class QueryRouter:
         *,
         collections: List[str],
         top_k: int = 5,
+<<<<<<< HEAD
         mode: Optional[str] = None,
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
     ) -> tuple[List[Dict], str]:
         """Search only the specified Qdrant collections."""
         all_docs: List[Dict] = []
         per_collection_k = max(2, top_k // len(collections))
 
+<<<<<<< HEAD
         # Enforce blacklist
         if self._is_legal_forbidden(mode):
             collections = [c for c in collections if c != "legal_documents"]
 
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         for coll_name in collections:
             if coll_name == "platform_docs":
                 docs = await search_platform_docs(

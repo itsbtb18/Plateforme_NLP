@@ -154,11 +154,14 @@ urlpatterns = [
         name="publication_detail",
     ),
     path(
+<<<<<<< HEAD
         "publications/<int:publication_id>/convert-to-text/",
         views.publication_convert_to_text,
         name="publication-convert-to-text",
     ),
     path(
+=======
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
         "admin/reject/<str:model_type>/<uuid:pk>/",
         views.admin_reject_item,
         name="admin_reject_item",

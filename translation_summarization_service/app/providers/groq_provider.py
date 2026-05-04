@@ -15,6 +15,7 @@ class GroqProvider(Provider):
 
     def __init__(self) -> None:
         settings = get_settings()
+<<<<<<< HEAD
         self.api_keys = self._load_keys(settings.TS_GROQ_API_KEYS) or ([settings.TS_GROQ_API_KEY] if settings.TS_GROQ_API_KEY else [])
         self.model_translate = settings.TS_GROQ_TRANSLATION_MODEL
         self.model_summarize = settings.TS_GROQ_SUMMARIZATION_MODEL
@@ -34,6 +35,12 @@ class GroqProvider(Provider):
     def _rotate_key(self):
         if self.api_keys:
             self._current_key_idx = (self._current_key_idx + 1) % len(self.api_keys)
+=======
+        self.api_key = settings.TS_GROQ_API_KEY
+        self.model_translate = settings.TS_GROQ_TRANSLATION_MODEL
+        self.model_summarize = settings.TS_GROQ_SUMMARIZATION_MODEL
+        self.client = Groq(api_key=self.api_key, timeout=15.0, max_retries=0) if self.api_key else None
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     async def translate(self, *, text: str, source_language: str, target_language: str) -> str:
         prompt = PromptEngine.translation_prompt(
@@ -55,6 +62,7 @@ class GroqProvider(Provider):
             max_words=max_words,
         )
         return await self._chat(prompt=prompt, model=self.model_summarize, max_tokens=1024)
+<<<<<<< HEAD
     
     async def chat(self, *, system_prompt: str, user_prompt: str, max_tokens: int = 2048) -> str:
         return await self._chat(
@@ -92,6 +100,26 @@ class GroqProvider(Provider):
                 raise
 
         raise last_error or RuntimeError("Groq chat failed after rotation")
+=======
+
+    async def _chat(self, *, prompt: str, model: str, max_tokens: int) -> str:
+        if not self.client:
+            raise RuntimeError("TS_GROQ_API_KEY is not configured")
+
+        def _run() -> str:
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=max_tokens,
+                stream=False,
+            )
+            if not isinstance(response, ChatCompletion):
+                raise ValueError("Unexpected response type from Groq")
+            return (response.choices[0].message.content or "").strip()
+
+        return await asyncio.to_thread(_run)
+>>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
     @staticmethod
     def _translation_max_tokens(text: str) -> int:
