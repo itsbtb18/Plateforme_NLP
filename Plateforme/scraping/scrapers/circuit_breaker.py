@@ -134,9 +134,9 @@ class LLMCircuitBreaker:
             state["failures"] = [f for f in state["failures"] if (now - f).total_seconds() < 30]
             state["failures"].append(now)
             
-            # Si plus de 5 échecs en 30s → quarantaine 60 min
-            if len(state["failures"]) >= 5:
-                state["open_until"] = now + timedelta(minutes=60)
+            # Si plus de 50 échecs en 30s → quarantaine 2 min
+            if len(state["failures"]) >= 50:
+                state["open_until"] = now + timedelta(minutes=2)
                 state["failures"] = []
                 logger.warning(f"LLM provider '{provider}' en quarantaine jusqu'à {state['open_until']}")
     

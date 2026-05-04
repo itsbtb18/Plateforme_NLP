@@ -10,36 +10,39 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+      PGCONNECT_TIMEOUT: 10
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} && psql -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform} -tAc \"SELECT NOT pg_is_in_recovery();\" | grep -q t"]
-      interval: 15s
-      timeout: 10s
-      retries: 20
-      start_period: 120s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nlp_admin} -d ${POSTGRES_DB:-nlp_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
       - nlp_network
     restart: unless-stopped
+    shm_size: 256mb
 
   # Redis for Django Channels
   redis:
     profiles: ["scraping", "full"]
     image: redis:7-alpine
     container_name: nlp_redis
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123} --timeout 0 --tcp-backlog 511
     volumes:
       - ./data/redis:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 10s
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redis123} ping | grep -q PONG"]
+      interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 30
+      start_period: 30s
     networks:
       - nlp_network
     restart: unless-stopped
@@ -52,12 +55,12 @@ services:
     volumes:
       - ./data/qdrant:/qdrant/storage
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
     environment:
       QDRANT__SERVICE__GRPC_PORT: "6334"
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/6333"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -72,11 +75,11 @@ services:
       context: ./elasticsearch
       dockerfile: Dockerfile
     container_name: nlp_elasticsearch
-    mem_limit: 512m
+    mem_limit: 1g
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - bootstrap.memory_lock=true
     ulimits:
       memlock:
@@ -85,12 +88,13 @@ services:
     volumes:
       - ./data/elasticsearch:/usr/share/elasticsearch/data
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 20
+      start_period: 120s
     networks:
       - nlp_network
     restart: unless-stopped
@@ -182,9 +186,11 @@ services:
       - ./Plateforme/media:/app/media
       - ./scraping_data:/app/scraping_data
     ports:
-      - "8888:8000"
+      - "127.0.0.1:8888:8000"
     command: >
       sh -c "
+        echo 'Waiting for database to be ready...' &&
+        sleep 10 &&
         python manage.py collectstatic --noinput &&
         python manage.py migrate --noinput &&
         daphne -b 0.0.0.0 -p 8000 Plateforme.asgi:application
@@ -195,11 +201,11 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz/", "--max-time", "10"]
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       retries: 5
-      start_period: 90s
+      start_period: 120s
     networks:
       - nlp_network
     restart: unless-stopped
@@ -258,7 +264,7 @@ services:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -266,9 +272,12 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 10 &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+      "
     healthcheck:
       disable: true
     networks:
@@ -287,27 +296,36 @@ services:
       TS_PRIMARY_PROVIDER: ${TS_PRIMARY_PROVIDER:-gemini}
       TS_FALLBACK_PROVIDER: ${TS_FALLBACK_PROVIDER:-groq}
       TS_GEMINI_API_KEY: ${TS_GEMINI_API_KEY:-}
+      TS_GEMINI_API_KEYS: ${GEMINI_API_KEYS:-}
       TS_GEMINI_MODEL: ${TS_GEMINI_MODEL:-gemini-2.0-flash}
-      TS_GROQ_API_KEY: ${TS_GROQ_API_KEY:-}
+      TS_GROQ_API_KEY: ${GROQ_API_KEY:-}
+      TS_GROQ_API_KEYS: ${GROQ_API_KEYS:-}
+      PYTHONUNBUFFERED: "1"
       TS_GROQ_TRANSLATION_MODEL: ${TS_GROQ_TRANSLATION_MODEL:-llama-3.3-70b-versatile}
       TS_GROQ_SUMMARIZATION_MODEL: ${TS_GROQ_SUMMARIZATION_MODEL:-llama-3.3-70b-versatile}
       TS_PROVIDER_HTTP_TIMEOUT_SECONDS: ${TS_PROVIDER_HTTP_TIMEOUT_SECONDS:-420}
       TS_PROVIDER_OPERATION_TIMEOUT_SECONDS: ${TS_PROVIDER_OPERATION_TIMEOUT_SECONDS:-8}
-      TS_PROVIDER_TIMEOUT_SECONDS: ${TS_PROVIDER_TIMEOUT_SECONDS:-10}
-      TS_PROVIDER_CALL_DELAY_SECONDS: ${TS_PROVIDER_CALL_DELAY_SECONDS:-0.3}
-      TS_PROVIDER_MAX_CONCURRENCY: ${TS_PROVIDER_MAX_CONCURRENCY:-2}
+      TS_PROVIDER_TIMEOUT_SECONDS: "60"
+      TS_PROVIDER_CALL_DELAY_SECONDS: "0.0"
+      TS_PROVIDER_MAX_CONCURRENCY: "5"
       TS_RATE_LIMIT_MAX_RETRIES: ${TS_RATE_LIMIT_MAX_RETRIES:-3}
       TS_RATE_LIMIT_BASE_DELAY_SECONDS: ${TS_RATE_LIMIT_BASE_DELAY_SECONDS:-2}
       TS_RATE_LIMIT_MAX_WAIT_SECONDS: ${TS_RATE_LIMIT_MAX_WAIT_SECONDS:-30}
-      TS_CIRCUIT_BREAKER_THRESHOLD: ${TS_CIRCUIT_BREAKER_THRESHOLD:-3}
-      TS_CIRCUIT_BREAKER_COOLDOWN_SECONDS: ${TS_CIRCUIT_BREAKER_COOLDOWN_SECONDS:-60}
+      TS_CIRCUIT_BREAKER_THRESHOLD: "100"
+      TS_CIRCUIT_BREAKER_COOLDOWN_SECONDS: ${TS_CIRCUIT_BREAKER_COOLDOWN_SECONDS:-30}
       TS_TRANSLATION_CHUNK_SIZE: ${TS_TRANSLATION_CHUNK_SIZE:-400}
       TS_TRANSLATION_CHUNK_OVERLAP: ${TS_TRANSLATION_CHUNK_OVERLAP:-160}
       TS_TRANSLATION_MAX_CHUNKS_PER_DOCUMENT: ${TS_TRANSLATION_MAX_CHUNKS_PER_DOCUMENT:-5}
       TS_GOOGLE_FALLBACK_CHUNK_SIZE: ${TS_GOOGLE_FALLBACK_CHUNK_SIZE:-1800}
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
     ports:
-      - "${TS_SERVICE_PORT:-8010}:8010"
+      - "127.0.0.1:${TS_SERVICE_PORT:-8010}:8010"
+    command: >
+      sh -c "
+        echo 'Starting translation/summarization service...' &&
+        sleep 5 &&
+        python -m uvicorn app.main:app --host 0.0.0.0 --port 8010
+      "
     healthcheck:
       disable: true
     networks:
@@ -365,7 +383,12 @@ services:
     volumes:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
-    command: celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion,translation,summarization,postprocess,quality -l info --concurrency=1
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 15 &&
+        celery -A app.celery_app:celery worker -Q chatbot,documents,ingestion,translation,summarization,postprocess,quality -l info --concurrency=1
+      "
     healthcheck:
       test:
         [
@@ -399,15 +422,16 @@ services:
       - ./Plateforme/media:/media:ro
     ports:
       - "80:80"
-      - "443:443"
+      - "8001:80"
     depends_on:
-      - django
+      django:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 20s
     networks:
       - nlp_network
     restart: unless-stopped
@@ -463,7 +487,12 @@ services:
       - static_volume:/app/staticfiles
       - ./Plateforme/media:/app/media
       - ./scraping_data:/app/scraping_data
-    command: celery -A Plateforme worker -Q scraping -l info --concurrency=2
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...' &&
+        sleep 15 &&
+        celery -A Plateforme worker -Q scraping -l info --concurrency=2
+      "
     depends_on:
       db:
         condition: service_healthy
@@ -481,7 +510,7 @@ services:
       dockerfile: Dockerfile
     container_name: nlp_django_celery_beat
     user: "0:0"
-    mem_limit: 128m
+    mem_limit: 256m
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
       SECRET_KEY: ${DJANGO_SECRET_KEY}
@@ -515,7 +544,12 @@ services:
       SCRAPING_AUTO_VALIDATE_ON_SAVE: ${SCRAPING_AUTO_VALIDATE_ON_SAVE:-false}
     volumes:
       - ./Plateforme:/app
-    command: celery -A Plateforme beat -l info --scheduler celery.beat:PersistentScheduler
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...' &&
+        sleep 15 &&
+        celery -A Plateforme beat -l info --scheduler celery.beat:PersistentScheduler
+      "
     depends_on:
       db:
         condition: service_healthy
@@ -528,6 +562,8 @@ services:
 networks:
   nlp_network:
     driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "true"
     ipam:
       config:
         - subnet: 172.25.0.0/16

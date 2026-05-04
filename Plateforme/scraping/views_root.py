@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import random
 import threading
 import uuid
 from collections import defaultdict
@@ -62,6 +63,7 @@ from .models import (
 )
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
 from .scraping_settings import scraping_settings as SS
+from .hardcoded_prompts import HARDCODED_PROMPTS
 from .tasks import (
     push_scraping_progress,
     run_quick_scrape_task,
@@ -195,7 +197,7 @@ SCRAPING_NAV_CATEGORY_KEYS = (
 
 def _prompt_limit_for_category(_category: str) -> int:
     """Return the max active prompt limit applied to each category."""
-    configured = int(getattr(SS, "PROMPT_MAX_ACTIVE_PER_CATEGORY", 20) or 20)
+    configured = int(getattr(SS, "PROMPT_MAX_ACTIVE_PER_CATEGORY", 50) or 50)
     return max(1, min(configured, 200))
 
 
@@ -1469,7 +1471,7 @@ def scraping_dashboard_by_category(request, category: str):
 
     ai_prompts = list(
         SearchQuery.objects.filter(category=category_key, is_active=True)
-        .order_by("id")
+        .order_by("-id")
         .values("id", "query_text", "is_active")
     )
     max_active_prompts = _prompt_limit_for_category(category_key)
@@ -5232,7 +5234,7 @@ def _parse_prompt_suggestions(raw_text: str) -> list[str]:
 @csrf_protect
 @rate_limit(max_calls=8, period_seconds=60, scope="action")
 def generate_search_prompts(request):
-    """Generate high-yield search prompts for one scraping category using Groq."""
+    """Return 10 random search prompts from a hardcoded list of 50 per category."""
     _log_scraping_action(request)
     try:
         payload = json.loads(request.body.decode("utf-8")) if request.body else {}
@@ -5240,84 +5242,46 @@ def generate_search_prompts(request):
         payload = request.POST
 
     category = str(payload.get("category") or "").strip().lower()
-    supported_categories = {
-        "events",
-        "tools",
-        "corpus",
-        "courses",
-        "opportunities",
-        "news",
-    }
-    if category not in supported_categories:
+    if category not in HARDCODED_PROMPTS:
         return JsonResponse({"error": "Unknown category"}, status=400)
 
     max_active_prompts = _prompt_limit_for_category(category)
     active_count = _active_prompt_count(category)
     remaining_slots = max(0, max_active_prompts - active_count)
 
-    existing_prompts = list(
-        SearchQuery.objects.filter(category=category, is_active=True)
-        .order_by("id")
+    # Get all prompts for this category
+    pool = HARDCODED_PROMPTS[category]
+    
+    # Get existing prompts in DB for this category to avoid exact duplicates
+    existing_in_db = set(
+        SearchQuery.objects.filter(category=category)
         .values_list("query_text", flat=True)
     )
-    current_year = timezone.now().year
-    existing_prompts_list = json.dumps(existing_prompts, ensure_ascii=False)
 
-    system_prompt = (
-        "You are an expert NLP data curator specializing in Arabic and MENA "
-        "region NLP research. Generate highly effective web search queries "
-        "designed to discover maximum new content for a scraping pipeline. "
-        "Each query must be distinct, specific, and target sources not "
-        "commonly indexed."
-    )
-    user_prompt = f"""Generate 8 diverse, high-yield search queries for the category: {category}
+    # Filter out prompts that already exist in the database
+    available_prompts = [p for p in pool if p not in existing_in_db]
 
-Rules:
-- Each query must be unique and target a different angle (geographic, temporal, linguistic, institutional, event-type)
-- Mix English and Arabic queries (at least 2 Arabic queries)
-- Include site-specific modifiers for at least 2 queries (site:.edu, site:.ac.*, site:.org, site:github.com, site:huggingface.co)
-- Include current year ({current_year}) or next year ({current_year + 1}) in time-sensitive queries
-- Target MENA, Maghreb, Gulf region institutions explicitly in at least 1 query
-- Do NOT repeat any of these already-used prompts: {existing_prompts_list}
+    # If we ran out of new prompts, just use the whole pool (reset rotation)
+    if not available_prompts:
+        available_prompts = pool
 
-Return ONLY a JSON array of strings. No explanation. No markdown. Example:
-["query one", "query two", ...]
+    # Shuffle and pick 10
+    selected_prompts = random.sample(available_prompts, min(len(available_prompts), 10))
 
-Category-specific guidance:
-- events: conferences, workshops, shared tasks, challenges, symposiums, seminars, hackathons
-- tools: GitHub repos, HuggingFace models, APIs, tokenizers, libraries, datasets tools
-- corpus: datasets, annotated corpora, speech corpora, text collections, benchmarks
-- courses: MOOCs, university courses, bootcamps, certifications, training programs
-- opportunities: PhD positions, postdocs, research internships, NLP job openings, grants
-- news: research papers, arXiv preprints, tech news, government AI initiatives, lab announcements
-"""
-
-    try:
-        # Use a longer timeout for generation as it can be slow
-        llm_client = GroqLLMClient(timeout=30, max_retries=1)
-        llm_text = llm_client._chat_with_groq(system_prompt, user_prompt)
-    except Exception as exc:
-        logger.warning(
-            "generate_search_prompts_call_failed",
-            extra={"category": category, "error": str(exc)},
-            exc_info=False,
-        )
-        return JsonResponse({"error": "LLM call failed"}, status=502)
-
-    prompts = _parse_prompt_suggestions(llm_text)
-    if not prompts:
-        return JsonResponse({"error": "Could not parse prompts"}, status=502)
-
-    prompt_payload = prompts[:8]
+    # Apply remaining slots limit if necessary
     if remaining_slots > 0:
-        prompt_payload = prompt_payload[:remaining_slots]
+        # We don't want to overflow the total active limit if the user adds all of them
+        # but the generate API usually just returns suggestions.
+        # The frontend handles adding them one by one.
+        pass
 
     response_payload = {
-        "prompts": prompt_payload,
+        "prompts": selected_prompts,
         "max_active_prompts": max_active_prompts,
         "active_count": active_count,
         "remaining_slots": remaining_slots,
     }
+    
     if remaining_slots <= 0:
         response_payload["warning"] = (
             f"Prompt limit reached for {category} ({active_count}/{max_active_prompts}). "

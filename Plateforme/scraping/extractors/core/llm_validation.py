@@ -260,10 +260,14 @@ class GroqLLMClient:
         self.gemini_api_key = str(
             getattr(settings, "GEMINI_SCRAPING_API_KEY", "") or ""
         ).strip()
-        self.gemini_model = str(
+        _gemini_model_setting = str(
             getattr(settings, "GEMINI_SCRAPING_MODEL", "gemini-2.0-flash")
             or "gemini-2.0-flash"
         ).strip()
+        if _gemini_model_setting == "gemini-1.5-flash":
+            self.gemini_model = "gemini-2.0-flash"
+        else:
+            self.gemini_model = _gemini_model_setting
         self.gemini_timeout = max(
             1,
             min(int(getattr(settings, "GEMINI_SCRAPING_TIMEOUT", 30) or 30), 60),
@@ -334,7 +338,6 @@ class GroqLLMClient:
         }
         
         # FIX B: 2s delay before every call
-        time.sleep(2)
 
         from scraping.scrapers.circuit_breaker import llm_circuit_breaker
         if not llm_circuit_breaker.is_available("groq"):
@@ -342,7 +345,7 @@ class GroqLLMClient:
             return None
 
         num_keys = len(api_key_manager.providers.get("groq", []))
-        max_attempts = 5
+        max_attempts = max(10, num_keys + 1)
         
         for attempt in range(max_attempts):
             current_key = self._next_groq_key()
@@ -378,10 +381,8 @@ class GroqLLMClient:
                     reason = "rate_limit" if status_code == 429 else "quota_exceeded"
                     
                     # FIX B: Sleep 60s on 429 before rotating
-                    if status_code == 429:
-                        logger.warning(f"Groq 429 detected, sleeping 60s before next key...")
-                        llm_circuit_breaker.record_failure("groq", 429)
-                        time.sleep(60)
+                    logger.warning(f"Groq 429 detected, rotating key...")
+                    llm_circuit_breaker.record_failure("groq", 429)
                         
                     api_key_manager.rotate_key("groq", reason=reason)
                     continue
@@ -396,7 +397,6 @@ class GroqLLMClient:
         }
         
         # FIX B: 2s delay before every call
-        time.sleep(2)
 
         from scraping.scrapers.circuit_breaker import llm_circuit_breaker
         if not llm_circuit_breaker.is_available("gemini"):
@@ -404,7 +404,7 @@ class GroqLLMClient:
             return None
 
         num_keys = len(api_key_manager.providers.get("gemini", []))
-        max_attempts = 5
+        max_attempts = max(15, num_keys + 1)
 
         models_to_try = self._gemini_models_to_try()
         for active_model in models_to_try:
@@ -442,19 +442,15 @@ class GroqLLMClient:
                     if status_code == 429 or status_code == 400:
                         reason = "rate_limit" if status_code == 429 else "quota_exceeded"
                         
-                        # FIX B: Sleep 60s on 429 before rotating
                         if status_code == 429:
-                            logger.warning(f"Gemini 429 detected, sleeping 60s before next key...")
+                            logger.warning(f"Gemini 429 detected for key {current_key[:8]}..., rotating...")
                             llm_circuit_breaker.record_failure("gemini", 429)
-                            time.sleep(60)
                             
                         api_key_manager.rotate_key("gemini", reason=reason)
                         continue
                     break
                 except (KeyError, IndexError, TypeError):
                     break
-        return None
-
         return None
 
     def _call_provider(self, provider: str, system: str, user: str) -> str | None:
