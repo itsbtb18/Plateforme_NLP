@@ -959,7 +959,14 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
 
     @staticmethod
     def _normalize_text(value: str) -> str:
-        return re.sub(r"\s+", " ", (value or "")).strip().lower()
+        if not value:
+            return ""
+        # Remove punctuation
+        text = re.sub(r"[^\w\s]", " ", value).lower()
+        # Remove common stop words to focus on meaningful tokens
+        stop_words = {"a", "an", "the", "and", "or", "in", "on", "at", "to", "for", "with", "of", "by"}
+        tokens = [t for t in text.split() if t not in stop_words]
+        return " ".join(tokens).strip()
 
     @staticmethod
     def _normalize_url(value: str, strip_www: bool = False) -> str:
@@ -977,11 +984,26 @@ class BaseScraper(TextMixin, MediaMixin, DedupMixin, ABC):
 
     @staticmethod
     def _title_similarity(left: str, right: str) -> float:
-        return SequenceMatcher(
-            None,
-            BaseScraper._normalize_text(left),
-            BaseScraper._normalize_text(right),
-        ).ratio()
+        l_norm = BaseScraper._normalize_text(left)
+        r_norm = BaseScraper._normalize_text(right)
+        
+        if not l_norm or not r_norm:
+            return 0.0
+            
+        s1 = set(l_norm.split())
+        s2 = set(r_norm.split())
+        
+        if not s1 and not s2:
+            return 1.0
+        
+        jaccard = len(s1 & s2) / len(s1 | s2)
+        
+        # Fallback to SequenceMatcher for very short strings
+        if len(s1) <= 2 or len(s2) <= 2:
+            seq_match = SequenceMatcher(None, l_norm, r_norm).ratio()
+            return max(jaccard, seq_match)
+            
+        return jaccard
 
     @staticmethod
     def _extract_instructor(value: str) -> str:

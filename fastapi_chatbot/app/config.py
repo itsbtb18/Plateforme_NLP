@@ -49,13 +49,10 @@ class Settings(BaseSettings):
     # Provider selectors (chat vs internal workflows)
     LLM_PROVIDER_CHAT: str = "gemini"
     LLM_PROVIDER_INTERNAL: str = "gemini"
-
+<<<<<<< HEAD
 =======
-    # Gemini API (fallback)
-    GENAI_API_KEY: str = ""
-    GENAI_MODEL: str = "gemini-2.0-flash"
 
->>>>>>> 6211e0493a3e93637955a41e8280df5e394207b3
+>>>>>>> 7d1949ab5abd2a2c919f8d3f5b7557b79427e222
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 

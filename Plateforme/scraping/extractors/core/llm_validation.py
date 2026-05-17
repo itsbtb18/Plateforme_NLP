@@ -32,6 +32,8 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 
+from scraping.api_key_manager import api_key_manager
+
 logger = logging.getLogger(__name__)
 
 # ─── Constants ──────────────────────────────────────────────────────
@@ -188,7 +190,8 @@ def build_custom_extraction_prompt(category: str, page_text: str) -> tuple[str, 
 
     system_prompt = (
         "You are a strict extraction assistant for a professional Arabic NLP research platform. "
-        "Extract ONLY relevant NLP/AI items. Write CLEAN, PROFESSIONAL titles and descriptions. "
+        "Extract ONLY the MAIN item described in the center of the page. IGNORE sidebars, footers, "
+        "and 'Related items' lists. Write CLEAN, PROFESSIONAL titles and descriptions. "
         "NEVER include navigation menus, sidebars, login forms, or boilerplate content. "
         "Return only a valid JSON array. No markdown. No explanation."
     )
@@ -257,10 +260,14 @@ class GroqLLMClient:
         self.gemini_api_key = str(
             getattr(settings, "GEMINI_SCRAPING_API_KEY", "") or ""
         ).strip()
-        self.gemini_model = str(
+        _gemini_model_setting = str(
             getattr(settings, "GEMINI_SCRAPING_MODEL", "gemini-2.0-flash")
             or "gemini-2.0-flash"
         ).strip()
+        if _gemini_model_setting == "gemini-1.5-flash":
+            self.gemini_model = "gemini-2.0-flash"
+        else:
+            self.gemini_model = _gemini_model_setting
         self.gemini_timeout = max(
             1,
             min(int(getattr(settings, "GEMINI_SCRAPING_TIMEOUT", 30) or 30), 60),
@@ -283,160 +290,27 @@ class GroqLLMClient:
         )
 
         self._session = requests.Session()
-        self.last_status_code: int | None = None
-        self.last_error_message: str = ""
-        self.last_provider_used: str = ""
-
-        # ── Groq API key rotation pool ──
-        _groq_candidates = [
-            str(
-                getattr(settings, "GROQ_SCRAPING_API_KEY", "")
-                or os.environ.get("GROQ_SCRAPING_API_KEY", "")
-            ).strip(),
-            str(
-                getattr(settings, "GROQ_INTERNAL_API_KEY", "")
-                or os.environ.get("GROQ_INTERNAL_API_KEY", "")
-            ).strip(),
-            str(
-                getattr(settings, "GROQ_API_KEY", "")
-                or os.environ.get("GROQ_API_KEY", "")
-            ).strip(),
-        ]
-        self._groq_key_pool = [k for k in dict.fromkeys(_groq_candidates) if k]
-        self._groq_key_index = 0
-        if self._groq_key_pool:
-            logger.info(
-                "Groq key pool initialized with %d key(s)", len(self._groq_key_pool)
-            )
-
-        # ── Gemini API key rotation pool ──
-        _gem_candidates = [
-            str(
-                getattr(settings, "GEMINI_SCRAPING_API_KEY", "")
-                or os.environ.get("GEMINI_SCRAPING_API_KEY", "")
-            ).strip(),
-            str(
-                getattr(settings, "GEMINI_INTERNAL_API_KEY", "")
-                or os.environ.get("GEMINI_INTERNAL_API_KEY", "")
-            ).strip(),
-            str(
-                getattr(settings, "GEMINI_API_KEY", "")
-                or os.environ.get("GEMINI_API_KEY", "")
-            ).strip(),
-        ]
-        self._gemini_key_pool = [k for k in dict.fromkeys(_gem_candidates) if k]
-        self._gemini_key_index = 0
-        if self._gemini_key_pool:
-            logger.info(
-                "Gemini key pool initialized with %d key(s)", len(self._gemini_key_pool)
-            )
+        self.last_status_code = None
+        self.last_error_message = ""
+        self.last_provider_used = ""
 
     def _next_groq_key(self) -> str:
-        """Return the next API key from the rotation pool."""
-        if not self._groq_key_pool:
-            return self.api_key or ""
-        key = self._groq_key_pool[self._groq_key_index % len(self._groq_key_pool)]
-        self._groq_key_index += 1
-        return key
+        """Return the currently active Groq key."""
+        return api_key_manager.get_current_key("groq") or ""
 
     def _next_gemini_key(self) -> str:
-        """Return the next Gemini key from the pool."""
-        if not self._gemini_key_pool:
-            return self.gemini_api_key or ""
-        key = self._gemini_key_pool[self._gemini_key_index % len(self._gemini_key_pool)]
-        self._gemini_key_index += 1
-        return key
+        """Return the currently active Gemini key."""
+        return api_key_manager.get_current_key("gemini") or ""
 
     @property
     def is_configured(self) -> bool:
-        return self._is_provider_configured(
-            self.primary_provider
-        ) or self._is_provider_configured(self.fallback_provider)
-
-    def _is_provider_configured(self, provider: str) -> bool:
-        normalized = (provider or "").strip().lower()
-        if normalized == "gemini":
-            return bool(self.gemini_api_key or self._gemini_key_pool)
-        if normalized == "groq":
-            return bool(self.api_key or self._groq_key_pool)
-        return False
+        return bool(api_key_manager.get_current_key("groq") or api_key_manager.get_current_key("gemini"))
 
     @staticmethod
     def _is_retryable_status(status_code: int | None) -> bool:
         if not isinstance(status_code, int):
             return True
         return status_code in {408, 409, 413, 429, 500, 502, 503, 504}
-
-    @staticmethod
-    def _key_fingerprint(api_key: str) -> str:
-        token = str(api_key or "").strip()
-        if not token:
-            return "no-key"
-        return sha1(token.encode("utf-8")).hexdigest()[:10]
-
-    @staticmethod
-    def _cache_incr_with_ttl(key: str, ttl_seconds: int) -> int:
-        value = cache.get(key)
-        if value is None:
-            cache.set(key, 1, timeout=max(1, int(ttl_seconds)))
-            return 1
-        try:
-            return int(cache.incr(key))
-        except ValueError:
-            cache.set(key, 1, timeout=max(1, int(ttl_seconds)))
-            return 1
-
-    @staticmethod
-    def _pacific_day_key() -> str:
-        return datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y%m%d")
-
-    def _respect_gemini_rate_limit_for_key(
-        self, api_key: str, model_name: str | None = None
-    ) -> None:
-        key_fp = self._key_fingerprint(api_key)
-        model = model_name or self.gemini_model
-
-        cooldown_key = f"scraping:llm:gemini:cooldown:{model}:{key_fp}"
-        cooldown_until = float(cache.get(cooldown_key) or 0.0)
-        now = time.time()
-        if cooldown_until > now:
-            sleep_for = max(0.1, cooldown_until - now)
-            logger.info("Gemini cooldown sleep=%.2fs key=%s", sleep_for, key_fp)
-            time.sleep(sleep_for)
-
-        if self.gemini_max_rpd > 0:
-            day_key = self._pacific_day_key()
-            daily_counter_key = f"scraping:llm:gemini:rpd:{model}:{key_fp}:{day_key}"
-            daily_value = int(cache.get(daily_counter_key) or 0)
-            if daily_value >= self.gemini_max_rpd:
-                now_pt = datetime.now(ZoneInfo("America/Los_Angeles"))
-                midnight_pt = now_pt.replace(
-                    hour=23, minute=59, second=59, microsecond=0
-                )
-                cooldown = max(60, int((midnight_pt - now_pt).total_seconds()))
-                cache.set(cooldown_key, time.time() + cooldown, timeout=cooldown)
-                self.last_status_code = 429
-                self.last_error_message = "gemini_rpd_quota_exhausted"
-                raise RuntimeError("gemini_rpd_quota_exhausted")
-
-            self._cache_incr_with_ttl(daily_counter_key, ttl_seconds=60 * 60 * 30)
-
-        minute_bucket = int(time.time() // 60)
-        rpm_key = f"scraping:llm:gemini:rpm:{model}:{key_fp}:{minute_bucket}"
-        rpm_value = int(cache.get(rpm_key) or 0)
-        if rpm_value >= self.gemini_max_rpm:
-            sleep_for = max(0.1, ((minute_bucket + 1) * 60) - time.time() + 0.05)
-            logger.info(
-                "Gemini preemptive RPM sleep=%.2fs model=%s key=%s",
-                sleep_for,
-                model,
-                key_fp,
-            )
-            time.sleep(sleep_for)
-            minute_bucket = int(time.time() // 60)
-            rpm_key = f"scraping:llm:gemini:rpm:{model}:{key_fp}:{minute_bucket}"
-
-        self._cache_incr_with_ttl(rpm_key, ttl_seconds=125)
 
     def _gemini_models_to_try(self) -> list[str]:
         configured = [self.gemini_model]
@@ -453,11 +327,6 @@ class GroqLLMClient:
         return models
 
     def _chat_with_groq(self, system: str, user: str) -> str | None:
-        if not self.api_key and not self._groq_key_pool:
-            self.last_error_message = "groq_not_configured"
-            self.last_status_code = None
-            return None
-
         payload = {
             "model": self.model,
             "messages": [
@@ -467,12 +336,22 @@ class GroqLLMClient:
             "temperature": 0.15,
             "max_tokens": 1200,
         }
+        
+        # FIX B: 2s delay before every call
 
-        # Try each key in the pool. On 429, rotate to the next key instantly.
-        num_keys = max(len(self._groq_key_pool), 1)
-        max_attempts = num_keys + 1  # Try all keys + one retry on the first
+        from scraping.scrapers.circuit_breaker import llm_circuit_breaker
+        if not llm_circuit_breaker.is_available("groq"):
+            logger.warning("Groq skippé : provider en quarantaine")
+            return None
+
+        num_keys = len(api_key_manager.providers.get("groq", []))
+        max_attempts = max(10, num_keys + 1)
+        
         for attempt in range(max_attempts):
             current_key = self._next_groq_key()
+            if not current_key:
+                break
+                
             headers = {
                 "Authorization": f"Bearer {current_key}",
                 "Content-Type": "application/json",
@@ -492,67 +371,47 @@ class GroqLLMClient:
             except requests.Timeout:
                 self.last_error_message = "timeout"
                 self.last_status_code = 408
-                logger.info("Groq API timeout after %ds", self.timeout)
                 break
             except requests.RequestException as exc:
-                response = getattr(exc, "response", None)
-                status_code = getattr(response, "status_code", None)
-                if isinstance(status_code, int):
-                    self.last_status_code = status_code
+                status_code = getattr(exc.response, "status_code", 0) if exc.response else 0
+                self.last_status_code = status_code
                 self.last_error_message = str(exc)
 
-                if status_code == 429:
-                    key_hint = current_key[-6:] if len(current_key) > 6 else "***"
-                    logger.info(
-                        "Groq 429 on key ...%s, rotating to next key (attempt %d/%d)",
-                        key_hint,
-                        attempt + 1,
-                        max_attempts,
-                    )
-                    continue  # Try the next key immediately, no sleep
-                elif status_code == 413:
-                    logger.info("Groq API payload too large.")
-                else:
-                    logger.warning("Groq API request failed: %s", exc)
-            except (KeyError, IndexError):
-                self.last_error_message = "Unexpected Groq response structure"
-                logger.warning("Unexpected Groq response structure")
-
-            break
-
+                if status_code in [429, 403]: # Groq uses 403 sometimes for specific limits
+                    reason = "rate_limit" if status_code == 429 else "quota_exceeded"
+                    
+                    # FIX B: Sleep 60s on 429 before rotating
+                    logger.warning(f"Groq 429 detected, rotating key...")
+                    llm_circuit_breaker.record_failure("groq", 429)
+                        
+                    api_key_manager.rotate_key("groq", reason=reason)
+                    continue
+                break
         return None
 
     def _chat_with_gemini(self, system: str, user: str) -> str | None:
-        if not self.gemini_api_key and not self._gemini_key_pool:
-            self.last_error_message = "gemini_not_configured"
-            self.last_status_code = None
-            return None
-
         combined_prompt = f"System instructions:\n{system}\n\nUser request:\n{user}"
         payload = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": combined_prompt}],
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.15,
-                "maxOutputTokens": 1200,
-            },
+            "contents": [{"role": "user", "parts": [{"text": combined_prompt}]}],
+            "generationConfig": {"temperature": 0.15, "maxOutputTokens": 1200},
         }
+        
+        # FIX B: 2s delay before every call
+
+        from scraping.scrapers.circuit_breaker import llm_circuit_breaker
+        if not llm_circuit_breaker.is_available("gemini"):
+            logger.warning("Gemini skippé : provider en quarantaine")
+            return None
+
+        num_keys = len(api_key_manager.providers.get("gemini", []))
+        max_attempts = max(15, num_keys + 1)
 
         models_to_try = self._gemini_models_to_try()
-        for model_index, active_model in enumerate(models_to_try):
-            num_keys = max(len(self._gemini_key_pool), 1)
-            max_attempts = max(num_keys + 1, self.gemini_max_retries + 1)
-
+        for active_model in models_to_try:
             for attempt in range(max_attempts):
                 current_key = self._next_gemini_key()
-                try:
-                    self._respect_gemini_rate_limit_for_key(current_key, active_model)
-                except RuntimeError:
-                    continue
+                if not current_key:
+                    break
 
                 url = GEMINI_CHAT_URL_TEMPLATE.format(
                     model=quote_plus(active_model),
@@ -569,87 +428,29 @@ class GroqLLMClient:
                     self.last_status_code = int(resp.status_code)
                     resp.raise_for_status()
                     data = resp.json()
-
-                    candidates = data.get("candidates") or []
-                    if not candidates:
-                        self.last_error_message = "gemini_no_candidates"
-                        return None
-
-                    content = candidates[0].get("content") or {}
-                    parts = content.get("parts") or []
-                    if not parts:
-                        self.last_error_message = "gemini_empty_parts"
-                        return None
-
-                    text = parts[0].get("text")
-                    if not isinstance(text, str) or not text.strip():
-                        self.last_error_message = "gemini_empty_text"
-                        return None
-
+                    
+                    text = data["candidates"][0]["content"]["parts"][0]["text"]
                     self.last_provider_used = "gemini"
                     return text
                 except requests.Timeout:
                     self.last_status_code = 408
-                    self.last_error_message = "timeout"
-                    logger.info("Gemini API timeout after %ds", self.gemini_timeout)
                     break
                 except requests.RequestException as exc:
-                    response = getattr(exc, "response", None)
-                    status_code = getattr(response, "status_code", None)
-                    if isinstance(status_code, int):
-                        self.last_status_code = status_code
-                    self.last_error_message = str(exc)
-
-                    if status_code == 404 and model_index < len(models_to_try) - 1:
-                        logger.info(
-                            "Gemini model unavailable (%s); trying fallback model %s",
-                            active_model,
-                            models_to_try[model_index + 1],
-                        )
-                        break
-
-                    if status_code == 429:
-                        key_hint = current_key[-6:] if len(current_key) > 6 else "***"
-                        retry_after = 0.0
-                        if response is not None:
-                            try:
-                                retry_after = float(
-                                    response.headers.get("Retry-After") or 0.0
-                                )
-                            except (TypeError, ValueError):
-                                retry_after = 0.0
-
-                        cooldown = max(self.gemini_429_cooldown_seconds, retry_after)
-                        cooldown_key = (
-                            f"scraping:llm:gemini:cooldown:{active_model}:"
-                            f"{self._key_fingerprint(current_key)}"
-                        )
-                        cache.set(
-                            cooldown_key,
-                            time.time() + cooldown,
-                            timeout=int(max(1.0, cooldown + 5.0)),
-                        )
-                        logger.info(
-                            "Gemini 429 on key ...%s, cooldown=%.1fs, rotating (attempt %d/%d)",
-                            key_hint,
-                            cooldown,
-                            attempt + 1,
-                            max_attempts,
-                        )
+                    status_code = getattr(exc.response, "status_code", 0) if exc.response else 0
+                    self.last_status_code = status_code
+                    
+                    if status_code == 429 or status_code == 400:
+                        reason = "rate_limit" if status_code == 429 else "quota_exceeded"
+                        
+                        if status_code == 429:
+                            logger.warning(f"Gemini 429 detected for key {current_key[:8]}..., rotating...")
+                            llm_circuit_breaker.record_failure("gemini", 429)
+                            
+                        api_key_manager.rotate_key("gemini", reason=reason)
                         continue
-                    logger.warning("Gemini API request failed: %s", exc)
-                except (KeyError, IndexError, TypeError, ValueError):
-                    self.last_error_message = "Unexpected Gemini response structure"
-                    logger.warning("Unexpected Gemini response structure")
-
-                if attempt < max_attempts - 1 and self._is_retryable_status(
-                    self.last_status_code
-                ):
-                    time.sleep(0.5 * (attempt + 1))
-                    continue
-
-                break
-
+                    break
+                except (KeyError, IndexError, TypeError):
+                    break
         return None
 
     def _call_provider(self, provider: str, system: str, user: str) -> str | None:
@@ -664,7 +465,9 @@ class GroqLLMClient:
 
     # ── Core chat call ──────────────────────────────────────────────
     def _chat(self, system: str, user: str) -> str | None:
-        """Send a chat completion request via the global TS service scheduler."""
+        """Send a chat completion request via the global TS service scheduler.
+        Falls back to local direct API calls if the service is unavailable.
+        """
         url = f"{getattr(settings, 'TS_SERVICE_URL', '').rstrip('/')}/chat"
         headers = {
             "X-TS-API-KEY": getattr(settings, "TS_SERVICE_API_KEY", ""),
@@ -675,7 +478,8 @@ class GroqLLMClient:
             "user_prompt": user,
             "user_id": "scraping_extractor",
         }
-        
+
+        # 1. Try Remote TS Service
         try:
             resp = self._session.post(url, headers=headers, json=payload, timeout=60)
             resp.raise_for_status()
@@ -684,11 +488,19 @@ class GroqLLMClient:
             self.last_provider_used = data.get("provider_used", "remote")
             return data["output"]
         except Exception as exc:
-            logger.warning("Scraping LLM call via TS service failed: %s", exc)
-            self.last_error_message = str(exc)
-            if hasattr(exc, "response") and exc.response is not None:
-                self.last_status_code = exc.response.status_code
-            return None
+            logger.warning("Scraping LLM call via TS service failed, falling back to local: %s", exc)
+
+        # 2. Local Fallback
+        if self.mode == "primary_with_fallback":
+            # Try Primary
+            res = self._call_provider(self.primary_provider, system, user)
+            if res:
+                return res
+            # Try Fallback
+            return self._call_provider(self.fallback_provider, system, user)
+        else:
+            # Try Primary only
+            return self._call_provider(self.primary_provider, system, user)
 
 
 # ─── JSON parsing helpers ──────────────────────────────────────────

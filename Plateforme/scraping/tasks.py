@@ -566,7 +566,7 @@ def _current_source_queries(source) -> list[str]:
     fallback_queries = list(
         SearchQuery.objects.filter(category=source.category, is_active=True)
         .order_by("id")
-        .values_list("query_text", flat=True)[:10]
+        .values_list("query_text", flat=True)[:50]
     )
     if fallback_queries:
         return [str(v).strip() for v in fallback_queries if str(v or "").strip()]

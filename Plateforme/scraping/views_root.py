@@ -10,14 +10,17 @@ import json
 import logging
 import os
 import re
+import random
 import threading
 import uuid
 from collections import defaultdict
 from datetime import date, timedelta
 from ipaddress import ip_address, ip_network
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import urlencode, urlparse
 
+import requests
 from celery import current_app as current_celery_app
 from celery.result import AsyncResult
 from django.apps import apps
@@ -43,7 +46,7 @@ from feed.models import Post
 from resources.models import Course, NLPTool
 
 from scraping.extractors.core.llm_validation import GroqLLMClient
-from scraping.intelligence import detect_trends, compute_relevance_score
+from scraping.intelligence import compute_relevance_score, detect_trends
 from scraping.scrapers.custom_scraper import CustomDomainScraper
 from scraping.validators.content_validator import ContentValidator
 from scraping.validators.network_validator import NetworkValidator
@@ -60,6 +63,7 @@ from .models import (
 )
 from .scrapers import CATEGORY_META, get_all_categories, get_scraper
 from .scraping_settings import scraping_settings as SS
+from .hardcoded_prompts import HARDCODED_PROMPTS
 from .tasks import (
     push_scraping_progress,
     run_quick_scrape_task,
@@ -67,6 +71,11 @@ from .tasks import (
     validate_source_async,
 )
 from .translation import ArabicTranslator
+
+try:
+    from bs4 import BeautifulSoup
+except Exception:  # pragma: no cover - optional dependency guard
+    BeautifulSoup = None
 
 try:
     from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -188,7 +197,7 @@ SCRAPING_NAV_CATEGORY_KEYS = (
 
 def _prompt_limit_for_category(_category: str) -> int:
     """Return the max active prompt limit applied to each category."""
-    configured = int(getattr(SS, "PROMPT_MAX_ACTIVE_PER_CATEGORY", 20) or 20)
+    configured = int(getattr(SS, "PROMPT_MAX_ACTIVE_PER_CATEGORY", 50) or 50)
     return max(1, min(configured, 200))
 
 
@@ -703,7 +712,9 @@ def _source_color_token(category: str) -> str:
     return color_map.get(color_name, "#475569")
 
 
-def _health_band_for_rate(success_rate: int) -> str:
+def _health_band_for_rate(success_rate: int | None) -> str:
+    if success_rate is None:
+        return "none"
     if success_rate >= 80:
         return "green"
     if success_rate >= 40:
@@ -793,7 +804,7 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
     points, success_count = _build_source_health_points(source)
     attempts = len(points)
 
-    if attempts > 0:
+    if attempts > 0 and source.last_scraped:
         success_rate = int(round((success_count / attempts) * 100))
     elif health and int(health.total_attempts or 0) > 0:
         success_rate = int(
@@ -803,7 +814,7 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
             )
         )
     else:
-        success_rate = 0
+        success_rate = None
 
     now = timezone.now()
     recent_runs_qs = ScrapingRun.objects.filter(
@@ -838,7 +849,8 @@ def _build_source_row_payload(source: ScrapingSource) -> dict:
         or (source.consecutive_failures or 0)
     )
     failing = consecutive_failures >= 3 or (
-        success_rate < 40
+        success_rate is not None
+        and success_rate < 40
         and (attempts >= 3 or int(getattr(health, "total_attempts", 0) or 0) >= 3)
     )
 
@@ -1459,7 +1471,7 @@ def scraping_dashboard_by_category(request, category: str):
 
     ai_prompts = list(
         SearchQuery.objects.filter(category=category_key, is_active=True)
-        .order_by("id")
+        .order_by("-id")
         .values("id", "query_text", "is_active")
     )
     max_active_prompts = _prompt_limit_for_category(category_key)
@@ -3140,9 +3152,7 @@ def _build_scraping_results_dataset(
                 "raw_translation_status": raw_translation_status,
                 "status": _result_status_label(status_value),
                 "status_badge": _result_status_badge(status_value),
-                "detail_url": reverse(
-                    "scraping:scraping_result_detail", args=[obj.pk]
-                )
+                "detail_url": reverse("scraping:scraping_result_detail", args=[obj.pk])
                 + f"?category={cat_key}"
                 + (f"&run_id={selected_run_id}" if selected_run_id else ""),
                 "run_id": selected_run_id,
@@ -3150,11 +3160,22 @@ def _build_scraping_results_dataset(
             # Pull in extra model fields that the confidence calculator
             # checks (url, location, start_date, job_title, dataset_name, etc.)
             _extra_fields = (
-                "url", "access_link", "location", "location_en",
-                "start_date", "end_date", "published_date",
-                "job_title", "institution_name", "deadline",
-                "dataset_name", "download_url", "paper_url",
-                "platform", "level", "price",
+                "url",
+                "access_link",
+                "location",
+                "location_en",
+                "start_date",
+                "end_date",
+                "published_date",
+                "job_title",
+                "institution_name",
+                "deadline",
+                "dataset_name",
+                "download_url",
+                "paper_url",
+                "platform",
+                "level",
+                "price",
             )
             for _ef in _extra_fields:
                 if _ef in model_field_names and _ef not in row_data:
@@ -4239,6 +4260,7 @@ def scraping_result_detail(request, item_id):
     )
 
     from scraping.intelligence import ConfidenceCalculator
+
     calc = ConfidenceCalculator()
 
     title_en_score = int(calc.score_field(title_en, "title") * 100)
@@ -4248,16 +4270,29 @@ def scraping_result_detail(request, item_id):
     url_score = int(calc.score_field(source_url, "url") * 100)
 
     row_data = {
-        "title_en": title_en, "title": title_en,
-        "description_en": description_en, "description": description_en,
-        "url": source_url, "source_url": source_url,
-        "start_date": scraped_date, "scraped_date": scraped_date,
-        "location_en": location_en, "location": location_en,
+        "title_en": title_en,
+        "title": title_en,
+        "description_en": description_en,
+        "description": description_en,
+        "url": source_url,
+        "source_url": source_url,
+        "start_date": scraped_date,
+        "scraped_date": scraped_date,
+        "location_en": location_en,
+        "location": location_en,
     }
     _extra_fields = (
-        "job_title", "dataset_name", "platform", "level", "price", 
-        "institution_name", "deadline", "paper_url", "download_url",
-        "published_date", "access_link"
+        "job_title",
+        "dataset_name",
+        "platform",
+        "level",
+        "price",
+        "institution_name",
+        "deadline",
+        "paper_url",
+        "download_url",
+        "published_date",
+        "access_link",
     )
     for _ef in _extra_fields:
         if _ef in model_field_names:
@@ -4758,6 +4793,317 @@ def run_quick_scrape(request, category):
         )
 
 
+_CUSTOM_ELEMENT_SEARCH_METHOD = {
+    "events": "search_events",
+    "tools": "search_tools",
+    "courses": "search_courses",
+    "news": "search_news",
+    "opportunities": "search_opportunities",
+    "corpus": "search_corpus",
+}
+
+_CUSTOM_ELEMENT_LABEL = {
+    "events": "event",
+    "tools": "tool",
+    "courses": "course",
+    "news": "news item",
+    "opportunities": "opportunity",
+    "corpus": "corpus item",
+}
+
+
+def _normalize_custom_element_url(raw_url: str) -> str:
+    candidate = str(raw_url or "").strip()
+    if not candidate:
+        return ""
+    parsed = urlparse(candidate)
+    if not parsed.scheme:
+        candidate = f"https://{candidate}"
+        parsed = urlparse(candidate)
+    if parsed.scheme not in {"http", "https"}:
+        return ""
+    if not parsed.netloc:
+        return ""
+    return candidate
+
+
+def _build_custom_element_search_row(element_url: str) -> dict[str, str]:
+    response = requests.get(
+        element_url,
+        timeout=(5, 20),
+        headers={"User-Agent": "Mozilla/5.0 NLPPlatformCustomElement/1.0"},
+    )
+    response.raise_for_status()
+
+    raw_text = response.text or ""
+    content_type = str(response.headers.get("Content-Type") or "").lower()
+
+    title = ""
+    content = ""
+    if "html" in content_type and BeautifulSoup is not None:
+        soup = BeautifulSoup(raw_text, "html.parser")
+        for tag_name in ("script", "style", "noscript"):
+            for tag in soup.find_all(tag_name):
+                tag.decompose()
+
+        meta_title = soup.find("meta", attrs={"property": "og:title"})
+        if meta_title:
+            title = str(meta_title.get("content") or "").strip()
+        if not title and soup.title:
+            title = str(soup.title.get_text(" ", strip=True) or "").strip()
+
+        content = " ".join(soup.stripped_strings)
+    else:
+        content = re.sub(r"\s+", " ", raw_text or "").strip()
+
+    title = str(title or element_url).strip()[:240]
+    content = re.sub(r"\s+", " ", content or "").strip()[:7000]
+
+    if not content and not title:
+        raise ValueError("URL fetched but did not provide readable content")
+
+    return {
+        "title": title,
+        "url": element_url,
+        "content": content,
+    }
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+@csrf_protect
+def run_custom_element(request, category):
+    """Scrape one specific URL through the normal category pipeline."""
+    _log_scraping_action(request)
+
+    if not _check_rate_limit(
+        request,
+        scope="custom_element_trigger",
+        max_calls=30,
+        period=3600,
+    ):
+        return JsonResponse(
+            {"error": "Too many custom element requests. Max 30 per hour."},
+            status=429,
+            headers={"Retry-After": "3600"},
+        )
+
+    staff_error = _require_staff(request)
+    if staff_error:
+        return staff_error
+
+    if category not in CATEGORY_META:
+        return JsonResponse(
+            {"status": "error", "message": f"Unknown category: {category}"},
+            status=400,
+        )
+
+    payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+    element_url = _normalize_custom_element_url(payload.get("url"))
+    if not element_url:
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": "Please provide a valid http(s) URL.",
+            },
+            status=400,
+        )
+
+    run = ScrapingRun.objects.create(
+        category=category,
+        status="running",
+        items_updated=0,
+        triggered_by=request.user,
+        current_source="custom_element",
+        current_step="Custom element: validating URL",
+        current_message="Custom element scrape started",
+        current_item=element_url[:255],
+        progress_total=3,
+    )
+
+    try:
+        search_row = _build_custom_element_search_row(element_url)
+    except Exception as exc:
+        message = f"cant scrap element because URL could not be fetched: {exc}"
+        run.status = "failed"
+        run.errors = message
+        run.current_step = "Custom element: fetch failed"
+        run.current_message = message[:255]
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "status",
+                "errors",
+                "current_step",
+                "current_message",
+                "completed_at",
+            ]
+        )
+        return JsonResponse(
+            {
+                "status": "error",
+                "run_id": str(run.pk),
+                "message": message,
+            },
+            status=400,
+        )
+
+    from scraping.network.search_client import TavilySearchClient
+
+    search_method_name = _CUSTOM_ELEMENT_SEARCH_METHOD.get(category)
+    if not search_method_name:
+        message = "cant scrap element because category pipeline is not available"
+        run.status = "failed"
+        run.errors = message
+        run.current_step = "Custom element: unsupported category"
+        run.current_message = message[:255]
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "status",
+                "errors",
+                "current_step",
+                "current_message",
+                "completed_at",
+            ]
+        )
+        return JsonResponse(
+            {
+                "status": "error",
+                "run_id": str(run.pk),
+                "message": message,
+            },
+            status=400,
+        )
+
+    async def _fake_search_method(self, query, max_results=None):
+        del self, query, max_results
+        return [search_row]
+
+    scraper = get_scraper(category)
+    if hasattr(scraper, "bind_progress_run"):
+        scraper.bind_progress_run(run)
+
+    try:
+        with (
+            patch.object(
+                scraper,
+                "get_active_search_queries",
+                return_value=[f"custom_url:{element_url}"],
+            ),
+            patch.object(
+                TavilySearchClient,
+                search_method_name,
+                _fake_search_method,
+            ),
+        ):
+            result = scraper.run()
+    except Exception as exc:
+        message = f"cant scrap element because pipeline failed: {exc}"
+        run.status = "failed"
+        run.errors = message
+        run.current_step = "Custom element: scraper failed"
+        run.current_message = message[:255]
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                "status",
+                "errors",
+                "current_step",
+                "current_message",
+                "completed_at",
+            ]
+        )
+        logger.exception("Custom element scrape failed for category=%s", category)
+        return JsonResponse(
+            {
+                "status": "error",
+                "run_id": str(run.pk),
+                "message": message,
+            },
+            status=500,
+        )
+
+    items_found = int(result.get("items_found", 0) or 0)
+    items_created = int(result.get("items_created", 0) or 0)
+    items_updated = int(result.get("items_updated", 0) or 0)
+    items_skipped = int(result.get("items_skipped", 0) or 0)
+    result_errors = result.get("errors", [])
+    if not isinstance(result_errors, list):
+        result_errors = [str(result_errors)] if result_errors else []
+
+    if (items_created + items_updated + items_skipped) <= 0:
+        item_label = _CUSTOM_ELEMENT_LABEL.get(category, "item")
+        message = (
+            f"cant scrap element because its not a {item_label} "
+            f"or it failed validation for category '{category}'."
+        )
+        if result_errors:
+            message = f"{message} Details: {' | '.join(str(err) for err in result_errors if err)}"
+
+        run.items_found = items_found
+        run.items_created = items_created
+        run.items_updated = items_updated
+        run.items_skipped = items_skipped
+        run.errors = message
+        run.status = "failed"
+        run.current_source = "custom_element"
+        run.current_step = "Custom element: rejected by category validation"
+        run.current_message = message[:255]
+        run.completed_at = timezone.now()
+        run.save()
+
+        return JsonResponse(
+            {
+                "status": "error",
+                "run_id": str(run.pk),
+                "message": message,
+                "items_found": items_found,
+                "items_created": items_created,
+                "items_updated": items_updated,
+                "items_skipped": items_skipped,
+                "errors": result_errors,
+            },
+            status=422,
+        )
+
+    # Success case (including skipped/duplicates)
+    if items_skipped > 0 and (items_created + items_updated) == 0:
+        message = (
+            f"Element validated, but it already exists in the database for {category}."
+        )
+    else:
+        message = f"Successfully scraped {items_created + items_updated} custom {category} element(s)."
+
+    run.items_found = items_found
+    run.items_created = items_created
+    run.items_updated = items_updated
+    run.items_skipped = items_skipped
+    run.errors = "\n".join(str(err) for err in result_errors if err)
+    run.status = "completed"
+    run.current_source = "custom_element"
+    run.current_step = "Custom element completed"
+    run.current_message = message[:255]
+    run.completed_at = timezone.now()
+    run.save()
+    return JsonResponse(
+        {
+            "status": "success",
+            "mode": "custom_element",
+            "run_id": str(run.pk),
+            "items_found": items_found,
+            "items_created": items_created,
+            "items_updated": items_updated,
+            "items_skipped": items_skipped,
+            "errors": result_errors,
+            "results": result.get("results", []),
+            "duration": run.duration,
+            "message": run.current_message,
+        }
+    )
+
+
 @login_required
 @user_passes_test(is_admin)
 @require_GET
@@ -4888,7 +5234,7 @@ def _parse_prompt_suggestions(raw_text: str) -> list[str]:
 @csrf_protect
 @rate_limit(max_calls=8, period_seconds=60, scope="action")
 def generate_search_prompts(request):
-    """Generate high-yield search prompts for one scraping category using Groq."""
+    """Return 10 random search prompts from a hardcoded list of 50 per category."""
     _log_scraping_action(request)
     try:
         payload = json.loads(request.body.decode("utf-8")) if request.body else {}
@@ -4896,94 +5242,53 @@ def generate_search_prompts(request):
         payload = request.POST
 
     category = str(payload.get("category") or "").strip().lower()
-    supported_categories = {
-        "events",
-        "tools",
-        "corpus",
-        "courses",
-        "opportunities",
-        "news",
-    }
-    if category not in supported_categories:
+    if category not in HARDCODED_PROMPTS:
         return JsonResponse({"error": "Unknown category"}, status=400)
 
     max_active_prompts = _prompt_limit_for_category(category)
     active_count = _active_prompt_count(category)
     remaining_slots = max(0, max_active_prompts - active_count)
-    if remaining_slots <= 0:
-        return JsonResponse(
-            {
-                "error": (
-                    f"Prompt limit reached for {category} "
-                    f"({active_count}/{max_active_prompts})."
-                ),
-                "max_active_prompts": max_active_prompts,
-                "active_count": active_count,
-                "remaining_slots": 0,
-            },
-            status=400,
-        )
 
-    existing_prompts = list(
-        SearchQuery.objects.filter(category=category, is_active=True)
-        .order_by("id")
+    # Get all prompts for this category
+    pool = HARDCODED_PROMPTS[category]
+    
+    # Get existing prompts in DB for this category to avoid exact duplicates
+    existing_in_db = set(
+        SearchQuery.objects.filter(category=category)
         .values_list("query_text", flat=True)
     )
-    current_year = timezone.now().year
-    existing_prompts_list = json.dumps(existing_prompts, ensure_ascii=False)
 
-    system_prompt = (
-        "You are an expert NLP data curator specializing in Arabic and MENA "
-        "region NLP research. Generate highly effective web search queries "
-        "designed to discover maximum new content for a scraping pipeline. "
-        "Each query must be distinct, specific, and target sources not "
-        "commonly indexed."
-    )
-    user_prompt = f"""Generate 8 diverse, high-yield search queries for the category: {category}
+    # Filter out prompts that already exist in the database
+    available_prompts = [p for p in pool if p not in existing_in_db]
 
-Rules:
-- Each query must be unique and target a different angle (geographic, temporal, linguistic, institutional, event-type)
-- Mix English and Arabic queries (at least 2 Arabic queries)
-- Include site-specific modifiers for at least 2 queries (site:.edu, site:.ac.*, site:.org, site:github.com, site:huggingface.co)
-- Include current year ({current_year}) or next year ({current_year + 1}) in time-sensitive queries
-- Target MENA, Maghreb, Gulf region institutions explicitly in at least 1 query
-- Do NOT repeat any of these already-used prompts: {existing_prompts_list}
+    # If we ran out of new prompts, just use the whole pool (reset rotation)
+    if not available_prompts:
+        available_prompts = pool
 
-Return ONLY a JSON array of strings. No explanation. No markdown. Example:
-["query one", "query two", ...]
+    # Shuffle and pick 10
+    selected_prompts = random.sample(available_prompts, min(len(available_prompts), 10))
 
-Category-specific guidance:
-- events: conferences, workshops, shared tasks, challenges, symposiums, seminars, hackathons
-- tools: GitHub repos, HuggingFace models, APIs, tokenizers, libraries, datasets tools
-- corpus: datasets, annotated corpora, speech corpora, text collections, benchmarks
-- courses: MOOCs, university courses, bootcamps, certifications, training programs
-- opportunities: PhD positions, postdocs, research internships, NLP job openings, grants
-- news: research papers, arXiv preprints, tech news, government AI initiatives, lab announcements
-"""
+    # Apply remaining slots limit if necessary
+    if remaining_slots > 0:
+        # We don't want to overflow the total active limit if the user adds all of them
+        # but the generate API usually just returns suggestions.
+        # The frontend handles adding them one by one.
+        pass
 
-    try:
-        llm_client = GroqLLMClient(timeout=10, max_retries=1)
-        llm_text = llm_client._chat_with_groq(system_prompt, user_prompt)
-    except Exception as exc:
-        logger.warning(
-            "generate_search_prompts_call_failed",
-            extra={"category": category, "error": str(exc)},
-            exc_info=False,
+    response_payload = {
+        "prompts": selected_prompts,
+        "max_active_prompts": max_active_prompts,
+        "active_count": active_count,
+        "remaining_slots": remaining_slots,
+    }
+    
+    if remaining_slots <= 0:
+        response_payload["warning"] = (
+            f"Prompt limit reached for {category} ({active_count}/{max_active_prompts}). "
+            "Delete one prompt to add a new suggestion."
         )
-        return JsonResponse({"error": "LLM call failed"}, status=502)
 
-    prompts = _parse_prompt_suggestions(llm_text)
-    if not prompts:
-        return JsonResponse({"error": "Could not parse prompts"}, status=502)
-
-    return JsonResponse(
-        {
-            "prompts": prompts[: min(8, remaining_slots)],
-            "max_active_prompts": max_active_prompts,
-            "active_count": active_count,
-            "remaining_slots": remaining_slots,
-        }
-    )
+    return JsonResponse(response_payload)
 
 
 @login_required
@@ -5114,12 +5419,19 @@ def delete_prompt_api(request, query_id):
     if query_obj is None:
         return JsonResponse({"error": "Prompt not found"}, status=404)
 
-    query_obj.delete()
+    category = query_obj.category
+    query_obj.is_active = False
+    query_obj.save(update_fields=["is_active"])
+
+    updated_active_count = _active_prompt_count(category)
+    max_active_prompts = _prompt_limit_for_category(category)
 
     return JsonResponse(
         {
             "id": str(query_id),
             "deleted": True,
+            "active_count": updated_active_count,
+            "max_active_prompts": max_active_prompts,
         }
     )
 
@@ -6482,8 +6794,6 @@ def scraping_sources_page(request):
         category_scope = _resolve_scraping_nav_category(request)
 
     sources_queryset = ScrapingSource.objects.all()
-    if category_scope:
-        sources_queryset = sources_queryset.filter(category=category_scope)
 
     sources = list(sources_queryset.order_by("category", "name"))
     rows = [_build_source_row_payload(source) for source in sources]

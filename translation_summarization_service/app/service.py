@@ -607,9 +607,9 @@ class TranslationSummarizationService:
                             await asyncio.sleep(self.provider_call_delay_seconds)
                         async with self._provider_call_semaphore:
                             output = await asyncio.wait_for(
-                                provider._generate(
-                                    prompt=f"{system_prompt}\n\n{user_prompt}",
-                                    model=getattr(provider, "model_translate", "auto"),
+                                provider.chat(
+                                    system_prompt=system_prompt,
+                                    user_prompt=user_prompt,
                                 ),
                                 timeout=provider_timeout,
                             )

@@ -180,36 +180,12 @@ class ChatLogic:
         language = classification.language
 
         # ── Phase 6: Mode override ────────────────────────────────────
-        # When frontend specifies a mode, override classification intent
-        # while keeping the detected language from the classifier.
+        # When frontend specifies a mode, we store it to pass to the router.
+        # We no longer hard-override the intent here, so the classifier can
+        # still detect if a user is asking a legal question while in platform mode.
         _active_mode = getattr(request, "mode", None)
-        if _active_mode == "legal":
-            classification = QueryClassification(
-                intent="legal_query",
-                language=language,
-                confidence=0.98,
-                qdrant_collections=["legal_documents"],
-            )
-            logger.info("Mode override: legal → legal_query")
-        elif _active_mode == "platform":
-            classification = QueryClassification(
-                intent="platform_query",
-                language=language,
-                confidence=0.98,
-                qdrant_collections=["platform_docs"],
-            )
-            classification.detected_resource_type = extract_resource_type(
-                effective_question
-            )
-            logger.info("Mode override: platform → platform_query")
-        elif _active_mode == "nlp_ai":
-            classification = QueryClassification(
-                intent="coding_question",
-                language=language,
-                confidence=0.98,
-                qdrant_collections=[],
-            )
-            logger.info("Mode override: nlp_ai → coding_question")
+        if _active_mode:
+            logger.info("Active mode from request: %s", _active_mode)
 
         # ── Phase 4.1: Document Session Persistence ──────────────────
         # Maintains a sticky "document mode" across turns so follow-up
@@ -504,7 +480,7 @@ class ChatLogic:
         # No cards during conceptual explanations, user queries, or
         # metadata queries — only when the user explicitly asks about
         # courses, tools, institutions, resources, etc.
-        _card_intents = {"platform_query"}
+        _card_intents = {"platform_query", "legal_query"}
         if routing.platform_results and classification.intent in _card_intents:
             real_results = [r for r in routing.platform_results if r.get("type") != "no_data"]
             platform_ctx = self._build_platform_context(real_results) if real_results else ""
@@ -683,33 +659,8 @@ class ChatLogic:
 
         # ── Phase 6: Mode override (stream) ───────────────────────────
         _active_mode = getattr(request, "mode", None)
-        if _active_mode == "legal":
-            classification = QueryClassification(
-                intent="legal_query",
-                language=language,
-                confidence=0.98,
-                qdrant_collections=["legal_documents"],
-            )
-            logger.info("Stream mode override: legal → legal_query")
-        elif _active_mode == "platform":
-            classification = QueryClassification(
-                intent="platform_query",
-                language=language,
-                confidence=0.98,
-                qdrant_collections=["platform_docs"],
-            )
-            classification.detected_resource_type = extract_resource_type(
-                request.question
-            )
-            logger.info("Stream mode override: platform → platform_query")
-        elif _active_mode == "nlp_ai":
-            classification = QueryClassification(
-                intent="coding_question",
-                language=language,
-                confidence=0.98,
-                qdrant_collections=[],
-            )
-            logger.info("Stream mode override: nlp_ai → coding_question")
+        if _active_mode:
+            logger.info("Stream active mode: %s", _active_mode)
 
         _doc_session_handled = False
         if session_row and has_docs and request.user_id:
@@ -904,7 +855,7 @@ class ChatLogic:
                 else ("[User Profile]\n" + user_ctx)
             )
 
-        _card_intents = {"platform_query"}
+        _card_intents = {"platform_query", "legal_query"}
         if routing.platform_results and classification.intent in _card_intents:
             real_results = [r for r in routing.platform_results if r.get("type") != "no_data"]
             platform_ctx = self._build_platform_context(real_results) if real_results else ""
@@ -936,6 +887,7 @@ class ChatLogic:
                 session_summary=session_summary,
                 source_type=source,
                 username=getattr(request, "user_name", None),
+                mode=_active_mode,
             ):
                 answer += chunk
                 yield {"delta": chunk}
@@ -945,6 +897,7 @@ class ChatLogic:
                 async for chunk in self.groq.quick_answer_stream(
                     request.question, language,
                     username=getattr(request, "user_name", None),
+                    mode=_active_mode,
                 ):
                     answer += chunk
                     yield {"delta": chunk}
@@ -955,6 +908,7 @@ class ChatLogic:
             async for chunk in self.groq.quick_answer_stream(
                 request.question, language,
                 username=getattr(request, "user_name", None),
+                mode=_active_mode,
             ):
                 answer += chunk
                 yield {"delta": chunk}
@@ -1080,7 +1034,8 @@ class ChatLogic:
                         question=question,
                         context=context,
                         language=lang,
-                        source_type=routing.primary_source
+                        source_type=routing.primary_source,
+                        mode=domain, # Use domain as mode hint in quick query
                     )
                     return ChatResponse(
                         answer=answer,

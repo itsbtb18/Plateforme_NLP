@@ -124,9 +124,24 @@
   .cat-prompts-list {
     display: grid;
     gap: 0.55rem;
-    max-height: 28rem;
-    overflow: auto;
-    padding-right: 0.2rem;
+    max-height: 40rem;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+
+  .cat-prompts-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .cat-prompts-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .cat-prompts-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  .cat-prompts-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
 
   .cat-prompts-header {
@@ -444,9 +459,132 @@
     border-color: #f59e0b;
   }
 
+  .cat-run-btn--ghost {
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    box-shadow: none;
+  }
+
+  .cat-run-btn--ghost:hover {
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+    border-color: #94a3b8;
+  }
+
   .cat-run-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 18px 30px rgba(37, 99, 235, 0.34);
+  }
+
+  .cat-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+  }
+
+  .cat-modal[hidden] {
+    display: none;
+  }
+
+  .cat-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.62);
+    backdrop-filter: blur(8px);
+  }
+
+  .cat-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 34rem);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 1.1rem;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+    padding: 1.25rem;
+  }
+
+  .cat-modal-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .cat-modal-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 900;
+  }
+
+  .cat-modal-copy {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.83rem;
+    line-height: 1.5;
+  }
+
+  .cat-modal-close {
+    border: none;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #0f172a;
+    width: 2rem;
+    height: 2rem;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 900;
+  }
+
+  .cat-modal-form {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .cat-modal-field {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .cat-modal-label {
+    color: #334155;
+    font-size: 0.8rem;
+    font-weight: 800;
+  }
+
+  .cat-modal-input {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.85rem;
+    padding: 0.82rem 0.9rem;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+  }
+
+  .cat-modal-input:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.18);
+    border-color: #2563eb;
+  }
+
+  .cat-modal-feedback {
+    min-height: 1.1rem;
+    margin: 0;
+    color: #475569;
+    font-size: 0.77rem;
+    font-weight: 600;
+  }
+
+  .cat-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    flex-wrap: wrap;
   }
 
   .cat-run-status {
@@ -647,6 +785,15 @@
       >
         {% trans "Quick Scrape" %}
       </button>
+      <button
+        type="button"
+        class="cat-run-btn cat-run-btn--ghost"
+        id="catCustomElementBtn"
+        data-run-url="{% url 'scraping:run_custom_element' category_key|default:scraping_current_category %}"
+        title="Scrape a single URL as a direct element for the current category."
+      >
+        {% trans "Add custom element" %}
+      </button>
     </div>
     <div class="cat-run-status">
       <strong>{% trans "Last run" %}</strong>
@@ -699,6 +846,42 @@
 
 <div class="cat-toast" id="catPromptToast" role="status" aria-live="polite"></div>
 
+<div class="cat-modal" id="catCustomElementModal" hidden>
+  <div class="cat-modal-backdrop" data-custom-element-close="true"></div>
+  <div class="cat-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="catCustomElementTitle">
+    <div class="cat-modal-header">
+      <div>
+        <h3 class="cat-modal-title" id="catCustomElementTitle">{% trans "Add custom element" %}</h3>
+        <p class="cat-modal-copy">
+          {% trans "Paste a single item URL. The scraper will validate the page, confirm the category, and ingest the item directly." %}
+        </p>
+      </div>
+      <button type="button" class="cat-modal-close" id="catCustomElementCloseBtn" aria-label="{% trans 'Close custom element dialog' %}">×</button>
+    </div>
+
+    <form class="cat-modal-form" id="catCustomElementForm" data-run-url="{% url 'scraping:run_custom_element' category_key|default:scraping_current_category %}">
+      {% csrf_token %}
+      <div class="cat-modal-field">
+        <label class="cat-modal-label" for="catCustomElementUrl">{% trans "Element URL" %}</label>
+        <input
+          class="cat-modal-input"
+          id="catCustomElementUrl"
+          name="url"
+          type="url"
+          autocomplete="url"
+          placeholder="https://example.com/item"
+          required
+        />
+      </div>
+      <p class="cat-modal-feedback" id="catCustomElementFeedback"></p>
+      <div class="cat-modal-actions">
+        <button type="button" class="cat-action-btn" id="catCustomElementCancelBtn">{% trans "Cancel" %}</button>
+        <button type="submit" class="cat-action-btn cat-action-btn--primary" id="catCustomElementSubmitBtn">{% trans "Scrape element" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   (function () {
     const composer = document.getElementById('catPromptComposer');
@@ -714,10 +897,19 @@
     const promptsList = document.querySelector('.cat-prompts-list');
     const runButton = document.getElementById('catRunScraperBtn');
     const quickRunButton = document.getElementById('catQuickScrapeBtn');
+    const customElementButton = document.getElementById('catCustomElementBtn');
+    const customElementModal = document.getElementById('catCustomElementModal');
+    const customElementForm = document.getElementById('catCustomElementForm');
+    const customElementInput = document.getElementById('catCustomElementUrl');
+    const customElementFeedback = document.getElementById('catCustomElementFeedback');
+    const customElementSubmitButton = document.getElementById('catCustomElementSubmitBtn');
+    const customElementCloseButton = document.getElementById('catCustomElementCloseBtn');
+    const customElementCancelButton = document.getElementById('catCustomElementCancelBtn');
     const runStatusLabel = document.getElementById('catRunStatusLabel');
     const runStatusTime = document.getElementById('catRunStatusTime');
     const runUrl = runButton?.dataset?.runUrl || '';
     const quickRunUrl = quickRunButton?.dataset?.runUrl || '';
+    const customElementRunUrl = customElementForm?.dataset?.runUrl || customElementButton?.dataset?.runUrl || '';
     const runStatusTemplate = runButton?.dataset?.statusUrlTemplate || '';
     const categoryKey = composer?.dataset?.category || '';
     const maxPrompts = Number(composer?.dataset?.maxPrompts || 0);
@@ -746,6 +938,11 @@
       }
       feedback.textContent = message || '';
       feedback.style.color = isError ? '#b91c1c' : '#475569';
+
+      // If composer is closed and we have an error, show a toast too
+      if (isError && !composer.classList.contains('is-open')) {
+        showToast(message);
+      }
     }
 
     function openComposer() {
@@ -847,6 +1044,18 @@
 
     function promptLimitMessage() {
       return `Maximum prompts reached for this category (${currentPromptCount()}/${maxPrompts}).`;
+    }
+
+    function updateHeaderBadge(current, max) {
+      const badge = document.querySelector('.cat-header-badge');
+      if (badge) {
+        badge.textContent = `${current}/${max} {% trans "prompts" %}`;
+      }
+      const helpText = composer.querySelector('.cat-prompt-help');
+      if (helpText) {
+        // Simple regex replace for "X/Y used"
+        helpText.textContent = helpText.textContent.replace(/\d+\/\d+/, `${current}/${max}`);
+      }
     }
 
     function setGenerateLoading(isLoading) {
@@ -962,6 +1171,7 @@
       const existsInList = Array.from(promptsList.querySelectorAll('[data-prompt-id]')).some((node) => {
         return normalizePromptKey(node.dataset.promptText || '') === key;
       });
+
       if (!existsInList) {
         removeEmptyStateIfNeeded();
         promptsList.prepend(createPromptNode({
@@ -971,6 +1181,11 @@
         }));
         ensureEmptyStateIfNeeded();
       }
+
+      if (data.active_count !== undefined && data.max_active_prompts !== undefined) {
+        updateHeaderBadge(data.active_count, data.max_active_prompts);
+      }
+
       refreshSuggestionStates();
       return data;
     }
@@ -1017,6 +1232,81 @@
       }
       if (quickRunButton) {
         quickRunButton.disabled = disabled;
+      }
+      if (customElementButton) {
+        customElementButton.disabled = disabled;
+      }
+    }
+
+    function setCustomElementFeedback(message, isError = false) {
+      if (!customElementFeedback) {
+        return;
+      }
+      customElementFeedback.textContent = message || '';
+      customElementFeedback.style.color = isError ? '#b91c1c' : '#475569';
+    }
+
+    function openCustomElementModal() {
+      if (!customElementModal) {
+        return;
+      }
+      customElementModal.hidden = false;
+      document.body.style.overflow = 'hidden';
+      setCustomElementFeedback('');
+      if (customElementInput) {
+        customElementInput.focus();
+      }
+    }
+
+    function closeCustomElementModal() {
+      if (!customElementModal) {
+        return;
+      }
+      customElementModal.hidden = true;
+      document.body.style.overflow = '';
+      setCustomElementFeedback('');
+      if (customElementForm) {
+        customElementForm.reset();
+      }
+    }
+
+    async function runCustomElement(urlValue) {
+      if (!customElementRunUrl) {
+        throw new Error('{% trans "Custom element endpoint is unavailable." %}');
+      }
+
+      setRunButtonsDisabled(true);
+      setCustomElementFeedback('{% trans "Validating custom element..." %}');
+      setRunStatus('{% trans "Validating custom element..." %}');
+
+      try {
+        const data = await postJson(customElementRunUrl, { url: urlValue });
+        const status = String(data.status || '').toLowerCase();
+
+        if (status === 'success') {
+          const created = Number(data.items_created || 0);
+          const updated = Number(data.items_updated || 0);
+          const skipped = Number(data.items_skipped || 0);
+          const message = data.message || `Custom element complete: ${created} Created, ${updated} Updated, ${skipped} Skipped`;
+          setRunStatus(message);
+          setCustomElementFeedback(message);
+          if (runStatusTime) {
+            runStatusTime.textContent = new Date().toLocaleString();
+          }
+          closeCustomElementModal();
+          setTimeout(() => window.location.reload(), 900);
+          return;
+        }
+
+        const failureMessage = data.message || (Array.isArray(data.errors) ? data.errors.join(' | ') : '');
+        throw new Error(failureMessage || '{% trans "Unable to scrape custom element." %}');
+      } catch (error) {
+        const message = error.message || '{% trans "Unable to scrape custom element." %}';
+        setRunStatus(message, true);
+        setCustomElementFeedback(message, true);
+        throw error;
+      } finally {
+        setRunButtonsDisabled(false);
       }
     }
 
@@ -1136,15 +1426,64 @@
       });
     }
 
-    addButton.addEventListener('click', () => {
-      if (hasReachedPromptLimit()) {
-        setFeedback(promptLimitMessage(), true);
-        return;
+    if (customElementButton && customElementModal) {
+      customElementButton.addEventListener('click', () => {
+        openCustomElementModal();
+      });
+    }
+
+    if (customElementCloseButton) {
+      customElementCloseButton.addEventListener('click', closeCustomElementModal);
+    }
+
+    if (customElementCancelButton) {
+      customElementCancelButton.addEventListener('click', closeCustomElementModal);
+    }
+
+    if (customElementModal) {
+      customElementModal.addEventListener('click', (event) => {
+        if (event.target?.dataset?.customElementClose === 'true') {
+          closeCustomElementModal();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && customElementModal && !customElementModal.hidden) {
+        closeCustomElementModal();
       }
+    });
+
+    if (customElementForm) {
+      customElementForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const urlValue = (customElementInput?.value || '').trim();
+        if (!urlValue) {
+          setCustomElementFeedback('{% trans "Please enter a URL first." %}', true);
+          if (customElementInput) {
+            customElementInput.focus();
+          }
+          return;
+        }
+
+        customElementSubmitButton.disabled = true;
+        try {
+          await runCustomElement(urlValue);
+        } finally {
+          customElementSubmitButton.disabled = false;
+        }
+      });
+    }
+
+    addButton.addEventListener('click', () => {
       if (composer.classList.contains('is-open')) {
         closeComposer();
       } else {
         openComposer();
+        // If limit is reached, show it inside the composer immediately
+        if (hasReachedPromptLimit()) {
+          setFeedback(promptLimitMessage(), true);
+        }
       }
     });
 
@@ -1181,12 +1520,21 @@
 
     if (generateButton && generateUrl) {
       generateButton.addEventListener('click', async () => {
+        if (hasReachedPromptLimit()) {
+          const message = promptLimitMessage();
+          setFeedback(message, true);
+          showToast(message);
+          return;
+        }
+
         setGenerateLoading(true);
         try {
           const data = await postJson(generateUrl, { category: categoryKey });
           renderSuggestions(Array.isArray(data.prompts) ? data.prompts : []);
-        } catch (_error) {
-          showToast('Could not generate prompts. Try again.');
+        } catch (error) {
+          const message = error?.message || '{% trans "Could not generate prompts. Try again." %}';
+          setFeedback(message, true);
+          showToast(message);
         } finally {
           setGenerateLoading(false);
         }
@@ -1276,11 +1624,15 @@
 
       deleteButton.disabled = true;
       try {
-        await postJson(deleteUrl, {});
+        const data = await postJson(deleteUrl, {});
         promptNode.remove();
         ensureEmptyStateIfNeeded();
         refreshSuggestionStates();
         setFeedback('{% trans "Prompt removed." %}');
+
+        if (data.active_count !== undefined && data.max_active_prompts !== undefined) {
+          updateHeaderBadge(data.active_count, data.max_active_prompts);
+        }
       } catch (error) {
         setFeedback(error.message || '{% trans "Unable to delete prompt." %}', true);
         deleteButton.disabled = false;

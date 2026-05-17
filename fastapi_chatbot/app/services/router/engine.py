@@ -117,10 +117,11 @@ class QueryRouter:
         result = RoutingResult()
 
         logger.info(
-            "Routing: intent=%s lang=%s confidence=%.2f",
+            "Routing: intent=%s lang=%s confidence=%.2f mode=%s",
             intent,
             lang,
             classification.confidence,
+            mode,
         )
 
         # ----- Phase 3: Strict LLM-direct mode -----
@@ -137,6 +138,7 @@ class QueryRouter:
                     lang,
                     collections=["nlp_knowledge", "platform_docs"],
                     top_k=settings.TOP_K_RESULTS,
+                    mode=mode,
                 )
                 result.retrieved_docs = docs
                 result.primary_source = src if docs else "none"
@@ -222,6 +224,7 @@ class QueryRouter:
                 lang,
                 collections=collections,
                 top_k=settings.TOP_K_RESULTS,
+                mode=mode,
             )
             result.retrieved_docs = docs
             result.primary_source = src
@@ -255,13 +258,15 @@ class QueryRouter:
         # ----- platform_query → type-filtered search -----
         if intent == "platform_query":
             res_type = classification.detected_resource_type
+            search_keyword = self._extract_search_term(question, res_type)
+            logger.info("Platform Query Routing: keyword='%s' type=%s", search_keyword, res_type)
 
             if res_type:
                 # Type-specific search — only return the requested type
                 if res_type == "author":
                     platform = await self.platform_qs.search_authors(
                         db=db,
-                        keyword=None,
+                        keyword=search_keyword,
                         limit=10,
                     )
                 else:
@@ -288,14 +293,14 @@ class QueryRouter:
                         # Forum has no ES index — go straight to PostgreSQL
                         platform = await self.platform_qs.search_by_type(
                             db=db,
-                            keyword=question,
+                            keyword=search_keyword,
                             resource_type=res_type,
                             limit=10,
                         )
                     else:
                         try:
                             platform = await self.es_service.search(
-                                question,
+                                search_keyword,
                                 indices=indices,
                                 total_limit=10,
                             )
@@ -306,15 +311,43 @@ class QueryRouter:
                             )
                             platform = await self.platform_qs.search_by_type(
                                 db=db,
-                                keyword=question,
+                                keyword=search_keyword,
                                 resource_type=res_type,
+                                limit=10,
+                            )
+
+                    # ── Broader fallback: if type-specific search returned
+                    # empty, retry across ALL platform indices so the user
+                    # still sees relevant cards (e.g. "suggest me
+                    # summarization tool" → no exact nlp_tools match, but
+                    # courses or resources about summarization exist).
+                    if not platform and indices is not None:
+                        logger.info(
+                            "Type-specific ES search for '%s' returned empty, "
+                            "trying broad platform search",
+                            res_type,
+                        )
+                        try:
+                            platform = await self.es_service.search(
+                                search_keyword,
+                                total_limit=10,
+                            )
+                        except Exception:
+                            logger.warning(
+                                "Broad ES fallback also failed", exc_info=True
+                            )
+                        # If broad ES also empty, try PostgreSQL unified
+                        if not platform:
+                            platform = await self.platform_qs.unified_search(
+                                db=db,
+                                keyword=search_keyword,
                                 limit=10,
                             )
             else:
                 # No specific type detected — broad search
                 try:
                     platform = await self.es_service.search(
-                        question,
+                        search_keyword,
                         total_limit=10,
                     )
                 except Exception:
@@ -323,14 +356,24 @@ class QueryRouter:
                     )
                     platform = await self.platform_qs.unified_search(
                         db=db,
-                        keyword=question,
+                        keyword=search_keyword,
                         limit=10,
                     )
 
+            # ── Hybrid Semantic Fallback for Cards ──
+            # If all keyword-based searches (ES/SQL) returned zero cards,
+            # perform a semantic search on 'resources' and map hits back to cards.
+            # This handles queries with imprecise terminology.
+            if not platform:
+                logger.info("Structured search empty, triggering semantic card fallback")
+                platform = await self._extract_semantic_cards(search_keyword, db)
+
             if platform:
+                logger.info("Platform Search Success: found %d cards", len(platform))
                 result.platform_results = platform
                 result.primary_source = "platform"
             else:
+                logger.info("Platform Search: No cards found for keyword '%s'", search_keyword)
                 # Tell the LLM explicitly that the platform has no matching data
                 type_label = res_type or "content"
                 result.platform_results = [
@@ -348,18 +391,31 @@ class QueryRouter:
             # Keep platform_query responses clean: do not attach semantic NLP docs
             # when platform cards are already returned, to avoid mixed/confusing sources.
             if not platform:
+                logger.info("Platform Search: Falling back to semantic doc retrieval (platform_docs/nlp_knowledge)")
                 docs, _ = await self._semantic_targeted(
                     question,
                     db,
                     lang,
                     collections=["platform_docs", "nlp_knowledge"],
                     top_k=3,
+                    mode=mode,
                 )
                 result.retrieved_docs = docs
+                logger.info("Platform Document Fallback: retrieved %d docs", len(docs))
             return result
 
         # ----- legal_query → Qdrant (law filter + same-language priority) -----
         if intent == "legal_query":
+            # If we are in Platform Guide mode, refuse to search legal documents
+            if self._is_legal_forbidden(mode):
+                result.skip_retrieval = True
+                result.primary_source = "platform"
+                result.platform_results = [{
+                    "type": "mode_mismatch",
+                    "message": "I am currently in Platform Guide mode and cannot access legal documents. Please switch to Legal Advisor for regulatory questions."
+                }]
+                return result
+
             docs = await search_legal_documents(
                 query=question,
                 db=db,
@@ -414,6 +470,7 @@ class QueryRouter:
                 lang,
                 collections=["nlp_knowledge", "platform_docs"],
                 top_k=settings.TOP_K_RESULTS,
+                mode=mode,
             )
             result.retrieved_docs = docs
             result.primary_source = src if docs else LLM_SOURCE_LABEL
@@ -440,10 +497,98 @@ class QueryRouter:
             lang,
             user_country=user_country,
             user_city=user_city,
+            mode=mode,
         )
         result.retrieved_docs = docs
         result.primary_source = src
         return result
+
+    # ------------------------------------------------------------------
+    # Internal retrieval strategies
+    # ------------------------------------------------------------------
+
+    async def _extract_semantic_cards(
+        self,
+        question: str,
+        db: AsyncSession,
+        limit: int = 5,
+    ) -> List[Dict]:
+        """Perform semantic search on 'resources' and map to structured cards."""
+        # Use qdrant search for resources
+        from app.services.retrieval.search import search_resources as qdrant_search_resources
+        
+        docs = await qdrant_search_resources(question, db, top_k=limit)
+        
+        cards: List[Dict] = []
+        seen_ids = set()
+        
+        for doc in docs:
+            # We need to map these back to the structured models
+            # In COLLECTION_RESOURCES, the ID is often the same as DB ID
+            res_id = str(doc.get("id"))
+            res_type = doc.get("type") # 'tool', 'course', 'article', 'institution', 'project'
+            
+            if not res_id or res_id in seen_ids:
+                continue
+                
+            seen_ids.add(res_id)
+            
+            # Fetch structured data
+            card = None
+            try:
+                if res_type in ("institution", "university"):
+                    card = await self.platform_qs.get_institution_by_id(db, res_id)
+                elif res_type == "project":
+                    card = await self.platform_qs.get_project_by_id(db, res_id)
+                else:
+                    # Default to general resource (tool/article)
+                    card = await self.platform_qs.get_resource_by_id(db, res_id)
+                    
+                if card:
+                    # Inject similarity score from vector search
+                    card["similarity"] = doc.get("similarity", 0)
+                    cards.append(card)
+            except Exception as e:
+                logger.warning("Failed to fetch structured card for %s ID %s: %s", res_type, res_id, e)
+                
+        return cards
+
+    def _is_legal_forbidden(self, mode: Optional[str]) -> bool:
+        """Returns True if legal documents should be blacklisted in the current mode."""
+        return mode in ("platform", "platform_guide")
+
+    def _extract_search_term(self, question: str, resource_type: Optional[str] = None) -> str:
+        """Strip conversational filler and resource type words to get a clean search term.
+        Example: 'is there any Algerian research center in the platform' -> 'Algerian research'
+        """
+        import re
+        q = question.lower().strip()
+
+        # 1. Remove common conversational prefixes/suffixes
+        fillers = [
+            r"is there any", r"are there any", r"do you have", r"tell me about",
+            r"find me", r"suggest me", r"suggest", r"reccomend me", r"reccomend",
+            r"can you find", r"search for", r"i'm looking for", r"i am looking for",
+            r"show me", r"show", r"list of", r"list",
+            r"in the platform", r"on the platform", r"inside the platform", r"plateforme", r"platform",
+            r"please", r"thanks", r"thank you", r"merci", r"svp", r"s'il vous plaît",
+            r"من فضلك", r"شكرا", r"هل يوجد", r"هل هناك", r"ابحث عن", r"أريد",
+        ]
+        for f in fillers:
+            q = re.sub(rf"\b{f}\b", "", q)
+
+        # 2. If we know the resource type, remove keywords for that type
+        if resource_type:
+            from app.services.classifier.patterns import RESOURCE_TYPE_MAP
+            type_keywords = [k for k, v in RESOURCE_TYPE_MAP.items() if v == resource_type]
+            # Sort by length descending to match longest phrases first
+            type_keywords.sort(key=len, reverse=True)
+            for kw in type_keywords:
+                q = re.sub(rf"\b{kw}\b", "", q)
+
+        # 3. Final cleanup
+        q = re.sub(r"\s+", " ", q).strip().strip("?").strip("!").strip(".")
+        return q or question # Fallback to original if we stripped everything
 
     # ------------------------------------------------------------------
     # Internal retrieval strategies
@@ -560,14 +705,16 @@ class QueryRouter:
         *,
         user_country: Optional[str] = None,
         user_city: Optional[str] = None,
+        mode: Optional[str] = None,
     ) -> tuple[List[Dict], str]:
         """Search across all Qdrant collections (hybrid_search)."""
+        include_legal = not self._is_legal_forbidden(mode)
         return await hybrid_search(
             query=question,
             db=db,
             user_country=user_country,
             user_city=user_city,
-            include_legal=True,
+            include_legal=include_legal,
             language=language,
         )
 
@@ -592,10 +739,15 @@ class QueryRouter:
         *,
         collections: List[str],
         top_k: int = 5,
+        mode: Optional[str] = None,
     ) -> tuple[List[Dict], str]:
         """Search only the specified Qdrant collections."""
         all_docs: List[Dict] = []
         per_collection_k = max(2, top_k // len(collections))
+
+        # Enforce blacklist
+        if self._is_legal_forbidden(mode):
+            collections = [c for c in collections if c != "legal_documents"]
 
         for coll_name in collections:
             if coll_name == "platform_docs":

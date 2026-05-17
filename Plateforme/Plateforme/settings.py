@@ -299,6 +299,7 @@ SESSION_SAVE_EVERY_REQUEST = True  # Extend session on each request
 CSRF_COOKIE_SECURE = not DEBUG  # Use secure CSRF cookie in production
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost:8888,http://127.0.0.1:8888").split(",")
 
 # Security Headers (for production)
 if not DEBUG:
@@ -306,6 +307,9 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
 X_FRAME_OPTIONS = "DENY"
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # i18n / l10n / tz
 from django.utils.translation import gettext_lazy as _
@@ -504,11 +508,14 @@ SCRAPING_LLM_PRIMARY_PROVIDER = os.getenv("SCRAPING_LLM_PRIMARY_PROVIDER", "gemi
 SCRAPING_LLM_FALLBACK_PROVIDER = os.getenv("SCRAPING_LLM_FALLBACK_PROVIDER", "groq")
 SCRAPING_LLM_MODE = os.getenv("SCRAPING_LLM_MODE", "primary_with_fallback")
 GEMINI_SCRAPING_API_KEY = os.getenv("GEMINI_SCRAPING_API_KEY", "")
-GEMINI_SCRAPING_MODEL = os.getenv("GEMINI_SCRAPING_MODEL", "gemini-3.5-preview")
+GEMINI_SCRAPING_MODEL = os.getenv("GEMINI_SCRAPING_MODEL", "gemini-2.0-flash")
 GEMINI_SCRAPING_TIMEOUT = int(os.getenv("GEMINI_SCRAPING_TIMEOUT", "30"))
 GEMINI_SCRAPING_MAX_RETRIES = int(os.getenv("GEMINI_SCRAPING_MAX_RETRIES", "2"))
-GEMINI_SCRAPING_MAX_RPM = int(os.getenv("GEMINI_SCRAPING_MAX_RPM", "10"))
+GEMINI_SCRAPING_MAX_RPM = int(os.getenv("GEMINI_SCRAPING_MAX_RPM", "60"))
 PLAYWRIGHT_THRESHOLD = int(os.environ.get("PLAYWRIGHT_THRESHOLD", "200"))
+
+# Mock mode for scraping evaluations
+SCRAPING_MOCK_LLM = _env_bool("SCRAPING_MOCK_LLM", default=False)
 
 # ============================================
 # CELERY CONFIGURATION

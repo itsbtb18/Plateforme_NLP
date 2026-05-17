@@ -84,7 +84,7 @@ class ResourceBase(models.Model):
         auto_now_add=True, verbose_name=_("Creation Date")
     )
     access_link = models.URLField(
-        verbose_name=_("Access Link"), blank=True, null=True, db_index=True
+        verbose_name=_("Access Link"), max_length=500, blank=True, null=True, db_index=True
     )
     author = models.ForeignKey(
         get_user_model(),
@@ -431,6 +431,7 @@ class Course(ResourceBase):
         verbose_name=_("Platform"),
     )
     enrollment_url = models.URLField(
+        max_length=500,
         null=True,
         blank=True,
         verbose_name=_("Enrollment URL"),
@@ -459,6 +460,7 @@ class Course(ResourceBase):
         verbose_name=_("Start Date"),
     )
     source_url = models.URLField(
+        max_length=500,
         null=True,
         blank=True,
         verbose_name=_("Source URL"),
@@ -691,7 +693,7 @@ class Law(models.Model):
     publication_date = models.DateField(null=True, blank=True, db_index=True)
     legal_text = models.TextField(blank=True, default="")
     category_tags = models.JSONField(default=list, blank=True)
-    source_url = models.URLField(blank=True, default="", db_index=True)
+    source_url = models.URLField(max_length=500, blank=True, default="", db_index=True)
     source_name = models.CharField(max_length=120, blank=True, default="")
     confidence_score = models.FloatField(null=True, blank=True, db_index=True)
     scrape_status = models.CharField(
@@ -815,6 +817,7 @@ class NLPTool(ResourceBase):
     )
     source_url = models.URLField(
         verbose_name=_("Source URL"),
+        max_length=500,
         blank=True,
         null=True,
     )

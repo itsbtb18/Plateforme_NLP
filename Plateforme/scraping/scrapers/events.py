@@ -72,8 +72,6 @@ class EventScraper(BaseScraper):
     )
 
     BLOCKED_SOURCE_HOSTS = {
-        "wikicfp.com",
-        "aclanthology.org",
         "allconferencealert.com",
         "allconferencealert.net",
         "conferencealert.com",

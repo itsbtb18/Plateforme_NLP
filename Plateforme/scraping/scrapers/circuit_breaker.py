@@ -105,5 +105,55 @@ class CircuitBreaker:
     def record_failure(self, domain: str):
         self._breaker(domain).record_failure("legacy_failure")
 
-    def record_success(self, domain: str):
-        self._breaker(domain).record_success()
+import threading
+from datetime import datetime, timedelta
+
+class LLMCircuitBreaker:
+    """
+    Circuit breaker global pour les providers LLM.
+    Si toutes les keys d'un provider retournent 429 dans une fenêtre de 30s,
+    met le provider en quarantaine pour 60 minutes.
+    """
+    
+    def __init__(self):
+        self._provider_state = {}  # {provider: {"open_until": datetime, "failures": []}}
+        self._lock = threading.Lock()
+    
+    def record_failure(self, provider: str, error_code: int):
+        """Appeler après chaque 429. Si plus de 5 échecs en 30s → quarantaine."""
+        if error_code != 429:
+            return
+            
+        with self._lock:
+            now = datetime.now()
+            if provider not in self._provider_state:
+                self._provider_state[provider] = {"open_until": None, "failures": []}
+            
+            state = self._provider_state[provider]
+            # Garde seulement les échecs des 30 dernières secondes
+            state["failures"] = [f for f in state["failures"] if (now - f).total_seconds() < 30]
+            state["failures"].append(now)
+            
+            # Si plus de 50 échecs en 30s → quarantaine 2 min
+            if len(state["failures"]) >= 50:
+                state["open_until"] = now + timedelta(minutes=2)
+                state["failures"] = []
+                logger.warning(f"LLM provider '{provider}' en quarantaine jusqu'à {state['open_until']}")
+    
+    def is_available(self, provider: str) -> bool:
+        """Retourne False si le provider est en quarantaine."""
+        with self._lock:
+            state = self._provider_state.get(provider)
+            if not state or not state["open_until"]:
+                return True
+            if datetime.now() > state["open_until"]:
+                state["open_until"] = None  # Quarantaine expirée
+                return True
+            return False
+    
+    def skip_tavily_if_all_down(self) -> bool:
+        """Si tous les providers LLM sont down, inutile d'appeler Tavily."""
+        providers = ["groq", "gemini"]
+        return all(not self.is_available(p) for p in providers)
+
+llm_circuit_breaker = LLMCircuitBreaker()  # Singleton global
