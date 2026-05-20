@@ -86,6 +86,7 @@ def test_update_source_schedule_updates_periodic_task_and_source_fields():
         )
 
     scheduler = AdaptiveScheduler(lookback_runs=30)
+    scheduler.ADAPTIVE_SCHEDULING_ENABLED = True
     result = scheduler.update_source_schedule(source.id)
 
     source.refresh_from_db()
@@ -133,7 +134,9 @@ def test_update_all_sources_disables_legacy_fixed_tasks_and_updates_active_sourc
         enabled=True,
     )
 
-    results = AdaptiveScheduler(lookback_runs=10).update_all_sources()
+    scheduler = AdaptiveScheduler(lookback_runs=10)
+    scheduler.ADAPTIVE_SCHEDULING_ENABLED = True
+    results = scheduler.update_all_sources()
 
     assert len(results) == 1
     assert results[0]["source"] == "Active Source"
