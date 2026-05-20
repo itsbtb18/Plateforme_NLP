@@ -1061,7 +1061,7 @@ class PlatformQueryService:
         mapping = {
             "course": {"section": "Resources > Courses", "url": "/resources/courses/"},
             "article": {
-                "section": "Resources > Articles",
+                "section": "Resources > Documents",
                 "url": "/resources/articles/",
             },
             "thesis": {"section": "Resources > Theses", "url": "/resources/theses/"},

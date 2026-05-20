@@ -20,19 +20,10 @@ except Exception:
     def crontab(*args, **kwargs):
         return None
 
-<<<<<<< HEAD
-
 # Load environment variables for local, non-Docker runs.
 from dotenv import load_dotenv
 
 load_dotenv()
-=======
-# Load environment variables for local, non-Docker runs.
-from dotenv import load_dotenv
-
-load_dotenv(dotenv_path=r"D:\Plateforme_NLP\.env.example", override=True)
-
->>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 # Base Directory
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -57,10 +48,7 @@ def _env_bool(name: str, default: bool = False, aliases: tuple[str, ...] = ()) -
 # Security & Debug
 SECRET_KEY = _env_str("DJANGO_SECRET_KEY", aliases=("SECRET_KEY",))
 DEBUG = _env_bool("DJANGO_DEBUG", default=False, aliases=("DEBUG",))
-<<<<<<< HEAD
 FORMS_URLFIELD_ASSUME_HTTPS = True
-=======
->>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 ALLOWED_HOSTS = _env_str(
     "DJANGO_ALLOWED_HOSTS",
     default="localhost,127.0.0.1",
@@ -308,14 +296,12 @@ SESSION_SAVE_EVERY_REQUEST = True  # Extend session on each request
 
 # CSRF Security
 CSRF_COOKIE_SECURE = not DEBUG  # Use secure CSRF cookie in production
-<<<<<<< HEAD
-CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost:8888,http://127.0.0.1:8888").split(",")
-=======
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
->>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:8888,http://127.0.0.1:8888",
+).split(",")
 
 # Security Headers (for production)
 if not DEBUG:
@@ -323,12 +309,9 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
 X_FRAME_OPTIONS = "DENY"
-<<<<<<< HEAD
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-=======
->>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 # i18n / l10n / tz
 from django.utils.translation import gettext_lazy as _
@@ -427,20 +410,13 @@ ELASTICSEARCH_DSL_AUTO_REFRESH = True
 # Chatbot / FastAPI Configuration
 FASTAPI_URL = os.getenv("FASTAPI_URL", "http://fastapi:8000")
 FASTAPI_BROWSER_URL = os.getenv("FASTAPI_BROWSER_URL", "/ai")
-<<<<<<< HEAD
-FASTAPI_LOCAL_BROWSER_URL = os.getenv(
-    "FASTAPI_LOCAL_BROWSER_URL", "http://localhost:8000"
-)
-=======
 FASTAPI_LOCAL_BROWSER_URL = os.getenv("FASTAPI_LOCAL_BROWSER_URL", "http://localhost:8000")
->>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 FASTAPI_API_KEY = os.getenv("FASTAPI_API_KEY", "")
 CHATBOT_MAX_HISTORY = int(os.getenv("CHATBOT_MAX_HISTORY", "20"))
 CHATBOT_MAX_TOKENS = int(os.getenv("CHATBOT_MAX_TOKENS", "8192"))
 CHATBOT_TIMEOUT = int(os.getenv("CHATBOT_TIMEOUT", "180"))
 CHATBOT_MAX_FILE_SIZE = int(os.getenv("CHATBOT_MAX_FILE_SIZE", "20971520"))  # 20MB
 
-<<<<<<< HEAD
 # Translation / Summarization Service
 TS_SERVICE_PORT = os.getenv("TS_SERVICE_PORT", "8010")
 # Auto-detect if we are running in Docker to set the correct host name for internal networking.
@@ -461,10 +437,6 @@ TS_SERVICE_TIMEOUT = int(
 
 # Logging
 LOG_DIR = BASE_DIR / "logs"
-os.makedirs(LOG_DIR, exist_ok=True)
-=======
-# Logging
-LOG_DIR = BASE_DIR / "logs"
 
 import sys
 _log_filename = "scraping.log"
@@ -483,7 +455,6 @@ try:
         pass
 except (PermissionError, OSError):
     _log_path = Path("/tmp") / _log_filename
->>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
 
 LOGGING = {
     "version": 1,
@@ -500,11 +471,7 @@ LOGGING = {
     "handlers": {
         "scraping_file": {
             "class": "logging.handlers.RotatingFileHandler",
-<<<<<<< HEAD
-            "filename": str(LOG_DIR / "scraping.log"),
-=======
             "filename": str(_log_path),
->>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
             "maxBytes": 50 * 1024 * 1024,
             "backupCount": 5,
             "formatter": "scraping_json",
@@ -558,24 +525,14 @@ SCRAPING_LLM_PRIMARY_PROVIDER = os.getenv("SCRAPING_LLM_PRIMARY_PROVIDER", "gemi
 SCRAPING_LLM_FALLBACK_PROVIDER = os.getenv("SCRAPING_LLM_FALLBACK_PROVIDER", "groq")
 SCRAPING_LLM_MODE = os.getenv("SCRAPING_LLM_MODE", "primary_with_fallback")
 GEMINI_SCRAPING_API_KEY = os.getenv("GEMINI_SCRAPING_API_KEY", "")
-<<<<<<< HEAD
-GEMINI_SCRAPING_MODEL = os.getenv("GEMINI_SCRAPING_MODEL", "gemini-2.0-flash")
-GEMINI_SCRAPING_TIMEOUT = int(os.getenv("GEMINI_SCRAPING_TIMEOUT", "30"))
-GEMINI_SCRAPING_MAX_RETRIES = int(os.getenv("GEMINI_SCRAPING_MAX_RETRIES", "2"))
-GEMINI_SCRAPING_MAX_RPM = int(os.getenv("GEMINI_SCRAPING_MAX_RPM", "60"))
-PLAYWRIGHT_THRESHOLD = int(os.environ.get("PLAYWRIGHT_THRESHOLD", "200"))
-
-# Mock mode for scraping evaluations
-SCRAPING_MOCK_LLM = _env_bool("SCRAPING_MOCK_LLM", default=False)
-
-=======
 GEMINI_SCRAPING_MODEL = os.getenv("GEMINI_SCRAPING_MODEL", "gemini-3.5-preview")
 GEMINI_SCRAPING_TIMEOUT = int(os.getenv("GEMINI_SCRAPING_TIMEOUT", "30"))
 GEMINI_SCRAPING_MAX_RETRIES = int(os.getenv("GEMINI_SCRAPING_MAX_RETRIES", "2"))
 GEMINI_SCRAPING_MAX_RPM = int(os.getenv("GEMINI_SCRAPING_MAX_RPM", "10"))
 PLAYWRIGHT_THRESHOLD = int(os.environ.get("PLAYWRIGHT_THRESHOLD", "200"))
 
->>>>>>> b0fb41f2308c0008bb552529075f0dfda842e86e
+# Mock mode for scraping evaluations
+SCRAPING_MOCK_LLM = _env_bool("SCRAPING_MOCK_LLM", default=False)
 # ============================================
 # CELERY CONFIGURATION
 # ============================================

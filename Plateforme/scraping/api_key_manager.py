@@ -37,7 +37,20 @@ class APIKeyManager:
             "gemini": self._load_keys("GEMINI_API_KEYS"),
             "tavily": self._load_keys("TAVILY_API_KEYS"),
         }
-        self.redis = get_redis_connection("default")
+        try:
+            self.redis = get_redis_connection("default")
+        except NotImplementedError:
+            class FakeRedis:
+                def __init__(self):
+                    self.store = {}
+                def get(self, key):
+                    val = self.store.get(key)
+                    if val is not None:
+                        return str(val).encode('utf-8')
+                    return None
+                def set(self, key, value):
+                    self.store[key] = value
+            self.redis = FakeRedis()
         self._ensure_log_exists()
         
         # FIX A: Global circuit breaker per provider
