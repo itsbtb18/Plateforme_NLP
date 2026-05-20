@@ -293,6 +293,23 @@ async def article_lookup(
         raise HTTPException(status_code=500, detail="Failed to look up articles")
 
 
+@app.get("/platform/documents")
+async def document_lookup(
+    keyword: str = Query(..., min_length=1),
+    limit: int = Query(default=5, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+):
+    """Alias endpoint for article lookup using document naming."""
+    try:
+        results = await get_platform_query_service().get_article_details(
+            db, keyword=keyword, limit=limit
+        )
+        return {"results": results, "total": len(results)}
+    except Exception as e:
+        logger.error("Document lookup error: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to look up documents")
+
+
 @app.post("/platform/entity_explain", response_model=ChatResponse)
 async def entity_explain(
     request: EntityExplainRequest, db: AsyncSession = Depends(get_db)
@@ -665,7 +682,7 @@ async def root():
             "legal_search": "POST /legal_search",
             "platform_search": "POST /platform/search",
             "platform_stats": "GET /platform/stats",
-            "article_lookup": "GET /platform/articles?keyword=...",
+            "article_lookup": "GET /platform/documents?keyword=... (alias: /platform/articles)",
             "entity_explain": "POST /platform/entity_explain",
             "document_ingest": "POST /platform/document_ingest",
             "upload_document": "POST /upload_document",

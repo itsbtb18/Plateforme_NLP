@@ -133,6 +133,9 @@ def compute_retrieval_confidence(
     top_sims = sorted(similarities, reverse=True)[:3]
     avg_similarity = sum(top_sims) / len(top_sims) if top_sims else 0.0
 
+    if avg_similarity == 0.0:
+        return 0.0
+
     # ── 2. Reranker score: average of available reranker scores ───────
     if reranker_scores and len(reranker_scores) > 0:
         avg_reranker = sum(reranker_scores) / len(reranker_scores)
@@ -188,6 +191,20 @@ def should_trigger_exa(
         return False
 
     if intent == "general_knowledge":
+        if not question:
+            return False
+        # Only allow general_knowledge to trigger Exa if it is a factual lookup
+        q = question.strip().lower()
+        is_fact = bool(
+            re.search(
+                r"^(?:who\s+is|what\s+is|tell\s+me\s+(?:about|how|what)|"
+                r"explain(?:\s+to\s+me)?\s+(?:what\s+is|how|who|why)|"
+                r"من\s+هو|ما\s+هو|c'?est\s+quoi|qui\s+est)\b",
+                q,
+            )
+        )
+        if not is_fact:
+            return False
         threshold = CONFIDENCE_MEDIUM_GENERAL
     elif intent == "conceptual_question":
         threshold = CONFIDENCE_MEDIUM_CONCEPTUAL

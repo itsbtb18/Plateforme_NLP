@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 {% load i18n %}
 <!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}
@@ -1305,7 +1305,7 @@
                         <ul class="nav-dropdown-menu" id="resourcesDropdown">
                             <li><a href="{% url 'resources:corpus_list' %}" class="nav-dropdown-item {% if page == 'corpus' %}active{% endif %}" role="menuitem">{% trans "Corpus" %}</a></li>
                             <li><a href="{% url 'resources:tool_list' %}" class="nav-dropdown-item {% if page == 'tools' %}active{% endif %}" role="menuitem">{% trans "Tools" %}</a></li>
-                            <li><a href="{% url 'resources:article_list' %}" class="nav-dropdown-item {% if page == 'articles' %}active{% endif %}" role="menuitem">{% trans "Articles" %}</a></li>
+                            <li><a href="{% url 'resources:article_list' %}" class="nav-dropdown-item {% if page == 'articles' %}active{% endif %}" role="menuitem">{% trans "Documents" %}</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -3813,33 +3813,90 @@
                 results.innerHTML = `<div class="search-autocomplete-empty">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على ملفات شخصية مطابقة.{% else %}{% trans "No matching profiles found." %}{% endif %}</div>`;
             }
 
-            function renderSuggestions(items) {
-                if (!items.length) {
+            // Type icons using SVG for consistency
+            const typeIcons = {
+                'course': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>',
+                'tool': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+                'corpus': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>',
+                'resource': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+                'project': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+                'event': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+                'institution': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg>',
+                'user': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+                'topic': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+            };
+            
+            // Type labels for display
+            const typeLabels = {
+                'course': '{% trans "Course" %}',
+                'tool': '{% trans "Tool" %}',
+                'corpus': '{% trans "Corpus" %}',
+                'resource': '{% trans "Resource" %}',
+                'project': '{% trans "Project" %}',
+                'event': '{% trans "Event" %}',
+                'institution': '{% trans "Institution" %}',
+                'user': '{% trans "User" %}',
+                'topic': '{% trans "Topic" %}'
+            };
+
+            function highlightMatch(text, query) {
+                if (!text || !query) return escapeHtml(text || '');
+                const escaped = escapeHtml(text);
+                const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${safeQuery})`, 'gi');
+                return escaped.replace(regex, '<mark style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:500;">$1</mark>');
+            }
+
+            function renderSuggestions(data, query) {
+                const suggestions = data.suggestions || data.results || [];
+                
+                if (!suggestions.length) {
                     showEmpty();
                     return;
                 }
 
                 results.hidden = false;
-                results.innerHTML = items.map((item, index) => {
-                    const avatar = item.avatar
-                        ? `<img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.title)}" class="search-autocomplete-avatar">`
-                        : `<span class="search-autocomplete-fallback"><i class="fas fa-user"></i></span>`;
-                    const subtitle = item.subtitle
-                        ? `<span class="search-autocomplete-subtitle">${escapeHtml(item.subtitle)}</span>`
-                        : '';
+                
+                let html = `
+                    <div class="cmd-section" style="padding:0;">
+                        <div class="cmd-section-header" style="padding: 10px 16px;">
+                            <span>{% trans "Suggestions" %}</span>
+                            <span class="cmd-section-count">${suggestions.length}</span>
+                        </div>
+                        ${suggestions.map((item, index) => {
+                            let iconHtml = '';
+                            if (item.type === 'user' && item.avatar) {
+                                iconHtml = `<img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.title)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">`;
+                            } else {
+                                iconHtml = `<div class="cmd-item-icon ${item.type}">${typeIcons[item.type] || typeIcons['resource']}</div>`;
+                            }
+                            
+                            return `
+                            <a href="${escapeHtml(item.link || '#')}"
+                               class="sr-autocomplete-item cmd-item search-autocomplete-item" 
+                               data-index="${index}"
+                               style="text-decoration:none;">
+                                ${iconHtml}
+                                <div class="cmd-item-content">
+                                    <h5 class="cmd-item-title">${highlightMatch(item.title, query)}</h5>
+                                    <div class="cmd-item-meta">
+                                        <span class="cmd-item-badge cmd-item-type">${typeLabels[item.type] || item.type}</span>
+                                        ${item.subtitle ? `<span class="cmd-item-type" style="margin-left:6px;opacity:.8;">${escapeHtml(item.subtitle)}</span>` : ''}
+                                    </div>
+                                </div>
+                            </a>
+                            `;
+                        }).join('')}
+                    </div>
+                    <a href="${form.action}?q=${encodeURIComponent(query)}" class="cmd-view-all" style="padding:10px 16px; display:flex; align-items:center; justify-content:space-between; text-decoration:none; color:#1d4ed8; font-size:13px; font-weight:500; border-top:1px solid #e5e7eb;">
+                        <span>{% trans "View all results" %}</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                `;
 
-                    return `
-                        <a href="${escapeHtml(item.link || '#')}"
-                           class="search-autocomplete-item"
-                           data-index="${index}">
-                            ${avatar}
-                            <span class="search-autocomplete-body">
-                                <span class="search-autocomplete-title">${escapeHtml(item.title)}</span>
-                                ${subtitle}
-                            </span>
-                        </a>
-                    `;
-                }).join('');
+                results.innerHTML = html;
 
                 const links = results.querySelectorAll('.search-autocomplete-item');
                 links.forEach((link) => {
@@ -3857,10 +3914,7 @@
                         credentials: 'same-origin'
                     });
                     const data = await response.json();
-                    const suggestions = (data.suggestions || [])
-                        .filter((item) => item.type === 'user')
-                        .slice(0, 6);
-                    renderSuggestions(suggestions);
+                    renderSuggestions(data, query);
                 } catch (_) {
                     hideResults();
                 }
