@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}المقالات والأطروحات والمذكرات{% else %}Articles, Theses & Memoirs{% endif %}{% endblock %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}المقالات والأطروحات والمذكرات{% else %}Documents, Theses & Memoirs{% endif %}{% endblock %}
 
 {% block content %}
 <style>
@@ -76,15 +76,15 @@
       <div class="pub-hero-content">
         <span class="pub-hero-icon" aria-hidden="true"><i class="fas fa-book"></i></span>
         <div class="pub-hero-inner">
-          <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المقالات والأطروحات والمذكرات{% else %}Articles, Theses & Memoirs{% endif %}</h1>
-          <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف أحدث المقالات العلمية والأطروحات والمذكرات في مجال معالجة اللغة العربية.{% else %}Discover the latest research articles, theses,<br>and memoirs in Arabic Natural Language Processing.{% endif %}</p>
+          <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المقالات والأطروحات والمذكرات{% else %}Documents, Theses & Memoirs{% endif %}</h1>
+          <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف أحدث المقالات العلمية والأطروحات والمذكرات في مجال معالجة اللغة العربية.{% else %}Discover the latest research documents, theses,<br>and memoirs in Arabic Natural Language Processing.{% endif %}</p>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center;margin-left:auto;margin-right:10rem">
-        <p style="margin:0;font-family:'Inter',sans-serif;color:#a78bfa;font-size:1.6rem;font-weight:600">{% if LANGUAGE_CODE|slice:":2" == "ar" %}لديك مقالة للمشاركة؟{% else %}Share your article!{% endif %}</p>
+        <p style="margin:0;font-family:'Inter',sans-serif;color:#a78bfa;font-size:1.6rem;font-weight:600">{% if LANGUAGE_CODE|slice:":2" == "ar" %}لديك مقالة للمشاركة؟{% else %}Share your document!{% endif %}</p>
         <a href="{% url 'resources:article-create' %}" class="pub-btn" style="display:flex;flex-direction:column;align-items:center;padding:1rem 1.8rem;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);box-shadow:0 6px 16px rgba(167,139,250,.25);font-size:1.1rem;text-decoration:none">
           <i class="fas fa-plus"></i>
-          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}أضف مقالة{% else %}create article{% endif %}</span>
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}أضف مقالة{% else %}create document{% endif %}</span>
         </a>
       </div>
     </div>
@@ -95,7 +95,7 @@
           {% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الفئات{% else %}All categories{% endif %}
         </button>
         <button type="button" disabled class="pub-category-btn {% if request.GET.type == 'article' %}active{% endif %}">
-          {% if LANGUAGE_CODE|slice:":2" == "ar" %}مقالات{% else %}Articles{% endif %}
+          {% if LANGUAGE_CODE|slice:":2" == "ar" %}مقالات{% else %}Documents{% endif %}
         </button>
         <button type="button" disabled class="pub-category-btn {% if request.GET.type == 'thesis' %}active{% endif %}">
           {% if LANGUAGE_CODE|slice:":2" == "ar" %}أطروحات{% else %}Theses{% endif %}
@@ -116,7 +116,7 @@
         </div>
         <select class="pub-select" name="type" onchange="this.form.submit();" id="typeFilter">
           <option value="" {% if not request.GET.type %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الفئات{% else %}All categories{% endif %}</option>
-          <option value="article" {% if request.GET.type == 'article' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مقالات{% else %}Articles{% endif %}</option>
+          <option value="article" {% if request.GET.type == 'article' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مقالات{% else %}Documents{% endif %}</option>
           <option value="thesis" {% if request.GET.type == 'thesis' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}أطروحات{% else %}Theses{% endif %}</option>
           <option value="memoir" {% if request.GET.type == 'memoir' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مذكرات{% else %}Memoirs{% endif %}</option>
         </select>
@@ -146,7 +146,7 @@
         <div class="pub-body">
           <span class="pub-type" style="background:#a78bfa">
             <i class="fas fa-tag"></i>
-            {{ article.get_document_type_display|default:"Article" }}
+            {{ article.get_document_type_display|default:"Document" }}
           </span>
           <h2 class="pub-title">{{ article.get_localized_title }}</h2>
           <div class="pub-meta">
@@ -182,7 +182,7 @@
       {% endif %}
       <span style="color:#9ca3af;padding:.5rem 1rem">{% if LANGUAGE_CODE|slice:":2" == "ar" %}صفحة{% else %}Page{% endif %} {{ page_obj.number }} {% if LANGUAGE_CODE|slice:":2" == "ar" %}من{% else %}of{% endif %} {{ page_obj.paginator.num_pages }}</span>
       {% if page_obj.has_next %}
-      <a href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&type={{ request.GET.type }}&sort={{ request.GET.sort }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">Next →</a>
+      <a href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&type={{ request.GET.type }}&sort={{ request.GET.sort }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">→</a>
       {% endif %}
     </div>
     {% endif %}
@@ -204,3 +204,6 @@
 </div>
 
 {% endblock %}
+
+
+
