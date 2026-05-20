@@ -127,6 +127,7 @@ services:
 
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/5
 
       # Celery
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
@@ -145,7 +146,7 @@ services:
       # FastAPI Chatbot
       FASTAPI_URL: http://fastapi:8000
       FASTAPI_BROWSER_URL: /ai
-      FASTAPI_LOCAL_BROWSER_URL: ${FASTAPI_LOCAL_BROWSER_URL:-http://localhost:8000}
+      FASTAPI_LOCAL_BROWSER_URL: ${FASTAPI_LOCAL_BROWSER_URL:-http://localhost:8002}
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
 
       # Chatbot Settings
@@ -264,7 +265,7 @@ services:
       - ./fastapi_chatbot:/app
       - fastapi_cache:/app/.cache
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8002:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -454,6 +455,7 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/5
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
       ELASTICSEARCH_HOST: http://elasticsearch:9200
