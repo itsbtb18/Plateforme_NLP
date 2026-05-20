@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     GROQ_INTERNAL_API_KEY: str = ""
     GROQ_INTERNAL_MODEL: str = "llama-3.1-8b-instant"
 
+    # Groq API — CV Signup (Dedicated Key)
+    GROQ_CV_SIGNUP_API_KEY: str = ""
+    GROQ_CV_SIGNUP_MODEL: str = "llama-3.3-70b-versatile"
     # Gemini API — Chatbot (User-facing)
     GENAI_API_KEY: str = ""
     GENAI_MODEL: str = "gemini-2.0-flash"
@@ -49,10 +52,6 @@ class Settings(BaseSettings):
     # Provider selectors (chat vs internal workflows)
     LLM_PROVIDER_CHAT: str = "gemini"
     LLM_PROVIDER_INTERNAL: str = "gemini"
-<<<<<<< HEAD
-=======
-
->>>>>>> 7d1949ab5abd2a2c919f8d3f5b7557b79427e222
     GROQ_MAX_TOKENS: int = 2048
     GROQ_TEMPERATURE: float = 0.7
 
