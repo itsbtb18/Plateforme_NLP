@@ -401,7 +401,7 @@ ELASTICSEARCH_DSL = {
 # Disable autosync to prevent creation failures when Elasticsearch is unavailable
 # Resources can be manually indexed later using: python manage.py search_index --rebuild
 ELASTICSEARCH_DSL_AUTOSYNC = (
-    os.getenv("ELASTICSEARCH_DSL_AUTOSYNC", "False").lower() == "true"
+    os.getenv("ELASTICSEARCH_DSL_AUTOSYNC", "True").lower() == "true"
 )
 ELASTICSEARCH_DSL_AUTO_REFRESH = True
 
