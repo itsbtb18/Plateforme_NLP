@@ -820,12 +820,12 @@ class ProjectDocument(Document):
     """
 
     coordinator = fields.ObjectField(
-        properties={"id": fields.IntegerField(), "full_name": fields.TextField()}
+        properties={"id": fields.KeywordField(), "full_name": fields.TextField()}
     )
 
     institution = fields.ObjectField(
         properties={
-            "id": fields.IntegerField(),
+            "id": fields.KeywordField(),
             "name": fields.TextField(
                 fields={
                     "raw": fields.KeywordField(),
@@ -837,7 +837,7 @@ class ProjectDocument(Document):
     )
 
     members = fields.NestedField(
-        properties={"id": fields.IntegerField(), "full_name": fields.TextField()}
+        properties={"id": fields.KeywordField(), "full_name": fields.TextField()}
     )
 
     title = fields.TextField(
@@ -935,7 +935,7 @@ class EventDocument(Document):
 
     organizer = fields.ObjectField(
         properties={
-            "id": fields.IntegerField(),
+            "id": fields.KeywordField(),
             "name": fields.TextField(
                 fields={
                     "raw": fields.KeywordField(),
@@ -947,7 +947,7 @@ class EventDocument(Document):
     )
 
     created_by = fields.ObjectField(
-        properties={"id": fields.IntegerField(), "full_name": fields.TextField()}
+        properties={"id": fields.KeywordField(), "full_name": fields.TextField()}
     )
 
     domains = fields.KeywordField(
@@ -1089,7 +1089,7 @@ class InstitutionDocument(Document):
     )
 
     country = fields.ObjectField(
-        properties={"id": fields.IntegerField(), "name": fields.TextField()}
+        properties={"id": fields.KeywordField(), "name": fields.TextField()}
     )
 
     # Institution type for faceted filtering
