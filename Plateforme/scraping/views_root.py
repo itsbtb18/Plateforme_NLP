@@ -5420,8 +5420,7 @@ def delete_prompt_api(request, query_id):
         return JsonResponse({"error": "Prompt not found"}, status=404)
 
     category = query_obj.category
-    query_obj.is_active = False
-    query_obj.save(update_fields=["is_active"])
+    query_obj.delete()
 
     updated_active_count = _active_prompt_count(category)
     max_active_prompts = _prompt_limit_for_category(category)

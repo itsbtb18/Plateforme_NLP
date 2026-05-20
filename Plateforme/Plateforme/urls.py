@@ -4,15 +4,14 @@ URL configuration for Plateforme project.
 
 import logging
 
-from django.contrib import admin
-from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
-from django.utils.translation import gettext_lazy as _
+from django.contrib import admin
 from django.http import JsonResponse
-from django.views.static import serve
+from django.urls import include, path, re_path
+from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import RedirectView
-from django.urls import re_path
+from django.views.static import serve
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ urlpatterns = [
     path("healthz/", health_check, name="health_check"),
     path(
         "favicon.ico",
-        RedirectView.as_view(url="/static/images/navbarlogo.png", permanent=False),
+        RedirectView.as_view(url="/static/favicon.ico", permanent=False),
     ),
     path("i18n/", include("django.conf.urls.i18n")),
 ]

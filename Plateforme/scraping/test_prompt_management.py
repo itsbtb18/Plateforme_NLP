@@ -2,6 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
+from scraping.constants import CANONICAL_CATEGORIES
 from scraping.models import SearchQuery
 
 pytestmark = pytest.mark.django_db
@@ -57,11 +58,12 @@ def test_add_prompt_api_creates_prompt(client):
     ).exists()
 
 
-def test_delete_prompt_api_soft_deletes_prompt(client):
+@pytest.mark.parametrize("category", CANONICAL_CATEGORIES)
+def test_delete_prompt_api_hard_deletes_prompt(client, category):
     client.force_login(_make_staff_user())
 
     prompt = SearchQuery.objects.create(
-        category="events",
+        category=category,
         query_text="Temporary prompt",
         is_active=True,
     )
@@ -76,8 +78,13 @@ def test_delete_prompt_api_soft_deletes_prompt(client):
     payload = response.json()
     assert payload["deleted"] is True
 
-    prompt.refresh_from_db()
-    assert prompt.is_active is False
+    assert not SearchQuery.objects.filter(pk=prompt.pk).exists()
+
+    dashboard_response = client.get(
+        reverse("scraping:category_dashboard", args=[category])
+    )
+    assert dashboard_response.status_code == 200
+    assert "Temporary prompt" not in dashboard_response.content.decode("utf-8")
 
 
 def test_category_dashboard_renders_all_active_prompts(client):

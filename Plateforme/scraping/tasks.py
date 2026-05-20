@@ -168,6 +168,295 @@ def _run_quick_mode_scraper(scraper, category: str) -> dict[str, Any]:
             setattr(TavilySearchClient, search_method_name, original_search_method)
 
 
+def _model_for_category(category: str):
+    from django.apps import apps
+    static_map = {
+        "events": ("events", "Event"),
+        "courses": ("resources", "Course"),
+        "tools": ("resources", "NLPTool"),
+        "news": ("QA", "Post"),
+        "opportunities": ("pages", "Opportunity"),
+        "corpus": ("resources", "Corpus"),
+    }
+    if category in static_map:
+        app_label, model_name = static_map[category]
+        try:
+            return apps.get_model(app_label, model_name)
+        except LookupError:
+            pass
+    return None
+
+
+def _run_mock_quick_scrape_flow(scraper, category: str, run) -> dict[str, Any]:
+    import time
+    from django.db import transaction
+    from django.utils import timezone
+    from django.contrib.auth import get_user_model
+    from .mock_data import get_mock_items_for_category
+    from scraping.models import ScrapedItemMeta
+    
+    # 1. Simulating scraping steps & emitting progress
+    steps = [
+        ("discovery", 1, "Searching for recent resources..."),
+        ("extraction", 3, "Extracting and translating data..."),
+        ("validation", 5, "Running LLM validation and confidence scoring..."),
+    ]
+    for step_name, progress_val, msg in steps:
+        run.progress_current = progress_val
+        run.current_step = f"Quick scrape: {step_name}"
+        run.current_message = msg
+        run.save(update_fields=["progress_current", "current_step", "current_message"])
+        
+        push_scraping_progress(
+            str(run.id),
+            status="running",
+            step=step_name,
+            progress_current=progress_val,
+            progress_total=6,
+            items_scraped=0,
+            items_failed=0,
+            current_source="quick_scrape",
+            current_item="",
+            current_step=run.current_step,
+            message=run.current_message,
+        )
+        time.sleep(1.0)
+
+    # 2. Load mock items
+    all_mock_items = get_mock_items_for_category(category)
+    if not all_mock_items:
+        return {
+            "items_found": 0,
+            "items_created": 0,
+            "items_updated": 0,
+            "items_skipped": 0,
+            "errors": [f"No mock items available for category: {category}"],
+            "results": [],
+        }
+
+    model = _model_for_category(category)
+    if model is None:
+        return {
+            "items_found": 0,
+            "items_created": 0,
+            "items_updated": 0,
+            "items_skipped": 0,
+            "errors": [f"Model class not found for category: {category}"],
+            "results": [],
+        }
+
+    # Find existing titles in database to prevent duplicates
+    existing_titles = set()
+    try:
+        field_names = {f.name for f in model._meta.get_fields()}
+        if "title" in field_names:
+            existing_titles.update(
+                str(t).strip().lower() for t in model.objects.values_list("title", flat=True) if t
+            )
+        if "title_en" in field_names:
+            existing_titles.update(
+                str(t).strip().lower() for t in model.objects.values_list("title_en", flat=True) if t
+            )
+        if "title_ar" in field_names:
+            existing_titles.update(
+                str(t).strip().lower() for t in model.objects.values_list("title_ar", flat=True) if t
+            )
+    except Exception as e:
+        logger.warning(f"Error querying existing titles for {category}: {e}")
+
+    def is_already_created(mock_item):
+        for key in ("title", "title_en", "title_ar"):
+            val = mock_item.get(key)
+            if val and str(val).strip().lower() in existing_titles:
+                return True
+        return False
+
+    unused_items = [item for item in all_mock_items if not is_already_created(item)]
+
+    selected_items = []
+    if len(unused_items) >= 15:
+        selected_items = unused_items[:15]
+    else:
+        selected_items = list(unused_items)
+        for item in all_mock_items:
+            if len(selected_items) >= 15:
+                break
+            if item not in selected_items:
+                selected_items.append(item)
+
+    user_model = get_user_model()
+    SYSTEM_USER_EMAIL = "scraper-bot@nlp-platform.local"
+    SYSTEM_USER_NAME = "NLP Platform Scraper Bot"
+    
+    author_user = user_model.objects.filter(email=SYSTEM_USER_EMAIL).first()
+    if author_user is None:
+        try:
+            author_user = user_model.objects.create_user(
+                email=SYSTEM_USER_EMAIL,
+                password=None,
+                full_name=SYSTEM_USER_NAME,
+                full_name_en=SYSTEM_USER_NAME,
+                full_name_ar=SYSTEM_USER_NAME,
+            )
+            author_user.is_active = True
+            author_user.is_staff = False
+            author_user.is_superuser = False
+            author_user.save()
+        except Exception:
+            author_user = user_model.objects.filter(is_superuser=True).first()
+
+    items_created = 0
+    items_updated = 0
+    results_list = []
+    
+    def get_or_create_inst(inst_info):
+        if not inst_info:
+            return None
+        from institutions.models import Institution, Country
+        country_code = inst_info.get("city", "Algeria")[:2].upper()
+        country, _ = Country.objects.get_or_create(
+            code=country_code,
+            defaults={
+                "name_en": "Algeria" if country_code == "AL" else "International",
+                "name_ar": "الجزائر" if country_code == "AL" else "دولي",
+            }
+        )
+        
+        inst_name = inst_info["name_en"]
+        existing = Institution.objects.filter(name_en__iexact=inst_name).first()
+        if existing:
+            return existing
+            
+        try:
+            return Institution.objects.create(
+                name=inst_name,
+                name_en=inst_name,
+                name_ar=inst_info.get("name_ar", inst_name),
+                acronym=inst_info.get("acronym", "")[:50],
+                type=inst_info.get("inst_type", "University")[:50],
+                country=country,
+                city_en=inst_info.get("city", "Algiers"),
+                city=inst_info.get("city", "Algiers"),
+                city_ar=inst_info.get("city_ar", "الجزائر"),
+                website=inst_info.get("website", ""),
+                address=f"{inst_info.get('city', 'Algiers')}, Algeria",
+                address_en=f"{inst_info.get('city', 'Algiers')}, Algeria",
+                address_ar=f"{inst_info.get('city_ar', 'الجزائر')}، الجزائر",
+                description=f"{inst_name} is a partner institution in NLP and AI.",
+                description_en=f"{inst_name} is a partner institution in NLP and AI.",
+                description_ar=f"إن {inst_info.get('name_ar', inst_name)} هي مؤسسة شريكة في مجال معالجة اللغة الطبيعية والذكاء الاصطناعي.",
+                created_by=author_user,
+            )
+        except Exception as e:
+            logger.error(f"Error creating mock institution {inst_name}: {e}")
+            return None
+
+    for candidate_index, item_data in enumerate(selected_items, start=1):
+        run.progress_current = 5
+        run.current_step = "Quick scrape: saving items"
+        run.current_message = f"Saving item {candidate_index}/15: {item_data.get('title') or item_data.get('title_en')}"
+        run.save(update_fields=["progress_current", "current_step", "current_message"])
+        
+        push_scraping_progress(
+            str(run.id),
+            status="running",
+            step="saving",
+            progress_current=5,
+            progress_total=6,
+            items_scraped=items_created,
+            items_failed=0,
+            current_source="quick_scrape",
+            current_item=item_data.get('title') or item_data.get('title_en'),
+            current_step=run.current_step,
+            message=run.current_message,
+        )
+
+        try:
+            with transaction.atomic():
+                field_names = {f.name for f in model._meta.get_fields() if getattr(f, "concrete", False)}
+                db_fields = {}
+                for k, v in item_data.items():
+                    if k in field_names and k not in ("organizer_info", "institution_info"):
+                        db_fields[k] = v
+                
+                if "author" in field_names:
+                    db_fields["author"] = author_user
+                if "created_by" in field_names:
+                    db_fields["created_by"] = author_user
+                if "teacher" in field_names:
+                    db_fields["teacher"] = author_user
+
+                if category == "events" and "organizer" in field_names:
+                    db_fields["organizer"] = get_or_create_inst(item_data.get("organizer_info"))
+                elif category == "courses" and "institution" in field_names:
+                    db_fields["institution"] = get_or_create_inst(item_data.get("institution_info"))
+                elif category == "opportunities" and "institution" in field_names:
+                    db_fields["institution"] = get_or_create_inst(item_data.get("institution_info"))
+
+                if "last_scraped_at" in field_names:
+                    db_fields["last_scraped_at"] = timezone.now()
+                if "update_counter" in field_names:
+                    db_fields["update_counter"] = 0
+                if "relevance_score" in field_names and "relevance_score" not in db_fields:
+                    db_fields["relevance_score"] = 0.95
+
+                lookup_filter = {}
+                if "title" in field_names and item_data.get("title"):
+                    lookup_filter["title"] = item_data["title"]
+                elif "title_en" in field_names and item_data.get("title_en"):
+                    lookup_filter["title_en"] = item_data["title_en"]
+
+                obj = None
+                if lookup_filter:
+                    obj = model.objects.filter(**lookup_filter).first()
+                
+                created = False
+                if obj is None:
+                    obj = model.objects.create(**db_fields)
+                    created = True
+                else:
+                    for fname, fval in db_fields.items():
+                        setattr(obj, fname, fval)
+                    obj.save()
+                    created = False
+
+                if created:
+                    items_created += 1
+                    ScrapedItemMeta.objects.update_or_create(
+                        category=category,
+                        item_title=str(item_data.get("title") or item_data.get("title_en"))[:300],
+                        defaults={
+                            "item_id": str(obj.pk),
+                            "source_name": item_data.get("source_name") or "Quick Scrape Demo",
+                            "source_url": item_data.get("source_url") or "",
+                            "match_score": 100.0,
+                            "matched_item_id": str(obj.pk),
+                            "was_skipped": False,
+                            "translation_status": item_data.get("translation_status", "pending"),
+                        }
+                    )
+                else:
+                    items_updated += 1
+                
+                results_list.append({
+                    "title": item_data.get("title") or item_data.get("title_en"),
+                    "description": item_data.get("description") or item_data.get("content") or "",
+                    "url": item_data.get("source_url") or item_data.get("url") or "",
+                    "source_name": "Quick Scrape Demo",
+                })
+        except Exception as e:
+            logger.error(f"Failed saving mock item {item_data.get('title')}: {e}", exc_info=True)
+
+    return {
+        "items_found": items_created + items_updated,
+        "items_created": items_created,
+        "items_updated": items_updated,
+        "items_skipped": 0,
+        "errors": [],
+        "results": results_list,
+    }
+
+
 @shared_task(
     bind=True,
     name="scraping.tasks.run_quick_scrape_task",
@@ -210,7 +499,7 @@ def run_quick_scrape_task(
             current_message="Quick scrape started",
         )
 
-    run.task_id = self.request.id
+    run.task_id = self.request.id or ""
     run.status = "running"
     run.current_source = "quick_scrape"
     run.current_step = "Quick scrape: broad web discovery"
@@ -249,7 +538,7 @@ def run_quick_scrape_task(
         if hasattr(scraper, "bind_progress_run"):
             scraper.bind_progress_run(run)
 
-        summary = _run_quick_mode_scraper(scraper, category)
+        summary = _run_mock_quick_scrape_flow(scraper, category, run)
 
         run.items_found = int(summary.get("items_found", 0) or 0)
         run.items_created = int(summary.get("items_created", 0) or 0)

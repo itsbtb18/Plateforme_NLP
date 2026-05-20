@@ -1,33 +1,34 @@
-
-
 import json
 import re
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import redirect
 from django.utils import translation
-from django.conf import settings
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 
-
 # ── Language switcher (legacy, untouched) ──────────────────────
 
+
 def switch_language(request):
-    lang_code = request.GET.get('language')
-    next_url = request.META.get('HTTP_REFERER', '/')
+    lang_code = request.GET.get("language")
+    next_url = request.META.get("HTTP_REFERER", "/")
 
     if lang_code in dict(settings.LANGUAGES).keys():
         translation.activate(lang_code)
 
         # Replace the language prefix in the URL so i18n_patterns picks up the new language
-        lang_codes = '|'.join(dict(settings.LANGUAGES).keys())
-        next_url = re.sub(r'^(https?://[^/]+)?/(' + lang_codes + r')/', r'\1/' + lang_code + '/', next_url)
+        lang_codes = "|".join(dict(settings.LANGUAGES).keys())
+        next_url = re.sub(
+            r"^(https?://[^/]+)?/(" + lang_codes + r")/",
+            r"\1/" + lang_code + "/",
+            next_url,
+        )
 
         response = HttpResponseRedirect(next_url)
 
-        if hasattr(request, 'session'):
+        if hasattr(request, "session"):
             request.session[settings.LANGUAGE_COOKIE_NAME] = lang_code
 
         response.set_cookie(settings.LANGUAGE_COOKIE_NAME, lang_code)
@@ -39,8 +40,22 @@ def switch_language(request):
 
 # ── Translation / Summarization proxy API ──────────────────────
 
+
 def _safe_text(value, max_len: int = 50_000) -> str:
     return str(value or "").strip()[:max_len]
+
+
+def _runtime_error_status(exc: RuntimeError) -> int | None:
+    message = str(exc or "")
+    match = re.search(r"TS service error \((\d{3})\)", message)
+    if match:
+        try:
+            status = int(match.group(1))
+        except ValueError:
+            status = 0
+        if 400 <= status < 600:
+            return status
+    return None
 
 
 @login_required
@@ -83,7 +98,8 @@ def api_translate(request):
             user_id=str(getattr(request.user, "pk", "") or ""),
         )
     except RuntimeError as exc:
-        return JsonResponse({"ok": False, "error": str(exc)}, status=502)
+        status = _runtime_error_status(exc) or 502
+        return JsonResponse({"ok": False, "error": str(exc)}, status=status)
 
     return JsonResponse({"ok": True, **result})
 
@@ -134,7 +150,8 @@ def api_summarize(request):
             user_id=str(getattr(request.user, "pk", "") or ""),
         )
     except RuntimeError as exc:
-        return JsonResponse({"ok": False, "error": str(exc)}, status=502)
+        status = _runtime_error_status(exc) or 502
+        return JsonResponse({"ok": False, "error": str(exc)}, status=status)
 
     return JsonResponse({"ok": True, **result})
 
