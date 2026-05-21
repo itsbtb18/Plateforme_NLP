@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV Processing Module</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #4a90e2;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .upload-section {
+            border: 2px dashed #4a90e2;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            background-color: #f8fbff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-section:hover {
+            background-color: #e6f0ff;
+        }
+        .upload-section input[type="file"] {
+            display: none;
+        }
+        .btn {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #357abd;
+        }
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 2rem;
+            background-color: #272822;
+            color: #f8f8f2;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            display: none;
+            white-space: pre-wrap;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+            color: #4a90e2;
+            font-weight: bold;
+        }
+        .file-name {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>CV Extraction Service (Standalone)</h1>
+    
+    <div class="upload-section" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <p>Drag and drop your CV here, or click to select a file.</p>
+        <p style="font-size: 0.8rem; color: #666;">Supported formats: PDF, DOCX (Max 20MB)</p>
+        <input type="file" id="fileInput" accept=".pdf,.docx" onchange="handleFileSelect(event)">
+        <div class="file-name" id="fileName"></div>
+    </div>
+
+    <div style="text-align: center;">
+        <button class="btn" id="uploadBtn" onclick="uploadFile()" disabled>Extract Data</button>
+    </div>
+
+    <div class="loading" id="loading">Processing... Please wait. This may take a few seconds.</div>
+    <pre id="result"></pre>
+</div>
+
+<script>
+    let selectedFile = null;
+
+    function handleFileSelect(event) {
+        selectedFile = event.target.files[0];
+        updateUI();
+    }
+
+    // Drag and drop support
+    const dropZone = document.getElementById('dropZone');
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#e6f0ff';
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#f8fbff';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#f8fbff';
+        
+        if (e.dataTransfer.files.length > 0) {
+            document.getElementById('fileInput').files = e.dataTransfer.files;
+            selectedFile = e.dataTransfer.files[0];
+            updateUI();
+        }
+    });
+
+    function updateUI() {
+        if (selectedFile) {
+            document.getElementById('fileName').innerText = "Selected: " + selectedFile.name;
+            document.getElementById('uploadBtn').disabled = false;
+        } else {
+            document.getElementById('fileName').innerText = "";
+            document.getElementById('uploadBtn').disabled = true;
+        }
+    }
+
+    async function uploadFile() {
+        if (!selectedFile) return;
+
+        const uploadBtn = document.getElementById('uploadBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+
+        uploadBtn.disabled = true;
+        loading.style.display = 'block';
+        result.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+            const response = await fetch('/extract-cv-sync/', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.detail || 'Extraction failed');
+            }
+
+            result.innerText = JSON.stringify(data, null, 2);
+            result.style.display = 'block';
+            result.style.borderLeft = "5px solid #a6e22e";
+        } catch (error) {
+            result.innerText = "Error: " + error.message;
+            result.style.display = 'block';
+            result.style.borderLeft = "5px solid #f92672";
+        } finally {
+            loading.style.display = 'none';
+            uploadBtn.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
