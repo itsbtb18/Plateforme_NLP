@@ -1,52 +1,11 @@
-#!/usr/bin/env python
-"""Test script for CV extraction endpoint"""
 import requests
-import json
-import time
 
-def test_cv_extraction():
-    """Test the CV extraction endpoint"""
-    print("Testing CV extraction endpoint...")
-    print("=" * 60)
-    
-    # Test 1: Health check
-    print("\n1. Health check...")
-    try:
-        response = requests.get("http://localhost:8001/health", timeout=5)
-        print(f"   ✓ Status: {response.status_code}")
-        print(f"   Response: {response.json()}")
-    except Exception as e:
-        print(f"   ✗ Error: {e}")
-        return False
-    
-    # Test 2: Try with a real PDF
-    print("\n2. Testing CV extraction with PDF...")
-    pdf_path = r"rapport\main.pdf"
-    try:
-        with open(pdf_path, 'rb') as f:
-            print(f"   Uploading {pdf_path}...")
-            response = requests.post(
-                "http://localhost:8001/extract-cv-signup/",
-                files={'file': (pdf_path, f, 'application/pdf')},
-                timeout=120
-            )
-        
-        print(f"   ✓ Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"   ✓ Success! Extracted data:")
-            print(json.dumps(data, indent=2, ensure_ascii=False)[:500])
-        else:
-            print(f"   ✗ Error: {response.text[:200]}")
-    
-    except requests.exceptions.Timeout:
-        print(f"   ⚠ Request timed out (server may still be processing)")
-    except Exception as e:
-        print(f"   ✗ Error: {e}")
-    
-    print("\n" + "=" * 60)
-    print("Test complete!")
+url = "http://localhost:8003/extract-cv-sync/"
+files = {'file': ('resume.pdf', b'%PDF-1.4\n1 0 obj <</Type/Catalog/Pages 2 0 R>> endobj 2 0 obj <</Type/Pages/Kids [3 0 R]/Count 1>> endobj 3 0 obj <</Type/Page/Parent 2 0 R/MediaBox [0 0 612 792]/Contents 4 0 R/Resources <<>>>> endobj 4 0 obj <</Length 41>> stream\nBT /F1 12 Tf 100 700 Td (John Doe CV NLP Engineer) Tj ET\nendstream endobj xref 0 5 0000000000 65535 f\n0000000009 00000 n\n0000000052 00000 n\n0000000109 00000 n\n0000000216 00000 n\ntrailer <</Size 5/Root 1 0 R>> startxref 309 %%EOF', 'application/pdf')}
 
-if __name__ == "__main__":
-    test_cv_extraction()
+try:
+    response = requests.post(url, files=files)
+    print("Status:", response.status_code)
+    print("Response JSON:", response.json())
+except Exception as e:
+    print("Error:", e)
