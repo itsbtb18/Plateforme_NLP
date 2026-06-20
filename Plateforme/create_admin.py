@@ -21,7 +21,9 @@ User = get_user_model()
 
 # Configuration (can be overridden via env vars)
 EMAIL = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
-PASSWORD = os.environ.get("ADMIN_PASSWORD", "Nv9#kR7s!Tq4bL2u")
+PASSWORD = os.environ.get("ADMIN_PASSWORD")
+if not PASSWORD:
+    raise RuntimeError("ADMIN_PASSWORD environment variable must be set")
 FULL_NAME_EN = os.environ.get("ADMIN_FULL_NAME_EN", "Administrator")
 FULL_NAME_AR = os.environ.get("ADMIN_FULL_NAME_AR", "مدير")
 

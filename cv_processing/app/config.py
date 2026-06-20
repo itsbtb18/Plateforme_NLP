@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # Database (PostgreSQL)
     POSTGRES_USER: str = "nlp_admin"
-    POSTGRES_PASSWORD: str = "changeme123"
+    POSTGRES_PASSWORD: str = ""
     POSTGRES_HOST: str = "db"
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "nlp_platform"
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # Redis / Celery Configuration
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
-    REDIS_PASSWORD: str = "redis123"
+    REDIS_PASSWORD: str = ""
     REDIS_DB: int = 0
 
     @property

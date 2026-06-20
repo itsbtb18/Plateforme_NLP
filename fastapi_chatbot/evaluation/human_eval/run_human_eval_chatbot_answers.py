@@ -21,7 +21,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-DEFAULT_DB_URL = "postgresql+asyncpg://nlp_admin:changeme123@db:5432/nlp_platform"
+DEFAULT_DB_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://nlp_admin@db:5432/nlp_platform")
 
 CRITERIA = [
     "legal_correctness",

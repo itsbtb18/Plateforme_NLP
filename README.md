@@ -1,372 +1,260 @@
-# Plateforme NLP - Architecture detaillee du module Traduction / Resume
+# Arabic NLP Research Platform
 
-Ce document decrit en detail l architecture du module de traduction et de resume de la plateforme.
+A multi-service platform for Arabic Natural Language Processing research, combining conversational AI, document intelligence, web scraping, and knowledge management into a unified, containerized system.
 
-## 1. Vue globale
+## Overview
 
-Le module est base sur un microservice FastAPI dedie:
+The platform provides researchers and practitioners with tools for:
 
-- Service: `translation_summarization_service`
-- API: `/health`, `/translate`, `/summarize`, `/chat`
-- Providers LLM: Gemini et Groq
-- Fallback final traduction: Google Translate (`deep_translator`)
-- Fallback final resume: resume local heuristique
-- Infrastructure de controle: Redis (cache + queue + mutex + pacing)
-- Integration applicative: proxy Django dans `Plateforme/translate`
-
-## 2. Architecture logique
-
-### 2.1 Composants
-
-1. Client (frontend ou endpoint Django)
-2. Django proxy (`api/ts/translate`, `api/ts/summarize`, `api/ts/health`)
-3. Microservice TS FastAPI
-4. Orchestrateur central `TranslationSummarizationService`
-5. Providers externes:
-- Gemini API
-- Groq API
-6. Redis:
-- cache de sortie
-- file FIFO par utilisateur
-- mutex global
-- pacing global
-7. Fallback local:
-- Google Translate pour traduction
-- resume local en cas d echec global
-
-### 2.2 Flux haut niveau
-
-#### Traduction
-
-1. Requete API `/translate`
-2. Validation + auth optionnelle (header `X-TS-Api-Key`)
-3. Normalisation des langues (`fr`, `en`, `ar`, `auto`, aliases)
-4. Preparation texte + chunking intelligent
-5. Passage dans la queue utilisateur (si `user_id` present)
-6. Prise de mutex global
-7. Course parallele providers disponibles (Gemini/Groq)
-8. Premier succes retourne resultat
-9. Sinon fallback Google Translate
-10. Cache resultat final et reponse API
-
-#### Resume
-
-1. Requete API `/summarize`
-2. Validation + auth optionnelle
-3. Preparation texte + decoupage sections
-4. Queue utilisateur + mutex global
-5. Course parallele providers
-6. Si succes: rendu resume structure
-7. Si timeout/echec global: fallback local
-8. Cache resultat et reponse API
-
-## 3. API exposee
-
-### 3.1 GET /health
-
-Retour:
-
-```json
-{
-  "status": "ok",
-  "primary_provider": "gemini",
-  "fallback_provider": "groq"
-}
-```
-
-### 3.2 POST /translate
-
-Corps:
-
-```json
-{
-  "text": "...",
-  "source_language": "fr",
-  "target_language": "en",
-  "user_id": "optional"
-}
-```
-
-Reponse:
-
-```json
-{
-  "task": "translation",
-  "output": "...",
-  "provider_used": "gemini|groq|google|cache",
-  "fallback_used": true
-}
-```
-
-### 3.3 POST /summarize
-
-Corps:
-
-```json
-{
-  "text": "...",
-  "language": "en",
-  "style": "brief",
-  "max_words": 300,
-  "user_id": "optional"
-}
-```
-
-Reponse:
-
-```json
-{
-  "task": "summarization",
-  "output": "...",
-  "provider_used": "gemini|groq|local|local-timeout|cache",
-  "fallback_used": true
-}
-```
-
-### 3.4 POST /chat
-
-Corps:
-
-```json
-{
-  "system_prompt": "You are a helpful assistant.",
-  "user_prompt": "...",
-  "provider": "gemini",
-  "user_id": "optional"
-}
-```
-
-## 4. Orchestration interne
-
-Le coeur est dans `TranslationSummarizationService`.
-
-### 4.1 Ordre providers
-
-- `TS_PRIMARY_PROVIDER`
-- `TS_FALLBACK_PROVIDER`
-
-Validation automatique des valeurs invalides.
-
-### 4.2 Execution parallele et premier succes
-
-Le service lance Gemini et Groq en parallele (si disponibles), puis:
-
-- prend le premier provider qui reussit
-- annule les taches restantes
-
-Effet: reduction forte de latence vs fallback strictement sequentiel.
-
-### 4.3 Timeout court par provider
-
-Chaque appel provider est enveloppe dans `asyncio.wait_for` avec timeout dedie (`TS_PROVIDER_TIMEOUT_SECONDS`).
-
-### 4.4 Limitation de concurrence
-
-Semaphore global provider:
-
-- `TS_PROVIDER_MAX_CONCURRENCY`
-
-Permet de limiter le nombre d appels IA concurrents.
-
-### 4.5 Delai anti burst
-
-Avant appel provider:
-
-- `TS_PROVIDER_CALL_DELAY_SECONDS`
-
-Permet de lisser le trafic et eviter les spikes.
-
-## 5. Resilience avancee
-
-### 5.1 Retry + backoff exponentiel
-
-Pour erreurs transitoires et rate limit:
-
-- retries: `TS_RATE_LIMIT_MAX_RETRIES`
-- backoff: `2^(attempt+1)` avec cap
-- respect potentiel de `Retry-After`
-
-### 5.2 Cooldown rate limit
-
-Si 429 ou quota:
-
-- cooldown provider temporaire
-- hard quota cooldown plus long
-
-### 5.3 Circuit breaker
-
-Compteur d echecs consecutifs par provider:
-
-- seuil: `TS_CIRCUIT_BREAKER_THRESHOLD`
-- cooldown: `TS_CIRCUIT_BREAKER_COOLDOWN_SECONDS`
-
-Si seuil atteint, provider ignore temporairement.
-
-### 5.4 Fallback final garanti
-
-- Traduction: fallback Google Translate (chunks plus petits)
-- Resume: fallback local (extraction resumee)
-
-## 6. Gestion des textes longs
-
-### 6.1 Nettoyage
-
-- normalisation retours ligne
-- reduction espaces
-- correction cesures PDF
-
-### 6.2 Chunking intelligent
-
-- split intelligent (langchain si dispo)
-- fallback simple si dependance absente
-- overlap configurable
-
-### 6.3 Rebalancing
-
-Limite nombre de chunks via:
-
-- `TS_TRANSLATION_MAX_CHUNKS_PER_DOCUMENT`
-
-### 6.4 Protection contre "faux resume"
-
-Apres traduction, verification heuristique pour detecter output trop compresse.
-
-## 7. Queue et equite utilisateur
-
-Si `user_id` est present:
-
-1. hash user -> scope
-2. insertion FIFO dans Redis list
-3. attente tour en tete de file
-4. release explicite apres traitement
-
-Evite qu un utilisateur monopolise le service.
-
-## 8. Mutex global et pacing
-
-### 8.1 Mutex global Redis
-
-Cle lock:
-
-- `ts:scheduler:mutex`
-
-Protege contre surcharge interne et collisions.
-
-### 8.2 Pacing global
-
-Le service impose un intervalle minimal global entre appels provider, base sur:
-
-- `TS_GLOBAL_REQUESTS_PER_MINUTE`
-- `TS_GLOBAL_MIN_INTERVAL_SECONDS`
-
-## 9. Cache Redis
-
-Namespaces:
-
-- `ts:translation`
-- `ts:summary`
-
-Cache base sur hash du payload normalise.
-
-Objectif:
-
-- eviter recalculs sur memes requetes
-- baisser cout et latence
-
-## 10. Prompts et qualite
-
-`PromptEngine` applique des consignes strictes:
-
-### 10.1 Traduction
-
-- traduction complete (pas de resume)
-- preservation structure document
-- conservation termes techniques / code / URLs
-
-### 10.2 Resume
-
-- style et langue parametrables
-- mode section pour documents longs
-- format de sortie coherent
-
-## 11. Integration Django
-
-Le service est consomme via `Plateforme/translate`:
-
-- `ts_client.py`: client HTTP sync
-- `views.py`: endpoints proxy
-- `urls.py`: routes API TS
-
-Endpoints exposant le proxy:
-
-- `/api/ts/translate/`
-- `/api/ts/summarize/`
-- `/api/ts/health/`
-
-Note:
-
-- `ts_health()` inclut un cache local TTL pour eviter de spammer le microservice TS.
-
-## 12. Deploiement Docker
-
-Service `translation_summarization` dans `docker-compose.yml`:
-
-- port: `8010`
-- healthcheck: `/health` toutes les 30s
-- variables env de throttling/retry/chunking injectees
-
-Exemple de parametres de stabilite:
-
-- `TS_TRANSLATION_CHUNK_SIZE=400`
-- `TS_TRANSLATION_MAX_CHUNKS_PER_DOCUMENT=5`
-- `TS_PROVIDER_TIMEOUT_SECONDS=10`
-- `TS_PROVIDER_CALL_DELAY_SECONDS=0.3`
-- `TS_PROVIDER_MAX_CONCURRENCY=2`
-- `TS_RATE_LIMIT_MAX_RETRIES=3`
-
-## 13. Gestion erreurs HTTP
-
-Le service mappe les erreurs vers:
-
-- 429: rate limit / queue saturation
-- 502: erreurs provider auth/techniques
-
-Message client simplifie et securise.
-
-## 14. Observabilite
-
-Logs structurants:
-
-- start/end requete
-- provider utilise
-- fallback utilise
-- retries et delais
-- activation circuit breaker
-- fallback local/Google
-
-## 15. Bonnes pratiques d exploitation
-
-1. Eviter polling agressif de `/health`
-2. Garder healthcheck docker >= 30s
-3. Ajuster chunking selon charge et type document
-4. Conserver une concurrence provider faible au debut
-5. Monitorer ratio fallback et 429
-6. Verifier quotas API Gemini/Groq
-
-## 16. Fichiers techniques importants
-
-- `translation_summarization_service/app/main.py`
-- `translation_summarization_service/app/service.py`
-- `translation_summarization_service/app/config.py`
-- `translation_summarization_service/app/prompt_engine.py`
-- `translation_summarization_service/app/providers/gemini_provider.py`
-- `translation_summarization_service/app/providers/groq_provider.py`
-- `translation_summarization_service/app/schemas.py`
-- `Plateforme/translate/ts_client.py`
-- `Plateforme/translate/views.py`
-- `Plateforme/translate/urls.py`
-- `docker-compose.yml`
+- **Conversational AI** — multilingual chatbot with RAG, web search, and document Q&A (Arabic, French, English)
+- **Document Intelligence** — CV/resume extraction, translation, and summarization via LLM pipelines
+- **Knowledge Scraping** — automated ingestion of NLP research papers, events, tools, and institutions
+- **Semantic Search** — vector search (Qdrant) and full-text search (Elasticsearch) over a curated corpus
+- **Community Features** — forums, projects, direct messaging, notifications, and Q&A
 
 ---
 
-Si besoin, je peux aussi generer une version "architecture diagram" (Mermaid) et une section "runbook production" (incident 429, timeout, fallback loops, queue saturation).
+## Architecture
+
+```
+                         ┌─────────────────────┐
+                         │   Nginx (Port 80)   │
+                         │   Reverse Proxy     │
+                         └──────────┬──────────┘
+                                    │
+          ┌─────────────────────────┼──────────────────────────┐
+          │                         │                          │
+   ┌──────▼──────┐          ┌───────▼──────┐         ┌────────▼───────┐
+   │   Django    │          │ FastAPI Chat │         │ CV Processing  │
+   │  (Port 8888)│          │  (Port 8002) │         │  (Port 8003)   │
+   │  Main App   │          │  RAG + LLM   │         │  Resume Extrac.│
+   └──────┬──────┘          └───────┬──────┘         └────────┬───────┘
+          │                         │                          │
+          └──────────────┬──────────┘                          │
+                         │              ┌──────────────────────┘
+          ┌──────────────▼──────────────▼──────────────┐
+          │          Shared Services                    │
+          │                                            │
+          │  PostgreSQL+pgvector  Redis  Qdrant        │
+          │  Elasticsearch        Celery Workers       │
+          └────────────────────────────────────────────┘
+                         │
+          ┌──────────────▼──────────────┐
+          │  Translation/Summarization  │
+          │     Service (Port 8010)     │
+          └─────────────────────────────┘
+```
+
+### Services
+
+| Service | Container | Port | Description |
+|---|---|---|---|
+| Django (Daphne/ASGI) | `nlp_django` | 8888 | Main web application, REST APIs, WebSockets |
+| FastAPI Chatbot | `nlp_fastapi` | 8002 | Conversational AI engine with RAG |
+| CV Processing | `nlp_cv_processing` | 8003 | Resume extraction and analysis |
+| Translation/Summarization | `nlp_translation_summarization` | 8010 | Multi-language document processing |
+| PostgreSQL + pgvector | `nlp_postgres` | 5433 | Primary database with vector extension |
+| Redis | `nlp_redis` | 6379 | Cache, message broker, task queue |
+| Qdrant | `nlp_qdrant` | 6333 | Vector database for semantic search |
+| Elasticsearch | `nlp_elasticsearch` | 9200 | Full-text search engine |
+| Nginx | `nlp_nginx` | 80, 8001 | Reverse proxy and static file serving |
+| Celery Worker | — | — | Background task processing |
+| Celery Beat | — | — | Scheduled task runner |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend framework | Django 4.x + Daphne (ASGI), FastAPI |
+| LLM providers | Google Gemini, Groq (Llama 3.x) |
+| Vector DB | Qdrant |
+| Search | Elasticsearch |
+| Database | PostgreSQL 15 + pgvector |
+| Cache / Queue | Redis 7, Celery |
+| Web search | Tavily, Exa |
+| Embeddings | BAAI/bge-m3 (1024-dim) |
+| Containers | Docker Compose |
+| Real-time | Django Channels (WebSockets) |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose v2
+- At minimum 8 GB RAM available for Docker
+- API keys for at least one LLM provider (Gemini or Groq)
+
+### Setup
+
+**1. Clone and configure environment**
+
+```bash
+git clone <repository-url>
+cd Plateforme_NLP
+cp .env.example .env
+```
+
+Edit `.env` and fill in all required values. The minimum required fields are:
+
+```env
+POSTGRES_PASSWORD=<strong-random-password>
+REDIS_PASSWORD=<strong-random-password>
+DJANGO_SECRET_KEY=<50+-character-random-string>
+GROQ_API_KEY=<your-groq-key>        # or
+GENAI_API_KEY=<your-gemini-key>
+```
+
+**2. Start the platform**
+
+```bash
+# Minimal stack (Django + DB + Redis + Nginx)
+docker compose --profile scraping up -d
+
+# Full stack (adds FastAPI chatbot, Qdrant, Elasticsearch, Celery)
+docker compose --profile full up -d
+
+# With task scheduler
+docker compose --profile full --profile scheduler up -d
+```
+
+**3. Initialize the database**
+
+```bash
+docker compose exec django python manage.py migrate
+docker compose exec django python manage.py collectstatic --noinput
+```
+
+**4. Create an admin user**
+
+```bash
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=<strong-password> \
+  docker compose exec django python create_admin.py
+```
+
+**5. Access the platform**
+
+| Interface | URL |
+|---|---|
+| Main platform | http://localhost |
+| Django admin | http://localhost/admin |
+| FastAPI chatbot | http://localhost/ai |
+| API docs (FastAPI) | http://localhost:8002/docs |
+| CV Processing API | http://localhost:8003/docs |
+
+---
+
+## Configuration
+
+All configuration is driven by environment variables. Copy `.env.example` to `.env` and fill in the values. Never commit `.env` to version control.
+
+### Key variable groups
+
+| Group | Variables | Description |
+|---|---|---|
+| Database | `POSTGRES_*` | PostgreSQL credentials and connection |
+| Cache | `REDIS_PASSWORD`, `REDIS_URL` | Redis authentication |
+| Django | `DJANGO_SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` | Core Django settings |
+| LLM (chat) | `GENAI_API_KEY`, `GROQ_API_KEY` | Chatbot generation |
+| LLM (scraping) | `GEMINI_SCRAPING_API_KEY`, `GROQ_SCRAPING_API_KEY` | Content validation |
+| LLM (translation) | `TS_GEMINI_API_KEY`, `TS_GROQ_API_KEY` | Translation/summarization |
+| Vector store | `QDRANT_API_KEY` | Qdrant authentication |
+| Web search | `TAVILY_API_KEY`, `EXA_API_KEY` | RAG web search fallback |
+| Email | `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Gmail SMTP (optional) |
+
+See `.env.example` for the full list with descriptions.
+
+---
+
+## Django Apps
+
+| App | Purpose |
+|---|---|
+| `accounts` | User registration, authentication, profiles |
+| `chatbot` | AI chat interface and session management |
+| `forum` | Discussion threads and Q&A |
+| `projects` | Research project collaboration |
+| `institutions` | NLP research institutions directory |
+| `resources` | Curated NLP tools, datasets, papers |
+| `scraping` | Automated web scraping pipeline |
+| `search` | Unified search over all content |
+| `evaluation` | AI output scoring and human evaluation |
+| `translate` | Translation/summarization proxy to TS service |
+| `feed` | Activity feeds and content discovery |
+| `events` | Conferences, workshops, and events |
+| `QA` | Question & Answer system |
+| `notifications` | Real-time notifications (WebSockets) |
+| `direct_messages` | User-to-user messaging |
+
+---
+
+## Chatbot Capabilities
+
+The FastAPI chatbot service supports:
+
+- **RAG mode** — retrieves from the platform's curated corpus (legal docs, NLP papers, institutions)
+- **Web search mode** — live web search via Tavily (user-triggered)
+- **Document Q&A** — upload PDF/DOCX and ask questions
+- **Multi-session memory** — conversation history with summarization
+- **Multilingual** — Arabic, French, English (auto-detected)
+- **Provider fallback** — Gemini → Groq automatic failover
+
+---
+
+## Scraping Pipeline
+
+The scraping system runs as a Celery task and covers:
+
+- ArXiv and Semantic Scholar (research papers)
+- NLP conferences and events
+- Institution websites
+- Government and legal documents
+- RSS feeds and listing pages
+
+Content is validated by LLM, deduplicated (Jaccard + semantic similarity), enriched with NER, and indexed into PostgreSQL, Qdrant, and Elasticsearch.
+
+---
+
+## Development
+
+### Running tests
+
+```bash
+# FastAPI chatbot tests
+cd fastapi_chatbot && pytest
+
+# CV processing tests
+cd cv_processing && pytest
+```
+
+### Adding scraping sources
+
+Sources are managed via Django admin under the Scraping section, or by adding entries to the database via management commands.
+
+### Logs
+
+```bash
+docker compose logs -f django
+docker compose logs -f fastapi
+docker compose logs -f celery_worker
+```
+
+---
+
+## Security Notes
+
+- Never commit `.env` — it is gitignored
+- Rotate all API keys if they were ever exposed in git history
+- Set `DEBUG=False` in production
+- Use strong, unique passwords for `POSTGRES_PASSWORD` and `REDIS_PASSWORD`
+- The `DJANGO_SECRET_KEY` must be at least 50 characters and kept secret
+- The `ADMIN_PASSWORD` for the create_admin script must be passed via environment variable
+
+---
+
+## License
+
+This project is developed as part of academic NLP research. See `LICENSE` for details.

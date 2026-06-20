@@ -520,10 +520,8 @@ SCRAPING_MOCK_LLM = _env_bool("SCRAPING_MOCK_LLM", default=False)
 # ============================================
 # CELERY CONFIGURATION
 # ============================================
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://:redis123@redis:6379/3")
-CELERY_RESULT_BACKEND = os.getenv(
-    "CELERY_RESULT_BACKEND", "redis://:redis123@redis:6379/4"
-)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

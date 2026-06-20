@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
       POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
       PGCONNECT_TIMEOUT: 10
     volumes:
@@ -32,13 +32,13 @@ services:
     profiles: ["scraping", "full"]
     image: redis:7-alpine
     container_name: nlp_redis
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123} --timeout 0 --tcp-backlog 511
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --timeout 0 --tcp-backlog 511
     volumes:
       - ./data/redis:/data
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redis123} ping | grep -q PONG"]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -115,7 +115,7 @@ services:
           memory: 2g
     environment:
       # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nlp_platform}
 
       # Django (support both old and new env keys)
       SECRET_KEY: ${DJANGO_SECRET_KEY}
@@ -126,12 +126,12 @@ services:
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
 
       # Redis
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
-      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/5
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/5
 
       # Celery
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/4
 
       # Email (optional)
       EMAIL_HOST: ${EMAIL_HOST:-}
@@ -222,14 +222,14 @@ services:
     mem_limit: 1.5g
     mem_reservation: 512m
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
       QDRANT_HOST: qdrant
       QDRANT_PORT: "6333"
       QDRANT_GRPC_PORT: "6334"
@@ -318,7 +318,7 @@ services:
       TS_TRANSLATION_CHUNK_OVERLAP: ${TS_TRANSLATION_CHUNK_OVERLAP:-160}
       TS_TRANSLATION_MAX_CHUNKS_PER_DOCUMENT: ${TS_TRANSLATION_MAX_CHUNKS_PER_DOCUMENT:-5}
       TS_GOOGLE_FALLBACK_CHUNK_SIZE: ${TS_GOOGLE_FALLBACK_CHUNK_SIZE:-1800}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
     ports:
       - "127.0.0.1:${TS_SERVICE_PORT:-8010}:8010"
     command: >
@@ -344,14 +344,14 @@ services:
     mem_limit: 1.5g
     mem_reservation: 512m
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nlp_platform}
       GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
       QDRANT_HOST: qdrant
       QDRANT_PORT: "6333"
       QDRANT_GRPC_PORT: "6334"
@@ -431,7 +431,7 @@ services:
       DEBUG: ${DEBUG:-False}
       # Database
       POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
@@ -441,11 +441,11 @@ services:
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: "0"
       # Celery
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/5
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/6
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/5
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/6
       CELERY_TASK_TIME_LIMIT: "3600"
       CELERY_TASK_SOFT_TIME_LIMIT: "3300"
       # CV Processing
@@ -492,7 +492,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # Database
       POSTGRES_USER: ${POSTGRES_USER:-nlp_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-nlp_platform}
@@ -502,11 +502,11 @@ services:
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: "0"
       # Celery
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/5
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/6
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/5
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/6
       CELERY_TASK_TIME_LIMIT: "3600"
       CELERY_TASK_SOFT_TIME_LIMIT: "3300"
       # CV Processing
@@ -572,17 +572,17 @@ services:
     user: "celery:celery"
     mem_limit: 512m
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nlp_platform}
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
-      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/5
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CHANNEL_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/5
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/4
       ELASTICSEARCH_HOST: http://elasticsearch:9200
       FASTAPI_URL: http://fastapi:8000
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
@@ -639,16 +639,16 @@ services:
     user: "0:0"
     mem_limit: 256m
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD:-changeme123}@db:5432/${POSTGRES_DB:-nlp_platform}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nlp_admin}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nlp_platform}
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis123}@redis:6379/4
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/3
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/4
       ELASTICSEARCH_HOST: http://elasticsearch:9200
       GROQ_SCRAPING_API_KEY: ${GROQ_SCRAPING_API_KEY:-}
       GROQ_SCRAPING_MODEL: ${GROQ_SCRAPING_MODEL:-llama-3.3-70b-versatile}
