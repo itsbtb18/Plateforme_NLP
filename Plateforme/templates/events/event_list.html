@@ -1,223 +1,259 @@
-{% extends "base.html" %}
-{% load i18n %}
+{% extends 'base.html' %}
+{% load i18n static %}
 
-{% block title %}{% trans "Scientific Events" %} | {% trans "Arabic NLP Platform" %}{% endblock title %}
+{% block title %}{% translate "Scientific Events" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.evt-shell{position:relative;padding:3rem 0 2.5rem;color:#fff;overflow:hidden}
+.evt-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.evt-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.evt-wrap>*{position:relative;z-index:1}
+.evt-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.evt-filter-grid{display:grid;grid-template-columns:2.2fr repeat(4,1fr) auto;gap:1rem;align-items:stretch}
+.evt-input-wrapper{position:relative;display:flex;align-items:center}
+.evt-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:linear-gradient(135deg,rgba(26,26,46,.8),rgba(26,26,46,.6));color:#fff;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none}
+.evt-input{background:#1a1a2e !important;color:#fff !important;box-shadow:none !important}
+.evt-input::placeholder{color:white;opacity:.6;font-weight:400}
+.evt-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.evt-input:-webkit-autofill,
+.evt-input:-webkit-autofill:hover,
+.evt-input:-webkit-autofill:focus,
+.evt-input:-webkit-autofill:active{
+  -webkit-text-fill-color:#fff !important;
+  -webkit-box-shadow:0 0 0 1000px #1a1a2e inset !important;
+  box-shadow:0 0 0 1000px #1a1a2e inset !important;
+  transition:background-color 9999s ease-in-out 0s;
+  caret-color:#a78bfa;
+}
+.evt-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background-color:#1a1a2e;color:#fff;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
+.evt-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
+.evt-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
+.evt-select:hover{border-color:rgba(167,139,250,.24);background-color:#1a1a2e;box-shadow:0 4px 12px rgba(167,139,250,.15);transform:translateY(-2px)}
+.evt-select:focus{outline:none;border-color:rgba(167,139,250,.24) !important;box-shadow:none;background-color:#1a1a2e}
+.evt-select:active{background-color:#1a1a2e}
+.evt-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.evt-btn:hover{transform:translateY(-3px);box-shadow:none;background:#a78bfa}
+.evt-btn:active{transform:translateY(-1px);box-shadow:0 6px 16px rgba(167,139,250,.2)}
+.evt-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;padding-bottom:1rem;direction:ltr}
+html[dir="rtl"] .evt-grid{justify-content:start}
+.evt-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:340px;min-width:0;flex-shrink:1}
+.evt-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.evt-accent{height:4px;width:100%;flex-shrink:0;background:#a78bfa}
+.evt-date-header{display:flex;align-items:center;justify-content:space-between;padding:.75rem .75rem;gap:.6rem;border-bottom:1px solid rgba(167,139,250,.15)}
+.evt-date-badge{width:52px;min-width:52px;background:linear-gradient(135deg,#a78bfa,#7c3aed);border-radius:12px;text-align:center;padding:.5rem .32rem;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(167,139,250,.2)}
+.evt-date-day{font-size:1.2rem;font-weight:800;color:#0f1419;line-height:1}
+.evt-date-month{font-size:.65rem;font-weight:700;color:rgba(15,23,42,.7);text-transform:uppercase;letter-spacing:.1em;margin-top:.2rem}
+.evt-card-header-info{flex:1;min-width:0}
+.evt-card-badges{display:flex;gap:.35rem;margin-bottom:.3rem;flex-wrap:wrap}
+.evt-type-badge{display:inline-flex;align-items:center;gap:.2rem;padding:.25rem .5rem;font-size:.65rem;font-weight:700;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
+.evt-type-conference{background:rgba(6,182,212,.15);color:#06b6d4}
+.evt-type-workshop{background:rgba(52,211,153,.15);color:#34d399}
+.evt-type-seminar{background:rgba(167,139,250,.15);color:#a78bfa}
+.evt-type-call_for_papers{background:rgba(251,191,36,.15);color:#fbbf24}
+.evt-type-hackathon{background:rgba(244,114,182,.15);color:#f472b6}
+.evt-type-other{background:rgba(156,163,175,.1);color:#9ca3af}
+.evt-status-badge{display:inline-flex;align-items:center;gap:.2rem;padding:.25rem .5rem;font-size:.65rem;font-weight:700;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
+.evt-status-upcoming{background:rgba(52,211,153,.15);color:#34d399}
+.evt-status-ongoing{background:rgba(129,140,248,.15);color:#818cf8}
+.evt-status-past{background:rgba(156,163,175,.15);color:#9ca3af}
+.evt-card-title{margin:.2rem 0;font-size:.9rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.evt-body{padding:.65rem .75rem .5rem;display:flex;flex-direction:column;flex:1}
+.evt-excerpt{color:#d1d5db;line-height:1.4;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.76rem;margin-top:.35rem}
+.evt-info{display:flex;flex-direction:column;gap:.35rem;margin-top:.4rem;font-size:.76rem}
+.evt-info-row{display:flex;align-items:center;gap:.4rem;color:#cbd5e1}
+.evt-info-row i{color:#a78bfa;font-size:.85rem;width:14px;text-align:center}
+.evt-activity-row{padding-top:.1rem;color:#ede9fe}
+.evt-activity-row strong{color:#fff}
+.evt-deadline-alert{display:flex;align-items:center;gap:.55rem;padding:.5rem .75rem;background:rgba(251,191,36,.1);border-top:1px solid rgba(251,191,36,.2);margin-top:auto}
+.evt-deadline-icon{width:28px;height:28px;background:#fbbf24;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0f1419;font-size:.8rem;flex-shrink:0}
+.evt-deadline-text{flex:1;min-width:0}
+.evt-deadline-label{font-size:.65rem;color:#fbbf24;font-weight:700;text-transform:uppercase}
+.evt-deadline-date{font-size:.75rem;color:#fff;font-weight:600;margin-top:.1rem}
+.evt-deadline-days{padding:.3rem .6rem;background:#fbbf24;color:#0f1419;font-size:.7rem;font-weight:700;border-radius:999px;white-space:nowrap;flex-shrink:0}
+.evt-link{display:flex;align-items:center;justify-content:center;gap:.45rem;width:100%;padding:.64rem .75rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:.1rem;font-size:.8rem;white-space:nowrap;line-height:1.2}
+.evt-link:hover{background:rgba(255,255,255,.04)}
+.evt-link span{white-space:nowrap}
+.evt-link i{flex-shrink:0}
+html[dir="rtl"] .evt-link{flex-direction:row-reverse}
+.evt-card-tools{display:flex;justify-content:flex-end;padding:.65rem .75rem .5rem}
+.evt-card-tools .card-action-icon{border-color:rgba(167,139,250,.2);color:#9ca3af}
+.evt-card-tools .card-action-icon:hover{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.4);color:#a78bfa;box-shadow:0 4px 12px rgba(167,139,250,.18)}
+.evt-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.evt-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.evt-empty-inner{position:relative;z-index:1}
+.evt-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem;display:block;animation:float-empty 3s ease-in-out infinite}
+.evt-empty h3{margin:1rem 0 .75rem;font-family:'Inter',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.01em}
+.evt-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+.evt-empty-actions{display:flex;flex-direction:column;gap:.75rem;align-items:center;margin-top:1.5rem}
+.evt-empty-reset{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+.evt-empty-reset:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+@keyframes float-empty{0%,100%{transform:translateY(0px);}50%{transform:translateY(-12px);}}
+.evt-hero{position:relative;padding:2rem 0;margin:1rem auto 1.5rem;text-align:left;display:flex;align-items:flex-start;gap:2.5rem;justify-content:flex-start;background:transparent;border:none;box-shadow:none}
+.evt-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.evt-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-left:2rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.evt-hero h1{margin:0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.evt-hero p{margin:0;font-family:'Inter',sans-serif;font-size:20.8px;color:#a78bfa;line-height:1.7;font-weight:600;text-align:left}
+.evt-hero-stats{display:flex;align-items:center;justify-content:center;gap:1.5rem;flex-direction:column;flex-shrink:0;margin-left:-11rem}
+.evt-stat-card{display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center;width:180px;padding-top:2rem}
+.evt-stat-number{font-size:3.5rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.evt-stat-label{font-size:1rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin:0;font-weight:700}
+.evt-stat-empty-message{font-size:.9rem;color:#9ca3af;font-weight:500;margin-top:.3rem;padding-top:.35rem;border-top:1.5px solid #9ca3af;width:100%}
+@media (max-width:1000px){.evt-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}}
+@media (max-width:1200px){.evt-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:900px){.evt-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:768px){.evt-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center;align-items:center}.evt-hero h1{font-size:2rem;text-align:center}.evt-hero p{font-size:1rem;text-align:center}.evt-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.evt-stat-card{width:140px}}
+@media (max-width:480px){.evt-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.evt-hero h1{font-size:1.5rem}.evt-hero p{font-size:.9rem}.evt-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.evt-stat-card{width:130px;padding:1rem}.evt-stat-number{font-size:2.5rem}}
+
+</style>
+
+{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-  <!-- Hero Header -->
-  <div class="row align-items-center mb-5 header-section">
-    <div class="col-lg-8 col-md-7">
-      <h1 class="display-4 fw-bold text-primary mb-2">{% trans "Scientific Events" %}</h1>
-      <p class="lead text-muted">{% trans "Discover conferences, workshops and calls for papers in Arabic NLP, Speech Processing and AI" %}</p>
-      <p class="fs-5 text-secondary">
-        {% if LANGUAGE_CODE == 'ar' %}
-          {% trans "events found" %} {{ events|length }} {% trans "events" %}
-        {% else %}
-          {{ events|length }} {% trans "events found" %}
-        {% endif %}
-      </p>
-    </div>
-    <div class="col-lg-4 col-md-5 text-md-end mt-4 mt-md-0">
-      {% if user.is_authenticated %}
-      <a href="{% url 'events:event_create' %}" class="btn btn-primary btn-lg shadow-sm">
-        <i class="fas fa-plus-circle me-2"></i> {% trans "Submit Event" %}
-      </a>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- Filters Card -->
-  <div class="card mb-5 shadow-sm filter-card">
-    <div class="card-body">
-      <form method="get" class="row g-3">
-        <div class="col-md-3">
-          <div class="form-floating">
-            {{ search_form.keyword }}
-            <label for="{{ search_form.keyword.id_for_label }}">{% trans "Keywords" %}</label>
-          </div>
-        </div>
-        <div class="col-md-2">
-          <div class="form-floating">
-            {{ search_form.event_type }}
-            <label for="{{ search_form.event_type.id_for_label }}">{% trans "Type" %}</label>
-          </div>
-        </div>
-        <div class="col-md-2">
-          <div class="form-floating">
-            {{ search_form.domain }}
-            <label for="{{ search_form.domain.id_for_label }}">{% trans "Domain" %}</label>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="form-floating">
-            {{ search_form.start_date }}
-            <label for="{{ search_form.start_date.id_for_label }}">{% trans "Start Date" %}</label>
-          </div>
-        </div>
-        <div class="col-md-2 d-flex align-items-center">
-          <div class="form-check form-switch">
-            {{ search_form.include_past }}
-            <label class="form-check-label" for="{{ search_form.include_past.id_for_label }}">{% trans "Include Past" %}</label>
-          </div>
-        </div>
-        <div class="col-12 text-end">
-          <button type="submit" class="btn btn-primary me-2">
-            <i class="fas fa-filter me-1"></i> {% trans "Filter" %}
-          </button>
-          <a href="{% url 'events:event_list' %}" class="btn btn-outline-secondary">
-            <i class="fas fa-undo me-1"></i> {% trans "Clear" %}
-          </a>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Events Grid -->
-  {% if events %}
-  <div class="row events-grid g-4">
-    {% for event in events %}
-    <div class="col-lg-6 col-md-12">
-      <div class="card h-100 shadow-sm hover-card">
-        <div class="card-header bg-transparent d-flex justify-content-between align-items-center pt-3 px-4">
-          <span class="badge badge-type py-2 px-3">{{ event.get_event_type_display }}</span>
-          <span class="badge badge-status py-2 px-3">
-            {% if event.is_ongoing %}
-            <i class="fas fa-calendar-check me-1"></i> {% trans "Ongoing" %}
-            {% elif event.is_upcoming %}
-            <i class="fas fa-calendar-alt me-1"></i> {% trans "Upcoming" %}
-            {% else %}
-            <i class="fas fa-calendar-times me-1"></i> {% trans "Past" %}
-            {% endif %}
-          </span>
-        </div>
-        <div class="card-body">
-          <h5 class="card-title">{{ event.title }}</h5>
-          <p class="text-muted mb-3">{{ event.description|truncatewords:25 }}</p>
-
-          <div class="mb-3 d-flex flex-wrap gap-2">
-            <span class="badge info-badge">
-              <i class="fas fa-globe me-1 text-primary"></i>
-              {% if event.is_ongoing or event.is_virtual %}
-              {% trans "Virtual" %}
-              {% else %}{{ event.location|truncatechars:20 }}{% endif %}
-            </span>
-            <span class="badge info-badge">
-              <i class="fas fa-calendar-day me-1 text-primary"></i>
-              {{ event.start_date|date:"M d, Y" }}{% if event.start_date != event.end_date %} - {{ event.end_date|date:"M d, Y" }}{% endif %}
-            </span>
-          </div>
-
-          {% if event.submission_deadline %}
-          <div class="alert alert-warning d-flex align-items-center mb-0">
-            <i class="fas fa-hourglass-half me-2"></i>
-            <div>
-              <strong>{% trans "Deadline:" %}</strong> {{ event.submission_deadline|date:"M d, Y" }}
-              <span class="badge bg-warning text-dark ms-2">{{ event.days_until_deadline }} {% trans "days left" %}</span>
-            </div>
-          </div>
+<div class="evt-shell">
+  <div class="evt-wrap">
+    
+    <div class="evt-hero">
+      <span class="evt-hero-icon" aria-hidden="true"><i class="bi bi-calendar-event"></i></span>
+      <div class="evt-hero-inner">
+        <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}الأحداث العلمية والمؤتمرات الأكاديمية{% else %}Scientific Events <br>& Conferences{% endif %}</h1>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف المؤتمرات والورش والندوات والدعوات لنشر الأوراق العلمية المتعلقة بمعالجة اللغة الطبيعية.{% else %}Discover conferences, workshops, seminars, and calls <br>for papers related to NLP and collaborative research.{% endif %}</p>
+      </div>
+      <div class="evt-hero-stats">
+        <div class="evt-stat-card">
+          <div class="evt-stat-number">{{ events|length|default:"0" }}</div>
+          <div class="evt-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}إجمالي الأحداث{% else %}Total Events{% endif %}</div>
+          {% if events|length == 0 %}
+          <div class="evt-stat-empty-message">{% if LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم تسجيل أحداث حتى الآن{% else %}Not events recorded yet{% endif %}</div>
           {% endif %}
         </div>
-        <div class="card-footer bg-light border-0 text-end">
-          <a href="{% url 'events:event_detail' event.pk %}" class="btn btn-outline-primary btn-sm">
-            <i class="fas fa-arrow-right me-1"></i> {% trans "Details" %}
+      </div>
+    </div>
+
+    <div class="evt-filter-card">
+      <form method="get" class="evt-filter-grid">
+        <div class="evt-input-wrapper">
+          <input class="evt-input" type="text" name="keyword" value="{{ request.GET.keyword }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}ابحث في العنوان أو الوصف{% else %}Search title or description{% endif %}">
+        </div>
+        <select class="evt-select" name="event_type">
+          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الأنواع{% else %}All types{% endif %}</option>
+          <option value="conference" {% if request.GET.event_type == "conference" %}selected{% endif %}>{% translate "Conference" %}</option>
+          <option value="workshop" {% if request.GET.event_type == "workshop" %}selected{% endif %}>{% translate "Workshop" %}</option>
+          <option value="seminar" {% if request.GET.event_type == "seminar" %}selected{% endif %}>{% translate "Seminar" %}</option>
+          <option value="call_for_papers" {% if request.GET.event_type == "call_for_papers" %}selected{% endif %}>{% translate "Call for Papers" %}</option>
+          <option value="hackathon" {% if request.GET.event_type == "hackathon" %}selected{% endif %}>{% translate "Hackathon" %}</option>
+        </select>
+        <select class="evt-select" name="domain">
+          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل المجالات{% else %}All domains{% endif %}</option>
+          <option value="nlp" {% if request.GET.domain == "nlp" %}selected{% endif %}>{% translate "NLP" %}</option>
+          <option value="speech" {% if request.GET.domain == "speech" %}selected{% endif %}>{% translate "Speech" %}</option>
+          <option value="ai" {% if request.GET.domain == "ai" %}selected{% endif %}>{% translate "AI" %}</option>
+        </select>
+        <input class="evt-input" type="date" name="start_date" value="{{ request.GET.start_date }}">
+        <button class="evt-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}تطبيق الفلاتر{% else %}Apply filters{% endif %}</button>
+      </form>
+    </div>
+
+    {% if events %}
+    <div class="evt-grid">
+      {% for event in events %}
+      <article class="evt-card">
+        <div class="evt-accent"></div>
+        <div class="evt-date-header">
+          <div class="evt-date-badge">
+            <span class="evt-date-day">{{ event.start_date|date:"d" }}</span>
+            <span class="evt-date-month">{{ event.start_date|date:"M" }}</span>
+          </div>
+          <div class="evt-card-header-info">
+            <div class="evt-card-badges">
+              <span class="evt-type-badge evt-type-{{ event.event_type }}">{{ event.get_event_type_display }}</span>
+              {% if event.is_ongoing %}
+              <span class="evt-status-badge evt-status-ongoing">{% translate "Ongoing" %}</span>
+              {% elif event.is_upcoming %}
+              <span class="evt-status-badge evt-status-upcoming">{% translate "Upcoming" %}</span>
+              {% else %}
+              <span class="evt-status-badge evt-status-past">{% translate "Past" %}</span>
+              {% endif %}
+            </div>
+            <h2 class="evt-card-title">{{ event.get_localized_title }}</h2>
+          </div>
+        </div>
+        <div class="evt-body">
+          <p class="evt-excerpt">{{ event.get_localized_description|truncatechars:150 }}</p>
+          <div class="evt-info">
+            {% if event.organizer %}
+            <div class="evt-info-row">
+              <i class="bi bi-building"></i>
+              <span>{{ event.organizer }}</span>
+            </div>
+            {% endif %}
+            <div class="evt-info-row">
+              <i class="bi bi-geo-alt"></i>
+              <span>
+                {% if event.is_virtual %}
+                {% translate "Virtual" %}
+                {% else %}
+                {{ event.get_localized_location|truncatechars:30 }}
+                {% endif %}
+              </span>
+            </div>
+            <div class="evt-info-row">
+              <i class="bi bi-calendar-range"></i>
+              <span>{{ event.start_date|date:"M d, Y" }}</span>
+            </div>
+            {% if event.last_scraped_at %}
+            <div class="evt-info-row evt-activity-row">
+              <i class="bi bi-arrow-repeat"></i>
+              <span>
+                <strong>{% translate "Activity" %}:</strong>
+                Updated {{ event.last_scraped_at|timesince }} ago · {{ event.update_count }} refresh{{ event.update_count|pluralize }}
+              </span>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% if event.submission_deadline and event.days_until_deadline is not None %}
+        <div class="evt-deadline-alert">
+          <div class="evt-deadline-icon"><i class="bi bi-hourglass-split"></i></div>
+          <div class="evt-deadline-text">
+            <div class="evt-deadline-label">{% translate "Deadline" %}</div>
+            <div class="evt-deadline-date">{{ event.submission_deadline|date:"M d" }}</div>
+          </div>
+          <span class="evt-deadline-days">{{ event.days_until_deadline }}d</span>
+        </div>
+        {% endif %}
+        <div class="evt-card-tools">
+          {% include "includes/card_top_actions.html" with content_type="event" object_id=event.pk title=event.get_localized_title description=event.get_localized_description|truncatewords:40 category=event.get_event_type_display author=event.organizer url=event.get_absolute_url|default:'' %}
+        </div>
+        <a class="evt-link" href="{% url 'events:event_detail' event.pk %}">
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}فتح التفاصيل{% else %}View details{% endif %}</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj page_param='page' %}
+    {% else %}
+    <div class="evt-empty">
+      <div class="evt-empty-inner">
+        <i class="bi bi-calendar-x evt-empty-icon"></i>
+        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد أحداث{% else %}No events found{% endif %}</h3>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تغيير الفلاتر أو كلمات البحث للعثور على ما تبحث عنه.{% else %}Try adjusting your filters or search keywords to find what you're looking for.{% endif %}</p>
+        <div class="evt-empty-actions">
+          <a href="?" class="evt-empty-reset">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إعادة تعيين الفلاتر{% else %}Reset filters{% endif %}</span>
           </a>
         </div>
       </div>
     </div>
-    {% endfor %}
+    {% endif %}
   </div>
-
-  <!-- Pagination -->
-  {% if is_paginated %}
-  <nav class="mt-5">
-    <ul class="pagination justify-content-center">
-      {% if page_obj.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page=1">&laquo;&laquo;</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
-      {% endif %}
-      {% for num in page_obj.paginator.page_range %}
-        {% if page_obj.number == num %}
-        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-        {% endif %}
-      {% endfor %}
-      {% if page_obj.has_next %}
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">&raquo;&raquo;</a></li>
-      {% endif %}
-    </ul>
-  </nav>
-  {% endif %}
-  {% else %}
-  <div class="empty-state text-center py-5 shadow-sm rounded">
-    <i class="fas fa-calendar-alt empty-icon mb-3"></i>
-    <h3 class="mb-3">{% trans "No events found" %}</h3>
-    <p class="text-muted mb-4">{% trans "Try changing filters or check back later." %}</p>
-    <a href="{% url 'events:event_list' %}" class="btn btn-primary">
-      <i class="fas fa-sync-alt me-1"></i> {% trans "Reset" %}
-    </a>
-  </div>
-  {% endif %}
 </div>
-
-<style>
-:root {
-  --primary: #4361ee;
-  --primary-hover: #3a56d4;
-  --success: #198754;
-  --warning: #ffc107;
-  --danger: #dc3545;
-  --light-bg: #f8f9fa;
-  --text-muted: #6c757d;
-  --card-radius: 12px;
-  --card-shadow: 0 8px 16px rgba(0,0,0,0.05);
-  --hover-shadow: 0 12px 24px rgba(0,0,0,0.1);
-}
-
-.filter-card {
-  border: none;
-  border-radius: var(--card-radius);
-  box-shadow: var(--card-shadow);
-}
-.header-section h1, .header-section p, .header-section .fs-5 {
-  line-height: 1.2;
-}
-.events-grid .card {
-  border-radius: var(--card-radius);
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.hover-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--hover-shadow);
-}
-.badge-type {
-  background-color: var(--light-bg);
-  color: var(--primary);
-  font-weight: 600;
-  text-transform: capitalize;
-}
-.badge-status {
-  background-color: var(--primary);
-  color: white;
-}
-.info-badge {
-  background-color: var(--light-bg);
-  color: var(--text-muted);
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--card-radius);
-  font-size: 0.9rem;
-}
-.empty-icon {
-  font-size: 3rem;
-  color: var(--primary);
-  opacity: 0.4;
-}
-@media (max-width: 767px) {
-  .header-section { text-align: center; }
-  .header-section .col-md-5 { margin-top: 1.5rem; }
-}
-</style>
-{% endblock content %}
+{% endblock %}

@@ -1,54 +1,808 @@
 {% extends "base.html" %}
-{% load crispy_forms_tags %}
-{% load i18n %}
+{% load i18n static %}
+
+{% block title %}{% trans "Edit Profile" %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .pe-page {
+        --pe-bg: linear-gradient(180deg, #1b1830 0%, #11101c 100%);
+        --pe-surface: rgba(27, 24, 41, 0.92);
+        --pe-border: rgba(255, 255, 255, 0.08);
+        --pe-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+        --pe-text: #f8fafc;
+        --pe-muted: #cbd5e1;
+        --pe-primary: #a78bfa;
+        --pe-primary-dark: #8b5cf6;
+        --pe-accent: #f3e8ff;
+        padding: 24px clamp(16px, 3vw, 32px) 48px;
+        background: var(--pe-bg) !important;
+        min-height: calc(100vh - 120px);
+    }
+
+    .pe-shell {
+        max-width: 1440px;
+        margin: 0 auto;
+    }
+
+    .pe-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    html[dir="rtl"] .pe-topbar {
+        flex-direction: row-reverse;
+    }
+
+    .pe-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--pe-border);
+        box-shadow: 0 4px 14px rgba(139, 92, 246, 0.18);
+        color: var(--pe-text);
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    html[dir="rtl"] .pe-back-link {
+        flex-direction: row-reverse;
+    }
+
+    .pe-back-link i {
+        color: var(--pe-primary);
+    }
+
+    .pe-title-wrap {
+        text-align: left;
+        margin: 0;
+    }
+
+    html[dir="rtl"] .pe-title-wrap {
+        text-align: right;
+    }
+
+    .pe-title-wrap h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 2.4vw, 2.5rem);
+        color: #ffffff;
+        font-weight: 800;
+    }
+
+    .pe-title-wrap p {
+        margin: 6px 0 0;
+        color: #cbd5e1;
+        font-size: 0.98rem;
+        max-width: 760px;
+    }
+
+    .pe-layout {
+        display: grid;
+        grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+    }
+
+    .pe-card {
+        background: var(--pe-surface);
+        border: 1px solid var(--pe-border);
+        border-radius: 20px;
+        box-shadow: var(--pe-shadow);
+    }
+
+    .pe-sidebar {
+        padding: 24px;
+        position: sticky;
+        top: 110px;
+        overflow: hidden;
+    }
+
+    .pe-sidebar::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(27, 24, 41, 0.92) 0%, rgba(17, 16, 28, 0.96) 100%);
+        pointer-events: none;
+    }
+
+    .pe-sidebar > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .pe-avatar-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 16px;
+    }
+
+    .pe-avatar-ring {
+        width: 172px;
+        height: 172px;
+        border-radius: 50%;
+        padding: 5px;
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        box-shadow: 0 18px 50px rgba(139, 92, 246, 0.28);
+    }
+
+    .pe-avatar-ring img,
+    .pe-avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: block;
+        object-fit: cover;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(124, 58, 237, 0.22));
+    }
+
+    .pe-avatar-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #e9d5ff;
+        font-size: 3.4rem;
+    }
+
+    .pe-sidebar h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--pe-text);
+    }
+
+    .pe-role,
+    .pe-subtext {
+        margin: 0;
+        color: var(--pe-muted);
+    }
+
+    .pe-meta-list {
+        width: 100%;
+        display: grid;
+        gap: 10px;
+        margin-top: 4px;
+    }
+
+    .pe-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+        color: #f8fafc;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 12px 14px;
+    }
+
+    .pe-avatar-actions {
+        display: grid;
+        gap: 10px;
+        width: 100%;
+        margin-top: 8px;
+    }
+
+    .pe-btn,
+    .pe-btn-secondary,
+    .pe-btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        min-height: 48px;
+        padding: 12px 18px;
+        border-radius: 14px;
+        text-decoration: none;
+        font-weight: 700;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        cursor: pointer;
+    }
+
+    .pe-btn {
+        border: none;
+        background: linear-gradient(135deg, var(--pe-primary), #7c3aed);
+        color: #fff;
+        box-shadow: 0 12px 28px rgba(139, 92, 246, 0.28);
+    }
+
+    .pe-btn:hover,
+    .pe-btn-secondary:hover,
+    .pe-btn-ghost:hover {
+        transform: translateY(-1px);
+    }
+
+    .pe-btn-secondary {
+        border: 1px solid rgba(167, 139, 250, 0.28);
+        background: rgba(139, 92, 246, 0.14);
+        color: #f8fafc;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .pe-btn-ghost {
+        border: 1px dashed rgba(167, 139, 250, 0.3);
+        background: rgba(17, 16, 28, 0.72);
+        color: #e9d5ff;
+    }
+
+    .pe-form-panel {
+        padding: 26px;
+        background: rgba(27, 24, 41, 0.92);
+    }
+
+    .pe-alert {
+        margin-bottom: 16px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(167, 139, 250, 0.24);
+        background: rgba(124, 58, 237, 0.12);
+        color: #ede9fe;
+        font-weight: 600;
+    }
+
+    .pe-errors {
+        margin-bottom: 16px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        background: rgba(127, 29, 29, 0.25);
+        color: #fecaca;
+    }
+
+    .pe-form-grid {
+        display: grid;
+        gap: 20px;
+    }
+
+    .pe-section {
+        padding: 24px;
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .pe-section-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .pe-section-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: rgba(167, 139, 250, 0.12);
+        color: #e9d5ff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .pe-section-head h3 {
+        margin: 0;
+        font-size: 1.15rem;
+        color: #ffffff;
+        font-weight: 800;
+    }
+
+    .pe-section-head p {
+        margin: 4px 0 0;
+        color: #cbd5e1;
+        font-size: 0.92rem;
+    }
+
+    .pe-fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .pe-field,
+    .pe-field-full {
+        min-width: 0;
+    }
+
+    .pe-field-full {
+        grid-column: 1 / -1;
+    }
+
+    .pe-field label,
+    .pe-field-full label {
+        display: block;
+        margin-bottom: 8px;
+        color: #f8fafc;
+        font-size: 0.95rem;
+        font-weight: 700;
+    }
+
+    .pe-required {
+        color: #dc2626;
+    }
+
+    .pe-field input,
+    .pe-field select,
+    .pe-field textarea,
+    .pe-field-full input,
+    .pe-field-full select,
+    .pe-field-full textarea {
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.06);
+        color: #f8fafc;
+        padding: 14px 16px;
+        min-height: 54px;
+        outline: none;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+    }
+
+    .pe-form-panel .pe-field input,
+    .pe-form-panel .pe-field select,
+    .pe-form-panel .pe-field textarea,
+    .pe-form-panel .pe-field-full input,
+    .pe-form-panel .pe-field-full select,
+    .pe-form-panel .pe-field-full textarea,
+    .pe-form-panel .pe-field .form-control,
+    .pe-form-panel .pe-field-full .form-control {
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #f8fafc !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .pe-form-panel .pe-field input::placeholder,
+    .pe-form-panel .pe-field textarea::placeholder,
+    .pe-form-panel .pe-field-full input::placeholder,
+    .pe-form-panel .pe-field-full textarea::placeholder {
+        color: rgba(203, 213, 225, 0.72) !important;
+    }
+
+    .pe-form-panel .pe-field input:-webkit-autofill,
+    .pe-form-panel .pe-field input:-webkit-autofill:hover,
+    .pe-form-panel .pe-field input:-webkit-autofill:focus,
+    .pe-form-panel .pe-field-full input:-webkit-autofill,
+    .pe-form-panel .pe-field-full input:-webkit-autofill:hover,
+    .pe-form-panel .pe-field-full input:-webkit-autofill:focus {
+        -webkit-text-fill-color: #f8fafc !important;
+        -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.06) inset !important;
+        box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.06) inset !important;
+        caret-color: #f8fafc;
+    }
+
+    .pe-field textarea,
+    .pe-field-full textarea {
+        min-height: 150px;
+        resize: vertical;
+    }
+
+    .pe-field input:focus,
+    .pe-field select:focus,
+    .pe-field textarea:focus,
+    .pe-field-full input:focus,
+    .pe-field-full select:focus,
+    .pe-field-full textarea:focus {
+        border-color: rgba(167, 139, 250, 0.5);
+        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
+    }
+
+    .pe-help {
+        margin-top: 8px;
+        color: #cbd5e1;
+        font-size: 0.84rem;
+        line-height: 1.45;
+    }
+
+    .pe-error-list {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        color: #fecaca;
+        font-size: 0.84rem;
+        font-weight: 600;
+    }
+
+    .pe-form-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        padding-top: 8px;
+    }
+
+    .pe-hidden {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        border: 0 !important;
+    }
+
+    @media (max-width: 1080px) {
+        .pe-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .pe-sidebar {
+            position: static;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .pe-page {
+            padding: 18px 12px 36px;
+        }
+
+        .pe-topbar {
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        html[dir="rtl"] .pe-topbar {
+            flex-direction: row-reverse;
+        }
+
+        .pe-fields {
+            grid-template-columns: 1fr;
+        }
+
+        .pe-form-panel,
+        .pe-sidebar,
+        .pe-section {
+            padding: 18px;
+        }
+
+        .pe-form-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card shadow-lg">
-                <!-- Card Header -->
-                <div class="card-header bg-primary text-white">
-                    <h3 class="card-title mb-0">
-                        <i class="fas fa-user-edit me-2"></i>{% trans "Edit Profile" %}
-                    </h3>
-                </div>
-                
-                <!-- Edit Form -->
-                <form method="post" class="needs-validation" enctype="multipart/form-data" novalidate>
-                    {% csrf_token %}
-                    <div class="card-body">
-                        {% if messages %}
-                        <div class="alert alert-info">
-                            {% for message in messages %}
-                                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert">
-                                    {{ message }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        {{ form|crispy }}
-                    </div>
-                    
-                    <!-- Form Footer -->
-                    <div class="card-footer bg-transparent">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <a href="{% url 'accounts:profile' pk=user.pk %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>{% trans "Cancel" %}
-                            </a>
-
-                            <a href="{% url 'account_change_password' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-key me-2"></i>{% trans "Change Password" %}
-                            </a>
-
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>{% trans "Save" %}
-                            </button>
-                        </div>
-                    </div>
-                </form>
+{% with edited_user=profile_user|default:user %}
+<div class="pe-page">
+    <div class="pe-shell">
+        <div class="pe-topbar">
+            <a href="{% url 'accounts:profile' pk=edited_user.pk %}" class="pe-back-link">
+                <i class="fas {% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}fa-arrow-right{% else %}fa-arrow-left{% endif %}"></i>
+                <span>{% trans "Back to profile" %}</span>
+            </a>
+            <div class="pe-title-wrap">
+                <h1>{% trans "Edit Profile" %}</h1>
+                <p>{% trans "Update your public identity, biography, institution, and social links." %}</p>
             </div>
         </div>
+
+        <form method="post" enctype="multipart/form-data" novalidate id="profileForm" class="pe-layout">
+            {% csrf_token %}
+
+            <aside class="pe-card pe-sidebar">
+                <div class="pe-hidden">
+                    {{ form.full_name }}
+                    {{ form.bio }}
+                </div>
+
+                <div class="pe-avatar-stack">
+                    <div class="pe-avatar-ring">
+                        {% if edited_user.avatar %}
+                            <img src="{{ edited_user.avatar.url }}" alt="{{ edited_user.get_full_name_display }}" id="avatarPreview">
+                        {% else %}
+                            <div class="pe-avatar-placeholder" id="avatarPreview">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <h2>{{ edited_user.get_full_name_display }}</h2>
+                        <p class="pe-role">
+                            {% if edited_user.speciality %}
+                                {{ edited_user.get_speciality_display }}
+                            {% else %}
+                                {% trans "Platform Member" %}
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div class="pe-meta-list">
+                        <div class="pe-meta-item">
+                            <i class="fas fa-envelope"></i>
+                            <span>{{ edited_user.email }}</span>
+                        </div>
+                        {% if edited_user.institution %}
+                        <div class="pe-meta-item">
+                            <i class="fas fa-building-columns"></i>
+                            <span>{{ edited_user.institution }}</span>
+                        </div>
+                        {% endif %}
+                        {% if edited_user.is_verified %}
+                        <div class="pe-meta-item">
+                            <i class="fas fa-badge-check"></i>
+                            <span>{% trans "Verified profile" %}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="pe-avatar-actions">
+                        <input type="file" id="avatarInput" name="avatar" accept="image/*" class="pe-hidden">
+                        <button type="button" class="pe-btn" id="chooseAvatarBtn">
+                            <i class="fas fa-camera"></i>
+                            <span>{% trans "Change photo" %}</span>
+                        </button>
+                        <button type="button" class="pe-btn-ghost" id="removeAvatarBtn">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>{% trans "Remove photo" %}</span>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="pe-card pe-form-panel">
+                {% if form.non_field_errors %}
+                <div class="pe-errors">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="pe-alert">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="pe-form-grid">
+                    <div class="pe-section">
+                        <div class="pe-section-head">
+                            <span class="pe-section-icon"><i class="fas fa-user"></i></span>
+                            <div>
+                                <h3>{% trans "Identity" %}</h3>
+                                <p>{% trans "Use bilingual names so your profile is consistent across Arabic and English pages." %}</p>
+                            </div>
+                        </div>
+                        <div class="pe-fields">
+                            <div class="pe-field">
+                                <label for="{{ form.full_name_ar.id_for_label }}">
+                                    {{ form.full_name_ar.label }}
+                                    {% if form.full_name_ar.field.required %}<span class="pe-required">*</span>{% endif %}
+                                </label>
+                                {{ form.full_name_ar }}
+                                {% if form.full_name_ar.help_text %}<div class="pe-help">{{ form.full_name_ar.help_text|safe }}</div>{% endif %}
+                                {% if form.full_name_ar.errors %}<ul class="pe-error-list">{% for error in form.full_name_ar.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                            <div class="pe-field">
+                                <label for="{{ form.full_name_en.id_for_label }}">
+                                    {{ form.full_name_en.label }}
+                                    {% if form.full_name_en.field.required %}<span class="pe-required">*</span>{% endif %}
+                                </label>
+                                {{ form.full_name_en }}
+                                {% if form.full_name_en.help_text %}<div class="pe-help">{{ form.full_name_en.help_text|safe }}</div>{% endif %}
+                                {% if form.full_name_en.errors %}<ul class="pe-error-list">{% for error in form.full_name_en.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                            <div class="pe-field-full">
+                                <label for="{{ form.email.id_for_label }}">
+                                    {{ form.email.label }}
+                                    {% if form.email.field.required %}<span class="pe-required">*</span>{% endif %}
+                                </label>
+                                {{ form.email }}
+                                {% if form.email.help_text %}<div class="pe-help">{{ form.email.help_text|safe }}</div>{% endif %}
+                                {% if form.email.errors %}<ul class="pe-error-list">{% for error in form.email.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pe-section">
+                        <div class="pe-section-head">
+                            <span class="pe-section-icon"><i class="fas fa-pen"></i></span>
+                            <div>
+                                <h3>{% trans "Biography" %}</h3>
+                                <p>{% trans "Introduce yourself with localized content for both audiences." %}</p>
+                            </div>
+                        </div>
+                        <div class="pe-fields">
+                            <div class="pe-field-full">
+                                <label for="{{ form.bio_ar.id_for_label }}">{{ form.bio_ar.label }}</label>
+                                {{ form.bio_ar }}
+                                {% if form.bio_ar.help_text %}<div class="pe-help">{{ form.bio_ar.help_text|safe }}</div>{% endif %}
+                                {% if form.bio_ar.errors %}<ul class="pe-error-list">{% for error in form.bio_ar.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                            <div class="pe-field-full">
+                                <label for="{{ form.bio_en.id_for_label }}">{{ form.bio_en.label }}</label>
+                                {{ form.bio_en }}
+                                {% if form.bio_en.help_text %}<div class="pe-help">{{ form.bio_en.help_text|safe }}</div>{% endif %}
+                                {% if form.bio_en.errors %}<ul class="pe-error-list">{% for error in form.bio_en.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pe-section">
+                        <div class="pe-section-head">
+                            <span class="pe-section-icon"><i class="fas fa-building-columns"></i></span>
+                            <div>
+                                <h3>{% trans "Academic Details" %}</h3>
+                                <p>{% trans "Select your institution and AI specialization to match the rest of the platform." %}</p>
+                            </div>
+                        </div>
+                        <div class="pe-fields">
+                            <div class="pe-field">
+                                <label for="{{ form.institution.id_for_label }}">{{ form.institution.label }}</label>
+                                {{ form.institution }}
+                                {% if form.institution.help_text %}<div class="pe-help">{{ form.institution.help_text|safe }}</div>{% endif %}
+                                {% if form.institution.errors %}<ul class="pe-error-list">{% for error in form.institution.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                            <div class="pe-field">
+                                <label for="{{ form.speciality.id_for_label }}">{{ form.speciality.label }}</label>
+                                {{ form.speciality }}
+                                {% if form.speciality.help_text %}<div class="pe-help">{{ form.speciality.help_text|safe }}</div>{% endif %}
+                                {% if form.speciality.errors %}<ul class="pe-error-list">{% for error in form.speciality.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pe-section">
+                        <div class="pe-section-head">
+                            <span class="pe-section-icon"><i class="fas fa-share-nodes"></i></span>
+                            <div>
+                                <h3>{% trans "Social Links" %}</h3>
+                                <p>{% trans "Add your professional and community links." %}</p>
+                            </div>
+                        </div>
+                        <div class="pe-fields">
+                            <div class="pe-field">
+                                <label for="{{ form.linkedin_url.id_for_label }}">{{ form.linkedin_url.label }}</label>
+                                {{ form.linkedin_url }}
+                                {% if form.linkedin_url.help_text %}<div class="pe-help">{{ form.linkedin_url.help_text|safe }}</div>{% endif %}
+                                {% if form.linkedin_url.errors %}<ul class="pe-error-list">{% for error in form.linkedin_url.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                            <div class="pe-field">
+                                <label for="{{ form.twitter_url.id_for_label }}">{{ form.twitter_url.label }}</label>
+                                {{ form.twitter_url }}
+                                {% if form.twitter_url.help_text %}<div class="pe-help">{{ form.twitter_url.help_text|safe }}</div>{% endif %}
+                                {% if form.twitter_url.errors %}<ul class="pe-error-list">{% for error in form.twitter_url.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                            <div class="pe-field-full">
+                                <label for="{{ form.facebook_url.id_for_label }}">{{ form.facebook_url.label }}</label>
+                                {{ form.facebook_url }}
+                                {% if form.facebook_url.help_text %}<div class="pe-help">{{ form.facebook_url.help_text|safe }}</div>{% endif %}
+                                {% if form.facebook_url.errors %}<ul class="pe-error-list">{% for error in form.facebook_url.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% for field in form %}
+                        {% if field.name not in 'full_name,full_name_ar,full_name_en,email,bio,bio_ar,bio_en,institution,speciality,linkedin_url,twitter_url,facebook_url' %}
+                        <div class="pe-section">
+                            <div class="pe-section-head">
+                                <span class="pe-section-icon"><i class="fas fa-sliders"></i></span>
+                                <div>
+                                    <h3>{{ field.label }}</h3>
+                                </div>
+                            </div>
+                            <div class="pe-fields">
+                                <div class="pe-field-full">
+                                    <label for="{{ field.id_for_label }}">
+                                        {{ field.label }}
+                                        {% if field.field.required %}<span class="pe-required">*</span>{% endif %}
+                                    </label>
+                                    {{ field }}
+                                    {% if field.help_text %}<div class="pe-help">{{ field.help_text|safe }}</div>{% endif %}
+                                    {% if field.errors %}<ul class="pe-error-list">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+
+                    <div class="pe-form-actions">
+                        <a href="{% url 'account_change_password' %}" class="pe-btn-secondary">
+                            <i class="fas fa-lock"></i>
+                            <span>{% trans "Change Password" %}</span>
+                        </a>
+                        <button type="submit" class="pe-btn">
+                            <i class="fas fa-save"></i>
+                            <span>{% trans "Save Changes" %}</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </form>
     </div>
 </div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('profileForm');
+    const avatarInput = document.getElementById('avatarInput');
+    const chooseAvatarBtn = document.getElementById('chooseAvatarBtn');
+    const removeAvatarBtn = document.getElementById('removeAvatarBtn');
+    const preview = document.getElementById('avatarPreview');
+
+    function setPlaceholderPreview() {
+        if (!preview || preview.tagName === 'DIV') {
+            return;
+        }
+        const placeholder = document.createElement('div');
+        placeholder.id = 'avatarPreview';
+        placeholder.className = 'pe-avatar-placeholder';
+        placeholder.innerHTML = '<i class="fas fa-user"></i>';
+        preview.replaceWith(placeholder);
+    }
+
+    if (chooseAvatarBtn && avatarInput) {
+        chooseAvatarBtn.addEventListener('click', function() {
+            avatarInput.click();
+        });
+    }
+
+    if (removeAvatarBtn && form) {
+        removeAvatarBtn.addEventListener('click', function() {
+            setPlaceholderPreview();
+            let clearInput = document.getElementById('avatar-clear');
+            if (!clearInput) {
+                clearInput = document.createElement('input');
+                clearInput.type = 'hidden';
+                clearInput.name = 'avatar-clear';
+                clearInput.id = 'avatar-clear';
+                form.appendChild(clearInput);
+            }
+            clearInput.value = 'on';
+            if (avatarInput) {
+                avatarInput.value = '';
+            }
+        });
+    }
+
+    if (avatarInput) {
+        avatarInput.addEventListener('change', function(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const maxFileSize = 2 * 1024 * 1024;
+            if (file.size > maxFileSize) {
+                alert("{% trans 'Image file size must be less than 2MB.' %}");
+                avatarInput.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(loadEvent) {
+                const target = document.getElementById('avatarPreview');
+                if (!target) return;
+
+                if (target.tagName === 'IMG') {
+                    target.src = loadEvent.target.result;
+                } else {
+                    const img = document.createElement('img');
+                    img.id = 'avatarPreview';
+                    img.alt = 'Avatar preview';
+                    img.src = loadEvent.target.result;
+                    target.replaceWith(img);
+                }
+
+                const clearInput = document.getElementById('avatar-clear');
+                if (clearInput) {
+                    clearInput.remove();
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+});
+</script>
 {% endblock %}

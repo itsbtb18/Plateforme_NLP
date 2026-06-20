@@ -1,0 +1,3073 @@
+{% load static %}
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'en' }}" dir="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{% trans "Chatbot" %} — {% trans "Arabic NLP Platform" %}</title>
+    <link rel="icon" href="{% static 'favicon.ico' %}?v=20260520" type="image/x-icon">
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}?v=20260520" type="image/x-icon">
+    <link rel="apple-touch-icon" href="{% static 'images/navbarlogo.png' %}?v=20260520">
+    <script>
+        (function () {
+            var iconUrl = "{% static 'favicon.ico' %}";
+            var cacheBuster = "?v=" + Date.now();
+            var links = document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']");
+            links.forEach(function (link) {
+                link.href = iconUrl + cacheBuster;
+            });
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Tajawal:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Highlight.js — VS Code Dark+ theme for syntax-highlighted code blocks -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" id="hljs-theme">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+/* ==========================================================================
+   pREMIUM DESIGN SYSTEM  —  Gemini-grade chatbot UI
+   Derived from resources/list.html color palette
+   ========================================================================== */
+:root{
+    /* ── Global Africa Tech Palette ── */
+    --hub-bg: radial-gradient(circle at center, #1b1625 0%, #0d0a13 100%);
+    --hub-surface: #161221;
+    --hub-surface-hover: #1e192c;
+    --hub-accent: #9d4edd;
+    --hub-accent-light: #c77dff;
+    --hub-accent-glow: rgba(157, 78, 221, 0.15);
+    --brand-gradient: linear-gradient(135deg, #c77dff 0%, #9d4edd 50%, #7b2cbf 100%);
+    
+    --hub-text-primary: #ffffff;
+    --hub-text-secondary: #9ea0b1;
+    --hub-text-muted: #6b6c80;
+    --hub-text-inverse: #ffffff;
+    
+    --hub-border: rgba(255, 255, 255, 0.08);
+    --hub-border-hover: rgba(255, 255, 255, 0.16);
+
+    /* ── Shadows ── */
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 10px 40px rgba(0, 0, 0, 0.5);
+    --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.2);
+
+    /* ── Radius ── */
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    --radius-full: 9999px;
+
+    /* ── Transitions ── */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ── Layout ── */
+    --sidebar-w: 300px;
+    --header-h: 60px;
+    --chat-max-w: 860px;
+
+    /* ── Default Dark Sidebar ── */
+    --hub-sidebar: #0d0a13;
+
+    /* ── Light Mode Core Overrides ── */
+    --light-bg: linear-gradient(135deg, #ffffff 0%, #f9f8ff 50%, #f1f0ff 100%);
+    --light-surface: #ffffff;
+    --light-sidebar: linear-gradient(180deg, #fafaff 0%, #f6f5ff 100%);
+    --light-text: #1e293b;
+    --light-border: rgba(157, 78, 221, 0.12);
+}
+body.light-mode {
+    --hub-bg: var(--light-bg);
+    --hub-surface: var(--light-surface);
+    --hub-sidebar: var(--light-sidebar);
+    --hub-sidebar-border: rgba(157, 78, 221, 0.18);
+    --hub-text-primary: var(--light-text);
+    --hub-text-secondary: #5152a5; /* More vibrant purple-tinted slate */
+    --hub-border: rgba(157, 78, 221, 0.15);
+    --hub-surface-hover: #f0edff;
+}
+html.light-mode .sidebar::after {
+    background: var(--hub-sidebar-border);
+}
+
+/* ==========================================================================
+   RESET
+   ========================================================================== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{height:100%}
+body{
+    font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--hub-surface); /* Fallback */
+    background-image: var(--hub-bg) !important;
+    background-attachment: fixed;
+    color:var(--hub-text-primary);
+    height:100vh;width:100vw;overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    font-size:15px;line-height:1.6;
+}
+html[dir="rtl"] body{font-family:'Tajawal','Inter',-apple-system,sans-serif}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit}
+
+/* ==========================================================================
+   LAYOUT
+   ========================================================================== */
+.app{display:flex;height:100vh}
+
+/* ==========================================================================
+   SIDEBAR  —  Deep blue panel (Gemini-style)
+   ========================================================================== */
+.sidebar{
+    width:var(--sidebar-w);min-width:var(--sidebar-w);
+    background: var(--hub-sidebar);
+    display:flex;flex-direction:column;height:100vh;
+    transition:width var(--transition-base),min-width var(--transition-base),opacity var(--transition-fast);
+    overflow:hidden;position:relative;z-index:20;
+    border-right:1px solid var(--hub-border);
+}
+html[dir="rtl"] .sidebar{border-right:none;border-left:1px solid var(--hub-border)}
+.sidebar::after{
+    content:'';position:absolute;top:0;right:0;width:1px;height:100%;
+    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+}
+html[dir="rtl"] .sidebar::after{right:auto;left:0}
+.sidebar.collapsed{width:0;min-width:0;opacity:0;pointer-events:none}
+
+/* Sidebar header */
+.sidebar-head{padding:24px 20px 20px;flex-shrink:0}
+.sidebar-brand{
+    display:flex;align-items:center;gap:12px;margin-bottom:24px;
+}
+.sidebar-brand-text{
+    font-weight:800;font-size:1.15rem;color:var(--hub-text-primary);
+    letter-spacing:0.02em;text-transform:uppercase;
+    font-family:'Montserrat','Inter',sans-serif;
+    background: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.new-chat-btn{
+    width:100%;padding:14px 18px;
+    background:var(--hub-accent);
+    border:none;
+    color:var(--hub-text-inverse);border-radius:var(--radius-xl);
+    cursor:pointer;font-weight:600;font-size:.9rem;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all var(--transition-base);
+    box-shadow:0 4px 12px var(--hub-accent-glow);
+}
+body:not(.light-mode) .new-chat-btn{
+    background:var(--hub-surface);
+    border:1px solid var(--hub-border);
+    color:var(--hub-text-primary);
+}
+.new-chat-btn:hover{
+    background:var(--hub-accent-light);
+    transform:translateY(-1px);
+    box-shadow:0 6px 20px var(--hub-accent-glow);
+}
+body:not(.light-mode) .new-chat-btn:hover{
+    background:var(--hub-surface-hover);
+    border-color:var(--hub-border-hover);
+}
+.new-chat-btn:active{transform:scale(.98)}
+.new-chat-btn i{font-size:.8rem;color:var(--hub-text-inverse)}
+body:not(.light-mode) .new-chat-btn i{color:var(--hub-accent-light)}
+
+.conv-label{
+    padding:20px 20px 8px;font-size:.7rem;
+    text-transform:uppercase;letter-spacing:.12em;
+    color:var(--hub-text-muted);font-weight:700;flex-shrink:0;
+}
+
+.conv-list{
+    flex:1;overflow-y:auto;padding:4px 10px 20px;min-height:0;
+}
+.conv-list::-webkit-scrollbar{width:3px}
+.conv-list::-webkit-scrollbar-track{background:transparent}
+.conv-list::-webkit-scrollbar-thumb{background:rgba(120,120,120,.2);border-radius:2px}
+body:not(.light-mode) .conv-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1)}
+
+.conv-item{
+    padding:12px 14px;margin:2px 0;border-radius:var(--radius-md);
+    cursor:pointer;transition:all var(--transition-base);
+    font-size:.85rem;display:flex;align-items:center;
+    justify-content:space-between;gap:10px;
+    color:var(--hub-text-secondary);position:relative;
+}
+.conv-item.is-pinned-session { border-left: 3px solid var(--hub-accent); padding-left: 11px; }
+html[dir="rtl"] .conv-item.is-pinned-session { border-left: none; border-right: 3px solid var(--hub-accent); padding-left: 14px; padding-right: 11px; }
+.pinned-icon { font-size: 0.75rem; color: var(--hub-accent); flex-shrink: 0; margin-right: 4px; }
+html[dir="rtl"] .pinned-icon { margin-right: 0; margin-left: 4px; }
+.conv-item:hover{
+    background:var(--hub-surface-hover);
+    color:var(--hub-text-primary);
+}
+.conv-item.active{
+    background:rgba(157, 78, 221, 0.08);
+    color:var(--hub-accent);font-weight:600;
+}
+body:not(.light-mode) .conv-item.active{
+    background:var(--hub-accent-glow);
+    color:var(--hub-accent);font-weight:600;
+}
+body.light-mode .conv-item.active{
+    background: linear-gradient(90deg, rgba(157, 78, 221, 0.12), rgba(157, 78, 221, 0.05));
+    color: var(--hub-accent);
+    box-shadow: 0 2px 10px rgba(157, 78, 221, 0.05);
+}
+.conv-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.conv-actions{display:none;gap:4px;flex-shrink:0;align-items:center;padding-left:12px;margin-left:auto;}
+html[dir="rtl"] .conv-actions{padding-left:0;padding-right:12px;margin-left:0;margin-right:auto;}
+.conv-item:hover .conv-actions,.conv-item.active .conv-actions{display:flex}
+.conv-act-btn{
+    width:26px;height:26px;border:none;
+    background:transparent;color:var(--hub-text-muted);
+    border-radius:var(--radius-sm);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.75rem;transition:all var(--transition-fast);
+}
+.conv-act-btn .fa-thumbtack.pinned { color: var(--hub-accent); }
+.conv-act-btn:hover{background:var(--hub-surface-hover);color:var(--hub-text-primary)}
+.conv-act-btn.del:hover{background:rgba(239,68,68,.15);color:#fca5a5}
+
+/* ==========================================================================
+   MAIN
+   ========================================================================== */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--hub-bg)}
+
+/* Header */
+.header{
+    height:var(--header-h);padding:0 24px;
+    display:flex;align-items:center;justify-content:space-between;
+    flex-shrink:0;background:transparent;
+    border-bottom:1px solid transparent;
+    position:relative;z-index:10;
+}
+.header-l{display:flex;align-items:center;gap:14px}
+
+.toggle-btn{
+    width:36px;height:36px;border-radius:var(--radius-sm);
+    border:1px solid var(--hub-border);background:transparent;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    color:var(--hub-text-secondary);font-size:.9rem;
+    transition:all var(--transition-fast);
+}
+.toggle-btn:hover{background:var(--hub-surface-hover);color:var(--hub-text-primary);border-color:var(--hub-border-hover)}
+
+.header-title{
+    font-size:.95rem;font-weight:700;color:var(--hub-text-primary);
+    letter-spacing:-.01em;display:none;
+}
+.header-title-dot{
+    display:inline-block;width:6px;height:6px;border-radius:50%;
+    background:var(--hub-success);margin-left:8px;vertical-align:middle;
+    box-shadow:0 0 0 3px rgba(5,150,105,.15);
+}
+html[dir="rtl"] .header-title-dot{margin-left:0;margin-right:8px}
+
+.header-r{display:flex;align-items:center;gap:6px}
+
+/* Header action buttons */
+.h-btn{
+    width:36px;height:36px;border-radius:var(--radius-sm);
+    border:1px solid var(--hub-border);background:var(--hub-surface);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    color:var(--hub-text-secondary);font-size:.85rem;
+    transition:all var(--transition-fast);text-decoration:none;
+}
+.h-btn:hover{background:var(--hub-surface-hover);color:var(--hub-accent);border-color:var(--hub-accent-glow)}
+html[dir="rtl"] .h-btn i.fa-arrow-left { transform: scaleX(-1); }
+
+/* ── Language dropdown (from base.html) ── */
+.lang-dropdown-wrap{position:relative}
+.lang-btn{
+    height:36px;padding:0 12px;border-radius:var(--radius-sm);
+    border:1px solid var(--hub-border);background:var(--hub-surface);
+    cursor:pointer;display:flex;align-items:center;gap:7px;
+    color:var(--hub-text-secondary);font-size:.82rem;font-weight:500;
+    transition:all var(--transition-fast);
+}
+.lang-btn:hover{background:var(--hub-surface-hover);color:var(--hub-accent);border-color:var(--hub-accent-glow)}
+.lang-btn .caret{font-size:.55rem;opacity:.5;transition:transform var(--transition-fast)}
+.lang-dropdown-wrap.open .lang-btn .caret{transform:rotate(180deg)}
+
+.lang-panel{
+    position:absolute;top:calc(100% + 8px);right:0;
+    min-width:160px;padding:6px;
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-lg);
+    box-shadow:0 16px 48px rgba(0,0,0,.12);
+    opacity:0;visibility:hidden;transform:translateY(-8px);
+    transition:all var(--transition-fast);z-index:100;
+}
+html[dir="rtl"] .lang-panel{right:auto;left:0}
+.lang-dropdown-wrap.open .lang-panel{opacity:1;visibility:visible;transform:translateY(0)}
+
+.lang-option{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px;border-radius:var(--radius-md);
+    font-size:.85rem;font-weight:500;color:var(--hub-text-secondary);
+    transition:all var(--transition-fast);cursor:pointer;
+    text-decoration:none;
+}
+.lang-option:hover{
+    background:var(--hub-surface-hover);
+    color:var(--hub-accent-light);
+}
+.lang-option.active{
+    background:var(--hub-accent-glow);color:var(--hub-accent);font-weight:600;
+}
+.lang-option .fa-check{font-size:.7rem;color:var(--hub-accent)}
+
+/* ── Mode dropdown (Top right corner) ── */
+.api-mode-wrap{position:relative}
+.api-mode-btn{
+    height:36px;padding:0 12px;border-radius:var(--radius-sm);
+    border:1px solid var(--hub-border);background:var(--hub-surface);
+    cursor:pointer;display:flex;align-items:center;gap:7px;
+    color:var(--hub-text-secondary);font-size:.82rem;font-weight:600;
+    transition:all var(--transition-fast);
+}
+.api-mode-btn:hover{background:var(--hub-surface-hover);color:var(--hub-accent);border-color:var(--hub-accent-glow)}
+.api-mode-btn .caret{font-size:.55rem;opacity:.5;transition:transform var(--transition-fast)}
+.api-mode-wrap.open .api-mode-btn .caret{transform:rotate(180deg)}
+.api-mode-panel{
+    position:absolute;top:calc(100% + 8px);right:0;
+    min-width:180px;padding:6px;
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-lg);
+    box-shadow:0 16px 48px rgba(0,0,0,.12);
+    opacity:0;visibility:hidden;transform:translateY(-8px);
+    transition:all var(--transition-fast);z-index:100;
+}
+html[dir="rtl"] .api-mode-panel{right:auto;left:0}
+.api-mode-wrap.open .api-mode-panel{opacity:1;visibility:visible;transform:translateY(0)}
+.api-mode-option{
+    display:flex;align-items:center;padding:10px 14px;gap:10px;
+    border-radius:var(--radius-md);font-size:.85rem;font-weight:500;
+    color:var(--hub-text-secondary);transition:all var(--transition-fast);cursor:pointer;
+}
+.api-mode-option span{flex-grow:1;}
+.api-mode-option:hover{background:var(--hub-surface-hover);color:var(--hub-accent-light)}
+.api-mode-option.active{background:var(--hub-accent-glow);color:var(--hub-accent);font-weight:600}
+.api-mode-option .fa-check{font-size:.7rem;color:var(--hub-accent);display:none}
+.api-mode-option.active .fa-check{display:block}
+
+/* Typing speed control removed */
+
+/* ==========================================================================
+   CHAT BODY
+   ========================================================================== */
+.chat-body{
+    flex:1;overflow-y:auto;overflow-x:hidden;
+    display:flex;flex-direction:column;align-items:center;
+    position:relative;
+    background:var(--hub-bg);
+}
+.chat-body::-webkit-scrollbar{width:5px}
+.chat-body::-webkit-scrollbar-track{background:transparent}
+.chat-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+.chat-body::-webkit-scrollbar-thumb:hover{background:var(--hub-border-hover)}
+
+/* — Empty state — */
+.empty-state{
+    display:block !important;
+    margin:auto;text-align:center;padding:48px 32px;max-width:640px;
+    animation:fadeUp .6s var(--transition-base) both;
+}
+.empty-state.hidden{display:none !important}
+@keyframes fadeUp{
+    from{opacity:0;transform:translateY(24px)}
+    to{opacity:1;transform:translateY(0)}
+}
+
+.brand-mark{
+    width:64px;height:64px;margin:0 auto 32px;
+    border-radius:var(--radius-xl);
+    background:linear-gradient(145deg, #2b134b, #110d18);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 30px rgba(157, 78, 221, .2);
+    position:relative;overflow:hidden;
+    border:1px solid rgba(157, 78, 221, .3);
+}
+.brand-mark::after{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(circle at 30% 30%,rgba(157, 78, 221,.3),transparent 60%);
+}
+.brand-mark svg{position:relative;z-index:1;stroke:var(--hub-accent-light)}
+
+.greeting-title{
+    font-size:2.25rem;font-weight:900;color:var(--hub-text-primary);
+    margin-bottom:12px;letter-spacing:-.03em;line-height:1.1;
+    font-family:'Montserrat','Inter',sans-serif;
+    text-transform:uppercase;
+    background: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.greeting-sub{
+    font-size:1.05rem;color:var(--hub-text-secondary);line-height:1.7;
+    margin-bottom:40px;max-width:500px;margin-left:auto;margin-right:auto;
+}
+
+.suggestions{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.suggestion-chip{
+    padding:10px 18px;background:var(--hub-surface);
+    border:1px solid var(--hub-border);border-radius:var(--radius-full);
+    color:var(--hub-text-secondary);font-size:.85rem;font-weight:500;
+    cursor:pointer;transition:all var(--transition-base);
+    font-family:inherit;display:inline-flex;align-items:center;gap:8px;
+    box-shadow:var(--shadow-card);white-space:nowrap;
+}
+.suggestion-chip:hover{
+    border-color:var(--hub-accent);color:var(--hub-accent);
+    background:var(--hub-accent-glow);
+    transform:translateY(-3px);
+    box-shadow:var(--shadow-md);
+}
+.suggestion-chip i{font-size:.75rem;opacity:.5}
+
+/* ==========================================================================
+   MESSAGES
+   ========================================================================== */
+.messages-area{
+    width:100%;max-width:var(--chat-max-w);display:flex;flex-direction:column;
+    gap:6px;padding:32px 24px;
+}
+
+/* Jump-to-latest floating control */
+.jump-latest-btn{
+    position:fixed;
+    bottom:32px;
+    left:50%;
+    display:inline-flex;align-items:center;gap:8px;
+    padding:12px 20px;
+    border:1px solid var(--hub-accent);
+    border-radius:999px;
+    background:rgba(157, 78, 221, 0.15);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    color:var(--hub-accent-light);
+    box-shadow:0 8px 32px rgba(157, 78, 221, 0.15);
+    font-size:.88rem;font-weight:700;
+    cursor:pointer;opacity:0;transform:translateX(-50%) translateY(20px);
+    pointer-events:none;transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1);z-index:900;
+}
+body.light-mode .jump-latest-btn{
+    background:rgba(255, 255, 255, 0.85);
+    box-shadow:0 8px 32px rgba(0, 0, 0, 0.08);
+    color: var(--hub-accent);
+}
+.jump-latest-btn:hover{border-color:var(--hub-accent);color:var(--hub-accent-light)}
+.jump-latest-btn.visible{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
+html[dir="rtl"] .jump-latest-btn{direction:rtl;}
+
+/* User message */
+.msg-user{
+    display:flex;justify-content:flex-end;align-items:center;gap:12px;
+    animation:msgIn .3s ease both;padding:4px 0;width:100%;
+    min-width:0; /* Ensure flex container can shrink */
+}
+html[dir="rtl"] .msg-user{justify-content:flex-end;}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.msg-bubble{
+    max-width:75%;padding:14px 22px;
+    background:var(--hub-surface);
+    color:var(--hub-text-primary);
+    border-radius:var(--radius-lg); /* Slightly less round for large text blocks */
+    border:1px solid var(--hub-border);
+    font-size:1rem;line-height:1.6;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap; /* Preserve user newlines */
+    font-weight:500;box-shadow:var(--shadow-xs);
+    min-width:0; /* Critical for flex child to not exceed parent */
+}
+html[dir="rtl"] .msg-bubble{border-radius:var(--radius-full)}
+
+/* File stickers on user message */
+.msg-file-stickers{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.2)}
+.msg-file-sticker{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:4px 10px;background:rgba(255,255,255,.18);
+    border-radius:var(--radius-full);font-size:.78rem;
+    color:var(--hub-text-inverse);font-weight:500;
+    backdrop-filter:blur(4px);
+}
+.msg-file-sticker i{font-size:.72rem;opacity:.85}
+
+/* ── Answer block ── */
+.answer-block{animation:msgIn .35s ease both;padding:20px 0}
+
+/* Sources */
+.sources-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;padding-left:36px}
+html[dir="rtl"] .sources-row{padding-left:0;padding-right:36px}
+.source-pill{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:6px 14px;background:var(--hub-surface);
+    border:1px solid var(--hub-border);border-radius:var(--radius-full);
+    font-size:.75rem;white-space:nowrap;
+    box-shadow:var(--shadow-xs);
+    animation:pillIn .25s ease both;
+    max-width:280px;
+}
+.source-pill .source-name{
+    overflow:hidden;text-overflow:ellipsis;max-width:220px;display:inline-block;
+}
+.source-pill-link-icon{font-size:.64rem;color:var(--hub-text-muted);opacity:.9}
+.source-pill:nth-child(2){animation-delay:.04s}
+.source-pill:nth-child(3){animation-delay:.08s}
+@keyframes pillIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+
+.source-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.source-dot.qdrant{background:var(--src-qdrant)}
+.source-dot.platform{background:var(--src-platform)}
+.source-dot.legal{background:var(--src-legal)}
+.source-dot.user_document{background:var(--src-user-doc)}
+.source-dot.groq{background:var(--src-groq)}
+.source-dot.web_tavily{background:var(--src-web)}
+.source-dot.web_exa{background:var(--src-web)}
+.source-dot.web{background:var(--src-web)}
+.source-dot.provider-gemini{background:#f59e0b}
+.source-dot.provider-groq{background:#8b5cf6}
+.source-dot.default{background:var(--hub-text-muted)}
+.source-name{font-weight:600;color:var(--hub-text-primary);font-size:.73rem}
+.source-score{color:var(--hub-text-muted);font-weight:500;font-size:.68rem}
+
+/* Answer head */
+.answer-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:6px}
+.answer-icon{
+    width:32px;height:32px;border-radius:50%;
+    background:var(--hub-accent-glow);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--hub-accent-light);font-size:.9rem;
+    border:1px solid rgba(157,78,221,.2);
+    box-shadow:0 0 10px rgba(157,78,221,.15);
+}
+.answer-lbl{
+    font-size:.7rem;font-weight:700;color:var(--hub-text-muted);
+    text-transform:uppercase;letter-spacing:.1em;
+}
+
+/* Answer body */
+.answer-body{
+    font-size:.98rem;line-height:1.9;color:var(--hub-text-primary);font-weight:400;
+    padding-left:36px;
+}
+html[dir="rtl"] .answer-body{padding-left:0;padding-right:36px}
+.answer-body p{margin-bottom:12px}
+.answer-body p:last-child{margin-bottom:0}
+.answer-body strong{font-weight:700;color:var(--hub-deep-blue)}
+.answer-body em{font-style:italic;color:var(--hub-text-secondary)}
+.answer-body ul,.answer-body ol{margin:10px 0 10px 22px}
+html[dir="rtl"] .answer-body ul,html[dir="rtl"] .answer-body ol{margin:10px 22px 10px 0}
+.answer-body li{margin-bottom:5px}
+.answer-body a{
+    color:var(--hub-accent);font-weight:600;
+    border-bottom:1px solid transparent;transition:border-color var(--transition-fast);
+}
+.answer-body a:hover{border-bottom-color:var(--hub-accent)}
+.answer-body code{
+    background:var(--hub-surface-hover);padding:2px 7px;border-radius:5px;
+    font-family:'JetBrains Mono',monospace;font-size:.86em;color:#7c3aed;
+}
+.answer-body pre{
+    background: #0d0a13;
+    color: #e2e8f0;
+    padding: 18px 20px;
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    margin: 14px 0;
+    font-size: .88rem;
+    line-height: 1.6;
+    border: 1px solid rgba(157, 78, 221, 0.3);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
+    font-family: 'JetBrains Mono', monospace;
+}
+.code-block-header{
+    background: #1a1625;
+    border-bottom: 2px solid rgba(157, 78, 221, 0.2);
+}
+body.light-mode .code-block-header{
+    background: #1a1625; /* Keep dark header in light mode */
+}
+.answer-body pre code{background:transparent;padding:0;color:inherit}
+.answer-body blockquote{
+    border-left:3px solid var(--hub-accent);padding-left:18px;
+    margin:14px 0;color:var(--hub-text-secondary);font-style:italic;
+}
+html[dir="rtl"] .answer-body blockquote{border-left:none;border-right:3px solid var(--hub-accent);padding-left:0;padding-right:18px}
+.answer-body h1,.answer-body h2,.answer-body h3{font-weight:800;margin:20px 0 8px;color:var(--hub-text-primary)}
+.answer-body h1{font-size:1.25rem}
+.answer-body h2{font-size:1.1rem}
+.answer-body h3{font-size:1rem}
+
+/* Source citations (small bold text between header and body) */
+.answer-citations{
+    display:flex;flex-wrap:wrap;gap:6px;
+    margin-bottom:6px;padding-left:36px;
+}
+html[dir="rtl"] .answer-citations{padding-left:0;padding-right:36px}
+.answer-cite{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:.72rem;font-weight:700;
+    color:var(--hub-text-muted);
+    letter-spacing:.01em;
+}
+.answer-cite i{font-size:.6rem;color:var(--hub-accent);opacity:.6}
+
+/* Typing cursor */
+.typing-cursor{
+    display:inline-block;width:1px;height:1em;
+    background:var(--hub-accent);margin-left:2px;
+    opacity:.6;
+    animation:blink .885s ease-in-out infinite;
+    vertical-align:text-bottom;border-radius:1px;
+}
+.typing-cursor-fast{animation:blink .24s ease-in-out infinite;opacity:.5;width:1px}
+html[dir="rtl"] .typing-cursor{margin-left:0;margin-right:2px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ==========================================================================
+   PLATFORM CARDS
+   ========================================================================== */
+.platform-cards{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+    gap:12px;margin-top:14px;padding-left:36px;
+}
+html[dir="rtl"] .platform-cards{padding-left:0;padding-right:36px}
+.p-card{
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-lg);padding:18px;
+    transition:all var(--transition-base);cursor:pointer;
+    text-decoration:none;color:inherit;display:block;
+    box-shadow:var(--shadow-card);
+    animation:cardFadeIn .6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.p-card:nth-child(1){animation-delay:.04s}
+.p-card:nth-child(2){animation-delay:.08s}
+.p-card:nth-child(3){animation-delay:.12s}
+@keyframes cardFadeIn{from{opacity:0;transform:translateY(30px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.p-card:hover{
+    border-color:var(--hub-border-hover);
+    transform:translateY(-6px);
+    box-shadow:var(--shadow-card-hover);
+}
+.p-card-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.p-card-icon{
+    width:32px;height:32px;border-radius:var(--radius-sm);
+    display:flex;align-items:center;justify-content:center;
+    font-size:.78rem;flex-shrink:0;
+}
+.pci-course{background:rgba(139,92,246,.08);color:#8b5cf6}
+.pci-tool{background:rgba(5,150,105,.08);color:#059669}
+.pci-corpus{background:rgba(8,145,178,.08);color:#0891b2}
+.pci-resource{background:rgba(37,99,235,.08);color:#2563eb}
+.pci-event{background:rgba(234,88,12,.08);color:#ea580c}
+.pci-project{background:rgba(79,70,229,.08);color:#4f46e5}
+.pci-institution{background:rgba(219,39,119,.08);color:#db2777}
+.pci-user{background:rgba(13,148,136,.08);color:#0d9488}
+.p-card-type{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hub-text-muted)}
+.p-card-title{font-size:.9rem;font-weight:700;color:var(--hub-text-primary);margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.p-card-desc{font-size:.8rem;color:var(--hub-text-secondary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:10px}
+.p-card-link{font-size:.76rem;color:var(--hub-accent);font-weight:700;display:flex;align-items:center;gap:4px}
+.p-card-link i{font-size:.6rem;transition:transform var(--transition-fast)}
+html[dir="ltr"] .p-card:hover .p-card-link i{transform:translateX(4px)}
+html[dir="rtl"] .p-card:hover .p-card-link i{transform:translateX(-4px) scaleX(-1)}
+.p-card-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.meta-tag{font-size:.65rem;padding:3px 10px;border-radius:var(--radius-full);background:var(--hub-surface-hover);color:var(--hub-text-secondary);font-weight:500}
+
+/* Selected context preview before auto explanation */
+.context-preview-wrap{padding-left:36px;margin-bottom:8px;animation:msgIn .3s ease both}
+html[dir="rtl"] .context-preview-wrap{padding-left:0;padding-right:36px}
+.context-preview-label{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--hub-text-muted);margin-bottom:8px;
+}
+.context-preview-label i{font-size:.72rem;color:var(--hub-accent)}
+.context-preview-card{
+    background:var(--hub-surface);
+    border:1px solid rgba(157, 78, 221, 0.2);
+    border-radius:var(--radius-lg);
+    padding:14px 16px;
+    box-shadow:var(--shadow-card);
+    max-width:680px;
+}
+.context-preview-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.context-preview-title{font-size:.9rem;font-weight:700;color:var(--hub-text-primary)}
+.context-preview-desc{font-size:.82rem;color:var(--hub-text-secondary);line-height:1.55}
+.context-preview-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.context-preview-actions{margin-top:10px;display:flex;justify-content:flex-end}
+html[dir="rtl"] .context-preview-actions{justify-content:flex-start}
+.context-preview-link{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:.78rem;font-weight:700;color:var(--hub-accent);
+    text-decoration:none;padding:6px 10px;border-radius:var(--radius-md);
+    border:1px solid var(--hub-border);background:var(--hub-surface);
+    transition:all var(--transition-fast);
+}
+.context-preview-link:hover{
+    border-color:var(--hub-border-hover);
+    background:var(--hub-surface-hover);
+    color:var(--hub-accent-hover);
+}
+
+/* ==========================================================================
+   SYSTEM / ERROR
+   ========================================================================== */
+.msg-system,.msg-error{text-align:center;padding:6px 0;animation:msgIn .3s ease both}
+.msg-system-pill{
+    display:inline-block;padding:8px 18px;
+    background:#fffbeb;border:1px solid #fde68a;color:#92400e;
+    border-radius:var(--radius-full);font-size:.85rem;font-weight:500;
+}
+.msg-error-pill{
+    display:inline-block;padding:8px 18px;
+    background:#fef2f2;border:1px solid #fecaca;color:#991b1b;
+    border-radius:var(--radius-full);font-size:.85rem;font-weight:500;
+}
+
+/* ==========================================================================
+   THINKING INDICATOR
+   ========================================================================== */
+.thinking-block{animation:msgIn .3s ease both;padding:16px 0}
+.thinking-inner{display:flex;align-items:center;gap:16px}
+.thinking-dots-bar{display:flex;gap:5px}
+.thinking-dots-bar span{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--hub-accent);opacity:.3;
+    animation:dotBounce 1.4s ease-in-out infinite;
+}
+.thinking-dots-bar span:nth-child(2){animation-delay:.15s}
+.thinking-dots-bar span:nth-child(3){animation-delay:.3s}
+@keyframes dotBounce{
+    0%,80%,100%{transform:scale(.6);opacity:.3}
+    40%{transform:scale(1);opacity:1}
+}
+.thinking-text{font-size:.88rem;color:var(--hub-text-muted);font-weight:500}
+
+.exa-thinking-block .thinking-inner{
+    padding:8px 14px;
+    border:1px solid rgba(8,145,178,.18);
+    border-radius:var(--radius-lg);
+    background:linear-gradient(135deg,rgba(8,145,178,.08),rgba(37,99,235,.06));
+}
+.exa-thinking-block .thinking-dots-bar span{
+    background:var(--src-web);
+    animation-duration:1.1s;
+}
+.exa-thinking-icon{
+    width:22px;height:22px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--src-web);
+    background:rgba(8,145,178,.12);
+    animation:exaSpin 2s linear infinite;
+    flex-shrink:0;
+}
+.exa-thinking-block .thinking-text{
+    color:var(--src-web);
+    font-weight:600;
+}
+
+/* ==========================================================================
+   INPUT AREA
+   ========================================================================== */
+.input-area{
+    padding:8px 24px 24px;display:flex;flex-direction:column;
+    align-items:center;flex-shrink:0;background:transparent;
+    width:100%;max-width:var(--chat-max-w);margin:0 auto;
+}
+
+/* ── File preview area (multi-file) ── */
+.file-preview-area{
+    display:none;width:100%;margin-bottom:10px;
+    flex-direction:column;gap:8px;
+    animation:msgIn .2s ease both;
+}
+.file-preview-area.active{display:flex}
+.file-pills{display:flex;flex-wrap:wrap;gap:8px}
+.file-pill{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 14px;border-radius:var(--radius-md);
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    box-shadow:var(--shadow-xs);font-size:.83rem;color:var(--hub-text-primary);
+    animation:pillIn .25s ease both;max-width:280px;
+}
+.file-pill .fp-icon{
+    width:28px;height:28px;border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.72rem;flex-shrink:0;
+}
+.fp-icon.fp-pdf{background:rgba(220,38,38,.08);color:#dc2626}
+.fp-icon.fp-docx{background:rgba(37,99,235,.08);color:#2563eb}
+.fp-icon.fp-xlsx{background:rgba(5,150,105,.08);color:#059669}
+.fp-icon.fp-txt{background:rgba(100,116,139,.08);color:#64748b}
+.fp-icon.fp-default{background:rgba(100,116,139,.08);color:#64748b}
+.file-pill .fp-name{
+    flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-weight:500;max-width:180px;
+}
+.file-pill .fp-size{font-size:.72rem;color:var(--hub-text-muted);white-space:nowrap}
+.file-pill .fp-remove{
+    cursor:pointer;color:var(--hub-text-muted);font-size:.9rem;
+    transition:all var(--transition-fast);border:none;background:none;
+    width:20px;height:20px;display:flex;align-items:center;justify-content:center;
+    border-radius:50%;
+}
+.file-pill .fp-remove:hover{color:var(--hub-danger);background:rgba(220,38,38,.08)}
+.file-pill.fp-uploading{opacity:.6}
+.file-pill.fp-uploading .fp-name::after{content:'...';animation:blink .7s infinite}
+.file-pill .fp-status{
+    width:14px;height:14px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:.55rem;
+}
+.fp-status.fp-done{color:var(--hub-success)}
+.fp-status.fp-error{color:var(--hub-danger)}
+.file-clear-all{
+    align-self:flex-end;padding:4px 12px;font-size:.72rem;
+    color:var(--hub-text-muted);cursor:pointer;border:none;
+    background:none;font-weight:600;transition:color var(--transition-fast);
+}
+.file-clear-all:hover{color:var(--hub-danger)}
+
+.input-box{
+    width:100%;background:var(--hub-surface);
+    border:1px solid var(--hub-border);border-radius:var(--radius-xl);
+    padding:6px 10px;display:flex;align-items:flex-end;gap:4px;
+    transition:all var(--transition-base);box-shadow:var(--shadow-card);
+}
+.input-box:focus-within{
+    border-color:var(--hub-accent);
+    box-shadow:0 0 0 3px var(--hub-accent-glow),var(--shadow-xl);
+}
+
+.input-actions{display:flex;gap:4px;padding-bottom:4px}
+.inp-btn{
+    width:38px;height:38px;border-radius:50%;
+    border:none;background:transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--hub-text-muted);font-size:.95rem;
+    transition:all var(--transition-fast);position:relative;
+}
+.inp-btn:hover{color:var(--hub-text-primary);background:var(--hub-surface-hover)}
+.inp-btn.active-action{
+    color:var(--hub-text-inverse);
+    background:var(--hub-accent);
+    border-radius:50%;
+}
+
+.chat-textarea{
+    flex:1;border:none;outline:none;font-family:inherit;
+    font-size:1rem;color:var(--hub-text-primary);
+    background:transparent;resize:none;max-height:160px;
+    line-height:1.6;padding:12px 10px;font-weight:400;
+}
+.chat-textarea::placeholder{color:var(--hub-text-muted)}
+html[dir="rtl"] .chat-textarea{text-align:right}
+
+.send-btn{
+    width:42px;height:42px;border-radius:50%;
+    border:none;
+    background:var(--hub-accent);
+    color:var(--hub-text-inverse);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.95rem;transition:all var(--transition-base);
+    flex-shrink:0;box-shadow:0 4px 14px rgba(157,78,221,.25);
+    margin-bottom:2px;
+}
+.send-btn:hover{transform:translateY(-1px);background:var(--hub-accent-light);box-shadow:0 6px 20px rgba(157,78,221,.4)}
+.send-btn:active{transform:scale(.95)}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;background:var(--hub-surface-hover);color:var(--hub-text-muted)}
+
+input[type="file"]{display:none}
+
+/* ==========================================================================
+   SEARCH MODE DROPDOWN
+   ========================================================================== */
+.search-mode-wrap{position:relative;display:flex;align-items:center}
+.search-mode-btn{
+    width:36px;height:36px;border-radius:var(--radius-sm);
+    border:none;background:transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:2px;
+    color:var(--hub-text-muted);font-size:.92rem;
+    transition:all var(--transition-fast);position:relative;
+    padding:0;
+}
+.search-mode-btn:hover{color:var(--hub-accent);background:var(--hub-accent-glow)}
+.search-mode-btn.active-action{
+    color:var(--hub-text-inverse);
+    background:linear-gradient(135deg,var(--hub-accent),var(--hub-accent-light));
+    box-shadow:0 2px 10px rgba(37,99,235,.3);border-radius:var(--radius-sm);
+}
+html[dir="rtl"] .search-mode-btn{direction:rtl}
+
+.search-mode-panel{
+    position:absolute;bottom:calc(100% + 8px);left:0;
+    min-width:240px;padding:6px;
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-lg);
+    box-shadow:0 16px 48px rgba(0,0,0,.12);
+    opacity:0;visibility:hidden;transform:translateY(8px);
+    transition:all var(--transition-fast);z-index:100;
+}
+html[dir="rtl"] .search-mode-panel{left:auto;right:0}
+.search-mode-wrap.open .search-mode-panel{opacity:1;visibility:visible;transform:translateY(0)}
+
+.search-mode-option{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px;border-radius:var(--radius-md);
+    font-size:.85rem;font-weight:500;color:var(--hub-text-secondary);
+    transition:all var(--transition-fast);cursor:pointer;border:none;
+    background:transparent;width:100%;text-align:left;justify-content:flex-start;
+}
+html[dir="rtl"] .search-mode-option{text-align:right}
+html[dir="rtl"] .search-mode-option{direction:rtl;flex-direction:row}
+html[dir="rtl"] .search-mode-option .smo-text{align-items:flex-end;text-align:right;direction:rtl}
+.search-mode-option:hover{
+    background:linear-gradient(90deg,var(--hub-surface-hover),var(--hub-surface));
+    color:var(--hub-accent);
+}
+.search-mode-option.active{
+    background:var(--hub-accent-glow);color:var(--hub-accent);font-weight:600;
+}
+.search-mode-option i{
+    width:28px;height:28px;
+    display:inline-flex;align-items:center;justify-content:center;
+    text-align:center;font-size:.92rem;flex-shrink:0;
+    border-radius:50%;
+    background:var(--hub-surface-hover);
+    color:var(--hub-text-muted);
+}
+.search-mode-option .smo-text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.search-mode-option .smo-label{font-weight:700;font-size:.98rem;line-height:1.2}
+.search-mode-option .smo-desc{font-size:.82rem;color:var(--hub-text-muted);font-weight:400;line-height:1.35}
+.search-mode-option.active .smo-desc{color:var(--hub-accent);opacity:.7}
+.search-mode-option:hover i,
+.search-mode-option.active i{color:var(--hub-accent);background:var(--hub-accent-glow)}
+
+/* Web search mode indicator */
+.mode-indicator{
+    display:none;align-items:center;gap:6px;
+    padding:4px 12px;font-size:.72rem;font-weight:600;
+    color:var(--src-web);border-radius:var(--radius-full);
+    background:rgba(8,145,178,.08);margin-bottom:6px;
+    max-width:var(--chat-max-w);width:100%;
+    animation:msgIn .2s ease both;
+}
+.mode-indicator.active{display:flex}
+.mode-indicator i{font-size:.7rem}
+
+/* ==========================================================================
+   RENAME MODAL
+   ========================================================================== */
+.modal-overlay{
+    display:none;position:fixed;inset:0;
+    background:rgba(15,23,42,.4);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    z-index:999;align-items:center;justify-content:center;
+}
+.modal-overlay.active{display:flex}
+.modal-box{
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-xl);padding:28px 32px;
+    width:90%;max-width:420px;box-shadow:var(--shadow-xl);
+    animation:modalUp .25s ease both;
+}
+@keyframes modalUp{from{transform:scale(.96) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.modal-box h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--hub-text-primary)}
+.modal-box input{
+    width:100%;padding:12px 16px;background:var(--hub-surface-hover);
+    border:2px solid var(--hub-border);border-radius:var(--radius-md);
+    font-family:inherit;font-size:.9rem;color:var(--hub-text-primary);
+    margin-bottom:20px;outline:none;transition:border-color var(--transition-fast);
+}
+.modal-box input:focus{border-color:var(--hub-accent)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end}
+.modal-actions button{
+    padding:10px 22px;border-radius:var(--radius-md);border:none;
+    cursor:pointer;font-family:inherit;font-weight:600;font-size:.85rem;
+    transition:all var(--transition-fast);
+}
+.btn-cancel{background:var(--hub-surface-hover);color:var(--hub-text-secondary);border:1px solid var(--hub-border)}
+.btn-cancel:hover{background:var(--hub-subtle);color:var(--hub-text-primary)}
+.btn-save{background:linear-gradient(135deg,var(--hub-accent),var(--hub-accent-light));color:var(--hub-text-inverse)}
+.btn-save:hover{box-shadow:0 4px 14px rgba(37,99,235,.3);transform:translateY(-1px)}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+@media(max-width:768px){
+    .sidebar{position:fixed;left:0;top:0;z-index:200;box-shadow:8px 0 30px rgba(0,0,0,.2)}
+    html[dir="rtl"] .sidebar{left:auto;right:0;box-shadow:-8px 0 30px rgba(0,0,0,.2)}
+    .sidebar.collapsed{width:0;min-width:0}
+    .msg-bubble{max-width:88%}
+    .platform-cards{grid-template-columns:1fr}
+    .suggestions{flex-direction:column;align-items:stretch}
+    .header{padding:0 14px}
+    .messages-area{padding:20px 14px}
+    .greeting-title{font-size:1.35rem}
+    .answer-body{padding-left:0}
+    html[dir="rtl"] .answer-body{padding-right:0}
+    .platform-cards{padding-left:0}
+    html[dir="rtl"] .platform-cards{padding-right:0}
+}
+
+/* ==========================================================================
+   WEB RESULT CARDS (Tavily)
+   ========================================================================== */
+.web-results-grid{
+    display:grid;gap:10px;margin-top:16px;
+    grid-template-columns:1fr;
+    min-width:0;
+}
+.web-result-card{
+    display:flex;flex-direction:column;gap:8px;
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-md);padding:14px 16px;
+    transition:all var(--transition-base);cursor:pointer;
+    text-decoration:none;color:inherit;
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+    animation:cardSlideIn .6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.web-result-card:nth-child(1){animation-delay:.05s}
+.web-result-card:nth-child(2){animation-delay:.12s}
+.web-result-card:nth-child(3){animation-delay:.19s}
+.web-result-card:nth-child(4){animation-delay:.26s}
+.web-result-card:nth-child(5){animation-delay:.33s}
+@keyframes cardSlideIn{
+    from{opacity:0;transform:translateY(40px)}
+    to{opacity:1;transform:translateY(0)}
+}
+.web-result-card:hover{
+    border-color:var(--hub-accent-light);box-shadow:var(--shadow-card-hover);
+    transform:translateY(-1px);
+}
+.web-result-card .wrc-header{
+    display:flex;align-items:center;gap:10px;
+}
+.web-result-card .wrc-favicon{
+    width:20px;height:20px;border-radius:4px;flex-shrink:0;
+    object-fit:contain;
+}
+.web-result-card .wrc-domain{
+    font-size:.72rem;color:var(--hub-text-muted);font-weight:500;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    min-width:0;
+    max-width:100%;
+}
+.web-result-card .wrc-title{
+    font-size:.88rem;font-weight:600;color:var(--hub-text-primary);
+    line-height:1.4;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+}
+.web-result-card .wrc-snippet{
+    font-size:.8rem;color:var(--hub-text-secondary);line-height:1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow:hidden;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+}
+.web-result-card .wrc-footer{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-top:2px;
+}
+.web-result-card .wrc-score{
+    font-size:.68rem;color:var(--hub-text-muted);font-weight:500;
+}
+.web-result-card .wrc-link-icon{
+    color:var(--hub-accent);font-size:.75rem;opacity:.6;
+    transition:opacity var(--transition-fast);
+}
+.web-result-card:hover .wrc-link-icon{opacity:1}
+
+/* EXA web-searching indicator */
+.exa-searching-indicator{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 16px;margin:8px 0;
+    background:linear-gradient(135deg,rgba(8,145,178,.08),rgba(37,99,235,.06));
+    border:1px solid rgba(8,145,178,.15);
+    border-radius:var(--radius-md);
+    font-size:.8rem;font-weight:500;color:var(--src-web);
+    animation:exaPulse 2s ease-in-out infinite;
+}
+.exa-searching-indicator i{
+    font-size:.85rem;
+    animation:exaSpin 2s linear infinite;
+}
+@keyframes exaPulse{
+    0%,100%{opacity:.7}50%{opacity:1}
+}
+@keyframes exaSpin{
+    0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}
+}
+
+@media(max-width:700px){
+    .web-results-grid{grid-template-columns:1fr}
+}
+
+/* ==========================================================================
+   FEATURE 1: STOP GENERATION — Send button transforms to stop
+   ========================================================================== */
+.send-btn.is-streaming{
+    background:linear-gradient(135deg,#dc2626,#ef4444);
+    box-shadow:0 4px 14px rgba(220,38,38,.3);
+    animation:stopPulse 1.5s ease-in-out infinite;
+}
+.send-btn.is-streaming:hover{
+    box-shadow:0 6px 20px rgba(220,38,38,.5);
+    transform:translateY(-1px);
+}
+@keyframes stopPulse{0%,100%{box-shadow:0 4px 14px rgba(220,38,38,.3)}50%{box-shadow:0 4px 20px rgba(220,38,38,.5)}}
+
+/* ==========================================================================
+   FEATURE 2: RETRY BUTTON
+   ========================================================================== */
+.retry-btn{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:8px 18px;margin-top:8px;
+    background:var(--hub-surface);border:1px solid var(--hub-border);
+    border-radius:var(--radius-full);font-size:.82rem;
+    font-weight:600;color:var(--hub-text-secondary);
+    cursor:pointer;transition:all var(--transition-base);
+    font-family:inherit;box-shadow:var(--shadow-xs);
+    animation:msgIn .3s ease both;
+}
+.retry-btn:hover{
+    border-color:var(--hub-accent);color:var(--hub-accent);
+    background:var(--hub-accent-glow);
+    transform:translateY(-2px);box-shadow:var(--shadow-md);
+}
+.retry-btn i{font-size:.75rem}
+
+/* ==========================================================================
+   FEATURE 3: EDIT BUTTON ON USER MESSAGES
+   ========================================================================== */
+.msg-user{position:relative;}
+.msg-actions{
+    display:flex;gap:6px;opacity:0;transition:opacity .2s;
+    flex-shrink: 0; /* Don't squash action buttons */
+}
+.msg-action-btn{
+    width:32px;height:32px;border:none;background:transparent;
+    color:rgba(100,100,100,.6);border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:all var(--transition-fast);font-size:1rem;
+}
+html.dark-mode .msg-action-btn, body.dark-mode .msg-action-btn { color:rgba(255,255,255,.5); }
+.msg-action-btn:hover{background:var(--hub-accent-glow);color:var(--hub-accent-light)}
+.msg-user:hover .msg-actions{opacity:1}
+.msg-pin-btn{display:none !important}
+
+/* ==========================================================================
+   FEATURE 4: PINNED MESSAGES
+   ========================================================================== */
+.msg-pin-btn{
+    width:28px;height:28px;border:none;background:transparent;
+    color:var(--hub-text-muted);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.72rem;opacity:0;transition:all var(--transition-fast);
+    border-radius:var(--radius-sm);flex-shrink:0;
+}
+.msg-user:hover .msg-pin-btn,
+.answer-block:hover .msg-pin-btn{opacity:1}
+.msg-pin-btn:hover{color:#eab308;background:rgba(234,179,8,.08)}
+.msg-pin-btn.is-pinned{opacity:1;color:#eab308}
+
+.is-pinned-msg{
+    border-left:3px solid #eab308;
+    padding-left:12px;
+    background:linear-gradient(90deg,rgba(234,179,8,.04),transparent);
+    border-radius:var(--radius-sm);
+}
+html[dir="rtl"] .is-pinned-msg{border-left:none;border-right:3px solid #eab308;padding-left:0;padding-right:12px}
+
+/* Pin controls row inside answer/user blocks */
+.msg-controls{
+    display:flex;align-items:center;gap:4px;
+    justify-content:flex-end;margin-top:4px;
+    padding-left:36px;
+}
+html[dir="rtl"] .msg-controls{padding-left:0;padding-right:36px;justify-content:flex-start}
+
+/* ==========================================================================
+   FEATURE 5: ENHANCED CODE BLOCKS WITH SYNTAX HIGHLIGHTING
+   ========================================================================== */
+.code-block-wrap{
+    position:relative;margin:14px 0;border-radius:var(--radius-md);
+    overflow:hidden;border:1px solid rgba(157,78,221,.15);
+    box-shadow:0 10px 40px rgba(0,0,0,.15);
+}
+body.light-mode .code-block-wrap{
+    border:1px solid rgba(157,78,221,.25);
+    box-shadow:0 10px 30px rgba(157, 78, 221, 0.1);
+}
+.code-block-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 16px;
+    background: #1e1b2e; /* Deep purple/slate for dark */
+    border-bottom:1px solid rgba(255,255,255,.08);
+    font-size:.78rem;
+}
+body.light-mode .code-block-header{
+    background: #2d244a; /* Vibrant deep purple for light */
+    border-bottom:none;
+}
+.code-lang-badge{
+    font-family:'JetBrains Mono',monospace;font-weight:600;
+    color:rgba(255,255,255,.5);text-transform:uppercase;
+    letter-spacing:.06em;
+}
+.code-copy-btn{
+    display:flex;align-items:center;gap:5px;
+    border:none;background:rgba(255,255,255,.08);
+    color:rgba(255,255,255,.6);cursor:pointer;
+    padding:4px 10px;border-radius:var(--radius-sm);
+    font-size:.72rem;font-family:'Inter',sans-serif;font-weight:500;
+    transition:all var(--transition-fast);
+}
+.code-copy-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+.code-copy-btn.copied{color:#4ade80} /* Vibrant green */
+
+/* Override answer-body pre to work with highlight.js */
+.answer-body pre{margin:0;border-radius:0;border:none;padding:0}
+.answer-body .code-block-wrap pre{
+    padding:16px 18px;
+    font-size:.86rem;line-height:1.6;
+    overflow-x:auto;
+    border-radius:0 0 var(--radius-md) var(--radius-md);
+}
+.answer-body .code-block-wrap pre code{
+    background:transparent !important;padding:0;
+    font-family:'JetBrains Mono',monospace;
+    font-size:.86rem;
+}
+/* highlight.js overrides for tight integration */
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- ======================== SIDEBAR ======================== -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-head">
+                <div class="sidebar-brand">
+                    <span class="sidebar-brand-text">{% if LANGUAGE_CODE == 'ar' %}روبوت الدردشة{% else %}Chatbot{% endif %}</span>
+                </div>
+                <button class="new-chat-btn" id="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>{% trans "New Chat" %}</span>
+                </button>
+            </div>
+            <div class="conv-label">{% trans "Conversations" %}</div>
+            <div class="conv-list" id="conv-list">
+                <div style="padding:32px 16px;color:rgba(255,255,255,.35);text-align:center;font-size:.85rem">
+                    {% trans "Loading..." %}
+                </div>
+            </div>
+        </aside>
+
+        <!-- ======================== MAIN ======================== -->
+        <main class="main">
+            <header class="header">
+                <div class="header-l">
+                    <button class="toggle-btn" id="toggle-sidebar" title="{% trans 'Toggle sidebar' %}">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+                <div class="header-r">
+                    <!-- Focus Mode selector -->
+                    <div class="api-mode-wrap" id="api-mode-wrap">
+                        <button class="api-mode-btn" id="api-mode-btn" type="button" aria-haspopup="true" aria-expanded="false" title="{% trans 'Choose Mode' %}">
+                            <i class="fas fa-robot" id="api-mode-icon-btn"></i>
+                            <span id="api-mode-display">{% if LANGUAGE_CODE == 'ar' %}تطوير البرمجيات والذكاء الاصطناعي{% else %}{% trans 'NLP & AI' %}{% endif %}</span>
+                            <i class="fas fa-chevron-down caret"></i>
+                        </button>
+                        <div class="api-mode-panel" id="api-mode-panel" role="menu">
+                            <div class="api-mode-option" data-mode="normal" data-label="{% if LANGUAGE_CODE == 'ar' %}محادثة عادية{% else %}{% trans 'Normal Chat' %}{% endif %}" data-icon="fa-robot" role="menuitem">
+                                <i class="fas fa-robot"></i>
+                                <span>{% if LANGUAGE_CODE == 'ar' %}محادثة عادية{% else %}{% trans 'Normal Chat' %}{% endif %}</span>
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="api-mode-option" data-mode="nlp_ai" data-label="{% if LANGUAGE_CODE == 'ar' %}تطوير البرمجيات والذكاء الاصطناعي{% else %}{% trans 'NLP & AI' %}{% endif %}" data-icon="fa-code" role="menuitem">
+                                <i class="fas fa-code"></i>
+                                <span>{% if LANGUAGE_CODE == 'ar' %}تطوير البرمجيات والذكاء الاصطناعي{% else %}{% trans 'NLP & AI' %}{% endif %}</span>
+                                <i class="fas fa-check" style="display:none"></i>
+                            </div>
+                            <div class="api-mode-option" data-mode="legal" data-label="{% if LANGUAGE_CODE == 'ar' %}المستشار القانوني{% else %}{% trans 'Legal Advisor' %}{% endif %}" data-icon="fa-balance-scale" role="menuitem">
+                                <i class="fas fa-balance-scale"></i>
+                                <span>{% if LANGUAGE_CODE == 'ar' %}المستشار القانوني{% else %}{% trans 'Legal Advisor' %}{% endif %}</span>
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="api-mode-option" data-mode="platform" data-label="{% if LANGUAGE_CODE == 'ar' %}دليل المنصة{% else %}{% trans 'Platform Guide' %}{% endif %}" data-icon="fa-search" role="menuitem">
+                                <i class="fas fa-search"></i>
+                                <span>{% if LANGUAGE_CODE == 'ar' %}دليل المنصة{% else %}{% trans 'Platform Guide' %}{% endif %}</span>
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Night Mode Toggle -->
+                    <button class="h-btn" id="theme-toggle" title="{% trans 'Toggle theme' %}">
+                        <i class="fas fa-moon"></i>
+                    </button>
+
+                    <!-- Language dropdown (from base.html) -->
+                    <div class="lang-dropdown-wrap" id="lang-wrap">
+                        <button class="lang-btn" id="lang-btn" type="button" aria-haspopup="true" aria-expanded="false" title="{% trans 'Language' %}">
+                            <i class="fas fa-globe"></i>
+                            <span>{% if LANGUAGE_CODE == 'ar' %}العربية{% else %}English{% endif %}</span>
+                            <i class="fas fa-chevron-down caret"></i>
+                        </button>
+                        <div class="lang-panel" id="lang-panel" role="menu">
+                            <a href="{% url 'translate:switch_language' %}?language=en"
+                               class="lang-option {% if LANGUAGE_CODE == 'en' %}active{% endif %}"
+                               role="menuitem">
+                                <span>{% if LANGUAGE_CODE == 'ar' %}الإنجليزية{% else %}English{% endif %}</span>
+                                {% if LANGUAGE_CODE == 'en' %}<i class="fas fa-check"></i>{% endif %}
+                            </a>
+                            <a href="{% url 'translate:switch_language' %}?language=ar"
+                               class="lang-option {% if LANGUAGE_CODE == 'ar' %}active{% endif %}"
+                               role="menuitem">
+                                <span>{% if LANGUAGE_CODE == 'ar' %}العربية{% else %}Arabic{% endif %}</span>
+                                {% if LANGUAGE_CODE == 'ar' %}<i class="fas fa-check"></i>{% endif %}
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Typing speed control removed by request -->
+                    <a href="{% url 'pages:home' %}" class="h-btn" title="{% trans 'Home' %}">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                </div>
+            </header>
+
+            <div class="chat-body" id="chat-body">
+                <div class="empty-state" id="empty-state">
+                    <div class="brand-mark">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            <line x1="9" y1="10" x2="15" y2="10"/>
+                            <line x1="12" y1="7" x2="12" y2="13"/>
+                        </svg>
+                    </div>
+                    <div class="greeting-title">{% trans "How can I help you?" %}</div>
+                    <div class="greeting-sub">{% trans "Ask me anything about Arabic NLP — resources, tools, research, and more." %}</div>
+
+                </div>
+                <div class="messages-area" id="messages-area" style="display:none"></div>
+                <button class="jump-latest-btn" id="jump-latest-btn" type="button">
+                    <i class="fas fa-angles-down" aria-hidden="true"></i>
+                    <span>{% if LANGUAGE_CODE == 'ar' %}انتقل إلى الأحدث{% else %}{% trans "Jump to latest" %}{% endif %}</span>
+                </button>
+            </div>
+
+            <!-- File preview (multi-file) -->
+            <div class="file-preview-area" id="file-preview-area">
+                <div class="file-pills" id="file-pills"></div>
+                <button class="file-clear-all" id="file-clear-all" type="button">{% trans 'Clear all' %}</button>
+            </div>
+
+            <!-- Input -->
+            <div class="input-area">
+                <div class="input-box">
+                    <div class="input-actions">
+                        <button class="inp-btn" id="attach-btn" title="{% trans 'Upload file' %}">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <div class="search-mode-wrap" id="search-mode-wrap">
+                            <button class="search-mode-btn" id="search-mode-btn" title="{% trans 'Search mode' %}">
+                                <i class="fas fa-search" id="search-mode-icon"></i>
+                            </button>
+                            <div class="search-mode-panel" id="search-mode-panel">
+                                <button class="search-mode-option" data-mode="web">
+                                    <i class="fas fa-globe"></i>
+                                    <span class="smo-text">
+                                        <span class="smo-label">{% if LANGUAGE_CODE == 'ar' %}البحث في الويب{% else %}{% trans 'Web Search' %}{% endif %}</span>
+                                        <span class="smo-desc">{% if LANGUAGE_CODE == 'ar' %}ابحث في الإنترنت عن نتائج مباشرة{% else %}{% trans 'Search the internet for live results' %}{% endif %}</span>
+                                    </span>
+                                </button>
+                                <button class="search-mode-option" data-mode="platform">
+                                    <i class="fas fa-search"></i>
+                                    <span class="smo-text">
+                                        <span class="smo-label">{% if LANGUAGE_CODE == 'ar' %}بحث في المنصة{% else %}{% trans 'Platform Search' %}{% endif %}</span>
+                                        <span class="smo-desc">{% if LANGUAGE_CODE == 'ar' %}ابحث داخل قاعدة المعرفة الخاصة بك{% else %}{% trans 'Search within your knowledge base' %}{% endif %}</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <textarea class="chat-textarea" id="chat-input" placeholder="{% if LANGUAGE_CODE == 'ar' %}اسأل أي شيء...{% else %}{% trans 'Ask anything...' %}{% endif %}" rows="1"></textarea>
+                    <button class="send-btn" id="send-btn" title="{% trans 'Send' %}">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                </div>
+                <input type="file" id="file-input" accept=".pdf,.doc,.docx,.txt,.xlsx" multiple>
+            </div>
+        </main>
+    </div>
+
+    <!-- Rename Modal -->
+    <div class="modal-overlay" id="rename-overlay">
+        <div class="modal-box">
+            <h3>{% trans "Rename conversation" %}</h3>
+            <input type="text" id="rename-input" placeholder="{% trans 'New title...' %}" maxlength="200">
+            <div class="modal-actions">
+                <button class="btn-cancel" id="rename-cancel">{% trans "Cancel" %}</button>
+                <button class="btn-save" id="rename-save">{% trans "Save" %}</button>
+            </div>
+        </div>
+    </div>
+
+    {% csrf_token %}
+
+    <script>
+    (function(){
+        'use strict';
+
+        /* ── Elements ── */
+        const chatBody    = document.getElementById('chat-body');
+        const msgsArea    = document.getElementById('messages-area');
+        const jumpLatestBtn = document.getElementById('jump-latest-btn');
+        const inputBoxEl  = document.querySelector('.input-box');
+        const emptyState  = document.getElementById('empty-state');
+        const chatInput   = document.getElementById('chat-input');
+        const sendBtn     = document.getElementById('send-btn');
+        const fileInput   = document.getElementById('file-input');
+        const filePArea   = document.getElementById('file-preview-area');
+        const filePills   = document.getElementById('file-pills');
+        const fileClearAll= document.getElementById('file-clear-all');
+        const attachBtn   = document.getElementById('attach-btn');
+        const searchModeWrap = document.getElementById('search-mode-wrap');
+        const searchModeBtn  = document.getElementById('search-mode-btn');
+        const searchModePanel= document.getElementById('search-mode-panel');
+        const searchModeIcon = document.getElementById('search-mode-icon');
+        const newChatBtn  = document.getElementById('new-chat-btn');
+        const convList    = document.getElementById('conv-list');
+        const sidebar     = document.getElementById('sidebar');
+        const toggleBtn   = document.getElementById('toggle-sidebar');
+        const renameOvl   = document.getElementById('rename-overlay');
+        const renameInp   = document.getElementById('rename-input');
+        const renameSave  = document.getElementById('rename-save');
+        const renameCanc  = document.getElementById('rename-cancel');
+        const langWrap    = document.getElementById('lang-wrap');
+        const langBtn     = document.getElementById('lang-btn');
+        const themeToggleBtn  = document.getElementById('theme-toggle');
+
+        /* ── State ── */
+        let currentTheme = localStorage.getItem('theme') || 'dark';
+        if(currentTheme === 'light') document.body.classList.add('light-mode');
+        if(themeToggleBtn){
+             themeToggleBtn.querySelector('i').className = currentTheme === 'light' ? 'fas fa-sun' : 'fas fa-moon';
+             themeToggleBtn.addEventListener('click', function(){
+                 document.body.classList.toggle('light-mode');
+                 const isLight = document.body.classList.contains('light-mode');
+                 localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                 themeToggleBtn.querySelector('i').className = isLight ? 'fas fa-sun' : 'fas fa-moon';
+             });
+        }
+        let currentSessionId = null;
+        let isLoading        = false;
+        let selectedFiles    = [];
+        let hasDocuments     = false;
+        let activeDocumentId = null;
+        let renameTargetSid  = null;
+        let platformActive   = false;
+        let webSearchActive  = false;
+        let chatbotMode      = sessionStorage.getItem('chatbotMode') || 'normal';
+        let typingSpeedMult  = 1;
+        const EXA_STATUS_MIN_VISIBLE_MS = 350;
+        let hasHydratedInitialSession = false;
+        let shouldAutoScroll = true;
+        let autoFollowLocked = false;
+        let showJumpLatest = false;
+        let hideJumpLatestUntil = 0;
+        let isProgrammaticScroll = false;
+        let programmaticScrollTimer = null;
+        let lastKnownScrollTop = 0;
+        const SESSION_STORAGE_KEY = 'chatbot.currentSessionId';
+
+        /* Feature 1 & 2: Stop + Retry state */
+        /* Feature 1 & 2: Stop + Retry state */
+        let currentAbortController = null;
+        let currentStreamState = null;
+        let lastQueryPayload = null; /* {mode, question, sessionId} */
+        let accumulatedScrollUp = 0;
+
+        function persistCurrentSessionId(){
+            try{
+                if(currentSessionId) localStorage.setItem(SESSION_STORAGE_KEY,currentSessionId);
+                else localStorage.removeItem(SESSION_STORAGE_KEY);
+            }catch(_e){}
+        }
+        function getPersistedSessionId(){
+            try{return localStorage.getItem(SESSION_STORAGE_KEY)}catch(_e){return null}
+        }
+
+        /* ── Helpers ── */
+        function csrf(){
+            const el = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            return el ? el.value : '';
+        }
+        function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+        function isNearBottom(){
+            return (chatBody.scrollHeight-chatBody.scrollTop-chatBody.clientHeight)<150;
+        }
+        function updateJumpLatestBtn(){
+            if(!jumpLatestBtn) return;
+            if(Date.now()<hideJumpLatestUntil){
+                jumpLatestBtn.classList.remove('visible');
+                return;
+            }
+            jumpLatestBtn.classList.toggle('visible', showJumpLatest);
+        }
+        function alignJumpLatestBtn(){
+            if(!jumpLatestBtn || !inputBoxEl) return;
+            var inputRect=inputBoxEl.getBoundingClientRect();
+            var center=inputRect.left + (inputRect.width / 2);
+            jumpLatestBtn.style.left=center+'px';
+            // Also adjust bottom to be exactly above the input box
+            var distFromBottom = window.innerHeight - inputRect.top + 16;
+            jumpLatestBtn.style.bottom = distFromBottom + 'px';
+        }
+        function resetAutoFollow(){
+            shouldAutoScroll=true;
+            autoFollowLocked=false;
+            showJumpLatest=false;
+            accumulatedScrollUp=0;
+            lastKnownScrollTop=chatBody.scrollTop;
+            updateJumpLatestBtn();
+        }
+        function handleWheelScrollIntent(evt){
+            if(isProgrammaticScroll) return;
+            if(chatBody.scrollHeight<=chatBody.clientHeight+2) return;
+            lastKnownScrollTop=chatBody.scrollTop;
+            if(evt.deltaY<0){
+                shouldAutoScroll=false;
+                autoFollowLocked=true;
+                hideJumpLatestUntil=0;
+            }else if(evt.deltaY>0){
+                accumulatedScrollUp=0;
+                autoFollowLocked=false;
+                shouldAutoScroll=isNearBottom();
+                showJumpLatest=false;
+                hideJumpLatestUntil=Date.now()+700;
+            }
+            updateJumpLatestBtn();
+        }
+        function scrollBottom(force, smooth){
+            if(!force && (autoFollowLocked || !shouldAutoScroll || !isNearBottom())){
+                updateJumpLatestBtn();
+                return;
+            }
+            requestAnimationFrame(()=>{
+                isProgrammaticScroll=true;
+                if(programmaticScrollTimer){
+                    clearTimeout(programmaticScrollTimer);
+                    programmaticScrollTimer=null;
+                }
+                if (smooth) {
+                    chatBody.scrollTo({top:chatBody.scrollHeight,behavior:'smooth'});
+                } else {
+                    chatBody.scrollTop=chatBody.scrollHeight;
+                }
+                lastKnownScrollTop=chatBody.scrollTop;
+                programmaticScrollTimer=setTimeout(function(){
+                    isProgrammaticScroll=false;
+                    lastKnownScrollTop=chatBody.scrollTop;
+                    updateJumpLatestBtn();
+                },smooth?500:0);
+                updateJumpLatestBtn();
+            })
+        }
+        chatBody.addEventListener('wheel',handleWheelScrollIntent,{passive:true});
+        window.addEventListener('resize',alignJumpLatestBtn);
+        alignJumpLatestBtn();
+        chatBody.addEventListener('scroll',function(){
+            if(isProgrammaticScroll){
+                lastKnownScrollTop=chatBody.scrollTop;
+                if(!isNearBottom()){
+                    shouldAutoScroll=false;
+                    autoFollowLocked=true;
+                    var distToBottom = chatBody.scrollHeight - chatBody.scrollTop - chatBody.clientHeight;
+                }else{
+                    autoFollowLocked=false;
+                    showJumpLatest=false;
+                    accumulatedScrollUp=0;
+                    shouldAutoScroll=true;
+                }
+                updateJumpLatestBtn();
+                return;
+            }
+            var currentTop=chatBody.scrollTop;
+            var dy = currentTop - lastKnownScrollTop;
+            var scrollingDown = dy > 1;
+            var scrollingUp = dy < -1;
+            lastKnownScrollTop=currentTop;
+
+            if(scrollingDown){
+                showJumpLatest=false;
+                if(isNearBottom()){
+                    shouldAutoScroll=true;
+                    autoFollowLocked=false;
+                    accumulatedScrollUp=0;
+                }
+                updateJumpLatestBtn();
+                return;
+            }
+
+            if(scrollingUp){
+                accumulatedScrollUp += Math.abs(dy);
+                shouldAutoScroll=false;
+                autoFollowLocked=true;
+                if(!isNearBottom() && accumulatedScrollUp > 120){
+                    showJumpLatest=true;
+                }
+                updateJumpLatestBtn();
+                return;
+            }
+
+            if(isNearBottom()){
+                shouldAutoScroll=true;
+                autoFollowLocked=false;
+                showJumpLatest=false;
+                accumulatedScrollUp=0;
+                updateJumpLatestBtn();
+                return;
+            }
+            updateJumpLatestBtn();
+        });
+        if(jumpLatestBtn){
+            jumpLatestBtn.addEventListener('click',function(){
+                resetAutoFollow();
+                scrollBottom(true,true);
+            });
+        }
+
+        /* ── Markdown renderer (Feature 5: code blocks with language class) ── */
+        function renderMd(text){
+            let h=esc(text);
+            var blocks = [];
+            /* Fenced code blocks → wrapped in .code-block-wrap with header */
+            h=h.replace(/```(\w*)\n?([\s\S]*?)```/g,function(_,lang,code){
+                var langLabel=lang||'code';
+                var langClass=lang?'language-'+lang:'';
+                var blockHtml = '<div class="code-block-wrap">'
+                    +'<div class="code-block-header"><span class="code-lang-badge">'+esc(langLabel)+'</span>'
+                    +'<button class="code-copy-btn" onclick="copyCodeBlock(this)" type="button"><i class="fas fa-copy"></i> Copy</button></div>'
+                    +'<pre><code class="'+langClass+'">'+code.trim()+'</code></pre></div>';
+                blocks.push(blockHtml);
+                return '___CODE_BLOCK_'+(blocks.length-1)+'___';
+            });
+            h=h.replace(/`([^`]+)`/g,'<code>$1</code>');
+            h=h.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+            h=h.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+            h=h.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+            h=h.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>');
+            h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+            h=h.replace(/\*(.+?)\*/g,'<em>$1</em>');
+            h=h.replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>');
+            h=h.replace(/^[-] (.+)$/gm,'<li>$1</li>');
+            h=h.replace(/((?:<li>.*<\/li>\n?)+)/g,'<ul>$1</ul>');
+            h=h.replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
+            h=h.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+            h=h.replace(/(^|[\s(])(\/(?:resources|events|projects|institutions|accounts)\/[^\s,)<]+)/g,'$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+            h=h.replace(/\n/g,'<br>');
+            h=h.replace(/<\/(h[1-3]|ul|ol|blockquote|li)><br>/g,'</$1>');
+            h=h.replace(/<br><(h[1-3]|ul|ol|blockquote)/g,'<$1');
+            
+            blocks.forEach(function(blockHtml, i) {
+                h=h.replace('___CODE_BLOCK_'+i+'___', blockHtml);
+            });
+            return h;
+        }
+
+        /* Feature 5: Apply highlight.js to code blocks in a container */
+        function highlightCodeBlocks(container){
+            if(!container||typeof hljs==='undefined') return;
+            container.querySelectorAll('pre code[class*="language-"]').forEach(function(el){
+                hljs.highlightElement(el);
+            });
+        }
+
+        /* Feature 5: Copy code block content */
+        window.copyCodeBlock=function(btn){
+            var pre=btn.closest('.code-block-wrap').querySelector('pre code');
+            if(!pre) return;
+            var text=pre.textContent||'';
+            navigator.clipboard.writeText(text).then(function(){
+                btn.classList.add('copied');
+                btn.innerHTML='<i class="fas fa-check"></i> Copied!';
+                setTimeout(function(){btn.classList.remove('copied');btn.innerHTML='<i class="fas fa-copy"></i> Copy';},2000);
+            });
+        };
+
+        /**
+         * Extract inline source citations from the LLM answer text.
+         * Returns {body, citations} where body has citations stripped
+         * and citations is an array of unique citation strings.
+         */
+        function extractCitations(text){
+            var citationRe=/\s*\((?:Source|المصدر|R[eé]f[eé]rence)\s*:\s*["«»\u201c\u201d]?([^"«»\u201c\u201d)]+)["«»\u201c\u201d]?\)\.?\s*/gi;
+            var citations=[];
+            var seen={};
+            var match;
+            while((match=citationRe.exec(text))!==null){
+                var cite=match[1].trim();
+                if(!seen[cite]){citations.push(cite);seen[cite]=true}
+            }
+            var body=text.replace(citationRe,' ').replace(/  +/g,' ').trim();
+            return {body:body,citations:citations};
+        }
+
+        /* ============================================================
+           LANGUAGE DROPDOWN
+           ============================================================ */
+        langBtn.addEventListener('click',function(e){
+            e.preventDefault();e.stopPropagation();
+            langWrap.classList.toggle('open');
+        });
+        document.addEventListener('click',function(e){
+            if(!langWrap.contains(e.target)) langWrap.classList.remove('open');
+        });
+
+        /* Typing speed control removed */
+        typingSpeedMult = 1;
+
+        /* ============================================================
+           SIDEBAR
+           ============================================================ */
+        toggleBtn.addEventListener('click',()=>{
+            sidebar.classList.toggle('collapsed');
+            setTimeout(alignJumpLatestBtn,220);
+        });
+
+        async function loadSessions(opts){
+            opts=opts||{};
+            var hydrateInitial=opts.hydrateInitial!==false;
+            try{
+                const r=await fetch('{% url "chatbot:list_sessions" %}');
+                const d=await r.json();
+                if(!d.sessions||d.sessions.length===0){
+                    if(!currentSessionId){
+                        currentSessionId=null;
+                        persistCurrentSessionId();
+                        convList.innerHTML='<div style="padding:32px 16px;color:rgba(255,255,255,.35);text-align:center;font-size:.85rem">{% trans "No conversations yet" %}</div>';
+                    }
+                    return;
+                }
+                if(!currentSessionId){
+                    const persisted=getPersistedSessionId();
+                    if(persisted&&d.sessions.some(function(s){return s.session_id===persisted})){
+                        currentSessionId=persisted;
+                    }else{
+                        currentSessionId=d.sessions[0].session_id;
+                    }
+                }else if(!d.sessions.some(function(s){return s.session_id===currentSessionId})){
+                    /* Keep freshly-created empty session selected even if it is
+                       temporarily absent from the list (list API hides empty sessions). */
+                    const persisted=getPersistedSessionId();
+                    if(!(persisted&&persisted===currentSessionId)){
+                        currentSessionId=d.sessions[0].session_id;
+                    }
+                }
+                persistCurrentSessionId();
+                convList.innerHTML=d.sessions.map(function(s){
+                    return '<div class="conv-item '+(s.session_id===currentSessionId?'active':'')+(s.is_pinned?' is-pinned-session':'')+'" data-sid="'+s.session_id+'">'
+                        +(s.is_pinned?'<i class="fas fa-thumbtack pinned-icon"></i> ':'')
+                        +'<span class="conv-title">'+esc(s.title)+'</span>'
+                        +'<div class="conv-actions">'
+                        +'<button class="conv-act-btn" onclick="event.stopPropagation();togglePinSession(\''+s.session_id+'\')"><i class="fas fa-thumbtack '+(s.is_pinned?'pinned':'')+'"></i></button>'
+                        +'<button class="conv-act-btn" onclick="event.stopPropagation();renameConv(\''+s.session_id+'\',\''+esc(s.title).replace(/'/g,"\\'")+'\')"><i class="fas fa-pen"></i></button>'
+                        +'<button class="conv-act-btn del" onclick="event.stopPropagation();deleteConv(\''+s.session_id+'\')"><i class="fas fa-trash"></i></button>'
+                        +'</div></div>';
+                }).join('');
+                convList.querySelectorAll('.conv-item').forEach(function(el){
+                    el.addEventListener('click',function(){switchSession(el.dataset.sid)});
+                });
+                if(hydrateInitial && !hasHydratedInitialSession&&currentSessionId){
+                    hasHydratedInitialSession=true;
+                    await switchSession(currentSessionId,{skipReload:true});
+                }
+            }catch(e){
+                console.error('Load sessions:',e);
+                convList.innerHTML='<div style="padding:32px 16px;color:rgba(255,255,255,.35);text-align:center">{% trans "Error loading" %}</div>';
+            }
+        }
+
+        async function createNewSession(){
+            try{
+                const r=await fetch('{% url "chatbot:create_session" %}',{method:'POST',headers:{'X-CSRFToken':csrf()}});
+                if(!r.ok) throw new Error('Failed');
+                const d=await r.json();
+                if(d.session_id){currentSessionId=d.session_id;persistCurrentSessionId();hasDocuments=false;activeDocumentId=null;selectedFiles=[];renderFilePills();clearChat();loadSessions()}
+            }catch(e){console.error('Create session:',e)}
+        }
+
+        async function switchSession(sid,opts){
+            opts=opts||{};
+            currentSessionId=sid;hasDocuments=false;activeDocumentId=null;selectedFiles=[];renderFilePills();clearChat();
+            resetAutoFollow();
+            persistCurrentSessionId();
+            try{
+                const url='{% url "chatbot:session_history" session_id="__SID__" %}'.replace('__SID__',sid);
+                const r=await fetch(url);const d=await r.json();
+                if(d.messages&&d.messages.length>0){
+                    showMsgs();
+                    d.messages.forEach(function(m){
+                        if(m.type==='context_card') addEntityContextCard(m.content);
+                        else if(m.type==='web_results') msgsArea.insertAdjacentHTML('beforeend',buildWebResultCards((m.content||{}).results||[]));
+                        else if(m.type==='user'){
+                            if(typeof m.content==='string' && /^Ask AI about:/i.test(m.content)) return;
+                            addUserMsg(m.content,false,null,m.message_id,m.is_pinned);
+                        }
+                        else if(m.type==='system'){
+                            /* Skip old "Document uploaded: ..." messages */
+                            if(m.content&&m.content.indexOf('Document uploaded')===0) return;
+                            addSystem(m.content,'system',false);
+                        }
+                        else addAnswer(m.content,m.source,m.language,null,null,false,m.message_id,m.is_pinned,null,null);
+                    });
+                    scrollBottom();
+                }
+            }catch(e){console.error('History:',e)}
+            if(!opts.skipReload) loadSessions();
+        }
+
+        window.togglePinSession=async function(sid){
+            try{
+                const r=await fetch('{% url "chatbot:toggle_pin_session" session_id="__SID__" %}'.replace('__SID__',sid),{method:'POST',headers:{'X-CSRFToken':csrf()}});
+                if(r.ok) loadSessions({skipReload:true});
+            }catch(e){console.error('Toggle pin session:',e)}
+        };
+
+        window.renameConv=function(sid,t){renameTargetSid=sid;renameInp.value=t;renameOvl.classList.add('active');renameInp.focus()};
+        renameSave.addEventListener('click',async function(){
+            var t=renameInp.value.trim();if(!t||!renameTargetSid)return;
+            try{await fetch('{% url "chatbot:rename_session" %}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify({session_id:renameTargetSid,title:t})}); loadSessions()}catch(e){console.error(e)}
+            renameOvl.classList.remove('active');
+        });
+        renameCanc.addEventListener('click',function(){renameOvl.classList.remove('active')});
+        renameOvl.addEventListener('click',function(e){if(e.target===renameOvl) renameOvl.classList.remove('active')});
+
+        window.deleteConv=async function(sid){
+            if(!confirm('{% trans "Delete this conversation?" %}'))return;
+            try{await fetch('{% url "chatbot:delete_session" %}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify({session_id:sid})}); if(sid===currentSessionId){currentSessionId=null;persistCurrentSessionId();clearChat()} loadSessions()}catch(e){console.error(e)}
+        };
+
+        newChatBtn.addEventListener('click',createNewSession);
+
+        /* ============================================================
+           PLATFORM SEARCH TOGGLE
+           ============================================================ */
+        /* ============================================================
+           API MODE DROPDOWN (Top Right)
+           ============================================================ */
+        const apiModeWrap = document.getElementById('api-mode-wrap');
+        const apiModeBtn = document.getElementById('api-mode-btn');
+        const apiModePanel = document.getElementById('api-mode-panel');
+        const apiModeDisplay = document.getElementById('api-mode-display');
+        const apiModeIconBtn = document.getElementById('api-mode-icon-btn');
+
+        apiModeBtn.addEventListener('click', function(e){
+            e.stopPropagation();
+            apiModeWrap.classList.toggle('open');
+        });
+        document.addEventListener('click', function(e){
+            if(!apiModeWrap.contains(e.target)) apiModeWrap.classList.remove('open');
+        });
+
+        function updateInputPlaceholder() {
+            if(webSearchActive){
+                searchModeIcon.className='fas fa-globe';
+                chatInput.placeholder="{% if LANGUAGE_CODE == 'ar' %}ابحث في الويب...{% else %}{% trans 'Search the web...' %}{% endif %}";
+            } else if(platformActive){
+                searchModeIcon.className='fas fa-search';
+                chatInput.placeholder="{% if LANGUAGE_CODE == 'ar' %}ابحث في الدورات والأدوات والموارد والفعاليات...{% else %}{% trans 'Search courses, tools, resources, events...' %}{% endif %}";
+            } else {
+                if(chatbotMode==='legal'){
+                    searchModeIcon.className='fas fa-balance-scale';
+                    chatInput.placeholder="{% if LANGUAGE_CODE == 'ar' %}اسأل المستشار القانوني...{% else %}{% trans 'Ask the Legal Advisor...' %}{% endif %}";
+                } else if(chatbotMode==='platform'){
+                    searchModeIcon.className='fas fa-search';
+                    chatInput.placeholder="{% if LANGUAGE_CODE == 'ar' %}ابحث في المنصة...{% else %}{% trans 'Search the Platform...' %}{% endif %}";
+                } else if(chatbotMode==='nlp_ai'){
+                    searchModeIcon.className='fas fa-code';
+                    chatInput.placeholder="{% if LANGUAGE_CODE == 'ar' %}اسأل مساعد البرمجة...{% else %}{% trans 'Ask the NLP & AI Assistant...' %}{% endif %}";
+                } else {
+                    searchModeIcon.className='fas fa-robot';
+                    chatInput.placeholder="{% if LANGUAGE_CODE == 'ar' %}اسأل أي شيء...{% else %}{% trans 'Ask anything...' %}{% endif %}";
+                }
+            }
+        }
+
+        apiModePanel.addEventListener('click', function(e){
+            var opt = e.target.closest('.api-mode-option');
+            if(!opt)return;
+            var mode = opt.dataset.mode;
+            apiModePanel.querySelectorAll('.api-mode-option').forEach(function(o){
+                o.classList.remove('active');
+                var icon = o.querySelector('.fa-check');
+                if(icon) icon.style.display = 'none';
+            });
+            
+            chatbotMode = mode;
+            sessionStorage.setItem('chatbotMode', mode);
+            opt.classList.add('active');
+            var activeIcon = opt.querySelector('.fa-check');
+            if(activeIcon) activeIcon.style.display = 'block';
+            
+            apiModeDisplay.textContent = opt.dataset.label;
+            apiModeIconBtn.className = 'fas ' + opt.dataset.icon;
+            apiModeWrap.classList.remove('open');
+            updateInputPlaceholder();
+        });
+
+        /* ============================================================
+           SEARCH MODE DROPDOWN (Bottom Input UI)
+           ============================================================ */
+        searchModeBtn.addEventListener('click',function(e){
+            e.stopPropagation();
+            searchModeWrap.classList.toggle('open');
+        });
+        document.addEventListener('click',function(e){
+            if(!searchModeWrap.contains(e.target)) searchModeWrap.classList.remove('open');
+        });
+
+        searchModePanel.addEventListener('click',function(e){
+            var opt=e.target.closest('.search-mode-option');
+            if(!opt)return;
+            var mode=opt.dataset.mode;
+            /* Deactivate all */
+            searchModePanel.querySelectorAll('.search-mode-option').forEach(function(o){o.classList.remove('active')});
+
+            if(mode==='web'){
+                if(webSearchActive){webSearchActive=false;platformActive=false}
+                else{webSearchActive=true;platformActive=false;opt.classList.add('active')}
+            } else if(mode==='platform'){
+                if(platformActive){platformActive=false;webSearchActive=false}
+                else{platformActive=true;webSearchActive=false;opt.classList.add('active')}
+            }
+
+            /* Update button appearance */
+            var anyActive=webSearchActive||platformActive;
+            searchModeBtn.classList.toggle('active-action',anyActive);
+            updateInputPlaceholder();
+            searchModeWrap.classList.remove('open');
+        });
+
+        /* Initialize UI mode on load */
+        document.addEventListener('DOMContentLoaded', function() {
+            var activeApiOpt = apiModePanel.querySelector('.api-mode-option[data-mode="'+chatbotMode+'"]');
+            if(activeApiOpt) {
+                apiModePanel.querySelectorAll('.api-mode-option').forEach(function(o){
+                    o.classList.remove('active');
+                    var icon = o.querySelector('.fa-check');
+                    if(icon) icon.style.display = 'none';
+                });
+                activeApiOpt.classList.add('active');
+                var activeIcon = activeApiOpt.querySelector('.fa-check');
+                if(activeIcon) activeIcon.style.display = 'block';
+                apiModeDisplay.textContent = activeApiOpt.dataset.label;
+                apiModeIconBtn.className = 'fas ' + activeApiOpt.dataset.icon;
+            }
+            updateInputPlaceholder();
+        });
+
+        /* ============================================================
+           FILE UPLOAD (multi-file)
+           ============================================================ */
+        function getFileIconClass(name){
+            var ext=(name||'').split('.').pop().toLowerCase();
+            if(ext==='pdf') return 'fp-pdf';
+            if(ext==='docx'||ext==='doc') return 'fp-docx';
+            if(ext==='xlsx'||ext==='xls') return 'fp-xlsx';
+            if(ext==='txt') return 'fp-txt';
+            return 'fp-default';
+        }
+        function getFileIcon(name){
+            var ext=(name||'').split('.').pop().toLowerCase();
+            if(ext==='pdf') return '<i class="fas fa-file-pdf"></i>';
+            if(ext==='docx'||ext==='doc') return '<i class="fas fa-file-word"></i>';
+            if(ext==='xlsx'||ext==='xls') return '<i class="fas fa-file-excel"></i>';
+            return '<i class="fas fa-file-alt"></i>';
+        }
+        function formatSize(b){
+            if(b<1024) return b+' B';
+            if(b<1048576) return (b/1024).toFixed(1)+' KB';
+            return (b/1048576).toFixed(1)+' MB';
+        }
+        function renderFilePills(){
+            filePills.innerHTML='';
+            selectedFiles.forEach(function(f,i){
+                var pill=document.createElement('div');
+                pill.className='file-pill';
+                pill.innerHTML='<div class="fp-icon '+getFileIconClass(f.name)+'">'+getFileIcon(f.name)+'</div>'
+                    +'<span class="fp-name" title="'+esc(f.name)+'">'+esc(f.name)+'</span>'
+                    +'<span class="fp-size">'+formatSize(f.size)+'</span>'
+                    +'<button class="fp-remove" data-idx="'+i+'" title="Remove">&times;</button>';
+                pill.querySelector('.fp-remove').addEventListener('click',function(){
+                    selectedFiles.splice(i,1);
+                    renderFilePills();
+                    if(selectedFiles.length===0){filePArea.classList.remove('active');fileInput.value='';}
+                });
+                filePills.appendChild(pill);
+            });
+            filePArea.classList.toggle('active',selectedFiles.length>0);
+        }
+        attachBtn.addEventListener('click',function(){fileInput.click()});
+        fileInput.addEventListener('change',function(){
+            for(var i=0;i<fileInput.files.length;i++){
+                selectedFiles.push(fileInput.files[i]);
+            }
+            renderFilePills();
+            fileInput.value='';
+        });
+        fileClearAll.addEventListener('click',function(){
+            selectedFiles=[];renderFilePills();fileInput.value='';
+        });
+
+        /* ============================================================
+           SUGGESTION CHIPS (event delegation — survives DOM toggles)
+           ============================================================ */
+        document.addEventListener('click',function(e){
+            var chip=e.target.closest('.suggestion-chip');
+            if(!chip)return;
+            e.preventDefault();
+            var q=chip.dataset.q;
+            if(!q)return;
+            chatInput.value=q;
+            handleSend();
+        });
+
+        /* ============================================================
+           SEND
+           ============================================================ */
+        sendBtn.addEventListener('click',function(){
+            /* Feature 1: If streaming, stop instead of send */
+            if(currentAbortController){
+                currentAbortController.abort();
+                return;
+            }
+            handleSend();
+        });
+        chatInput.addEventListener('keydown',function(e){
+            if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){
+                e.preventDefault();
+                if(currentAbortController) return; /* don't send while streaming */
+                handleSend();
+            }
+        });
+        chatInput.addEventListener('input',function(){chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,150)+'px'});
+
+        /* Feature 1: Transform send button to stop mode */
+        function setSendButtonStreaming(streaming){
+            if(streaming){
+                sendBtn.classList.add('is-streaming');
+                sendBtn.innerHTML='<i class="fas fa-stop"></i>';
+                sendBtn.disabled=false;
+                sendBtn.title="{% trans 'Stop generating' %}";
+            } else {
+                sendBtn.classList.remove('is-streaming');
+                sendBtn.innerHTML='<i class="fas fa-arrow-up"></i>';
+                sendBtn.title="{% trans 'Send' %}";
+            }
+        }
+
+        /* Feature 2: Add retry button after a message */
+        function addRetryButton(afterEl){
+            // Retry logic suppressed based on user request
+            return;
+        }
+
+        /* Feature 2: Retry the last query */
+        function retryLast(){
+            if(!lastQueryPayload) return;
+            chatInput.value=lastQueryPayload.question||'';
+            /* Restore mode */
+            if(lastQueryPayload.mode==='web'){webSearchActive=true;platformActive=false;searchModeBtn.classList.add('active-action')}
+            else if(lastQueryPayload.mode==='platform'){platformActive=true;webSearchActive=false;searchModeBtn.classList.add('active-action')}
+            else{webSearchActive=false;platformActive=false;searchModeBtn.classList.remove('active-action')}
+            updateInputPlaceholder();
+            handleSend();
+        }
+
+        async function handleSend(){
+            if(isLoading)return;
+            var question=chatInput.value.trim();
+            var mode=webSearchActive?'web':platformActive?'platform':'conversation';
+            if(selectedFiles.length>0) mode='upload';
+            /* Note: we no longer auto-route to ask_document just because
+               documents were uploaded.  The backend intent classifier
+               already detects document_query intents in conversation mode,
+               so general questions ("search for tools") are handled
+               correctly instead of being forced into the document pipeline. */
+            if(mode==='upload'&&selectedFiles.length===0&&!question){addSystem("{% trans 'Please attach a file or type a question.' %}",'error');return}
+            if(mode!=='upload'&&!question)return;
+
+            showMsgs();
+            /* Show user message with file stickers if uploading */
+            if(mode==='upload'&&selectedFiles.length>0){
+                var fileObjs=selectedFiles.map(function(f){return {name:f.name}});
+                addUserMsg(question||'',true,fileObjs);
+            } else if(question) {
+                addUserMsg(question);
+            }
+
+            /* Upload multiple files sequentially, then ask */
+            if(mode==='upload'&&selectedFiles.length>0){
+                var fileNames=selectedFiles.map(function(f){return f.name});
+                chatInput.value='';chatInput.style.height='auto';
+                setLoading(true);
+                var thinkEl=addThinking();
+                var lastDocId=null;
+                var uploadedDocIds=[];
+                try{
+                    /* Upload all files WITHOUT question first */
+                    for(var fi=0;fi<selectedFiles.length;fi++){
+                        var sf=selectedFiles[fi];
+                        var fb=new FormData();
+                        fb.append('mode','upload');
+                        fb.append('question','');
+                        if(currentSessionId) fb.append('session_id',currentSessionId);
+                        fb.append('file',sf);
+                        var uresp=await fetch('{% url "chatbot:ask" %}',{method:'POST',headers:{'X-CSRFToken':csrf()},body:fb});
+                        var udata=await uresp.json();
+                        if(!uresp.ok) throw new Error(udata.error||'Upload failed: '+sf.name);
+                        if(udata.session_id){currentSessionId=udata.session_id;persistCurrentSessionId();}
+                        if(udata.document_id){lastDocId=udata.document_id;uploadedDocIds.push(udata.document_id)}
+                        hasDocuments=true;
+                    }
+                    activeDocumentId=selectedFiles.length>1?null:lastDocId;
+                    selectedFiles=[];renderFilePills();fileInput.value='';
+
+                    /* If user also typed a question, send it as ask_document */
+                    if(question){
+                        var askResp=await fetch('{% url "chatbot:ask" %}',{
+                            method:'POST',
+                            headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
+                            body:JSON.stringify({mode:'ask_document',question:question,session_id:currentSessionId||'',document_ids:uploadedDocIds.length?uploadedDocIds:null})
+                        });
+                        thinkEl.remove();
+                        var askData=await askResp.json();
+                        if(!askResp.ok) throw new Error(askData.error||'Ask failed');
+                        if(askData.answer) addAnswer(askData.answer,askData.source,askData.lang,askData.retrieved_docs||null,askData.platform_results||null,true,null,null,askData.web_results||null,askData.generation_provider||null);
+                        else addSystem('\u2705 '+fileNames.length+' {% trans "document(s) uploaded successfully. Ask your questions!" %}','system');
+                    } else {
+                        thinkEl.remove();
+                        addSystem('\u2705 '+fileNames.length+' {% trans "document(s) uploaded successfully. Ask your questions!" %}','system');
+                    }
+                    loadSessions();
+                }catch(e){
+                    thinkEl.remove();console.error('Upload:',e);addSystem(e.message,'error');
+                }
+                finally{setLoading(false)}
+                return;
+            }
+
+            chatInput.value='';chatInput.style.height='auto';
+            setLoading(true);
+            var thinkEl=addThinking();
+            var exaSearchEl=null;
+            var exaSearchSeen=false;
+            var exaSearchShownAt=0;
+            var exaSearchLabel="{% trans 'Searching trusted web sources...' %}";
+
+            function markExaSearchingState(){
+                exaSearchSeen=true;
+                exaSearchShownAt=performance.now();
+                if(thinkEl && thinkEl.parentNode){
+                    var txtEl=thinkEl.querySelector('.thinking-text');
+                    if(txtEl) txtEl.textContent=exaSearchLabel;
+                }
+            }
+
+            async function ensureExaStateVisible(minMs){
+                if(!exaSearchSeen) return;
+                var visibleMs=performance.now()-exaSearchShownAt;
+                if(visibleMs<minMs){
+                    await new Promise(function(r){setTimeout(r,minMs-visibleMs)});
+                }
+            }
+
+            /* Feature 2: Store query payload for retry */
+            lastQueryPayload={mode:mode,chatbot_mode:chatbotMode,question:question,sessionId:currentSessionId||''};
+
+            /* Feature 1: Create AbortController for stopping */
+            currentAbortController=new AbortController();
+            setSendButtonStreaming(true);
+
+            try{
+                var body,headers={'X-CSRFToken':csrf()};
+                headers['Content-Type']='application/json';
+                var payload={mode:mode,chatbot_mode:chatbotMode,question:question,session_id:currentSessionId||''};
+                body=JSON.stringify(payload);
+
+                {
+                    /* Streaming response — ChatGPT-style progressive display
+                       Works for conversation, web, AND platform modes */
+                    var resp=await fetch('{% url "chatbot:ask_stream" %}',{method:'POST',headers:headers,body:body,signal:currentAbortController.signal});
+                    if(!resp.ok){
+                        thinkEl.remove();
+                        var errData=await resp.json().catch(function(){return {error:resp.statusText}});
+                        throw new Error(errData.error||errData.detail||'Error '+resp.status);
+                    }
+                    var streamState=null;
+                    currentStreamState=null;
+                    var reader=resp.body.getReader();
+                    var decoder=new TextDecoder();
+                    var buf='';
+                    var done=false;
+                    while(!done){
+                        var r=await reader.read();
+                        if(r.done) break;
+                        buf+=decoder.decode(r.value,{stream:true});
+                        if(!exaSearchSeen && (buf.indexOf('"exa_searching": true')!==-1 || buf.indexOf('"exa_searching":true')!==-1)){
+                            markExaSearchingState();
+                        }
+                        var parts=buf.split(/\r?\n\r?\n/);
+                        buf=parts.pop();
+                        for(var p=0;p<parts.length;p++){
+                            var chunk=parts[p];
+                            var dataMatch=chunk.match(/^[\uFEFF\s]*data:\s*(.+)$/m);
+                            if(dataMatch){
+                                try{
+                                    var obj=JSON.parse(dataMatch[1]);
+                                    if(obj.error){thinkEl.remove();var errEl=addSystem(obj.error,'error');addRetryButton(errEl);done=true;break}
+                                    /* EXA web-searching indicator — update the thinking bubble */
+                                    if(obj.exa_searching){
+                                        markExaSearchingState();
+                                        continue;
+                                    }
+                                    /* First delta: remove thinking, create answer block */
+                                    if(obj.delta && !streamState){
+                                        await ensureExaStateVisible(EXA_STATUS_MIN_VISIBLE_MS);
+                                        if(thinkEl.parentNode) thinkEl.remove();
+                                        streamState=addAnswerStreamingStart();
+                                        currentStreamState=streamState;
+                                    }
+                                    if(obj.delta && streamState) updateStreamingAnswer(streamState,obj.delta);
+                                    if(obj.done){
+                                        await ensureExaStateVisible(EXA_STATUS_MIN_VISIBLE_MS);
+                                        if(exaSearchEl && exaSearchEl.parentNode){
+                                            if(exaSearchEl && exaSearchEl.parentNode) exaSearchEl.remove();
+                                        }
+                                        if(!streamState){
+                                            if(thinkEl.parentNode) thinkEl.remove();
+                                            streamState=addAnswerStreamingStart();
+                                            currentStreamState=streamState;
+                                        }
+                                        if(obj.session_id){currentSessionId=obj.session_id;persistCurrentSessionId();}
+                                        /* Render web result cards for Tavily mode */
+                                        if(obj.web_results && obj.web_results.length>0){
+                                            streamState.skipPlatformResults=true;
+                                        }
+                                        finalizeStreamingAnswer(streamState,obj);
+                                        done=true;break;
+                                    }
+                                }catch(parseErr){}
+                            }
+                        }
+                    }
+                    if(!done&&buf){
+                        var dataMatch=buf.match(/^[\uFEFF\s]*data:\s*(.+)$/m);
+                        if(dataMatch){
+                            try{
+                                var obj=JSON.parse(dataMatch[1]);
+                                if(obj.exa_searching){
+                                    markExaSearchingState();
+                                }
+                                if(obj.delta && !streamState){
+                                    await ensureExaStateVisible(EXA_STATUS_MIN_VISIBLE_MS);
+                                    if(thinkEl.parentNode) thinkEl.remove();
+                                    streamState=addAnswerStreamingStart();
+                                    currentStreamState=streamState;
+                                }
+                                if(obj.delta && streamState) updateStreamingAnswer(streamState,obj.delta);
+                                if(obj.done){
+                                    await ensureExaStateVisible(EXA_STATUS_MIN_VISIBLE_MS);
+                                    if(exaSearchEl && exaSearchEl.parentNode){
+                                        if(exaSearchEl && exaSearchEl.parentNode) exaSearchEl.remove();
+                                    }
+                                    if(!streamState){
+                                        if(thinkEl.parentNode) thinkEl.remove();
+                                        streamState=addAnswerStreamingStart();
+                                        currentStreamState=streamState;
+                                    }
+                                    if(obj.session_id){currentSessionId=obj.session_id;persistCurrentSessionId();}
+                                    finalizeStreamingAnswer(streamState,obj);
+                                }
+                            }catch(parseErr){}
+                        }
+                    }
+                    /* Safety: if thinking indicator still present, remove it */
+                    if(thinkEl.parentNode) thinkEl.remove();
+                    if(exaSearchEl && exaSearchEl.parentNode) exaSearchEl.remove();
+                }
+                loadSessions();
+            }catch(e){
+                /* Feature 1: Handle abort (stop) gracefully */
+                if(e.name==='AbortError'){
+                    if(thinkEl.parentNode) thinkEl.remove();
+                    if(exaSearchEl && exaSearchEl.parentNode) exaSearchEl.remove();
+                    /* Finalize partial answer if we have one */
+                    if(currentStreamState && currentStreamState.accumulated){
+                        currentStreamState.pendingFinalize={answer:currentStreamState.accumulated,source:'bot',lang:'en'};
+                        currentStreamState.done=true;
+                        if(currentStreamState.typingId){clearTimeout(currentStreamState.typingId);currentStreamState.typingId=null;}
+                        currentStreamState.bodyEl.innerHTML=renderMd(currentStreamState.accumulated);
+                        highlightCodeBlocks(currentStreamState.block);
+                    }
+                    var stoppedEl=addSystem("{% trans 'Generation stopped.' %}",'system');
+                    addRetryButton(stoppedEl);
+                } else {
+                    if(exaSearchEl && exaSearchEl.parentNode) exaSearchEl.remove();
+                    thinkEl.remove();console.error('Send:',e);
+                    var errSysEl=addSystem(e.message,'error');
+                    addRetryButton(errSysEl);
+                }
+            }
+            finally{
+                setLoading(false);
+                currentAbortController=null;
+                currentStreamState=null;
+                setSendButtonStreaming(false);
+            }
+        }
+
+        /* ============================================================
+           MESSAGE RENDERING
+           ============================================================ */
+        function showMsgs(){emptyState.classList.add('hidden');msgsArea.style.display='flex'}
+        function clearChat(){msgsArea.innerHTML='';msgsArea.style.display='none';emptyState.classList.remove('hidden');hasDocuments=false;activeDocumentId=null;resetAutoFollow()}
+
+        function addUserMsg(text,scroll,files,messageId,isPinned){
+            if(scroll===undefined)scroll=true;
+            var d=document.createElement('div');d.className='msg-user';
+            if(messageId) d.setAttribute('data-message-id',messageId);
+            if(isPinned) d.classList.add('is-pinned-msg');
+
+            /* Feature 3 & Retry: Action buttons (Edit + Resend) */
+            var actionsHtml = '';
+            if (text) {
+                actionsHtml = '<div class="msg-actions">' +
+                    '<button class="msg-action-btn msg-edit-btn" title="{% trans "Edit" %}" type="button"><i class="fas fa-pen"></i></button>' +
+                    '<button class="msg-action-btn msg-retry-msg-btn" title="{% trans "Retry" %}" type="button"><i class="fas fa-redo"></i></button>' +
+                '</div>';
+            }
+
+            var bubbleHtml='<div class="msg-bubble">';
+            if(text) bubbleHtml+=esc(text);
+            if(files&&files.length>0){
+                bubbleHtml+='<div class="msg-file-stickers">';
+                files.forEach(function(f){
+                    var ext=(f.name||'').split('.').pop().toLowerCase();
+                    var icon='fa-file';
+                    if(ext==='pdf') icon='fa-file-pdf';
+                    else if(ext==='doc'||ext==='docx') icon='fa-file-word';
+                    else if(ext==='xls'||ext==='xlsx') icon='fa-file-excel';
+                    else if(ext==='txt') icon='fa-file-alt';
+                    bubbleHtml+='<span class="msg-file-sticker"><i class="fas '+icon+'"></i>'+esc(f.name)+'</span>';
+                });
+                bubbleHtml+='</div>';
+            }
+            bubbleHtml+='</div>';
+
+            d.innerHTML=actionsHtml+bubbleHtml;
+
+            /* Feature 3: Edit click handler */
+            var editBtn=d.querySelector('.msg-edit-btn');
+            if(editBtn && text){
+                editBtn.addEventListener('click',function(){
+                    chatInput.value=text;
+                    chatInput.style.height='auto';
+                    chatInput.style.height=Math.min(chatInput.scrollHeight,150)+'px';
+                    chatInput.focus();
+                });
+            }
+
+            /* Retry click handler for individual user messages */
+            var retryMsgBtn=d.querySelector('.msg-retry-msg-btn');
+            if(retryMsgBtn && text){
+                retryMsgBtn.addEventListener('click',function(){
+                    chatInput.value=text;
+                    handleSend(false);
+                });
+            }
+
+            msgsArea.appendChild(d);if(scroll)scrollBottom();
+        }
+
+        function addSystem(text,type,scroll){
+            if(scroll===undefined)scroll=true;
+            var d=document.createElement('div');d.className=type==='error'?'msg-error':'msg-system';
+            var cls=type==='error'?'msg-error-pill':'msg-system-pill';
+            d.innerHTML='<div class="'+cls+'">'+esc(text)+'</div>';
+            msgsArea.appendChild(d);if(scroll)scrollBottom();
+            return d; /* Feature 2: return element so retry button can follow it */
+        }
+
+        function addThinking(){
+            var d=document.createElement('div');d.className='thinking-block';
+            var thinkText=chatbotMode==='platform'?"{% trans 'Searching the platform' %}...":"{% trans 'Thinking' %}...";
+            d.innerHTML='<div class="thinking-inner">'
+                +'<div class="thinking-dots-bar"><span></span><span></span><span></span></div>'
+                +'<span class="thinking-text">'+thinkText+'</span>'
+                +'</div>';
+            msgsArea.appendChild(d);scrollBottom();return d;
+        }
+
+        function addWebSearchingIndicator(text){
+            var d=document.createElement('div');
+            d.className='thinking-block exa-thinking-block';
+            d.innerHTML='<div class="thinking-inner">'
+                +'<span class="exa-thinking-icon"><i class="fas fa-globe"></i></span>'
+                +'<div class="thinking-dots-bar"><span></span><span></span><span></span></div>'
+                +'<span class="thinking-text web-searching-text">'+esc(text||'{% trans "Searching the web" %}...')+'</span>'
+                +'</div>';
+            msgsArea.appendChild(d);
+            scrollBottom();
+            return d;
+        }
+
+        function isWebSource(source){
+            return typeof source==='string' && (source==='web' || source.indexOf('web_')===0);
+        }
+
+        function providerDisplayLabel(provider){
+            var p=(provider||'').toString().trim().toLowerCase();
+            if(p==='gemini') return 'Gemini';
+            if(p==='groq') return 'Groq';
+            return provider||'';
+        }
+
+        function shouldShowSourcePills(source,webResults){
+            if(webResults && webResults.length>0) return false;
+            return true;
+        }
+
+        function sourcePillHtml(s){
+            var inner='<div class="source-dot '+s.cls+'"></div><span class="source-name">'+esc(s.label)+'</span>'+(s.sim?'<span class="source-score">'+s.sim+'</span>':'');
+            var u=(s.url||'').toString().trim();
+            if(/^https?:\/\//i.test(u)){
+                return '<a class="source-pill" href="'+esc(u)+'" target="_blank" rel="noopener" title="'+esc(s.label)+'"><span class="source-pill-link-icon"><i class="fas fa-external-link-alt"></i></span>'+inner+'</a>';
+            }
+            return '<div class="source-pill" title="'+esc(s.label)+'">'+inner+'</div>';
+        }
+
+        function buildWebResultCards(results){
+            if(!results||results.length===0) return '';
+            var html='<div class="web-results-grid">';
+            results.forEach(function(r){
+                var url=r.url||'';
+                var domain='';
+                try{domain=new URL(url).hostname.replace('www.','');}catch(e){domain=url;}
+                var favicon='https://www.google.com/s2/favicons?domain='+encodeURIComponent(domain)+'&sz=32';
+                var title=r.title||domain;
+                var snippet=r.content||'';
+                var score=r.score?Math.round(r.score*100)+'%':'';
+                html+='<a href="'+esc(url)+'" target="_blank" rel="noopener" class="web-result-card">'
+                    +'<div class="wrc-header">'
+                    +'<img class="wrc-favicon" src="'+esc(favicon)+'" alt="" onerror="this.style.display=\'none\'">'
+                    +'<span class="wrc-domain">'+esc(domain)+'</span>'
+                    +'</div>'
+                    +'<div class="wrc-title">'+esc(title)+'</div>';
+                if(snippet) html+='<div class="wrc-snippet">'+esc(snippet)+'</div>';
+                html+='<div class="wrc-footer">';
+                if(score) html+='<span class="wrc-score"><i class="fas fa-chart-bar"></i> '+score+'</span>';
+                html+='<span class="wrc-link-icon"><i class="fas fa-external-link-alt"></i></span>';
+                html+='</div></a>';
+            });
+            html+='</div>';
+            return html;
+        }
+
+        function addAnswerStreamingStart(){
+            var block=document.createElement('div');block.className='answer-block';
+            block.innerHTML='<div class="answer-head"><div class="answer-icon"><i class="fas fa-pen-nib"></i></div><span class="answer-lbl">{% trans "Answer" %}</span></div>'
+                +'<div class="answer-body"><span class="typing-cursor"></span></div>';
+            var bodyEl=block.querySelector('.answer-body');
+            msgsArea.appendChild(block);
+            scrollBottom();
+            var state={block:block,bodyEl:bodyEl,accumulated:'',displayedLen:0,typingId:null,done:false,pendingFinalize:null,skipPlatformResults:false};
+            function doFinalize(){
+                var data=state.pendingFinalize;
+                if(!data)return;
+                state.pendingFinalize=null;
+                state.done=true;
+                if(state.typingId){clearTimeout(state.typingId);state.typingId=null}
+                if(data.lang==='ar') state.block.setAttribute('dir','rtl');
+                var extracted=extractCitations(data.answer||state.accumulated||'');
+                var srcs=buildSources(data.source,data.retrieved_docs,data.platform_results,data.generation_provider);
+                state.bodyEl.innerHTML=renderMd(extracted.body);
+                /* Feature 5: Apply syntax highlighting to final render */
+                highlightCodeBlocks(state.block);
+                if(extracted.citations.length>0){
+                    var citeDiv=document.createElement('div');citeDiv.className='answer-citations';
+                    citeDiv.innerHTML=extracted.citations.map(function(c){return '<span class="answer-cite"><i class="fas fa-bookmark"></i> '+esc(c)+'</span>';}).join('');
+                    state.block.insertBefore(citeDiv,state.bodyEl);
+                }
+                if(shouldShowSourcePills(data.source,data.web_results) && srcs.length>0){
+                    var srcDiv=document.createElement('div');srcDiv.className='sources-row';
+                    var sourceHtml=srcs.map(function(s){return sourcePillHtml(s);}).join('');
+                    if(isWebSource(data.source)){
+                        sourceHtml='<div class="source-pill" title="Live Web (Exa)"><div class="source-dot web_exa"></div><span class="source-name">Live Web (Exa)</span></div>'+sourceHtml;
+                    }
+                    srcDiv.innerHTML=sourceHtml;
+                    state.block.insertBefore(srcDiv,state.bodyEl);
+                }
+                if(data.web_results && data.web_results.length>0){
+                    state.block.insertAdjacentHTML('beforeend',buildWebResultCards(data.web_results));
+                }
+                if(!state.skipPlatformResults && data.platform_results&&data.platform_results.length>0){
+                    state.block.insertAdjacentHTML('beforeend',buildCards(data.platform_results));
+                }
+
+                /* Feature 4: Add pin button to answer block */
+                var answerPinHtml='';
+                state.block.insertAdjacentHTML('beforeend',answerPinHtml);
+                var answerPinBtn=state.block.querySelector('.msg-controls .msg-pin-btn');
+                if(answerPinBtn){
+                    answerPinBtn.addEventListener('click',function(){togglePin(answerPinBtn,state.block)});
+                }
+
+                scrollBottom();
+            }
+            function getSegments(txt){
+                return (txt.match(/(?:\s+|\S+)/g)||[]);
+            }
+            function tick(){
+                if(state.done){return}
+                var segs=getSegments(state.accumulated);
+                if(segs.length===0){
+                    if(state.pendingFinalize){doFinalize();return}
+                    state.typingId=setTimeout(tick,4);return;
+                }
+                var len=0,startLen=state.displayedLen,chunkWords=0;
+                var isFast=typingSpeedMult>=1.5;
+                /* Dynamic chunks: 2–6 words / 20–80 chars; lean larger when speed is high */
+                var targetWords=isFast?4+Math.floor(Math.random()*3):2+Math.floor(Math.random()*3);
+                var targetChars=isFast?60+Math.floor(Math.random()*21):30+Math.floor(Math.random()*31);
+                var maxChars=isFast?90:80;var maxWords=isFast?7:6;
+                var endIdx=-1;
+                for(var i=0;i<segs.length;i++){
+                    len+=segs[i].length;
+                    if(len>startLen){
+                        if(/\S/.test(segs[i]))chunkWords++;
+                        var chunkChars=len-startLen;
+                        if(chunkChars>=maxChars||chunkWords>=maxWords){endIdx=i;break}
+                        if((chunkWords>=targetWords&&chunkChars>=20)||(chunkChars>=targetChars&&chunkWords>=2)){endIdx=i;break}
+                    }
+                }
+                if(endIdx<0){endIdx=segs.length-1;len=state.accumulated.length}
+                else{len=0;for(var k=0;k<=endIdx;k++)len+=segs[k].length}
+                if(len<=state.displayedLen){
+                    if(state.pendingFinalize){doFinalize();return}
+                    state.typingId=setTimeout(tick,4);return;
+                }
+                var chunkChars=len-state.displayedLen;
+                state.displayedLen=len;
+                var shown=state.accumulated.substring(0,state.displayedLen);
+                state.bodyEl.innerHTML=renderMd(shown)+'<span class="typing-cursor'+(isFast?' typing-cursor-fast':'')+'"></span>';
+                scrollBottom();
+                var lastSeg=segs[endIdx]||'';
+                var lastChar=lastSeg.charAt(lastSeg.length-1);
+
+                /* Base delay: chunkChars × 1.6 / speedMult (target 10–80ms) */
+                var base=(chunkChars*1.6)/(typingSpeedMult||1);
+                base=Math.min(Math.max(base,10),80);
+                /* Small chunks slightly faster; large chunks 15–20% slower */
+                if(chunkChars<40){base*=0.95;}
+                else if(chunkChars>80){base*=(1.15 + Math.random()*0.05);}
+                /* Micro-jitter ±8–10ms for softer rhythm */
+                var jitter=(8+Math.random()*2)*(Math.random()<0.5?-1:1);
+                base+=jitter;
+                base=Math.min(Math.max(base,10),80);
+                /* Punctuation pauses */
+                if(/[.!?]/.test(lastChar)){base+=100+Math.floor(Math.random()*61);}
+                else if(/[,;:]/.test(lastChar)){base+=60+Math.floor(Math.random()*31);}
+                if(/[\n\r]/.test(lastSeg)){base+=40+Math.floor(Math.random()*31);}
+
+                var delay=Math.max(10,Math.round(base));
+                state.typingId=setTimeout(tick,delay);
+            }
+            state.scheduleTick=function(){state.typingId=setTimeout(tick,0)};
+            tick();
+            return state;
+        }
+        function updateStreamingAnswer(state,chunk){
+            state.accumulated+=chunk;
+        }
+        function finalizeStreamingAnswer(state,data){
+            state.pendingFinalize=data;
+            state.accumulated=data.answer||state.accumulated;
+            if(state.displayedLen>=state.accumulated.length&&state.scheduleTick){state.scheduleTick();return}
+        }
+
+        function addAnswer(text,source,lang,docs,platResults,animate,messageId,isPinned,webResults,generationProvider){
+            if(webResults===undefined) webResults=null;
+            if(generationProvider===undefined) generationProvider=null;
+            var block=document.createElement('div');block.className='answer-block';
+            if(messageId) block.setAttribute('data-message-id',messageId);
+            if(isPinned) block.classList.add('is-pinned-msg');
+            if(lang==='ar') block.setAttribute('dir','rtl');
+            var html='';
+            var srcs=buildSources(source,docs,platResults,generationProvider);
+
+            /* Extract inline citations from LLM text */
+            var extracted=extractCitations(text);
+            var cleanText=extracted.body;
+            var citations=extracted.citations;
+
+            html+='<div class="answer-head"><div class="answer-icon"><i class="fas fa-pen-nib"></i></div><span class="answer-lbl">{% trans "Answer" %}</span></div>';
+
+            /* Source citations rendered between header and body */
+            if(citations.length>0){
+                html+='<div class="answer-citations">';
+                citations.forEach(function(c){
+                    html+='<span class="answer-cite"><i class="fas fa-bookmark"></i> '+esc(c)+'</span>';
+                });
+                html+='</div>';
+            }
+
+            /* Source pills row (retrieved docs) between header and body */
+            if(shouldShowSourcePills(source,webResults) && srcs.length>0){
+                html+='<div class="sources-row">';
+                if(isWebSource(source)){
+                    html+='<div class="source-pill" title="Live Web (Exa)"><div class="source-dot web_exa"></div><span class="source-name">Live Web (Exa)</span></div>';
+                }
+                srcs.forEach(function(s){
+                    html+=sourcePillHtml(s);
+                });
+                html+='</div>';
+            }
+
+            html+='<div class="answer-body">';
+            if(animate) html+='<span class="typing-cursor"></span>';
+            else html+=renderMd(cleanText);
+            html+='</div>';
+
+            if(webResults&&webResults.length>0) html+=buildWebResultCards(webResults);
+            if(platResults&&platResults.length>0) html+=buildCards(platResults);
+
+            /* Feature 4: Pin button on answer */
+            var answerPinHtml='';
+            if(messageId){
+                html+=answerPinHtml;
+            }
+
+            block.innerHTML=html;msgsArea.appendChild(block);
+            /* Feature 5: Apply syntax highlighting for history reload */
+            if(!animate) highlightCodeBlocks(block);
+            if(animate) typewriter(block.querySelector('.answer-body'),cleanText);
+            /* Feature 4: Pin handler */
+            var pinBtn=block.querySelector('.msg-pin-btn');
+            if(pinBtn) pinBtn.addEventListener('click',function(){togglePin(pinBtn,block)});
+            scrollBottom();
+        }
+
+        function buildSources(source,docs,plat,generationProvider){
+            var map={
+                'platform_docs':{cls:'platform',label:'Platform Docs'},
+                'nlp_knowledge':{cls:'platform',label:'NLP Knowledge'},
+                'resources':{cls:'platform',label:'Resources'},
+                'legal':{cls:'legal',label:'Legal'},
+                'user_document':{cls:'user_document',label:'Your Document'},
+                'platform':{cls:'platform',label:'Platform'},
+                'groq':{cls:'groq',label:'AI'},
+                'web_exa':{cls:'web_exa',label:'Live Web (Exa)'},
+                'web_tavily':{cls:'web_tavily',label:'Live Web'},
+                'web':{cls:'web',label:'Live Web'},
+            };
+            var out=[];
+            var provider=(generationProvider||'').toString().trim().toLowerCase();
+            if(provider){
+                out.push({
+                    cls:provider==='gemini'?'provider-gemini':provider==='groq'?'provider-groq':'default',
+                    label:'Model: '+providerDisplayLabel(provider),
+                    sim:null
+                });
+            }
+            if(docs&&docs.length>0){
+                /* Deduplicate by filename — keep best similarity per unique file */
+                var seen={};
+                docs.forEach(function(d){
+                    var m=map[d.source]||{cls:'default',label:d.source};
+                    var lbl=d.title||m.label;
+                    var key=lbl+'|'+m.cls;
+                    var sim=d.similarity||0;
+                    var rawUrl=(d.url||'').toString().trim();
+                    var candidateUrl=/^https?:\/\//i.test(rawUrl)?rawUrl:'';
+                    if(!seen[key]||sim>seen[key].sim){
+                        seen[key]={cls:m.cls,label:lbl,sim:sim,source:d.source,url:candidateUrl};
+                    }
+                });
+                Object.keys(seen).forEach(function(k){
+                    var s=seen[k];
+                    /* Hide raw similarity % for user documents — not meaningful */
+                    var simLabel=(s.source!=='user_document'&&s.sim)?Math.round(s.sim*100)+'%':null;
+                    out.push({cls:s.cls,label:s.label,sim:simLabel,url:s.url||null});
+                });
+            }
+            if(out.length===0&&source&&source!=='none'&&source!=='error'&&source!=='system'&&!isWebSource(source)){var m=map[source]||{cls:'default',label:source};out.push({cls:m.cls,label:m.label,sim:null})}
+            return out;
+        }
+
+        /* ── Typewriter ── */
+        function typewriter(el,text){
+            var rendered=renderMd(text);
+            var tmp=document.createElement('div');tmp.innerHTML=rendered;
+            var plain=tmp.textContent||'';
+            var CPT=3,MS=12,i=0;
+            function tick(){
+                i+=CPT;
+                if(i>=plain.length){el.innerHTML=rendered;scrollBottom();return}
+                el.innerHTML=renderMd(plain.substring(0,i))+'<span class="typing-cursor"></span>';
+                scrollBottom();requestAnimationFrame(function(){setTimeout(tick,MS)});
+            }
+            tick();
+        }
+
+        /* ── Platform cards ── */
+        function buildCards(results){
+            var icons={
+                course:{icon:'<i class="fas fa-graduation-cap"></i>',cls:'pci-course'},
+                tool:{icon:'<i class="fas fa-wrench"></i>',cls:'pci-tool'},
+                corpus:{icon:'<i class="fas fa-database"></i>',cls:'pci-corpus'},
+                resource:{icon:'<i class="fas fa-book-open"></i>',cls:'pci-resource'},
+                event:{icon:'<i class="fas fa-calendar-alt"></i>',cls:'pci-event'},
+                project:{icon:'<i class="fas fa-project-diagram"></i>',cls:'pci-project'},
+                institution:{icon:'<i class="fas fa-university"></i>',cls:'pci-institution'},
+                user:{icon:'<i class="fas fa-user"></i>',cls:'pci-user'},
+            };
+            /* Filter out meta types — my_contributions/stats shown in answer body, no_data is not a real card */
+            var filtered=results.filter(function(r){return r.type!=='my_contributions' && r.type!=='stats' && r.type!=='no_data'});
+            if(filtered.length===0) return '';
+            var h='<div class="platform-cards">';
+            filtered.forEach(function(r){
+                var ti=icons[r.type]||{icon:'<i class="fas fa-link"></i>',cls:'pci-resource'};
+                var url=r.url||'#';
+                var title=esc((r.title||r.name||'\u2014').substring(0,80));
+                var desc=esc((r.description||'').substring(0,120));
+                var meta='';
+                var tags=[r.language,r.tool_type,r.event_type,r.institution_type,r.field,r.author].filter(Boolean);
+                if(tags.length>0){meta='<div class="p-card-meta">'+tags.slice(0,3).map(function(t){return '<span class="meta-tag">'+esc(t)+'</span>'}).join('')+'</div>'}
+                h+='<a class="p-card" href="'+esc(url)+'" target="_blank" rel="noopener">'
+                    +'<div class="p-card-head"><div class="p-card-icon '+ti.cls+'">'+ti.icon+'</div><span class="p-card-type">'+esc(r.type)+'</span></div>'
+                    +'<div class="p-card-title">'+title+'</div><div class="p-card-desc">'+desc+'</div>'+meta
+                    +'<div class="p-card-link">{% trans "Open" %} <i class="fas fa-arrow-right"></i></div></a>';
+            });
+            h+='</div>';return h;
+        }
+
+        function renderPlatformResults(data){
+            var results=data.results||[];
+            if(results.length===0){addSystem("{% trans 'No results found.' %}",'system');return}
+            var block=document.createElement('div');block.className='answer-block';
+            var html='<div class="answer-head"><div class="answer-icon"><i class="fas fa-search"></i></div>'
+                +'<span class="answer-lbl">{% trans "Found" %} '+(data.total||results.length)+' {% trans "results" %}</span></div>';
+            html+=buildCards(results);block.innerHTML=html;msgsArea.appendChild(block);scrollBottom();
+        }
+
+        function setLoading(v){isLoading=v;sendBtn.disabled=v;chatInput.disabled=v}
+
+        function entityIcon(type){
+            var icons={
+                course:{icon:'<i class="fas fa-graduation-cap"></i>',cls:'pci-course'},
+                tool:{icon:'<i class="fas fa-wrench"></i>',cls:'pci-tool'},
+                corpus:{icon:'<i class="fas fa-database"></i>',cls:'pci-corpus'},
+                resource:{icon:'<i class="fas fa-book-open"></i>',cls:'pci-resource'},
+                event:{icon:'<i class="fas fa-calendar-alt"></i>',cls:'pci-event'},
+                project:{icon:'<i class="fas fa-project-diagram"></i>',cls:'pci-project'},
+                institution:{icon:'<i class="fas fa-university"></i>',cls:'pci-institution'},
+                user:{icon:'<i class="fas fa-user"></i>',cls:'pci-user'},
+                post:{icon:'<i class="fas fa-newspaper"></i>',cls:'pci-resource'}
+            };
+            return icons[type]||{icon:'<i class="fas fa-link"></i>',cls:'pci-resource'};
+        }
+
+        function normalizeEntityContext(ctx){
+            return {
+                type:(ctx.type||ctx.contentType||'resource').toString().trim().toLowerCase(),
+                title:(ctx.title||'').toString().trim(),
+                description:(ctx.description||'').toString().trim(),
+                category:(ctx.category||'').toString().trim(),
+                author:(ctx.author||'').toString().trim(),
+                url:(ctx.url||ctx.link||'').toString().trim()
+            };
+        }
+
+        function safeEntityUrl(url){
+            if(!url) return '';
+            var u=url.toString().trim();
+            if(!u) return '';
+            if(u.startsWith('/')) return u;
+            if(/^https?:\/\//i.test(u)) return u;
+            return '';
+        }
+
+        function cleanContextText(value){
+            if(!value) return '';
+            return value
+                .toString()
+                .replace(/[*_`#]/g,' ')
+                .replace(/<[^>]+>/g,' ')
+                .replace(/\[(.*?)\]\((.*?)\)/g,'$1')
+                .replace(/\s+/g,' ')
+                .trim();
+        }
+
+        function trimSentence(text,maxLen){
+            var t=(text||'').trim();
+            if(!t||t.length<=maxLen) return t;
+            var cut=t.slice(0,maxLen);
+            var lastSpace=cut.lastIndexOf(' ');
+            if(lastSpace>80) cut=cut.slice(0,lastSpace);
+            return cut.replace(/[\s,;:.]+$/,'')+'...';
+        }
+
+        function buildContextSummary(ctx){
+            var rawDesc=cleanContextText(ctx.description||'');
+            if(!rawDesc) return '';
+
+            var authorsMatch=rawDesc.match(/Authors?\s*:\s*(.+?)(?=\s+Year\s*:|\s+Abstract\s*:|$)/i);
+            var yearMatch=rawDesc.match(/Year\s*:\s*(\d{4})/i);
+            var abstractMatch=rawDesc.match(/Abstract\s*:\s*(.+)$/i);
+
+            if(authorsMatch||yearMatch||abstractMatch){
+                var authors=authorsMatch?trimSentence(authorsMatch[1],120):'';
+                var year=yearMatch?yearMatch[1]:'';
+                var abstractText=abstractMatch?trimSentence(abstractMatch[1],220):trimSentence(rawDesc,220);
+                var head='';
+                if(authors&&year) head='Research item by '+authors+' ('+year+'). ';
+                else if(authors) head='Research item by '+authors+'. ';
+                else if(year) head='Research item published in '+year+'. ';
+                return (head+abstractText).trim();
+            }
+
+            if(ctx.type==='tool' || /\bdataset\b/i.test(ctx.category||'') || /^\s*\[dataset\]/i.test(rawDesc)){
+                var normalized=rawDesc.replace(/^\s*\[dataset\]\s*/i,'Dataset: ');
+                return trimSentence(normalized,220);
+            }
+
+            return trimSentence(rawDesc,220);
+        }
+
+        function addEntityContextCard(rawCtx){
+            var ctx=normalizeEntityContext(rawCtx||{});
+            if(!ctx.title) return;
+            var contextKey=(ctx.type||'resource')+'::'+(ctx.title||'');
+            var exists=false;
+            msgsArea.querySelectorAll('.context-preview-wrap').forEach(function(node){
+                if(node.getAttribute('data-context-key')===contextKey) exists=true;
+            });
+            if(exists) return;
+            var ico=entityIcon(ctx.type);
+            var href=safeEntityUrl(ctx.url);
+            var summary=buildContextSummary(ctx);
+            var block=document.createElement('div');
+            block.className='context-preview-wrap';
+            block.setAttribute('data-context-key',contextKey);
+            var tags=[ctx.type,ctx.category,ctx.author].filter(Boolean).slice(0,3)
+                .map(function(v){return '<span class="meta-tag">'+esc(v)+'</span>'}).join('');
+
+            block.innerHTML=''
+                +'<div class="context-preview-label"><i class="fas fa-compass"></i><span>{% trans "Selected Context" %}</span></div>'
+                +'<div class="context-preview-card">'
+                +'<div class="context-preview-head"><div class="p-card-icon '+ico.cls+'">'+ico.icon+'</div><div class="context-preview-title">'+esc(ctx.title)+'</div></div>'
+                +(summary?'<div class="context-preview-desc">'+esc(summary)+'</div>':'')
+                +(tags?'<div class="context-preview-meta">'+tags+'</div>':'')
+                +(href?'<div class="context-preview-actions"><a class="context-preview-link" href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">{% trans "Open Resource" %} <i class="fas fa-arrow-up-right-from-square"></i></a></div>':'')
+                +'</div>';
+            msgsArea.appendChild(block);
+            scrollBottom();
+        }
+
+        /* ============================================================
+           AUTO-EXPLAIN: when chatbot opens from an entity detail page
+           ============================================================ */
+        async function autoExplainEntity(){
+            var raw='{{ entity_context_json|escapejs }}';
+            if(!raw||raw==='{}') return;
+            var ctx;
+            try{ctx=JSON.parse(raw)}catch(e){return}
+            ctx=normalizeEntityContext(ctx);
+            if(!ctx.title) return;
+
+            /* Reload case: if this card already exists in loaded history,
+               do not create another new chat. */
+            var existingKey=(ctx.type||'resource')+'::'+(ctx.title||'');
+            var alreadyLoaded=false;
+            msgsArea.querySelectorAll('.context-preview-wrap').forEach(function(node){
+                if(node.getAttribute('data-context-key')===existingKey) alreadyLoaded=true;
+            });
+            if(alreadyLoaded) return;
+
+            /* Always create a NEW chat when coming from a card (first time). */
+            try{
+                var sr=await fetch('{% url "chatbot:create_session" %}',{method:'POST',headers:{'X-CSRFToken':csrf()}});
+                if(!sr.ok) return;
+                var sd=await sr.json();
+                if(sd.session_id){
+                    currentSessionId=sd.session_id;
+                    persistCurrentSessionId();
+                }else return;
+            }catch(e){return}
+
+            /* Reset UI for the new session */
+            selectedFiles=[];activeDocumentId=null;hasDocuments=false;renderFilePills();clearChat();
+
+            showMsgs();
+            addEntityContextCard(ctx);
+            setLoading(true);
+            var thinkEl=addThinking();
+
+            try{
+                var payload={
+                    mode:'platform_entity',
+                    session_id:currentSessionId,
+                    entity_context:{
+                        type:ctx.type||'resource',
+                        title:ctx.title||'',
+                        description:ctx.description||'',
+                        category:ctx.category||'',
+                        author:ctx.author||'',
+                        url:ctx.url||''
+                    }
+                };
+
+                var resp=await fetch('{% url "chatbot:ask" %}',{
+                    method:'POST',
+                    headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
+                    body:JSON.stringify(payload)
+                });
+                thinkEl.remove();
+                var data=await resp.json();
+                if(!resp.ok) throw new Error(data.error||'Error '+resp.status);
+                if(data.session_id){currentSessionId=data.session_id;persistCurrentSessionId();}
+                if(data.answer) addAnswer(data.answer,data.source,data.lang,null,null,false,null,null,data.web_results||null,data.generation_provider||null);
+                loadSessions();
+            }catch(e){thinkEl.remove();console.error('AutoExplain:',e);addSystem(e.message,'error')}
+            finally{setLoading(false)}
+        }
+
+        /* ============================================================
+           AUTO-ANALYSE: when chatbot opens from a document detail page
+           ============================================================ */
+        async function autoAnalyseDocument(){
+            var raw='{{ document_context_json|escapejs }}';
+            if(!raw||raw==='{}') return;
+            var ctx;
+            try{ctx=JSON.parse(raw)}catch(e){return}
+            if(!ctx.document_id||!ctx.document_file_url) return;
+
+            /* Ensure we have a session */
+            if(!currentSessionId){
+                try{
+                    var sr=await fetch('{% url "chatbot:create_session" %}',{method:'POST',headers:{'X-CSRFToken':csrf()}});
+                    if(!sr.ok) return;
+                    var sd=await sr.json();
+                    if(sd.session_id){currentSessionId=sd.session_id;persistCurrentSessionId();}
+                    else return;
+                }catch(e){return}
+            }
+
+            /* Prevent regenerate on reload */
+            var docMsg = "{% trans 'Analyse document' %}: "+(ctx.document_title||'Document');
+            var alreadyLoaded = false;
+            msgsArea.querySelectorAll('.msg-bubble').forEach(function(node){
+                if(node.textContent.trim() === docMsg) alreadyLoaded = true;
+            });
+            if(alreadyLoaded) return;
+
+            showMsgs();
+            addUserMsg(docMsg);
+            setLoading(true);
+            var thinkEl=addThinking();
+
+            try{
+                var payload={
+                    mode:'platform_document',
+                    session_id:currentSessionId,
+                    document_context:{
+                        document_id:ctx.document_id,
+                        document_title:ctx.document_title||'',
+                        document_file_url:ctx.document_file_url
+                    }
+                };
+                var resp=await fetch('{% url "chatbot:ask" %}',{
+                    method:'POST',
+                    headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'},
+                    body:JSON.stringify(payload)
+                });
+                thinkEl.remove();
+                var data=await resp.json();
+                if(!resp.ok) throw new Error(data.error||'Error '+resp.status);
+                if(data.session_id){currentSessionId=data.session_id;persistCurrentSessionId();}
+                if(data.document_id) activeDocumentId=data.document_id;
+                hasDocuments=true;
+                if(data.answer) addAnswer(data.answer,data.source,data.lang,data.retrieved_docs||null,null,true,null,null,data.web_results||null,data.generation_provider||null);
+                else if(data.document_status==='processing') addSystem("{% trans 'Document is still processing. Please ask again shortly.' %}",'system');
+                loadSessions();
+            }catch(e){thinkEl.remove();console.error('AutoAnalyse:',e);addSystem(e.message,'error')}
+            finally{setLoading(false)}
+        }
+
+        function hasInitialEntityContext(){
+            var raw='{{ entity_context_json|escapejs }}';
+            return !!raw && raw!=='{}';
+        }
+
+        function hasInitialDocumentContext(){
+            var raw='{{ document_context_json|escapejs }}';
+            return !!raw && raw!=='{}';
+        }
+
+        /* ============================================================
+           FEATURE 4: PIN TOGGLE — AJAX handler
+           ============================================================ */
+        function togglePin(btn,blockEl){
+            var mid=btn.getAttribute('data-mid');
+            if(!mid){
+                /* For dynamically-created answer pins without message_id yet */
+                return;
+            }
+            var url='/chatbot/messages/'+mid+'/pin/';
+            fetch(url,{method:'POST',headers:{'X-CSRFToken':csrf(),'Content-Type':'application/json'}})
+                .then(function(r){return r.json()})
+                .then(function(d){
+                    if(d.status==='ok'){
+                        btn.classList.toggle('is-pinned',d.is_pinned);
+                        blockEl.classList.toggle('is-pinned-msg',d.is_pinned);
+                    }
+                })
+                .catch(function(e){console.error('Pin toggle:',e)});
+        }
+
+        /* ── Init ── */
+        loadSessions({hydrateInitial:true})
+            .then(function(){return autoExplainEntity();})
+            .then(function(){return autoAnalyseDocument();});
+    })();
+    </script>
+</body>
+</html>

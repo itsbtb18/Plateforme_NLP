@@ -1,104 +1,485 @@
-/* ===== RTL SUPPORT FOR ADMIN - MODERN MINIMALIST ===== */
+/* ═══════════════════════════════════════════════════════
+   ADMIN RTL – Notion-Blue Design System
+   dir="rtl" on <html> auto-flips flex-row containers.
+   This file provides RTL-specific overrides for proper alignment.
+   ═══════════════════════════════════════════════════════ */
 
+/* Root variables for RTL */
+[dir="rtl"] :root {
+  --n-sidebar-w: 270px;
+  --n-sidebar-c: 80px;
+}
+
+/* ══════════════════════════════════════════════
+   BODY & LAYOUT – Prevent overflow issues
+   ══════════════════════════════════════════════ */
+[dir="rtl"] html {
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+[dir="rtl"] body {
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+[dir="rtl"] * {
+  box-sizing: border-box !important;
+}
+
+/* ══════════════════════════════════════════════
+   ADMIN-SHELL – Flex container layout
+   ══════════════════════════════════════════════ */
+[dir="rtl"] .admin-shell {
+  display: flex !important;
+  flex-direction: row-reverse !important;
+  gap: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+  height: calc(100vh - var(--n-header-h)) !important;
+}
+
+/* ══════════════════════════════════════════════
+   SIDEBAR – Fixed on right, fully visible
+   ══════════════════════════════════════════════ */
 [dir="rtl"] .sidebar {
-    right: 0 !important;
-    left: auto !important;
-    border-right: none !important;
-    border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
+  /* Positioning */
+  position: fixed !important;
+  top: var(--n-header-h) !important;
+  right: 0 !important;
+  left: auto !important;
+  
+  /* Sizing */
+  width: var(--n-sidebar-w) !important;
+  height: calc(100vh - var(--n-header-h)) !important;
+  
+  /* Spacing – CRITICAL: Prevent cramping */
+  padding: 8px 4px 6px 10px !important;
+  
+  /* Background & borders */
+  background-color: var(--n-sidebar) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-left: none !important;
+  
+  /* Scrolling */
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  
+  /* Layering */
+  z-index: 900 !important;
+  
+  /* Flex properties */
+  flex: 0 0 auto !important;
+  max-width: none !important;
+  
+  /* Transitions for collapse animation */
+  transition: width 0.2s ease, padding 0.2s ease !important;
 }
 
+/* Sidebar scrollbar styling */
+[dir="rtl"] .sidebar::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+[dir="rtl"] .sidebar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+[dir="rtl"] .sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 3px !important;
+}
+
+[dir="rtl"] .sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* ══════════════════════════════════════════════
+   SIDEBAR CONTENT – Proper spacing container
+   ══════════════════════════════════════════════ */
+[dir="rtl"] .sidebar .position-sticky {
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+[dir="rtl"] .sidebar .nav {
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+[dir="rtl"] .sidebar .nav-item {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ══════════════════════════════════════════════
+   NAVIGATION LINKS – Icon & text spacing
+   ══════════════════════════════════════════════ */
+[dir="rtl"] .sidebar .nav-link {
+  /* Layout */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  
+  /* Spacing – INCREASED for visibility */
+  padding: 7px 5px 7px 9px !important;
+  margin: 2px 2px !important;
+  
+  /* Typography */
+  color: rgba(255, 255, 255, 0.65) !important;
+  font-weight: 500 !important;
+  font-size: 0.9rem !important;
+  
+  /* Styling */
+  border-radius: 8px !important;
+  text-decoration: none !important;
+  overflow: visible !important;
+  position: relative !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  
+  /* Transitions */
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+/* Remove any default borders on RTL nav items */
+[dir="rtl"] .sidebar .nav-item {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove card framing on list items (RTL) */
+[dir="rtl"] .sidebar .nav-item {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Icon styling – LARGER, CENTERED, and HIGHLY VISIBLE */
+[dir="rtl"] .sidebar .nav-link i {
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  width: 22px !important;
+  height: 22px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  font-size: 1.05rem !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  line-height: 1 !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Text styling – BETTER CONTRAST */
+[dir="rtl"] .sidebar .nav-link span {
+  flex-grow: 1 !important;
+  text-align: right !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  transition: color 0.2s ease !important;
+  line-height: 1.35 !important;
+}
+
+/* Hover state – MUCH MORE VISIBLE with enhanced effects */
+[dir="rtl"] .sidebar .nav-link:hover {
+  background: rgba(59, 130, 246, 0.25) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  transform: translateX(-2px) !important;
+  box-shadow: none !important;
+}
+
+[dir="rtl"] .sidebar .nav-link:hover i {
+  color: rgba(255, 255, 255, 0.95) !important;
+  transform: scale(1.1) !important;
+}
+
+[dir="rtl"] .sidebar .nav-link:hover span {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Active state – HIGHLY HIGHLIGHTED with strong branding */
+[dir="rtl"] .sidebar .nav-link.active {
+  background: rgba(59, 130, 246, 0.35) !important;
+  color: #E0F2FE !important;
+  box-shadow: inset -3px 0 0 #A78BFA !important;
+  font-weight: 600 !important;
+}
+
+[dir="rtl"] .sidebar .nav-link.active i {
+  color: #A78BFA !important;
+  font-size: 1.2rem !important;
+}
+
+/* ══════════════════════════════════════════════
+   SIDEBAR COLLAPSED STATE – Icon-only mode
+   ══════════════════════════════════════════════ */
+[dir="rtl"] .sidebar.collapsed {
+  width: var(--n-sidebar-c) !important;
+  padding: 6px 6px !important;
+}
+
+[dir="rtl"] .sidebar.collapsed .nav-link {
+  justify-content: center !important;
+  padding: 7px 5px !important;
+  margin: 2px 0 !important;
+  background: transparent !important;
+}
+
+[dir="rtl"] .sidebar.collapsed .nav-link span {
+  display: none !important;
+}
+
+[dir="rtl"] .sidebar.collapsed .nav-link i {
+  font-size: 1.05rem !important;
+  margin: 0 !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+[dir="rtl"] .sidebar.collapsed .nav-link:hover {
+  background: rgba(59, 130, 246, 0.3) !important;
+  transform: scale(1.06) !important;
+}
+
+[dir="rtl"] .sidebar.collapsed .nav-link:hover i {
+  color: #A78BFA !important;
+  background: none !important;
+  transform: scale(1) !important;
+  box-shadow: none !important;
+}
+
+[dir="rtl"] .sidebar.collapsed .nav-link.active {
+  background: rgba(59, 130, 246, 0.4) !important;
+  box-shadow: inset -2px 0 0 #A78BFA !important;
+  border: none !important;
+}
+
+[dir="rtl"] .sidebar.collapsed .nav-link.active i {
+  color: #A78BFA !important;
+  background: none !important;
+  font-size: 1.1rem !important;
+  box-shadow: none !important;
+}
+
+/* ══════════════════════════════════════════════
+   MAIN CONTENT – Reserve space for sidebar
+   ══════════════════════════════════════════════ */
 [dir="rtl"] .main-content {
-    margin-right: 260px !important;
+  /* Margins reserve space for sidebar */
+  margin-right: var(--n-sidebar-w) !important;
+  margin-left: 0 !important;
+  
+  /* Sizing */
+  width: calc(100vw - var(--n-sidebar-w)) !important;
+  max-width: 100% !important;
+  
+  /* Padding */
+  padding: 24px 28px !important;
+  
+  /* Background */
+  background: var(--n-bg) !important;
+  
+  /* Height */
+  min-height: calc(100vh - var(--n-header-h)) !important;
+  
+  /* Flex sizing */
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  
+  /* Overflow */
+  overflow-x: hidden !important;
+  
+  /* Positioning */
+  position: relative !important;
+  z-index: 1 !important;
+  
+  /* Box model */
+  box-sizing: border-box !important;
+  
+  /* Transitions */
+  transition: margin-right 0.2s ease, width 0.2s ease !important;
+}
+
+/* Collapsed state: reduce right margin */
+[dir="rtl"] .sidebar-collapsed .main-content {
+  margin-right: var(--n-sidebar-c) !important;
+  width: calc(100vw - var(--n-sidebar-c)) !important;
+}
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE DESIGN – Mobile & tablet
+   ══════════════════════════════════════════════ */
+@media (max-width: 991px) {
+  /* Desktop offsets for mobile */
+  [dir="rtl"] .admin-shell {
+    flex-direction: column !important;
+  }
+  
+  /* Mobile sidebar: off-canvas drawer */
+  [dir="rtl"] .sidebar {
+    position: fixed !important;
+    top: var(--n-header-h) !important;
+    right: 0 !important;
+    width: 290px !important;
+    height: calc(100vh - var(--n-header-h)) !important;
+    transform: translateX(110%) !important;
+    transition: transform 0.25s ease !important;
+    z-index: 999 !important;
+    padding: 12px 4px !important;
+  }
+  
+  /* Mobile sidebar links: larger for touch */
+  [dir="rtl"] .sidebar .nav-link {
+    padding: 10px 6px 10px 12px !important;
+    margin: 3px 0 !important;
+    gap: 13px !important;
+  }
+  
+  [dir="rtl"] .sidebar .nav-link i {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 1.15rem !important;
+  }
+  
+  /* Sidebar open: slide in from right */
+  [dir="rtl"] .sidebar.is-open {
+    transform: translateX(0) !important;
+  }
+  
+  /* Mobile backdrop overlay */
+  [dir="rtl"] .sidebar.is-open::before {
+    content: '' !important;
+    position: fixed !important;
+    top: var(--n-header-h) !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+    z-index: 890 !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Mobile main content: full width */
+  [dir="rtl"] .main-content {
+    margin-right: 0 !important;
     margin-left: 0 !important;
+    width: 100vw !important;
+    padding: 16px 14px !important;
+  }
 }
 
-@media (min-width: 769px) {
-    [dir="rtl"] .main-content {
-        margin-right: 260px !important;
-        margin-left: 0 !important;
-        width: calc(100% - 260px) !important;
-    }
+@media (max-width: 576px) {
+  /* Extra small screens: better spacing */
+  [dir="rtl"] .sidebar {
+    padding: 10px 4px !important;
+  }
+  
+  [dir="rtl"] .sidebar .nav-link {
+    padding: 8px 4px 8px 11px !important;
+    gap: 12px !important;
+    margin: 2px 0 !important;
+  }
+  
+  [dir="rtl"] .sidebar .nav-link i {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 1rem !important;
+    background: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+  
+  [dir="rtl"] .sidebar .nav-link span {
+    font-size: 0.82rem !important;
+  }
+  
+  [dir="rtl"] .main-content {
+    padding: 12px 10px !important;
+  }
 }
 
-[dir="rtl"] .nav-link i {
-    margin-right: 0 !important;
-    margin-left: 8px !important;
+/* ══════════════════════════════════════════════
+   TABS & CONTENT LAYOUT – Flex reversal for RTL
+   ══════════════════════════════════════════════ */
+
+/* In RTL: mirror LTR order (Pending appears on the right, Approved on the left) */
+[dir="rtl"] .n-tabs {
+  flex-direction: row-reverse !important;
+  transition: flex-direction 0.3s ease !important;
 }
 
-/* Header Layout for RTL */
-[dir="rtl"] .admin-header-container {
-    flex-direction: row-reverse !important;
+/* Smooth transition for language switching */
+[dir="rtl"] .n-tab {
+  transition: all 0.3s ease !important;
 }
 
-[dir="rtl"] .admin-logo {
-    flex-direction: row-reverse !important;
-    order: 2 !important;
+/* RTL Language dropdown positioning */
+[dir="rtl"] .language-dropdown {
+  right: auto !important;
+  left: 0 !important;
 }
 
-[dir="rtl"] .admin-actions {
-    flex-direction: row-reverse !important;
-    order: 1 !important;
+[dir="rtl"] .language-dropdown::before {
+  right: auto !important;
+  left: 20px !important;
 }
 
-[dir="rtl"] .btn-admin {
-    flex-direction: row-reverse !important;
-}
+/* ══════════════════════════════════════════════
+   UTILITY STYLES – Tables & helpers
+   ══════════════════════════════════════════════ */
 
-[dir="rtl"] .btn-admin i {
-    margin-right: 0 !important;
-    margin-left: 0.5rem !important;
-}
-
-/* Table RTL */
+/* Table alignment for RTL */
 [dir="rtl"] .table td,
 [dir="rtl"] .table th {
-    text-align: right !important;
+  text-align: right !important;
 }
 
-/* Flex RTL */
+/* Pagination arrows: flip for RTL */
+[dir="rtl"] .sec-pagination .pg-arrow {
+  transform: scaleX(-1);
+}
+
+/* Flex direction for RTL */
 [dir="rtl"] .d-flex {
-    direction: rtl !important;
+  direction: rtl !important;
 }
 
-[dir="rtl"] .btn-group {
-    flex-direction: row-reverse !important;
-}
-
-/* Spacing RTL */
+/* Bootstrap utility overrides for RTL */
 [dir="rtl"] .me-2 {
-    margin-right: 0 !important;
-    margin-left: 0.5rem !important;
+  margin-right: 0 !important;
+  margin-left: 0.5rem !important;
 }
 
 [dir="rtl"] .ms-sm-auto {
-    margin-right: auto !important;
-    margin-left: 0 !important;
+  margin-right: auto !important;
+  margin-left: 0 !important;
 }
 
-[dir="rtl"] .px-md-4 {
-    padding-right: 1.5rem !important;
-    padding-left: 1.5rem !important;
+[dir="rtl"] .pe-3 {
+  padding-right: 0 !important;
+  padding-left: 1rem !important;
 }
 
-/* Sidebar hover effect RTL */
-[dir="rtl"] .sidebar .nav-link:hover {
-    transform: translateX(-5px) !important;
-}
-
-/* Responsive RTL */
-@media (max-width: 768px) {
-    [dir="rtl"] .main-content {
-        margin-right: 0 !important;
-        margin-left: 0 !important;
-    }
-    
-    [dir="rtl"] .sidebar {
-        right: -280px !important;
-        left: auto !important;
-    }
-    
-    [dir="rtl"] .sidebar.active {
-        right: 0 !important;
-        left: auto !important;
-    }
+[dir="rtl"] .ps-3 {
+  padding-right: 1rem !important;
+  padding-left: 0 !important;
 }

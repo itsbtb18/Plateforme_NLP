@@ -1,0 +1,548 @@
+{% comment %}
+  Reusable translate / summarize widget.
+
+  Include inside any detail-page template with:
+      {% include "partials/ts_widget.html" %}
+
+  Requirements:
+    - The page must expose a JS object  TS_WIDGET_CONFIG  with:
+        {
+          csrfToken:        '{{ csrf_token }}',
+          translateUrl:     '{% url "translate:api_ts_translate" %}',
+          summarizeUrl:     '{% url "translate:api_ts_summarize" %}',
+          sections: [                       // one or more text blocks
+            {
+              id:              'abstract',   // unique DOM id suffix
+              label:           'Abstract',
+              sourceText:      '...',        // raw text to process
+              sourceLang:      'en',         // ISO-639 code
+            },
+            ...
+          ]
+        }
+{% endcomment %}
+
+<!-- ─── Floating Action Panel ─────────────────────────────── -->
+<div id="ts-widget-panel" class="ts-widget-panel" style="display:none;">
+  <div class="ts-panel-header">
+    <div class="ts-panel-title">
+      <i class="bi bi-translate"></i>
+      <span id="ts-panel-title-text">AI Tools</span>
+    </div>
+    <button type="button" class="ts-panel-close" onclick="TsWidget.close()">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <!-- Section selector (when multiple sections exist) -->
+  <div id="ts-section-select-wrap" class="ts-section-select-wrap" style="display:none;">
+    <label for="ts-section-select" class="ts-label">Section</label>
+    <select id="ts-section-select" class="ts-select" onchange="TsWidget.onSectionChange()"></select>
+  </div>
+
+  <!-- Target language (for translation) -->
+  <div id="ts-target-lang-wrap" class="ts-target-lang-wrap" style="display:none;">
+    <label for="ts-target-lang" class="ts-label">Target language</label>
+    <select id="ts-target-lang" class="ts-select">
+      <option value="ar">العربية (Arabic)</option>
+      <option value="en">English</option>
+      <option value="fr">Français (French)</option>
+    </select>
+  </div>
+
+  <!-- Summary style (for summarization) -->
+  <div id="ts-summary-opts-wrap" class="ts-summary-opts-wrap" style="display:none;">
+    <label for="ts-summary-style" class="ts-label">Style</label>
+    <select id="ts-summary-style" class="ts-select">
+      <option value="brief">Brief</option>
+      <option value="detailed">Detailed</option>
+    </select>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="ts-actions">
+    <button type="button" class="ts-btn ts-btn-translate" onclick="TsWidget.translate()">
+      <i class="bi bi-translate"></i> Translate
+    </button>
+    <button type="button" class="ts-btn ts-btn-summarize" onclick="TsWidget.summarize()">
+      <i class="bi bi-card-text"></i> Summarize
+    </button>
+  </div>
+
+  <!-- Result area -->
+  <div id="ts-result-area" class="ts-result-area" style="display:none;">
+    <div class="ts-result-header">
+      <span id="ts-result-label" class="ts-result-label"></span>
+      <button type="button" class="ts-copy-btn" onclick="TsWidget.copy()" title="Copy">
+        <i class="bi bi-clipboard"></i>
+      </button>
+    </div>
+    <div id="ts-result-content" class="ts-result-content"></div>
+    <div id="ts-result-meta" class="ts-result-meta"></div>
+  </div>
+
+  <!-- Spinner -->
+  <div id="ts-spinner" class="ts-spinner" style="display:none;">
+    <div class="ts-spinner-ring"></div>
+    <span id="ts-spinner-text">Processing...</span>
+  </div>
+
+  <!-- Error -->
+  <div id="ts-error" class="ts-error" style="display:none;"></div>
+</div>
+
+<!-- ─── Floating trigger button ──────────────────────────── -->
+<button type="button" id="ts-widget-trigger" class="ts-widget-trigger" onclick="TsWidget.open()" title="AI Translate / Summarize">
+  <i class="bi bi-stars"></i>
+</button>
+
+
+<!-- ─── Styles ────────────────────────────────────────────── -->
+<style>
+/* Floating trigger button */
+.ts-widget-trigger {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 9998;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(139, 92, 246, 0.45), 0 0 40px rgba(167, 139, 250, 0.15);
+  transition: transform 0.25s, box-shadow 0.25s;
+  display: flex; align-items: center; justify-content: center;
+}
+.ts-widget-trigger:hover {
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 10px 32px rgba(139, 92, 246, 0.55), 0 0 60px rgba(167, 139, 250, 0.25);
+}
+
+/* Panel */
+.ts-widget-panel {
+  position: fixed;
+  bottom: 100px;
+  right: 28px;
+  z-index: 9999;
+  width: 380px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: rgba(15, 20, 25, 0.96);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(167, 139, 250, 0.12);
+  padding: 0;
+  animation: tsSlideUp 0.3s ease-out;
+}
+@keyframes tsSlideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ts-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+}
+.ts-panel-title {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 1.05rem; color: #a78bfa;
+}
+.ts-panel-close {
+  background: none; border: none; color: #9ca3af; font-size: 1.1rem; cursor: pointer;
+  transition: color 0.2s;
+}
+.ts-panel-close:hover { color: #fff; }
+
+/* Form controls */
+.ts-label {
+  display: block;
+  font-size: 0.78rem; font-weight: 600; color: #9ca3af;
+  margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.ts-select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  background: rgba(167, 139, 250, 0.06);
+  color: #e5e7eb;
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.ts-select:focus { border-color: #a78bfa; }
+.ts-select option { background: #1a1a2e; color: #e5e7eb; }
+
+.ts-section-select-wrap,
+.ts-target-lang-wrap,
+.ts-summary-opts-wrap {
+  padding: 12px 20px 4px;
+}
+
+/* Action buttons */
+.ts-actions {
+  display: flex; gap: 10px;
+  padding: 14px 20px;
+}
+.ts-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600; font-size: 0.88rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  transition: all 0.25s;
+}
+.ts-btn:disabled {
+  opacity: 0.5; cursor: not-allowed;
+}
+.ts-btn-translate {
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  color: #fff;
+}
+.ts-btn-translate:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+  transform: translateY(-1px);
+}
+.ts-btn-summarize {
+  background: linear-gradient(135deg, #0891b2, #06b6d4);
+  color: #fff;
+}
+.ts-btn-summarize:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Result */
+.ts-result-area {
+  padding: 0 20px 16px;
+}
+.ts-result-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.ts-result-label {
+  font-size: 0.78rem; font-weight: 700; color: #a78bfa;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.ts-copy-btn {
+  background: rgba(167, 139, 250, 0.12); border: none; color: #a78bfa;
+  width: 30px; height: 30px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.ts-copy-btn:hover { background: rgba(167, 139, 250, 0.25); }
+
+.ts-result-content {
+  background: rgba(167, 139, 250, 0.05);
+  border: 1px solid rgba(167, 139, 250, 0.12);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: #e5e7eb;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ts-result-meta {
+  margin-top: 8px;
+  font-size: 0.72rem; color: #6b7280;
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+
+/* Spinner */
+.ts-spinner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px;
+  color: #a78bfa; font-size: 0.88rem; font-weight: 500;
+}
+.ts-spinner-ring {
+  width: 22px; height: 22px;
+  border: 3px solid rgba(167, 139, 250, 0.2);
+  border-top-color: #a78bfa;
+  border-radius: 50%;
+  animation: tsSpin 0.8s linear infinite;
+}
+@keyframes tsSpin { to { transform: rotate(360deg); } }
+
+/* Error */
+.ts-error {
+  margin: 0 20px 16px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  color: #fca5a5;
+  font-size: 0.82rem;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .ts-widget-panel { width: calc(100vw - 32px); right: 16px; bottom: 90px; }
+  .ts-widget-trigger { bottom: 18px; right: 18px; width: 48px; height: 48px; font-size: 1.2rem; }
+}
+</style>
+
+
+<!-- ─── Script ────────────────────────────────────────────── -->
+<script>
+(function() {
+  "use strict";
+
+  var cfg = null;   // will be set from TS_WIDGET_CONFIG
+
+  function $(id) { return document.getElementById(id); }
+
+  var TsWidget = {
+    _busyTimer: null,
+    _busyStartedAt: 0,
+    _requestController: null,
+    _requestTimeoutMs: 480000,
+
+    init: function() {
+      if (typeof TS_WIDGET_CONFIG === 'undefined') return;
+      cfg = TS_WIDGET_CONFIG;
+
+      // Populate section selector if multiple sections
+      if (cfg.sections && cfg.sections.length > 1) {
+        var sel = $('ts-section-select');
+        cfg.sections.forEach(function(s) {
+          var opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.label;
+          sel.appendChild(opt);
+        });
+        $('ts-section-select-wrap').style.display = 'block';
+      }
+    },
+
+    open: function() {
+      this.init();
+      $('ts-widget-panel').style.display = 'block';
+      $('ts-widget-trigger').style.display = 'none';
+      $('ts-target-lang-wrap').style.display = 'block';
+      $('ts-summary-opts-wrap').style.display = 'block';
+    },
+
+    close: function() {
+      $('ts-widget-panel').style.display = 'none';
+      $('ts-widget-trigger').style.display = 'flex';
+    },
+
+    _getSection: function() {
+      if (!cfg || !cfg.sections || cfg.sections.length === 0) return null;
+      if (cfg.sections.length === 1) return cfg.sections[0];
+      var id = $('ts-section-select').value;
+      return cfg.sections.find(function(s) { return s.id === id; }) || cfg.sections[0];
+    },
+
+    _setBusy: function(busy, message) {
+      $('ts-spinner').style.display = busy ? 'flex' : 'none';
+      $('ts-error').style.display = 'none';
+      document.querySelectorAll('.ts-btn').forEach(function(b) { b.disabled = busy; });
+      if (busy) { $('ts-result-area').style.display = 'none'; }
+      if (busy) {
+        this._busyStartedAt = Date.now();
+        this._startBusyTicker(message || 'Processing...');
+      } else {
+        this._stopBusyTicker();
+      }
+    },
+
+    _startBusyTicker: function(baseMessage) {
+      var self = this;
+      var spinnerText = $('ts-spinner-text');
+      if (!spinnerText) return;
+      this._stopBusyTicker();
+      this._busyTimer = setInterval(function() {
+        var elapsed = Math.max(1, Math.floor((Date.now() - self._busyStartedAt) / 1000));
+        spinnerText.textContent = baseMessage + ' (' + elapsed + 's)';
+      }, 1000);
+      spinnerText.textContent = baseMessage + ' (1s)';
+    },
+
+    _stopBusyTicker: function() {
+      var spinnerText = $('ts-spinner-text');
+      if (this._busyTimer) {
+        clearInterval(this._busyTimer);
+        this._busyTimer = null;
+      }
+      if (spinnerText) spinnerText.textContent = 'Processing...';
+    },
+
+    _abortInFlight: function() {
+      if (this._requestController) {
+        this._requestController.abort();
+        this._requestController = null;
+      }
+    },
+
+    _fetchWithTimeout: function(url, options) {
+      if (typeof AbortController === 'undefined') {
+        return fetch(url, options);
+      }
+
+      var self = this;
+      self._abortInFlight();
+      self._requestController = new AbortController();
+      var timeoutId = setTimeout(function() {
+        if (self._requestController) self._requestController.abort();
+      }, self._requestTimeoutMs);
+      options = options || {};
+      options.signal = self._requestController.signal;
+
+      return fetch(url, options).finally(function() {
+        clearTimeout(timeoutId);
+        self._requestController = null;
+      });
+    },
+
+    _showError: function(msg) {
+      var el = $('ts-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    },
+
+    _showResult: function(label, text, meta) {
+      $('ts-result-label').textContent = label;
+      $('ts-result-content').textContent = text;
+      var metaEl = $('ts-result-meta');
+      metaEl.innerHTML = '';
+      if (meta) {
+        if (meta.provider_used) {
+          metaEl.innerHTML += '<span>Provider: ' + meta.provider_used + '</span>';
+        }
+        if (meta.fallback_used) {
+          metaEl.innerHTML += '<span>⚡ Fallback used</span>';
+        }
+      }
+      $('ts-result-area').style.display = 'block';
+    },
+
+    translate: function() {
+      var sec = this._getSection();
+      if (!sec || !sec.sourceText) { this._showError('No text available to translate.'); return; }
+
+      var targetLang = $('ts-target-lang').value;
+      this._setBusy(true, 'Translation in progress. Chunking and provider fallback may take time');
+
+      this._fetchWithTimeout(cfg.translateUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': cfg.csrfToken,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          text: sec.sourceText,
+          source_language: sec.sourceLang || 'en',
+          target_language: targetLang
+        })
+      })
+      .then(function(r) {
+        return r.json().catch(function() { return { ok: false, error: 'Invalid server response.' }; });
+      })
+      .then(function(data) {
+        TsWidget._setBusy(false);
+        if (data.ok) {
+          TsWidget._showResult(
+            'Translation (' + sec.label + ' → ' + targetLang + ')',
+            data.output,
+            data
+          );
+        } else {
+          TsWidget._showError(data.error || 'Translation failed.');
+        }
+      })
+      .catch(function(err) {
+        TsWidget._setBusy(false);
+        if (err && err.name === 'AbortError') {
+          TsWidget._showError('Request took too long. Please retry with a shorter text.');
+          return;
+        }
+        TsWidget._showError('Network error: ' + err.message);
+      });
+    },
+
+    summarize: function() {
+      var sec = this._getSection();
+      if (!sec || !sec.sourceText) { this._showError('No text available to summarize.'); return; }
+
+      var style = $('ts-summary-style').value;
+      this._setBusy(true, 'Summarization in progress. Large texts can take a few minutes');
+
+      this._fetchWithTimeout(cfg.summarizeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': cfg.csrfToken,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          text: sec.sourceText,
+          language: sec.sourceLang || 'en',
+          style: style
+        })
+      })
+      .then(function(r) {
+        return r.json().catch(function() { return { ok: false, error: 'Invalid server response.' }; });
+      })
+      .then(function(data) {
+        TsWidget._setBusy(false);
+        if (data.ok) {
+          TsWidget._showResult(
+            'Summary (' + sec.label + ' — ' + style + ')',
+            data.output,
+            data
+          );
+        } else {
+          TsWidget._showError(data.error || 'Summarization failed.');
+        }
+      })
+      .catch(function(err) {
+        TsWidget._setBusy(false);
+        if (err && err.name === 'AbortError') {
+          TsWidget._showError('Request took too long. Please retry with a shorter text.');
+          return;
+        }
+        TsWidget._showError('Network error: ' + err.message);
+      });
+    },
+
+    copy: function() {
+      var text = $('ts-result-content').textContent;
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          var btn = document.querySelector('.ts-copy-btn');
+          btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+          setTimeout(function() { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+        });
+      } else {
+        // Fallback
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed'; ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+    },
+
+    onSectionChange: function() {
+      // Just re-select; no special action needed
+    }
+  };
+
+  window.TsWidget = TsWidget;
+})();
+</script>

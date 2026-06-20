@@ -1,119 +1,1439 @@
 {% extends "base.html" %}
 {% load static crispy_forms_tags i18n %}
 
-{% block content %}
-<div class="container py-5">
-    <h1 class="mb-4">
-        {% if form.initial.document_type == 'thesis' %}
-            {% trans "Update Thesis" %}
-        {% elif form.initial.document_type == 'article' %}
-            {% trans "Update Article" %}
-        {% elif form.initial.document_type == 'memoir' %}
-            {% trans "Update Memoir" %}
-        {% elif form.initial.resource_type == 'nlp_tool' %}
-            {% trans "Update NLP Tool" %}
-        {% elif form.initial.resource_type == 'course' %}
-            {% trans "Update Course" %}
-        {% elif form.initial.resource_type == 'corpus' %}
-            {% trans "Update Corpus" %}
-        {% else %}
-            {% trans "Update Resource" %}
-        {% endif %}
-    </h1>
+{% block title %}
+{% trans "Update Resource" %} - {{ object.get_localized_title|truncatechars:30 }}
+{% endblock %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES - Engineering Grade Theme ===== */
+:root {
+    --eng-primary: #1e3a5f;
+    --eng-accent: #2563eb;
+    --eng-accent-light: #3b82f6;
+    --eng-teal: #0d9488;
+    --eng-surface: #ffffff;
+    --eng-background: #f8fafc;
+    --eng-muted: #f1f5f9;
+    --eng-border: #e2e8f0;
+    --eng-border-dark: #cbd5e1;
+    --eng-text: #0f172a;
+    --eng-text-secondary: #475569;
+    --eng-text-muted: #94a3b8;
+    --eng-success: #059669;
+    --eng-success-bg: #ecfdf5;
+    --eng-warning: #d97706;
+    --eng-warning-bg: #fffbeb;
+    --eng-danger: #dc2626;
+    --eng-danger-bg: #fef2f2;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.resource-form-page {
+    min-height: calc(100vh - 200px);
+    background: var(--eng-background);
+    padding: 2rem 0 4rem;
+}
+
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* ===== PAGE HEADER ===== */
+.page-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--eng-text);
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.page-header h1 i {
+    color: var(--eng-accent);
+}
+
+.page-header p {
+    color: #334155;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* ===== STATUS SUMMARY ===== */
+.resource-status-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.resource-status-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.resource-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.95rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+}
+
+.resource-status-chip.type {
+    background: #e0ecff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.resource-status-chip.pending {
+    background: #fff7ed;
+    color: #b45309;
+    border-color: #fdba74;
+}
+
+.resource-status-chip.approved {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #86efac;
+}
+
+.resource-status-chip.rejected {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
+
+.resource-status-note {
+    margin: 0;
+    color: #475569;
+    font-size: 0.92rem;
+    font-weight: 500;
+    text-align: start;
+}
+
+/* ===== REVIEW MODE ALERT ===== */
+.review-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--eng-warning-bg);
+    border: 1px solid #fcd34d;
+    border-radius: var(--radius-lg);
+    margin-bottom: 2rem;
+    text-align: start;
+}
+
+.review-alert i {
+    font-size: 1.5rem;
+    color: var(--eng-warning);
+    flex-shrink: 0;
+}
+
+.review-alert-content h4 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--eng-text);
+}
+
+.review-alert-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--eng-text-secondary);
+}
+
+/* ===== SECTION CARDS ===== */
+.section-card {
+    background: var(--eng-surface);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    animation: slideUp 0.4s ease-out forwards;
+    opacity: 0;
+}
+
+.section-card:nth-child(1) { animation-delay: 0.1s; }
+.section-card:nth-child(2) { animation-delay: 0.2s; }
+.section-card:nth-child(3) { animation-delay: 0.3s; }
+.section-card:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, var(--eng-muted) 0%, #e2e8f0 100%);
+    border-bottom: 1px solid var(--eng-border);
+    text-align: start;
+}
+
+.section-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.section-icon.core { background: #dbeafe; color: #1e40af; }
+.section-icon.bilingual { background: #ccfbf1; color: #0d9488; }
+.section-icon.specific { background: #fef3c7; color: #92400e; }
+
+.section-header-text h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--eng-text);
+    text-align: start;
+}
+
+.section-header-text p {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: #64748b;
+    text-align: start;
+}
+
+.section-body {
+    padding: 1.5rem;
+    text-align: start;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--eng-text);
+    margin-bottom: 0.5rem;
+    text-align: start;
+}
+
+.required-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    background: var(--eng-danger-bg);
+    color: var(--eng-danger);
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 50px;
+    text-transform: uppercase;
+}
+
+.form-control,
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    border: 2px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    background: var(--eng-surface);
+    transition: all 0.3s ease;
+    color: var(--eng-text);
+    text-align: start;
+}
+
+.form-control:focus,
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--eng-accent);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.form-group textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+.form-group .form-text,
+.form-group .help-text {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: #64748b;
+    text-align: start;
+}
+
+/* Field Grid */
+.field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 576px) {
+    .field-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== BILINGUAL SECTION ===== */
+.bilingual-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .bilingual-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.bilingual-column {
+    padding: 1.5rem;
+    background: var(--eng-muted);
+    border-radius: var(--radius-md);
+}
+
+.bilingual-column.english {
+    border-inline-start: 4px solid var(--eng-accent);
+}
+
+.bilingual-column.arabic {
+    border-inline-start: 4px solid var(--eng-teal);
+}
+
+.bilingual-column h5 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 1.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.bilingual-column.english h5 {
+    color: var(--eng-accent);
+}
+
+.bilingual-column.arabic h5 {
+    color: var(--eng-teal);
+}
+
+/* ===== SPECIFIC FIELDS SECTIONS ===== */
+.specific-fields {
+    display: none;
+}
+
+.specific-fields.visible {
+    display: block;
+    animation: slideUp 0.4s ease-out forwards;
+}
+
+/* ===== FORM ACTIONS ===== */
+.form-actions {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--eng-border);
+    margin-top: 1rem;
+}
+
+.resource-admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    align-items: stretch;
+    margin-inline-start: auto;
+    direction: ltr;
+}
+
+.btn-cancel,
+.btn-submit,
+.btn-reject,
+.btn-accept {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.95rem 1.75rem;
+    min-height: 60px;
+    min-width: 190px;
+    font-weight: 700;
+    font-size: 0.98rem;
+    border-radius: 14px;
+    text-decoration: none;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.btn-cancel {
+    background: transparent;
+    color: #274c77;
+    border: 2px solid var(--eng-border);
+    box-shadow: 0 8px 24px rgba(148, 163, 184, 0.14);
+}
+
+.btn-cancel:hover {
+    border-color: #bfd0e6;
+    background: #f8fbff;
+    color: #1d4f91;
+    transform: translateY(-1px);
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, var(--eng-accent) 0%, var(--eng-accent-light) 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-reject {
+    border: none;
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.24);
+}
+
+.btn-reject:hover {
+    background: linear-gradient(135deg, #b91c1c, #dc2626);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(220, 38, 38, 0.3);
+}
+
+.btn-accept {
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 8px 20px rgba(5, 150, 105, 0.24);
+}
+
+.btn-accept:hover {
+    background: linear-gradient(135deg, #047857, #059669);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(5, 150, 105, 0.3);
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-submit .spinner {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-submit.loading .spinner {
+    display: block;
+}
+
+.btn-submit.loading .btn-text {
+    display: none;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== RTL SUPPORT (logical properties handle most alignment) ===== */
+html[dir="rtl"] .resource-form-page {
+    direction: rtl;
+}
+
+html[dir="rtl"] .form-group label {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+html[dir="rtl"] .form-control,
+html[dir="rtl"] .form-group input[type="text"],
+html[dir="rtl"] .form-group input[type="url"],
+html[dir="rtl"] .form-group input[type="number"],
+html[dir="rtl"] .form-group input[type="date"],
+html[dir="rtl"] .form-group textarea,
+html[dir="rtl"] .form-group select {
+    direction: rtl;
+}
+
+html[dir="rtl"] .form-actions {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .resource-admin-actions {
+    margin-inline-start: 0;
+    margin-inline-end: auto;
+}
+
+html[dir="rtl"] .btn-cancel,
+html[dir="rtl"] .btn-submit,
+html[dir="rtl"] .btn-reject {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .bilingual-column h5 {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .bilingual-grid {
+    direction: rtl;
+}
+
+html[dir="rtl"] .required-badge {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .review-alert {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .page-header h1 {
+    flex-direction: row-reverse;
+}
+
+/* Corpus details table RTL mirroring */
+html[dir="rtl"] .corpus-details-table {
+    direction: rtl;
+}
+
+html[dir="rtl"] .corpus-details-table th {
+    text-align: right;
+}
+
+html[dir="rtl"] .corpus-details-table td {
+    text-align: left;
+}
+
+/* Corpus details table RTL mirroring */
+html[dir="rtl"] .corpus-details-table {
+    direction: rtl;
+}
+
+html[dir="rtl"] .corpus-details-table th {
+    text-align: right;
+}
+
+html[dir="rtl"] .corpus-details-table td {
+    text-align: left;
+}
+
+/* ===== CORPUS DETAILS TABLE ===== */
+.corpus-details-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--eng-border);
+}
+
+.corpus-details-table th,
+.corpus-details-table td {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--eng-border);
+    vertical-align: middle;
+}
+
+.corpus-details-table th {
+    text-align: start;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--eng-text);
+    background: var(--eng-muted);
+    white-space: nowrap;
+    width: 35%;
+}
+
+.corpus-details-table td {
+    text-align: start;
+}
+
+.corpus-details-table tr:last-child th,
+.corpus-details-table tr:last-child td {
+    border-bottom: none;
+}
+
+.corpus-details-table .form-control,
+.corpus-details-table input,
+.corpus-details-table select {
+    text-align: start;
+}
+
+/* ===== CHECKBOX GRID (Supported Languages) ===== */
+.checkbox-grid,
+ul.list-unstyled.checkbox-grid {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.checkbox-grid li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--eng-muted);
+    border: 2px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 140px;
+}
+
+.checkbox-grid li:hover {
+    border-color: var(--eng-accent);
+    background: #eff6ff;
+}
+
+.checkbox-grid li label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--eng-text);
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+.checkbox-grid li input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 2px solid var(--eng-border-dark) !important;
+    border-radius: 4px !important;
+    background: white !important;
+    cursor: pointer;
+    accent-color: var(--eng-accent);
+    flex-shrink: 0;
+    -webkit-appearance: checkbox !important;
+    appearance: checkbox !important;
+    box-shadow: none !important;
+}
+
+.checkbox-grid li input[type="checkbox"]:checked {
+    border-color: var(--eng-accent) !important;
+}
+
+.checkbox-grid li:has(input:checked) {
+    border-color: var(--eng-accent);
+    background: #eff6ff;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .resource-status-panel {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .resource-admin-actions {
+        flex-direction: column;
+        margin-inline-start: 0;
+        width: 100%;
+    }
     
-    <form method="post" enctype="multipart/form-data" novalidate>
-        {% csrf_token %}
+    .btn-cancel, .btn-submit, .btn-reject, .btn-accept {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .checkbox-grid {
+        flex-direction: column;
+    }
+    
+    .checkbox-grid li {
+        min-width: unset;
+    }
+}
 
-        <!-- Include resource_type as hidden input -->
-        {{ form.resource_type.as_hidden }}
+/* ===== PLATFORM DARK THEME OVERRIDES ===== */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
+
+:root {
+    --eng-primary: #8b5cf6;
+    --eng-accent: #8b5cf6;
+    --eng-accent-light: #a78bfa;
+    --eng-teal: #22c55e;
+    --eng-surface: rgba(24, 18, 52, 0.98);
+    --eng-background: radial-gradient(circle at top left, rgba(139, 92, 246, 0.14), transparent 24%), linear-gradient(180deg, #0a0b18 0%, #120f2a 52%, #0a0b18 100%);
+    --eng-muted: rgba(255, 255, 255, 0.04);
+    --eng-border: rgba(196, 181, 253, 0.16);
+    --eng-border-dark: rgba(196, 181, 253, 0.28);
+    --eng-text: #f8fafc;
+    --eng-text-secondary: #cbd5e1;
+    --eng-text-muted: #94a3b8;
+    --eng-success: #10b981;
+    --eng-success-bg: rgba(16, 185, 129, 0.1);
+    --eng-warning: #f59e0b;
+    --eng-warning-bg: rgba(245, 158, 11, 0.12);
+    --eng-danger: #f87171;
+    --eng-danger-bg: rgba(239, 68, 68, 0.12);
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.24);
+    --shadow-lg: 0 18px 45px rgba(0, 0, 0, 0.28);
+    --radius-lg: 20px;
+}
+
+.resource-form-page {
+    min-height: 100vh;
+    background: var(--eng-background);
+    padding: 2rem 0 4rem;
+}
+
+.form-container {
+    max-width: 940px;
+    position: relative;
+    z-index: 2;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    color: var(--eng-text);
+    font-size: clamp(1.9rem, 3vw, 2.5rem);
+    letter-spacing: -0.03em;
+}
+
+.page-header h1 i {
+    color: var(--eng-accent-light);
+}
+
+.page-header p {
+    color: var(--eng-text-secondary);
+    font-size: 1.05rem;
+}
+
+.review-alert {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(139, 92, 246, 0.05));
+    border: 1px solid rgba(139, 92, 246, 0.24);
+    box-shadow: var(--shadow-md);
+}
+
+.review-alert i {
+    color: var(--eng-accent-light);
+}
+
+.review-alert-content h4 {
+    color: var(--eng-text);
+}
+
+.review-alert-content p {
+    color: var(--eng-text-secondary);
+}
+
+.alert.alert-danger {
+    background: rgba(127, 29, 29, 0.42);
+    color: #fee2e2;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.section-card {
+    background: linear-gradient(180deg, rgba(24, 18, 52, 0.98) 0%, rgba(14, 12, 32, 0.98) 100%);
+    border: 1px solid var(--eng-border);
+    box-shadow: var(--shadow-lg);
+}
+
+.section-header {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border-bottom: 1px solid var(--eng-border);
+}
+
+.section-icon {
+    background: rgba(139, 92, 246, 0.14);
+    color: var(--eng-accent-light);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.section-icon.core,
+.section-icon.bilingual,
+.section-icon.specific {
+    background: rgba(139, 92, 246, 0.14);
+    color: var(--eng-accent-light);
+}
+
+.section-header-text h2,
+.form-group label,
+.bilingual-column h5,
+.corpus-details-table th {
+    color: var(--eng-text);
+}
+
+.section-header-text p,
+.form-group .form-text,
+.form-group .help-text,
+.resource-status-note,
+.bilingual-column p,
+.corpus-details-table td {
+    color: var(--eng-text-secondary);
+}
+
+.required-badge {
+    background: rgba(239, 68, 68, 0.14);
+    color: #fca5a5;
+}
+
+.form-control,
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group textarea,
+.form-group select {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: transparent;
+    color: var(--eng-text);
+}
+
+.form-control::placeholder,
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--eng-text-muted);
+}
+
+.form-control:focus,
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--eng-accent);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.16);
+}
+
+.form-group select option {
+    background: #ffffff;
+    color: #111827;
+}
+
+.form-group input[readonly],
+.form-group textarea[readonly],
+.form-group select:disabled,
+.form-group input:disabled,
+.form-group textarea:disabled {
+    background: rgba(255, 255, 255, 0.03);
+    color: #cbd5e1;
+    opacity: 1;
+}
+
+.bilingual-column {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--eng-border);
+}
+
+.bilingual-column.english {
+    border-inline-start: 4px solid var(--eng-accent);
+}
+
+.bilingual-column.arabic {
+    border-inline-start: 4px solid var(--eng-teal);
+}
+
+.bilingual-column.english h5 {
+    color: #c4b5fd;
+}
+
+.bilingual-column.arabic h5 {
+    color: #86efac;
+}
+
+.corpus-details-table {
+    border-color: var(--eng-border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.corpus-details-table th,
+.corpus-details-table td {
+    border-bottom-color: var(--eng-border);
+}
+
+.corpus-details-table th {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.checkbox-grid li {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--eng-border);
+}
+
+.checkbox-grid li:hover,
+.checkbox-grid li:has(input:checked) {
+    border-color: var(--eng-accent);
+    background: rgba(139, 92, 246, 0.12);
+}
+
+.checkbox-grid li label {
+    color: var(--eng-text);
+}
+
+.checkbox-grid li input[type="checkbox"] {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: var(--eng-border-dark) !important;
+}
+
+.form-actions {
+    border-top-color: var(--eng-border);
+}
+
+.btn-cancel {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--eng-text);
+    border: 1px solid var(--eng-border);
+    box-shadow: none;
+}
+
+.btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    border-color: rgba(196, 181, 253, 0.32);
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.28);
+}
+
+.btn-submit:hover {
+    box-shadow: 0 12px 26px rgba(139, 92, 246, 0.34);
+}
+
+@media (max-width: 768px) {
+    .resource-form-page {
+        padding-top: 1.25rem;
+    }
+
+    .form-container {
+        padding: 0 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="resource-form-page">
+    <div class="form-container">
         
-        <!-- Include document_type as hidden if resource is document -->
-        {% if form.initial.resource_type == 'document' %}
-            {{ form.document_type.as_hidden }}
+        <!-- Page Header -->
+        <header class="page-header">
+            <h1>
+                <i class="bi bi-pencil-square"></i>
+                {% if review_mode and is_pending and not edit_only %}
+                    {% trans "Review Resource" %}
+                {% else %}
+                    {% trans "Update Resource" %}
+                {% endif %}
+            </h1>
+            <p>
+                {% if form.initial.document_type == 'thesis' %}{% trans "Editing Thesis" %}
+                {% elif form.initial.document_type == 'article' %}{% trans "Editing Document" %}
+                {% elif form.initial.document_type == 'memoir' %}{% trans "Editing Memoir" %}
+                {% elif form.initial.resource_type == 'nlp_tool' %}{% trans "Editing NLP Tool" %}
+                {% elif form.initial.resource_type == 'course' %}{% trans "Editing Course" %}
+                {% elif form.initial.resource_type == 'corpus' %}{% trans "Editing Corpus" %}
+                {% else %}{% trans "Editing Resource" %}{% endif %}
+            </p>
+        </header>
+
+        <section class="site-status-panel" aria-label="{% trans 'Resource status summary' %}">
+            <div class="site-status-panel-meta">
+                <span class="site-approval-badge site-approval-info">
+                    <i class="bi bi-layers"></i>
+                    {% if form.initial.document_type == 'thesis' %}{% trans "Thesis" %}
+                    {% elif form.initial.document_type == 'article' %}{% trans "Document" %}
+                    {% elif form.initial.document_type == 'memoir' %}{% trans "Memoir" %}
+                    {% elif form.initial.resource_type == 'nlp_tool' %}{% trans "NLP Tool" %}
+                    {% elif form.initial.resource_type == 'course' %}{% trans "Course" %}
+                    {% elif form.initial.resource_type == 'corpus' %}{% trans "Corpus" %}
+                    {% else %}{% trans "Resource" %}{% endif %}
+                </span>
+
+                <span class="site-approval-badge {% if object.approval_status == 'approved' %}site-approval-approved{% elif object.approval_status == 'pending' %}site-approval-pending{% else %}site-approval-rejected{% endif %}">
+                    <i class="bi {% if object.approval_status == 'approved' %}bi-patch-check-fill{% elif object.approval_status == 'pending' %}bi-clock-history{% else %}bi-x-octagon-fill{% endif %}"></i>
+                    {% if object.approval_status == 'approved' %}{% trans "Approved" %}
+                    {% elif object.approval_status == 'pending' %}{% trans "Pending Review" %}
+                    {% else %}{% trans "Rejected" %}{% endif %}
+                </span>
+            </div>
+
+            <p class="site-status-panel-note">
+                {% if object.approval_status == 'approved' %}
+                    {% trans "This resource is already validated and visible with the platform design." %}
+                {% elif object.approval_status == 'pending' %}
+                    {% trans "This resource is still waiting for moderation review before publication." %}
+                {% else %}
+                    {% trans "This resource is not currently approved for public display." %}
+                {% endif %}
+            </p>
+        </section>
+        
+        <!-- Review Mode Alert -->
+        {% if review_mode and is_pending and not edit_only %}
+        <div class="review-alert">
+            <i class="bi bi-info-circle-fill"></i>
+            <div class="review-alert-content">
+                <h4>{% trans "Admin Review Mode" %}</h4>
+                <p>{% trans "This form is read-only. Use the edit action to modify fields, then return to approve or reject." %}</p>
+            </div>
+        </div>
         {% endif %}
-
-        <!-- Common fields -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Basic Information" %}
+        
+        <form method="post" enctype="multipart/form-data" id="resource-form" novalidate>
+            {% csrf_token %}
+            
+            {% if form.errors %}
+            <div class="alert alert-danger" style="border-radius: var(--radius-lg); padding: 1rem 1.5rem; margin-bottom: 1.5rem;">
+                <i class="bi bi-exclamation-triangle-fill" style="margin-inline-end: 0.5rem;"></i>
+                <strong>{% trans "Please correct the errors below:" %}</strong>
+                <ul style="margin: 0.5rem 0 0; padding-inline-start: 1.25rem;">
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+                </ul>
             </div>
-            <div class="card-body">
-                {{ form.title|as_crispy_field }}
-                {{ form.language|as_crispy_field }}
-                {{ form.description|as_crispy_field }}
-                {{ form.keywords|as_crispy_field }}
-                {{ form.access_link|as_crispy_field }}
-            </div>
-        </div>
-
-        <!-- Conditional fields based on resource type -->
-        {% if form.initial.resource_type == 'course' %}
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Course Details" %}
-            </div>
-            <div class="card-body">
-                {{ form.course_field|as_crispy_field }}
-                {{ form.academic_level|as_crispy_field }}
-                {{ form.course_institution|as_crispy_field }}
-                {{ form.academic_year|as_crispy_field }}
-            </div>
-        </div>
-        {% elif form.initial.resource_type == 'nlp_tool' %}
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Tool Details" %}
-            </div>
-            <div class="card-body">
-                {{ form.tool_type|as_crispy_field }}
-                {{ form.tool_version|as_crispy_field }}
-                {{ form.documentation|as_crispy_field }}
-                {{ form.supported_languages|as_crispy_field }} 
-            </div>
-        </div>
-        {% elif form.initial.resource_type == 'corpus' %}
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Corpus Details" %}
-            </div>
-            <div class="card-body">
-                {{ form.corpus_size|as_crispy_field }}
-                {{ form.corpus_field|as_crispy_field }}
-                {{ form.corpus_format|as_crispy_field }}
-            </div>
-        </div>
-        {% elif form.initial.resource_type == 'document' %}
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {% trans "Document Details" %}
-            </div>
-            <div class="card-body">
-                {{ form.document_format|as_crispy_field }}
-                
-                {% if form.initial.document_type == 'article' %}
-                    {{ form.journal|as_crispy_field }}
-                    {{ form.publication_date|as_crispy_field }}
-                    {{ form.doi|as_crispy_field }}
-                {% elif form.initial.document_type == 'thesis' %}
-                    {{ form.supervisor|as_crispy_field }}
-                    {{ form.thesis_institution|as_crispy_field }}
-                    {{ form.defense_year|as_crispy_field }}
-                {% elif form.initial.document_type == 'memoir' %}
-                    {{ form.memoir_level|as_crispy_field }}
-                    {{ form.memoir_institution|as_crispy_field }}
-                    {{ form.memoir_defense_year|as_crispy_field }}
+            {% endif %}
+            
+            <!-- Hidden fields -->
+            {{ form.resource_type.as_hidden }}
+            {% if form.initial.resource_type == 'document' %}
+                {{ form.document_type.as_hidden }}
+            {% endif %}
+            
+            <!-- Section 1: Basic Information -->
+            <section class="section-card">
+                <div class="section-header">
+                    <div class="section-icon core">
+                        <i class="bi bi-card-heading"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Basic Information" %}</h2>
+                        <p>{% trans "Core details about your resource" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    
+                    <!-- Title (English) -->
+                    <div class="form-group">
+                        <label for="id_title_en">
+                            {% trans "Title" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.title_en }}
+                    </div>
+                    
+                    <!-- Language -->
+                    <div class="form-group">
+                        <label for="id_language">{% trans "Content Language" %}</label>
+                        {{ form.language }}
+                    </div>
+                    
+                    <!-- Description (English) -->
+                    <div class="form-group">
+                        <label for="id_description_en">
+                            {% trans "Description" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.description_en }}
+                    </div>
+                    
+                    <!-- Keywords -->
+                    <div class="form-group">
+                        <label for="id_keywords">{% trans "Keywords" %}</label>
+                        {{ form.keywords }}
+                        <span class="form-text">{% trans "Comma-separated keywords" %}</span>
+                    </div>
+                    
+                    <!-- Access Link -->
+                    <div class="form-group">
+                        <label for="id_access_link">{% trans "Access Link" %}</label>
+                        {{ form.access_link }}
+                    </div>
+                    
+                </div>
+            </section>
+            
+            <!-- Section 2: Arabic Translation (Admin/Review Mode) -->
+            {% if review_mode or request.user.is_staff %}
+            <section class="section-card">
+                <div class="section-header">
+                    <div class="section-icon bilingual">
+                        <i class="bi bi-translate"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Arabic Translation" %}</h2>
+                        <p>{% trans "Required for approval - provide content in Arabic" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="form-group">
+                        <label for="id_title_ar">
+                            {% trans "Title (Arabic)" %}
+                        </label>
+                        {{ form.title_ar }}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_description_ar">
+                            {% trans "Description (Arabic)" %}
+                        </label>
+                        {{ form.description_ar }}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Course-specific fields -->
+            {% if form.initial.resource_type == 'course' %}
+            <section class="section-card specific-fields visible">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-mortarboard"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Course Details" %}</h2>
+                        <p>{% trans "Specific information about the course" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_course_field">{% trans "Field" %}</label>
+                            {{ form.course_field }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_academic_level">{% trans "Academic Level" %}</label>
+                            {{ form.academic_level }}
+                        </div>
+                    </div>
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_course_institution">{% trans "Institution" %}</label>
+                            {{ form.course_institution }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_academic_year">{% trans "Academic Year" %}</label>
+                            {{ form.academic_year }}
+                        </div>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- NLP Tool-specific fields -->
+            {% if form.initial.resource_type == 'nlp_tool' %}
+            <section class="section-card specific-fields visible">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-cpu"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Tool Details" %}</h2>
+                        <p>{% trans "Technical specifications of the tool" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_tool_type">{% trans "Tool Type" %}</label>
+                            {{ form.tool_type }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_tool_version">{% trans "Version" %}</label>
+                            {{ form.tool_version }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_documentation">{% trans "Documentation URL" %}</label>
+                        {{ form.documentation }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_supported_languages">{% trans "Supported Languages" %}</label>
+                        {{ form.supported_languages }}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Corpus-specific fields -->
+            {% if form.initial.resource_type == 'corpus' %}
+            <section class="section-card specific-fields visible">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-database"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Corpus Details" %}</h2>
+                        <p>{% trans "Information about the corpus" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <table class="corpus-details-table">
+                        <tr>
+                            <th><label for="id_corpus_field">{% trans "Field" %}</label></th>
+                            <td>{{ form.corpus_field }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Document-specific fields (Article, Thesis, Memoir) -->
+            {% if form.initial.resource_type == 'document' %}
+            <section class="section-card specific-fields visible">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Document Details" %}</h2>
+                        <p>{% trans "Specific document information" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="form-group">
+                        <label for="id_document_format">{% trans "Format" %}</label>
+                        {{ form.document_format }}
+                    </div>
+                    
+                    {% if form.initial.document_type == 'article' %}
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_journal">{% trans "Journal" %}</label>
+                            {{ form.journal }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_publication_date">{% trans "Publication Date" %}</label>
+                            {{ form.publication_date }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_doi">{% trans "DOI" %}</label>
+                        {{ form.doi }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if form.initial.document_type == 'thesis' %}
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_supervisor">{% trans "Supervisor" %}</label>
+                            {{ form.supervisor }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_thesis_institution">{% trans "Institution" %}</label>
+                            {{ form.thesis_institution }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_defense_year">{% trans "Defense Year" %}</label>
+                        {{ form.defense_year }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if form.initial.document_type == 'memoir' %}
+                    <div class="field-grid">
+                        <div class="form-group">
+                            <label for="id_memoir_level">{% trans "Level" %}</label>
+                            {{ form.memoir_level }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_memoir_institution">{% trans "Institution" %}</label>
+                            {{ form.memoir_institution }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_memoir_defense_year">{% trans "Defense Year" %}</label>
+                        {{ form.memoir_defense_year }}
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Form Actions -->
+            <div class="form-actions">
+                {% if review_mode %}
+                <a href="{% url 'pages:admin_dashboard' %}" class="btn-cancel">
+                    <i class="bi bi-arrow-left"></i>
+                    {% trans "Back to Admin" %}
+                </a>
+                <div class="resource-admin-actions">
+                    {% if edit_only %}
+                    <button type="submit" class="btn-submit" id="submit-btn">
+                        <span class="spinner"></span>
+                        <i class="bi bi-check2"></i>
+                        <span class="btn-text">{% trans "Save Changes" %}</span>
+                    </button>
+                    {% endif %}
+                    {% if edit_only and is_pending and user.is_staff and request.GET.review_model and request.GET.review_pk %}
+                    <button type="submit"
+                            class="btn-reject"
+                            formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                            onclick="return confirm('{% trans "Are you sure you want to reject this request?" %}');">
+                        <i class="bi bi-x-circle"></i>
+                        <span>{% trans "Reject" %}</span>
+                    </button>
+                    <button type="submit"
+                            class="btn-accept"
+                            formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
+                        <i class="bi bi-check-circle"></i>
+                        <span>{% trans "Accept" %}</span>
+                    </button>
+                    {% endif %}
+                </div>
+                {% else %}
+                <a href="{% url 'resources:article_list' %}" class="btn-cancel">
+                    <i class="bi bi-x"></i>
+                    {% trans "Cancel" %}
+                </a>
+                {% if review_mode and is_pending and user.is_staff %}
+                <button type="submit" name="approve_and_publish" value="1" class="btn-accept">
+                    <i class="bi bi-check-circle"></i>
+                    <span class="btn-text">{% trans "Approve & Publish" %}</span>
+                </button>
+                {% endif %}
+                <button type="submit" class="btn-submit" id="submit-btn">
+                    <span class="spinner"></span>
+                    <i class="bi bi-check2"></i>
+                    <span class="btn-text">{% trans "Save Changes" %}</span>
+                </button>
+                {% if edit_only and is_pending and user.is_staff and request.GET.review_model and request.GET.review_pk %}
+                <button type="submit"
+                        class="btn-reject"
+                        formaction="{% url 'pages:admin_reject_item' model_type=request.GET.review_model pk=request.GET.review_pk %}"
+                        onclick="return confirm('{% trans "Are you sure you want to reject this request?" %}');">
+                    <i class="bi bi-x-circle"></i>
+                    <span>{% trans "Reject" %}</span>
+                </button>
+                <button type="submit"
+                        class="btn-accept"
+                        formaction="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}">
+                    <i class="bi bi-check-circle"></i>
+                    <span>{% trans "Accept" %}</span>
+                </button>
+                {% endif %}
                 {% endif %}
             </div>
-        </div>
-        {% endif %}
-
-        <div class="d-flex justify-content-between mt-4">
-            <a href="{% url 'resources:resource-detail' type=view.kwargs.type pk=view.kwargs.pk %}" 
-               class="btn btn-secondary">{% trans "Cancel" %}</a>
-            <button type="submit" class="btn btn-primary">
-                {% trans "Save Changes" %}
-            </button>
-        </div>
-    </form>
+            
+        </form>
+    </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ===== Submit Loading =====
+    const form = document.getElementById('resource-form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+        });
+    }
+    
+    // ===== Add form-control class to all inputs (except checkboxes) =====
+    document.querySelectorAll('.section-body input:not([type="checkbox"]), .section-body select, .section-body textarea').forEach(el => {
+        if (!el.classList.contains('form-control')) {
+            el.classList.add('form-control');
+        }
+    });
+
+    {% if review_mode and not edit_only %}
+    // Read-only view mode: fields are not editable from the "view form" action.
+    document.querySelectorAll('#resource-form input, #resource-form textarea, #resource-form select').forEach(el => {
+        const isButton = el.type === 'button' || el.type === 'submit' || el.type === 'reset';
+        const isHidden = el.type === 'hidden';
+        if (isButton || isHidden) return;
+        el.setAttribute('readonly', 'readonly');
+        el.setAttribute('disabled', 'disabled');
+    });
+    {% endif %}
+});
+</script>
 {% endblock %}
+

@@ -1,139 +1,684 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load i18n static %}
 
-{% block title %}Discover Projects{% endblock title %}
+{% block title %}{% translate "Search Projects" %}{% endblock %}
 
-{% block content %}
-<div class="container py-5">
-  <!-- Header & Search -->
-  <div class="row align-items-center header-section mb-5">
-    <div class="col-lg-8 col-md-7">
-      <h1 class="display-5 fw-bold mb-2">Discover Projects</h1>
-      <p class="text-muted fs-5">{{ projects|length }} projects available</p>
-    </div>
-    <div class="col-lg-4 col-md-5 mt-3 mt-md-0">
-      <form method="get" action="{% url 'projects:project_search' %}">
-        <div class="input-group input-group-lg shadow-sm search-group">
-          <input type="text"
-                 name="q"
-                 class="form-control border-0"
-                 placeholder="Search by project name or creator..."
-                 value="{{ request.GET.q }}">
-          <button class="btn btn-primary" type="submit">
-            <i class="fas fa-search me-2"></i>Search
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Projects Grid -->
-  {% if projects %}
-  <div class="projects-grid">
-    {% for project in projects %}
-    <div class="project-card">
-      <div class="project-body">
-        <h5 class="project-title">{{ project.title }}</h5>
-        <p class="project-meta text-muted"><i class="fas fa-user me-1"></i>{{ project.owner.username }}</p>
-        <p class="project-desc">{{ project.description|truncatechars:120 }}</p>
-      </div>
-      <div class="project-footer text-end">
-        <a href="{% url 'projects:project_detail' project.id %}" class="btn-view-details">
-          View Details <i class="fas fa-arrow-right ms-1"></i>
-        </a>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty-state text-center py-5">
-    <i class="fas fa-folder-open empty-icon mb-3"></i>
-    <h3>No projects found</h3>
-    <p class="text-muted">Try a different search or browse all projects.</p>
-    <a href="{% url 'projects:project_list' %}" class="btn btn-primary mt-3">
-      <i class="fas fa-list me-2"></i>All Projects
-    </a>
-  </div>
-  {% endif %}
-</div>
-
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
+/* ===== PROJECT SEARCH CSS ===== */
 :root {
-    --primary: #4361ee;
-    --primary-hover: #3a56d4;
-    --dark-color: #1e455e;
-    --light-bg: #f8f9fa;
-    --text-muted: #6c757d;
-    --border-color: #e9ecef;
-    --card-shadow: 0 8px 16px rgba(0,0,0,0.05);
-    --hover-shadow: 0 12px 24px rgba(0,0,0,0.1);
-    --card-radius: 12px;
+    --ps-primary: #3B82F6;
+    --ps-primary-dark: #2563eb;
+    --ps-primary-light: #60a5fa;
+    --ps-primary-glow: rgba(59, 130, 246, 0.15);
+    
+    --ps-deep: #0f172a;
+    --ps-navy: #1e3a5f;
+    --ps-white: #ffffff;
+    --ps-bg: #f8fafc;
+    --ps-muted: #f1f5f9;
+    --ps-subtle: #e2e8f0;
+    
+    --ps-text: #0f172a;
+    --ps-text-secondary: #475569;
+    --ps-text-muted: #94a3b8;
+    
+    --ps-border: #e2e8f0;
+    --ps-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    
+    --ps-success: #10b981;
+    --ps-success-bg: rgba(16, 185, 129, 0.1);
+    
+    --ps-warning: #f59e0b;
+    --ps-warning-bg: rgba(245, 158, 11, 0.1);
+    
+    --ps-info: #6366f1;
+    --ps-info-bg: rgba(99, 102, 241, 0.1);
+    
+    --ps-radius-sm: 6px;
+    --ps-radius-md: 10px;
+    --ps-radius-lg: 14px;
+    --ps-radius-xl: 20px;
+    --ps-radius-full: 9999px;
 }
 
-.container { max-width: 1200px; }
-.header-section { margin-bottom: 2rem; }
-.search-group { overflow: hidden; border-radius: var(--card-radius); }
-.search-group .form-control { background-color: white; }
-.search-group .btn { border-radius: 0 var(--card-radius) var(--card-radius) 0; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+html[dir="rtl"] body { font-family: 'Tajawal', 'Inter', sans-serif; }
 
-.projects-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 2rem;
-}
-.project-card {
-    background: white;
-    border-radius: var(--card-radius);
-    box-shadow: var(--card-shadow);
-    display: flex;
-    flex-direction: column;
-    transition: all 0.3s ease;
+.ps-page { min-height: 100vh; background: var(--ps-bg); }
+
+.ps-hero {
+    background: linear-gradient(145deg, var(--ps-deep) 0%, var(--ps-navy) 100%);
+    padding: 3rem 0 5rem;
+    position: relative;
     overflow: hidden;
 }
-.project-card:hover {
-    transform: translateY(-6px);
-    box-shadow: var(--hover-shadow);
+
+.ps-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 70% 30%, rgba(59, 130, 246, 0.2), transparent);
+    pointer-events: none;
 }
-.project-body { padding: 1.5rem; flex-grow: 1; }
-.project-title { margin-bottom: 0.5rem; color: var(--dark-color); }
-.project-meta { font-size: 0.9rem; }
-.project-desc { margin-bottom: 1rem; color: var(--text-muted); }
-.project-footer { padding: 1rem 1.5rem; background: var(--light-bg); }
-.btn-view-details {
+
+.ps-hero-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+}
+
+.ps-hero-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--ps-radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+}
+
+.ps-hero-icon i { font-size: 2rem; color: var(--ps-white); }
+
+.ps-hero h1 {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 900;
+    color: var(--ps-white);
+    margin: 0 0 0.75rem;
+}
+
+.ps-hero p {
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 2rem;
+}
+
+.ps-search-box {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.ps-search-form {
+    display: flex;
+    background: var(--ps-white);
+    border-radius: var(--ps-radius-lg);
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.ps-search-input-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.ps-search-input-wrap i {
+    position: absolute;
+    left: 1.25rem;
+    color: var(--ps-text-muted);
+    font-size: 1.25rem;
+    pointer-events: none;
+}
+
+html[dir="rtl"] .ps-search-input-wrap i {
+    left: auto;
+    right: 1.25rem;
+}
+
+.ps-search-input {
+    width: 100%;
+    padding: 1.125rem 1.25rem 1.125rem 3.5rem;
+    border: none;
+    font-size: 1rem;
+    color: var(--ps-text);
+    background: transparent;
+}
+
+html[dir="rtl"] .ps-search-input {
+    padding: 1.125rem 3.5rem 1.125rem 1.25rem;
+}
+
+.ps-search-input:focus { outline: none; }
+.ps-search-input::placeholder { color: var(--ps-text-muted); }
+
+.ps-search-btn {
+    padding: 1.125rem 2rem;
+    background: var(--ps-primary);
+    border: none;
+    color: var(--ps-white);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ps-search-btn:hover { background: var(--ps-primary-dark); }
+
+.ps-content {
+    max-width: 1100px;
+    margin: -2rem auto 0;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 10;
+}
+
+.ps-filters-card {
+    background: var(--ps-white);
+    border: 1px solid var(--ps-border);
+    border-radius: var(--ps-radius-xl);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--ps-shadow-lg);
+}
+
+.ps-filters-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ps-filter-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ps-text);
+    margin-right: 0.5rem;
+}
+
+html[dir="rtl"] .ps-filter-label {
+    margin-right: 0;
+    margin-left: 0.5rem;
+}
+
+.ps-filter-pills {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ps-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: var(--ps-muted);
+    border: 1px solid transparent;
+    border-radius: var(--ps-radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ps-text-secondary);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.ps-filter-pill:hover {
+    background: var(--ps-subtle);
+    color: var(--ps-text);
+}
+
+.ps-filter-pill.active {
+    background: var(--ps-primary-glow);
+    border-color: var(--ps-primary);
+    color: var(--ps-primary);
+}
+
+.ps-filter-pill i { font-size: 0.9rem; }
+
+.ps-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ps-results-count {
+    font-size: 0.95rem;
+    color: var(--ps-text-secondary);
+}
+
+.ps-results-count strong { color: var(--ps-text); font-weight: 700; }
+
+.ps-sort-dropdown {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ps-sort-dropdown label {
+    font-size: 0.85rem;
+    color: var(--ps-text-muted);
+}
+
+.ps-sort-select {
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    background: var(--ps-white);
+    border: 1px solid var(--ps-border);
+    border-radius: var(--ps-radius-sm);
+    font-size: 0.85rem;
+    color: var(--ps-text);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+}
+
+html[dir="rtl"] .ps-sort-select {
+    padding: 0.5rem 0.75rem 0.5rem 2rem;
+    background-position: left 0.5rem center;
+}
+
+.ps-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.ps-project-card {
+    background: var(--ps-white);
+    border: 1px solid var(--ps-border);
+    border-radius: var(--ps-radius-lg);
+    overflow: hidden;
+    transition: all 0.3s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ps-project-card:hover {
+    box-shadow: var(--ps-shadow-lg);
+    transform: translateY(-2px);
+    border-color: var(--ps-primary);
+}
+
+.ps-card-header {
+    padding: 1.25rem 1.25rem 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.ps-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: var(--ps-radius-full);
+    flex-shrink: 0;
+}
+
+.ps-status-ongoing { background: var(--ps-success-bg); color: var(--ps-success); }
+.ps-status-completed { background: var(--ps-info-bg); color: var(--ps-info); }
+.ps-status-planned { background: var(--ps-warning-bg); color: var(--ps-warning); }
+
+.ps-card-institution {
+    font-size: 0.75rem;
+    color: var(--ps-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.ps-card-body { padding: 1rem 1.25rem 1.25rem; }
+
+.ps-card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ps-text);
+    margin: 0 0 0.5rem;
+    line-height: 1.4;
+}
+
+.ps-card-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.ps-card-title a:hover { color: var(--ps-primary); }
+
+.ps-card-excerpt {
+    font-size: 0.875rem;
+    color: var(--ps-text-secondary);
+    line-height: 1.6;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.ps-card-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--ps-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ps-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--ps-text-muted);
+}
+
+.ps-card-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.ps-avatars {
+    display: flex;
+}
+
+.ps-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--ps-white);
+    margin-left: -8px;
+    background: var(--ps-primary-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: var(--ps-primary);
+    font-weight: 600;
+    overflow: hidden;
+}
+
+html[dir="rtl"] .ps-avatar {
+    margin-left: 0;
+    margin-right: -8px;
+}
+
+.ps-avatar:first-child { margin-left: 0; }
+html[dir="rtl"] .ps-avatar:first-child { margin-right: 0; }
+
+.ps-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.ps-empty-state {
+    background: var(--ps-white);
+    border: 1px solid var(--ps-border);
+    border-radius: var(--ps-radius-xl);
+    padding: 4rem 2rem;
+    text-align: center;
+    box-shadow: var(--ps-shadow-lg);
+}
+
+.ps-empty-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--ps-muted);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: var(--ps-text-muted);
+    font-size: 2rem;
+}
+
+.ps-empty-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ps-text);
+    margin: 0 0 0.5rem;
+}
+
+.ps-empty-text {
+    font-size: 0.95rem;
+    color: var(--ps-text-secondary);
+    margin: 0 0 1.5rem;
+}
+
+.ps-empty-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    background: var(--ps-primary);
+    color: var(--ps-white);
     font-weight: 600;
-    color: var(--primary);
+    font-size: 0.9rem;
+    border-radius: var(--ps-radius-md);
     text-decoration: none;
-    padding: 0.5rem 1rem;
-    border: 2px solid var(--primary);
-    border-radius: var(--card-radius);
-    transition: all 0.2s ease;
+    transition: background 0.2s;
 }
-.btn-view-details:hover {
-    background: var(--primary);
-    color: white;
-}
-.btn-view-details:hover i { transform: translateX(3px); }
 
-.empty-state {
-    background: white;
-    border-radius: var(--card-radius);
-    box-shadow: var(--card-shadow);
+.ps-empty-btn:hover {
+    background: var(--ps-primary-dark);
+    color: var(--ps-white);
 }
-.empty-icon { font-size: 3rem; color: var(--primary); opacity: 0.4; }
 
-/* Responsive Breakpoints */
-@media (max-width: 767px) {
-    .projects-grid { grid-template-columns: 1fr; }
-    .header-section { text-align: center; }
-    .header-section .col-lg-4 { margin: 1.5rem 0 0; }
+.ps-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
 }
-@media (min-width: 768px) and (max-width: 991px) {
-    .projects-grid { grid-template-columns: repeat(2, 1fr); }
+
+.ps-page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 0.75rem;
+    background: var(--ps-white);
+    border: 1px solid var(--ps-border);
+    border-radius: var(--ps-radius-sm);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--ps-text-secondary);
+    text-decoration: none;
+    transition: all 0.2s;
 }
-@media (min-width: 992px) {
-    .projects-grid { grid-template-columns: repeat(3, 1fr); }
+
+.ps-page-btn:hover {
+    background: var(--ps-muted);
+    color: var(--ps-text);
+}
+
+.ps-page-btn.active {
+    background: var(--ps-primary);
+    border-color: var(--ps-primary);
+    color: var(--ps-white);
+}
+
+.ps-page-btn.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    .ps-hero { padding: 2rem 0 4rem; }
+    .ps-search-form { flex-direction: column; }
+    .ps-search-btn { justify-content: center; }
+    .ps-content { padding: 0 1rem 3rem; }
+    .ps-filters-row { flex-direction: column; align-items: flex-start; }
+    .ps-results-header { flex-direction: column; align-items: flex-start; }
+    .ps-results-grid { grid-template-columns: 1fr; }
 }
 </style>
-{% endblock content %}
+{% endblock %}
+
+{% block content %}
+<div class="ps-page">
+    
+    <header class="ps-hero">
+        <div class="ps-hero-container">
+            <div class="ps-hero-icon">
+                <i class="bi bi-search"></i>
+            </div>
+            <h1>{% translate "Search Research Projects" %}</h1>
+            <p>{% translate "Discover and explore research initiatives from institutions worldwide." %}</p>
+            
+            <div class="ps-search-box">
+                <form method="get" action="" class="ps-search-form">
+                    <div class="ps-search-input-wrap">
+                        <i class="bi bi-search"></i>
+                        <input type="text" name="q" class="ps-search-input" 
+                               placeholder="{% translate 'Search by title, keyword, or institution...' %}"
+                               value="{{ request.GET.q|default:'' }}">
+                    </div>
+                    <button type="submit" class="ps-search-btn">
+                        <i class="bi bi-arrow-right"></i>
+                        {% translate "Search" %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </header>
+    
+    <main class="ps-content">
+        
+        <div class="ps-filters-card">
+            <div class="ps-filters-row">
+                <span class="ps-filter-label">{% translate "Filter by:" %}</span>
+                <div class="ps-filter-pills">
+                    <a href="?q={{ request.GET.q|default:'' }}" class="ps-filter-pill {% if not request.GET.status %}active{% endif %}">
+                        <i class="bi bi-grid-3x3-gap"></i> {% translate "All" %}
+                    </a>
+                    <a href="?q={{ request.GET.q|default:'' }}&status=ongoing" class="ps-filter-pill {% if request.GET.status == 'ongoing' %}active{% endif %}">
+                        <i class="bi bi-play-circle"></i> {% translate "Ongoing" %}
+                    </a>
+                    <a href="?q={{ request.GET.q|default:'' }}&status=completed" class="ps-filter-pill {% if request.GET.status == 'completed' %}active{% endif %}">
+                        <i class="bi bi-check-circle"></i> {% translate "Completed" %}
+                    </a>
+                    <a href="?q={{ request.GET.q|default:'' }}&status=planned" class="ps-filter-pill {% if request.GET.status == 'planned' %}active{% endif %}">
+                        <i class="bi bi-calendar-event"></i> {% translate "Planned" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        {% if projects %}
+        <div class="ps-results-header">
+            <p class="ps-results-count">
+                {% blocktranslate count counter=page_obj.paginator.count|default:projects|length %}
+                Found <strong>{{ counter }}</strong> project
+                {% plural %}
+                Found <strong>{{ counter }}</strong> projects
+                {% endblocktranslate %}
+                {% if request.GET.q %}
+                {% blocktranslate with query=request.GET.q %}for "<strong>{{ query }}</strong>"{% endblocktranslate %}
+                {% endif %}
+            </p>
+            <div class="ps-sort-dropdown">
+                <label for="sort-select">{% translate "Sort by:" %}</label>
+                <select id="sort-select" class="ps-sort-select" onchange="window.location.href=this.value;">
+                    <option value="?q={{ request.GET.q|default:'' }}&status={{ request.GET.status|default:'' }}&sort=newest" {% if request.GET.sort == 'newest' or not request.GET.sort %}selected{% endif %}>{% translate "Newest" %}</option>
+                    <option value="?q={{ request.GET.q|default:'' }}&status={{ request.GET.status|default:'' }}&sort=oldest" {% if request.GET.sort == 'oldest' %}selected{% endif %}>{% translate "Oldest" %}</option>
+                    <option value="?q={{ request.GET.q|default:'' }}&status={{ request.GET.status|default:'' }}&sort=title" {% if request.GET.sort == 'title' %}selected{% endif %}>{% translate "Title" %}</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="ps-results-grid">
+            {% for project in projects %}
+            <article class="ps-project-card">
+                <div class="ps-card-header">
+                    <span class="ps-status-badge ps-status-{{ project.status }}">
+                        {% if project.status == 'ongoing' %}
+                        <i class="bi bi-play-fill"></i>
+                        {% elif project.status == 'completed' %}
+                        <i class="bi bi-check-lg"></i>
+                        {% else %}
+                        <i class="bi bi-calendar"></i>
+                        {% endif %}
+                        {{ project.get_status_display }}
+                    </span>
+                    <span class="ps-card-institution">
+                        <i class="bi bi-building"></i>
+                        {% if project.institution %}{{ project.institution.get_localized_name|truncatechars:20 }}{% else %}—{% endif %}
+                    </span>
+                </div>
+                <div class="ps-card-body">
+                    <h3 class="ps-card-title">
+                        <a href="{% url 'projects:project_detail' project.pk %}">
+                            {{ project.get_localized_title }}
+                        </a>
+                    </h3>
+                    <p class="ps-card-excerpt">{{ project.get_localized_description|truncatechars:100 }}</p>
+                </div>
+                <div class="ps-card-footer">
+                    <div class="ps-card-meta">
+                        <span>
+                            <i class="bi bi-calendar3"></i>
+                            {{ project.created_at|date:"M Y" }}
+                        </span>
+                        <span>
+                            <i class="bi bi-people"></i>
+                            {{ project.members.count }}
+                        </span>
+                    </div>
+                    <div class="ps-avatars">
+                        {% for membership in project.visible_memberships|slice:":3" %}
+                        {% with member=membership.member %}
+                        <span class="ps-avatar">
+                            {% if member.avatar %}
+                            <img src="{{ member.avatar.url }}" alt="{{ member.get_full_name_display }}">
+                            {% else %}
+                            {{ member.get_full_name_display|slice:":1"|upper }}
+                            {% endif %}
+                        </span>
+                        {% endwith %}
+                        {% endfor %}
+                        {% if project.visible_memberships|length > 3 %}
+                        <span class="ps-avatar">+{{ project.visible_memberships|length|add:"-3" }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        
+        {% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
+        
+        {% else %}
+        
+        <div class="ps-empty-state">
+            <div class="ps-empty-icon">
+                <i class="bi bi-folder-x"></i>
+            </div>
+            <h2 class="ps-empty-title">{% translate "No projects found" %}</h2>
+            <p class="ps-empty-text">
+                {% if request.GET.q %}
+                {% blocktranslate with query=request.GET.q %}No results match your search for "{{ query }}". Try different keywords.{% endblocktranslate %}
+                {% else %}
+                {% translate "There are no research projects available yet." %}
+                {% endif %}
+            </p>
+            <a href="{% url 'projects:project_list' %}" class="ps-empty-btn">
+                <i class="bi bi-arrow-left"></i>
+                {% translate "Back to Projects" %}
+            </a>
+        </div>
+        
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

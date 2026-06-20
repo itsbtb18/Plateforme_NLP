@@ -1,0 +1,580 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{{ topic.get_localized_title }} | {% translate "Discussion Details" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== CSS VARIABLES - Modern Dark Theme ===== */
+:root {
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --bg-card-hover: rgba(167, 139, 250, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ===== PAGE LAYOUT - MODERN DESIGN ===== */
+.td-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #0f1419 0%, #1a1a2e 50%, #0f1419 100%);
+    background-attachment: fixed;
+    padding: 0;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.td-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 10% 40%, rgba(167, 139, 250, 0.15) 0%, transparent 35%),
+        radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.1) 0%, transparent 35%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.td-shell {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+}
+
+.td-card {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    overflow: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== HERO SECTION - MODERN STYLE ===== */
+.td-hero {
+    background: transparent;
+    padding: 3.5rem 2rem 2rem;
+    position: relative;
+    margin: 0;
+    border-radius: 0;
+    backdrop-filter: none;
+    box-shadow: none;
+    overflow: visible;
+    z-index: 1;
+}
+
+.td-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    list-style: none;
+    margin: 0 0 1.5rem 0;
+    padding: 0;
+    flex-wrap: wrap;
+}
+
+.td-breadcrumb a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.td-breadcrumb a:hover {
+    color: var(--accent-cyan);
+    transform: translateX(2px);
+}
+
+.td-breadcrumb .current {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.td-title {
+    margin: 0 0 1rem;
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+}
+
+.td-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 0;
+}
+
+.td-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.3rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.25);
+    backdrop-filter: blur(10px);
+    border-radius: 50px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.td-meta span:hover {
+    background: rgba(167, 139, 250, 0.2);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.td-body {
+    padding: 2rem;
+    background: transparent;
+    flex-grow: 1;
+    position: relative;
+    z-index: 1;
+    max-width: 100%;
+    margin: 0;
+}
+
+.td-grid {
+    display: block;
+}
+
+/* CONTENT CARDS - MODERN PLATFORM DESIGN */
+.td-panel {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+    position: relative;
+    padding-bottom: 0;
+    margin-bottom: 2rem;
+}
+
+.td-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 50%, var(--accent-pink) 100%);
+    opacity: 1;
+}
+
+.td-panel:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: var(--primary-color);
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.2);
+    transform: translateY(-4px);
+}
+
+.td-panel h2 {
+    margin: 0 0 1rem;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+    padding: 1.5rem 1.5rem 1rem 1.5rem;
+    padding-top: 1.5rem;
+}
+
+.td-description {
+    padding: 0 1.5rem 1.5rem 1.5rem;
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+}
+
+.td-status {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 20px;
+    padding: 0.6rem 1.1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.td-status.pending { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+.td-status.approved { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #34d399; }
+.td-status.rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
+
+.td-facts {
+    padding: 0 1.5rem 1.5rem 1.5rem;
+    display: grid;
+    gap: 0.9rem;
+}
+
+.td-facts > div {
+    padding: 0.75rem;
+    background: rgba(167, 139, 250, 0.06);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.td-facts > div:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: var(--primary-color);
+}
+
+.td-fact-label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.td-fact-value {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.td-chatrooms {
+    margin-top: 2rem;
+}
+
+.td-chatroom-list {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.td-chatroom {
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 12px;
+    padding: 1.25rem;
+    background: rgba(167, 139, 250, 0.08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+}
+
+.td-chatroom:hover {
+    border-color: var(--primary-color);
+    background: rgba(167, 139, 250, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.2);
+}
+
+.td-chatroom-name {
+    margin: 0 0 0.5rem;
+    color: var(--primary-color);
+    font-weight: 800;
+    font-size: 1rem;
+}
+
+.td-chatroom-desc {
+    margin: 0 0 0 2rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+.td-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 0.85rem;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid rgba(167, 139, 250, 0.1);
+    background: transparent;
+    flex-shrink: 0;
+}
+
+.td-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.2rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: relative;
+    overflow: hidden;
+}
+
+.td-btn-secondary {
+    background: rgba(167, 139, 250, 0.15);
+    color: var(--text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.25);
+    margin-right: auto;
+}
+
+.td-btn-secondary:hover {
+    background: rgba(167, 139, 250, 0.25);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(167, 139, 250, 0.15);
+}
+
+.td-btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    color: white;
+    box-shadow: 0 6px 18px rgba(167, 139, 250, 0.3);
+}
+
+.td-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(167, 139, 250, 0.4);
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+    .td-hero {
+        padding: 1.5rem 1rem;
+    }
+    
+    .td-title {
+        font-size: 1.6rem;
+    }
+    
+    .td-body {
+        padding: 1.5rem 1rem;
+    }
+    
+    .td-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .td-actions {
+        flex-direction: column;
+        padding: 1.25rem 1rem;
+    }
+
+    .td-btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .td-hero {
+        padding: 1.5rem 1rem;
+    }
+
+    .td-title {
+        font-size: 1.3rem;
+    }
+
+    .td-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.75rem;
+    }
+
+    .td-body {
+        padding: 1rem;
+    }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.td-panel {
+    animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.td-panel:nth-child(1) { animation-delay: 0.1s; }
+.td-panel:nth-child(2) { animation-delay: 0.2s; }
+.td-panel:nth-child(3) { animation-delay: 0.3s; }
+
+/* RTL Support */
+html[dir="rtl"] .td-breadcrumb {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .td-title {
+    text-align: right;
+}
+
+html[dir="rtl"] .td-meta {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    text-align: right;
+}
+
+html[dir="rtl"] .td-panel h2 {
+    text-align: right;
+}
+
+html[dir="rtl"] .td-description {
+    text-align: right;
+}
+
+html[dir="rtl"] .td-facts > div {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .td-fact-label {
+    text-align: right;
+}
+
+html[dir="rtl"] .td-chatroom {
+    direction: rtl;
+    text-align: right;
+}
+
+html[dir="rtl"] .td-action-buttons {
+    flex-direction: row-reverse;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="td-page">
+    <div class="td-shell">
+        <div class="td-card">
+            <div class="td-hero">
+                <div class="td-breadcrumb">
+                    <a href="{% if request.GET.admin_review %}{% url 'pages:admin_forum' %}?tab=pending{% else %}{% url 'forum:topic-list' %}{% endif %}">
+                        {% if request.GET.admin_review %}{% translate "Admin Community" %}{% else %}{% translate "Discussion Hub" %}{% endif %}
+                    </a>
+                    <span>/</span>
+                    <span class="current">{% translate "Details" %}</span>
+                </div>
+                <h1 class="td-title">{{ topic.get_localized_title }}</h1>
+                <div class="td-meta">
+                    <span>{{ topic.creator.full_name|default:topic.creator.username }}</span>
+                    <span>{{ topic.created_at|date:"d/m/Y H:i" }}</span>
+                    <span>{% if topic.is_closed %}{% translate "Closed" %}{% else %}{% translate "Open" %}{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="td-body">
+                {% if related_discussion_label %}
+                <div class="td-panel" style="margin-bottom: 1.2rem; background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.08) 100%); border-color: rgba(167, 139, 250, 0.3);">
+                    <h2 style="margin-bottom:0.45rem;">{% translate "Discussion for" %}</h2>
+                    {% if related_discussion_url %}
+                    <a href="{{ related_discussion_url }}" style="font-weight:700; color:var(--td-primary); text-decoration:none;">
+                        {{ related_discussion_label }}
+                    </a>
+                    {% else %}
+                    <span style="font-weight:700; color:var(--td-primary);">{{ related_discussion_label }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="td-grid">
+                    <section class="td-panel">
+                        <h2>{% translate "Description" %}</h2>
+                        <div class="td-description">{{ topic.get_localized_description|default:topic.description }}</div>
+                    </section>
+
+                    <aside class="td-panel">
+                        <h2>{% translate "Overview" %}</h2>
+                        <div class="td-facts">
+                            <div>
+                                <span class="td-fact-label">{% translate "Status" %}</span>
+                                <span class="td-status {{ topic.approval_status }}">{{ topic.get_approval_status_display }}</span>
+                            </div>
+                            {% if topic.rejection_reason %}
+                            <div>
+                                <span class="td-fact-label">{% translate "Rejection Reason" %}</span>
+                                <div class="td-fact-value">{{ topic.rejection_reason }}</div>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <span class="td-fact-label">{% translate "Chat Rooms" %}</span>
+                                <div class="td-fact-value">{{ chatrooms|length }}</div>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+
+                <section class="td-chatrooms">
+                    <div class="td-panel">
+                        <h2>{% translate "Related Chat Rooms" %}</h2>
+                        <div class="td-chatroom-list">
+                            {% for chatroom in chatrooms %}
+                            <article class="td-chatroom">
+                                <h3 class="td-chatroom-name">{{ chatroom.get_localized_name }}</h3>
+                                <p class="td-chatroom-desc">{{ chatroom.get_localized_description|default:chatroom.description }}</p>
+                            </article>
+                            {% empty %}
+                            <p class="td-chatroom-desc">{% translate "No chat rooms are attached to this topic yet." %}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="td-actions">
+                <a class="td-btn td-btn-secondary" href="{% if request.GET.admin_review %}{% url 'pages:admin_forum' %}?tab=pending{% else %}{% url 'forum:topic-list' %}{% endif %}">
+                    <i class="bi bi-arrow-left"></i>
+                    {% translate "Back" %}
+                </a>
+                {% if request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
+                <a class="td-btn td-btn-primary" href="{% url 'pages:admin_approve_item' model_type=request.GET.review_model pk=request.GET.review_pk %}?mode=edit">
+                    {% translate "Edit Form" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

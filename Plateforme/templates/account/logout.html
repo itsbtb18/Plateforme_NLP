@@ -1,36 +1,399 @@
 {% extends "base.html" %}
-{% load crispy_forms_tags %}
-{% load i18n %}
-{% block title %}{% trans "Log Out" %}{% endblock %}
+{% load i18n static %}
+
+{% block title %}{% trans "Sign Out" %} - {% trans "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .content {
+        padding: 0 !important;
+        margin: 0 !important;
+        min-height: calc(100vh - var(--site-header-height));
+    }
+
+    .main-container {
+        min-height: calc(100vh - var(--site-header-height)) !important;
+    }
+
+    .logout-page-wrapper {
+        min-height: calc(100vh - var(--site-header-height));
+        height: calc(100vh - var(--site-header-height));
+        display: flex;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 0;
+        background: #ffffff;
+        width: 100%;
+        margin: 0;
+    }
+
+    .logout-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        min-height: 100%;
+        height: 100%;
+        background: #ffffff;
+        overflow: hidden;
+    }
+
+    .logout-visual-side {
+        background: #1a1a2e;
+        background-attachment: fixed;
+        padding: 3rem;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .logout-visual-side::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+        z-index: 1;
+    }
+
+    .logout-visual-content {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 420px);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-self: center;
+        align-self: center;
+        text-align: center;
+    }
+
+    .logout-visual-icon {
+        width: 140px;
+        height: 140px;
+        margin-bottom: 2rem;
+        background: rgba(167, 139, 250, 0.15);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(167, 139, 250, 0.2);
+    }
+
+    .logout-visual-icon i {
+        font-size: 4rem;
+        color: #ffffff;
+    }
+
+    .logout-visual-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 1rem;
+        line-height: 1.3;
+    }
+
+    .logout-visual-subtitle {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.6;
+        max-width: 340px;
+    }
+
+    .logout-visual-features {
+        margin-top: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .logout-visual-feature {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.95rem;
+        justify-content: center;
+    }
+
+    .logout-visual-feature i {
+        width: 24px;
+        height: 24px;
+        background: rgba(167, 139, 250, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        color: #a78bfa;
+    }
+
+    .logout-form-side {
+        padding: 3rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        background: #ffffff;
+    }
+
+    .logout-form-shell {
+        width: min(100%, 520px);
+        margin: 0 auto;
+    }
+
+    .logout-form-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .logout-form-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1F2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .logout-form-header p {
+        color: #6B7280;
+        font-size: 0.95rem;
+    }
+
+    .logout-user-card {
+        background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(124, 58, 237, 0.05) 100%);
+        border: 2px solid #e2e8f0;
+        border-inline-start: 4px solid #A78BFA;
+        border-radius: 12px;
+        padding: 1rem 1.15rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .logout-user-card:hover {
+        border-color: #A78BFA;
+        box-shadow: 0 4px 12px rgba(167, 139, 250, 0.1);
+    }
+
+    .logout-user-label {
+        color: #64748b;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+    }
+
+    .logout-user-email {
+        color: #1F2937;
+        font-size: 1.05rem;
+        font-weight: 700;
+        word-break: break-word;
+    }
+
+    .logout-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .logout-btn,
+    .logout-cancel {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.25s ease;
+        cursor: pointer;
+    }
+
+    .logout-btn {
+        border: none;
+        background: #A78BFA;
+        color: #ffffff;
+        box-shadow: 0 4px 14px rgba(167, 139, 250, 0.34);
+    }
+
+    .logout-btn:hover {
+        transform: scale(1.02) translateY(-2px);
+        box-shadow: 0 8px 25px rgba(167, 139, 250, 0.45);
+        color: #ffffff;
+        text-decoration: none;
+    }
+
+    .logout-cancel {
+        background: #f8fafc;
+        color: #A78BFA;
+        border: 2px solid #A78BFA;
+    }
+
+    .logout-cancel:hover {
+        background: #e5e7eb;
+        color: #7C3AED;
+        text-decoration: none;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
+    }
+
+    .logout-footer {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+        color: #6B7280;
+        font-size: 0.95rem;
+    }
+
+    .logout-footer i {
+        color: #A78BFA;
+        margin: 0 0.2rem;
+    }
+
+    html[dir="rtl"] .logout-visual-feature,
+    html[dir="rtl"] .logout-form {
+        direction: rtl;
+    }
+
+    html[dir="rtl"] .logout-visual-content {
+        align-items: center;
+        justify-self: center;
+        text-align: center;
+    }
+
+    html[dir="rtl"] .logout-user-card {
+        border-inline-start: none;
+        border-inline-end: 4px solid #A78BFA;
+        text-align: right;
+    }
+
+    html[dir="rtl"] .logout-form-header {
+        text-align: center;
+    }
+
+    html[dir="rtl"] .logout-footer {
+        text-align: center;
+    }
+
+    @media (max-width: 900px) {
+        .logout-container {
+            grid-template-columns: 1fr;
+            height: auto;
+            min-height: 100%;
+        }
+
+        .logout-visual-side {
+            display: none;
+        }
+
+        .logout-page-wrapper {
+            height: auto;
+        }
+
+        .logout-form-side {
+            padding: 2rem;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .logout-page-wrapper {
+            min-height: calc(100vh - var(--site-header-height));
+            height: auto;
+        }
+
+        .logout-form-side {
+            padding: 1.5rem;
+        }
+
+        .logout-form-header h1 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card shadow-lg">
-                <div class="card-header bg-danger text-white">
-                    <h2 class="card-title text-center mb-0"><i class="fas fa-sign-out-alt me-2"></i>{% trans "Log Out" %}</h2>
+<div class="logout-page-wrapper">
+    <div class="logout-container">
+        <div class="logout-visual-side">
+            <div class="logout-visual-content">
+                <div class="logout-visual-icon">
+                    <i class="fas fa-sign-out-alt"></i>
                 </div>
-                <div class="card-body p-4">
-                    <div class="text-center mb-4">
-                        <p class="lead">{% trans "Are you sure you want to log out?" %}</p>
+                <h2 class="logout-visual-title">
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                        نراك قريبًا
+                    {% else %}
+                        {% trans "See you soon" %}
+                    {% endif %}
+                </h2>
+                <p class="logout-visual-subtitle">
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                        يمكنك العودة في أي وقت لمواصلة استكشاف أدوات معالجة اللغة العربية والموارد ومساحات المجتمع.
+                    {% else %}
+                        {% trans "You can return any time to continue exploring Arabic NLP tools, resources, and community spaces." %}
+                    {% endif %}
+                </p>
+                <div class="logout-visual-features">
+                    <div class="logout-visual-feature">
+                        <i class="fas fa-check"></i>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدوات متقدمة لمعالجة اللغة{% else %}{% trans "Advanced NLP Tools" %}{% endif %}</span>
                     </div>
-                    
-                    <form method="post" action="{% url 'account_logout' %}">
-                        {% csrf_token %}
-                        {{ form|crispy }}
-                        <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-danger btn-lg">
-                                <i class="fas fa-sign-out-alt me-2"></i>{% trans "Confirm Log Out" %}
-                            </button>
-                            <a href="{% url 'pages:home' %}" class="btn btn-outline-secondary btn-lg">
-                                <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
-                            </a>
-                        </div>
-                    </form>
+                    <div class="logout-visual-feature">
+                        <i class="fas fa-check"></i>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التعاون البحثي{% else %}{% trans "Research Collaboration" %}{% endif %}</span>
+                    </div>
+                    <div class="logout-visual-feature">
+                        <i class="fas fa-check"></i>
+                        <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مجموعات بيانات عربية غنية{% else %}{% trans "Rich Arabic Datasets" %}{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="logout-form-side">
+            <div class="logout-form-shell">
+                <div class="logout-form-header">
+                    <h1>{% trans "Sign Out" %}</h1>
+                    <p>{% trans "Are you sure you want to leave?" %}</p>
+                </div>
+
+                <div class="logout-user-card">
+                    <div class="logout-user-label">{% trans "Signed in as:" %}</div>
+                    <div class="logout-user-email">{{ user.email }}</div>
+                </div>
+
+                <form method="post" action="{% url 'account_logout' %}" class="logout-form">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        {% trans "Yes, Sign Me Out" %}
+                    </button>
+                    <a href="/" class="logout-cancel">
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                            <i class="fas fa-chevron-right"></i>
+                            <span>إلغاء</span>
+                        {% else %}
+                            <i class="fas fa-chevron-left"></i>
+                            <span>{% trans "Cancel" %}</span>
+                        {% endif %}
+                    </a>
+                </form>
+
+                <div class="logout-footer">
+                    {% trans "Come back soon!" %} <i class="fas fa-hand-paper"></i>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock content %}
+{% endblock %}

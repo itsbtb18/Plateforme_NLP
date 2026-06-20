@@ -1,0 +1,4192 @@
+﻿{% load i18n %}
+{% comment %}
+    Premium Document Viewer Modal Component for NLP Platform
+    Features: PDF/DOCX viewing, zoom, translate, convert to text, chatbot integration
+{% endcomment %}
+{% firstof object.pk project.pk event.pk resource.pk tool.pk course.pk article.pk memoir.pk thesis.pk as doc_resource_id %}
+{% firstof object.title project.title event.title resource.title tool.title course.title article.title memoir.title thesis.title as doc_resource_title %}
+
+<!-- Premium Document Viewer Modal -->
+<div id="documentViewerModal" 
+     class="docviewer-overlay"
+     role="dialog" 
+     aria-modal="true" 
+     aria-labelledby="docViewerTitle"
+    data-resource-id="{{ doc_resource_id|default:'' }}"
+    data-resource-title="{{ doc_resource_title|default:'' }}"
+    data-convert-url="{% if doc_resource_id %}{% url 'resources:convert-to-text' doc_resource_id %}{% endif %}"
+    data-translate-proxy="{% url 'translate:api_ts_translate' %}"
+    data-summarize-proxy="{% url 'translate:api_ts_summarize' %}"
+    data-ts-base="/ts-ai"
+     style="display: none;">
+    
+    <!-- Animated Backdrop -->
+    <div id="docViewerBackdrop" class="docviewer-backdrop"></div>
+    
+    <!-- Modal Container -->
+    <div class="docviewer-container">
+        
+        <!-- Premium Header -->
+        <header class="docviewer-header">
+            <!-- Left Section: Document Info -->
+            <div class="docviewer-header-left">
+                <div class="docviewer-logo">
+                    <div class="docviewer-logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                    </div>
+                    <div class="docviewer-title-group">
+                        <h3 id="docViewerTitle" class="docviewer-title">{% trans "Document Viewer" %}</h3>
+                        <p id="docViewerFilename" class="docviewer-filename"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Center Section: View Controls -->
+            <div class="docviewer-header-center">
+                <!-- Zoom Controls -->
+                <div id="zoomControls" class="docviewer-control-group" style="display: none;">
+                    <button id="zoomOutBtn" class="docviewer-zoom-btn" title="{% trans 'Zoom Out' %} (-)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            <line x1="8" y1="11" x2="14" y2="11"/>
+                        </svg>
+                    </button>
+                    
+                    <div class="docviewer-zoom-display">
+                        <span id="zoomLevel">100</span>%
+                    </div>
+                    
+                    <button id="zoomInBtn" class="docviewer-zoom-btn" title="{% trans 'Zoom In' %} (+)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            <line x1="11" y1="8" x2="11" y2="14"/>
+                            <line x1="8" y1="11" x2="14" y2="11"/>
+                        </svg>
+                    </button>
+                    
+                    <div class="docviewer-divider"></div>
+                    
+                    <button id="fitWidthBtn" class="docviewer-icon-btn" title="{% trans 'Fit to Width' %}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 3H3v18h18V3z"/>
+                            <path d="M9 3v18M15 3v18"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Page Navigation -->
+                <div id="pageControls" class="docviewer-control-group" style="display: none;">
+                    <button id="prevPageBtn" class="docviewer-nav-btn" title="{% trans 'Previous Page' %} (â†)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="15 18 9 12 15 6"/>
+                        </svg>
+                    </button>
+                    
+                    <div class="docviewer-page-display">
+                        <span id="currentPage">1</span>
+                        <span class="docviewer-page-separator">/</span>
+                        <span id="totalPages">1</span>
+                    </div>
+                    
+                    <button id="nextPageBtn" class="docviewer-nav-btn" title="{% trans 'Next Page' %} (â†’)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Right Section: Actions -->
+            <div class="docviewer-header-right">
+                <!-- Download Button -->
+                <a id="downloadBtn" href="#" download class="docviewer-action-btn docviewer-download-btn" title="{% trans 'Download Document' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span>{% trans "Download" %}</span>
+                </a>
+                
+                <!-- Close Button -->
+                <button id="closeDocViewer" class="docviewer-close-btn" title="{% trans 'Close Viewer' %} (Esc)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+        
+        <!-- Main Content Area -->
+        <div class="docviewer-body">
+            
+            <!-- Content Viewer -->
+            <div id="docViewerContent" class="docviewer-content">
+                
+                <!-- Loading State -->
+                <div id="docViewerLoading" class="docviewer-loading">
+                    <div class="docviewer-loading-animation">
+                        <div class="docviewer-spinner"></div>
+                        <div class="docviewer-loading-rings">
+                            <div class="ring ring-1"></div>
+                            <div class="ring ring-2"></div>
+                            <div class="ring ring-3"></div>
+                        </div>
+                    </div>
+                    <p class="docviewer-loading-text">{% trans "Loading document..." %}</p>
+                    <p class="docviewer-loading-subtext">{% trans "Please wait while we prepare your document" %}</p>
+                </div>
+                
+                <!-- Error State -->
+                <div id="docViewerError" class="docviewer-error" style="display: none;">
+                    <div class="docviewer-error-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                    </div>
+                    <h4>{% trans "Unable to load document" %}</h4>
+                    <p id="docViewerErrorMsg">{% trans "An error occurred while loading the document." %}</p>
+                    <button onclick="DocViewer.retry()" class="docviewer-retry-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                        {% trans "Try Again" %}
+                    </button>
+                </div>
+                
+                <!-- PDF Container -->
+                <div id="pdfContainer" class="docviewer-pdf-container" style="display: none;"></div>
+                
+                <!-- DOCX Container -->
+                <div id="docxContainer" class="docviewer-docx-container" style="display: none;"></div>
+                
+                <!-- Image Container -->
+                <div id="imageContainer" class="docviewer-image-container" style="display: none;">
+                    <img id="imageViewer" alt="Document preview" />
+                </div>
+                
+                <!-- Text Container -->
+                <div id="textContainer" class="docviewer-text-container" style="display: none;">
+                    <pre id="textViewer"></pre>
+                </div>
+                
+                <!-- Unsupported Format -->
+                <div id="unsupportedContainer" class="docviewer-unsupported" style="display: none;">
+                    <div class="docviewer-unsupported-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="12" y1="18" x2="12" y2="12"/>
+                            <line x1="9" y1="15" x2="15" y2="15"/>
+                        </svg>
+                    </div>
+                    <h4>{% trans "Preview not available" %}</h4>
+                    <p>{% trans "This file format cannot be previewed in the browser." %}</p>
+                    <a id="unsupportedDownload" href="#" download class="docviewer-download-alt-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        {% trans "Download to View" %}
+                    </a>
+                </div>
+            </div>
+            
+            <!-- NLP Actions Sidebar -->
+            <aside class="docviewer-sidebar">
+                <div class="docviewer-sidebar-header">
+                    <div class="docviewer-sidebar-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <span>{% trans "NLP Tools" %}</span>
+                </div>
+                
+                <div class="docviewer-sidebar-content">
+                    <!-- Convert to Text -->
+                    <button id="convertToTextBtn" class="docviewer-nlp-btn" title="{% trans 'Extract text content from this document' %}">
+                        <div class="docviewer-nlp-btn-icon docviewer-nlp-btn-icon-text">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="4 7 4 4 20 4 20 7"/>
+                                <line x1="9" y1="20" x2="15" y2="20"/>
+                                <line x1="12" y1="4" x2="12" y2="20"/>
+                            </svg>
+                        </div>
+                        <div class="docviewer-nlp-btn-text">
+                            <span class="docviewer-nlp-btn-title">{% trans "Convert to Text" %}</span>
+                            <span class="docviewer-nlp-btn-desc">{% trans "Extract text content" %}</span>
+                        </div>
+                        <div class="docviewer-nlp-btn-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </div>
+                    </button>
+                    
+                    <!-- Summarize Document -->
+                    <button id="summarizeDocBtn" class="docviewer-nlp-btn docviewer-nlp-btn-featured" title="{% trans 'Generate an AI summary of this document' %}" data-document-id="{{ doc_resource_id|default:'' }}">
+                        <div class="docviewer-nlp-btn-icon docviewer-nlp-btn-icon-summarize">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <line x1="10" y1="9" x2="8" y2="9"/>
+                            </svg>
+                        </div>
+                        <div class="docviewer-nlp-btn-text">
+                            <span class="docviewer-nlp-btn-title">{% trans "Summarize" %}</span>
+                            <span class="docviewer-nlp-btn-desc">{% trans "AI-powered summary" %}</span>
+                        </div>
+                        <div class="docviewer-nlp-btn-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </div>
+                        <div class="docviewer-nlp-btn-badge docviewer-nlp-btn-badge-purple">AI</div>
+                    </button>
+                    
+                    <!-- Translate Document -->
+                    <button id="translateDocBtn" class="docviewer-nlp-btn docviewer-nlp-btn-featured" title="{% trans 'Translate document to another language' %}" data-document-id="{{ doc_resource_id|default:'' }}">
+                        <div class="docviewer-nlp-btn-icon docviewer-nlp-btn-icon-translate">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 8l6 6"/>
+                                <path d="M4 14l6-6 2-3"/>
+                                <path d="M2 5h12"/>
+                                <path d="M7 2v3"/>
+                                <path d="M22 22l-5-10-5 10"/>
+                                <path d="M14 18h6"/>
+                            </svg>
+                        </div>
+                        <div class="docviewer-nlp-btn-text">
+                            <span class="docviewer-nlp-btn-title">{% trans "Translate" %}</span>
+                            <span class="docviewer-nlp-btn-desc">{% trans "AR â†” EN translation" %}</span>
+                        </div>
+                        <div class="docviewer-nlp-btn-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </div>
+                        <div class="docviewer-nlp-btn-badge docviewer-nlp-btn-badge-green">AI</div>
+                    </button>
+                    
+                    <!-- Ask Chatbot -->
+                    <button id="askChatbotBtn" class="docviewer-nlp-btn docviewer-nlp-btn-featured" title="{% trans 'Ask AI questions about this document' %}">
+                        <div class="docviewer-nlp-btn-icon docviewer-nlp-btn-icon-ai">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                <circle cx="12" cy="10" r="1"/>
+                                <circle cx="8" cy="10" r="1"/>
+                                <circle cx="16" cy="10" r="1"/>
+                            </svg>
+                        </div>
+                        <div class="docviewer-nlp-btn-text">
+                            <span class="docviewer-nlp-btn-title">{% trans "Ask AI Chatbot" %}</span>
+                            <span class="docviewer-nlp-btn-desc">{% trans "Questions about this doc" %}</span>
+                        </div>
+                        <div class="docviewer-nlp-btn-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </div>
+                        <div class="docviewer-nlp-btn-badge">AI</div>
+                    </button>
+                </div>
+
+                <div id="docviewerAiStatus" class="docviewer-ai-status" style="display:none;"></div>
+                
+                <!-- Keyboard Shortcuts -->
+                <div class="docviewer-sidebar-footer">
+                    <div class="docviewer-shortcuts-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="4" width="20" height="16" rx="2"/>
+                            <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M6 16h12"/>
+                        </svg>
+                        <span>{% trans "Shortcuts" %}</span>
+                    </div>
+                    <div class="docviewer-shortcuts-list">
+                        <div class="docviewer-shortcut"><kbd>Esc</kbd> {% trans "Close" %}</div>
+                        <div class="docviewer-shortcut"><kbd>+</kbd><kbd>-</kbd> {% trans "Zoom" %}</div>
+                        <div class="docviewer-shortcut"><kbd>â†</kbd><kbd>â†’</kbd> {% trans "Pages" %}</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+        
+        <!-- Exit Button (Mobile / Prominent) -->
+        <button id="exitViewerBtn" class="docviewer-exit-btn" title="{% trans 'Exit Document Viewer' %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            <span>{% trans "Exit" %}</span>
+        </button>
+    </div>
+
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+         CONVERT TO TEXT â€” Overlay Modal
+    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+    <div id="convertTextOverlay" class="ctt-overlay" style="display:none;">
+        <div class="ctt-modal">
+            <!-- Header -->
+            <div class="ctt-header">
+                <div class="ctt-header-left">
+                    <svg class="ctt-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 7 4 4 20 4 20 7"/>
+                        <line x1="9" y1="20" x2="15" y2="20"/>
+                        <line x1="12" y1="4" x2="12" y2="20"/>
+                    </svg>
+                    <h3 class="ctt-title">{% trans "Extracted Text" %}</h3>
+                </div>
+                <button id="closeConvertOverlay" class="ctt-close-btn" title="{% trans 'Close' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Spinner -->
+            <div id="convertTextSpinner" class="ctt-spinner" style="display:flex;">
+                <div class="ctt-spinner-ring"></div>
+                <p class="ctt-spinner-text">{% trans "Extracting text from document..." %}</p>
+                <p class="ctt-spinner-sub">{% trans "This may take a moment for large or image-based documents." %}</p>
+            </div>
+
+            <!-- Error state -->
+            <div id="convertTextError" class="ctt-error" style="display:none;">
+                <svg class="ctt-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p id="convertTextErrorMsg" class="ctt-error-text"></p>
+                <button onclick="DocViewer.convertToText()" class="ctt-retry-btn">{% trans "Retry" %}</button>
+            </div>
+
+            <!-- Result -->
+            <div id="convertTextResult" class="ctt-result" style="display:none;">
+                <div class="ctt-meta" id="convertTextMeta"></div>
+                <textarea id="convertedTextArea" class="ctt-textarea" readonly dir="auto"></textarea>
+                <div class="ctt-actions">
+                    <button id="copyExtractedTextBtn" class="ctt-btn ctt-btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        {% trans "Copy to Clipboard" %}
+                    </button>
+                    <button id="downloadExtractedTextBtn" class="ctt-btn ctt-btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        {% trans "Download .txt" %}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Translation Language Pair Overlay -->
+    <div id="translationPairOverlay" class="ctt-overlay" style="display:none;">
+        <div class="ctt-modal tlp-modal">
+            <div class="ctt-header">
+                <div class="ctt-header-left">
+                    <svg class="ctt-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 8h14"/>
+                        <path d="M5 12h6"/>
+                        <path d="M5 16h10"/>
+                        <path d="M17 10l2 2-2 2"/>
+                    </svg>
+                    <h3 class="ctt-title">{% trans "Choose translation language pair" %}</h3>
+                </div>
+                <button id="closeTranslationPairOverlay" class="ctt-close-btn" title="{% trans 'Close' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="tlp-body">
+                <label for="translationPairSelect" class="tlp-label">{% trans "Language pair" %}</label>
+                <select id="translationPairSelect" class="tlp-select"></select>
+                <div class="tlp-actions">
+                    <button type="button" id="cancelTranslationPairBtn" class="ctt-btn ctt-btn-secondary">{% trans "Cancel" %}</button>
+                    <button type="button" id="confirmTranslationPairBtn" class="ctt-btn ctt-btn-primary">{% trans "Start Translation" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Translation/Summarization Result Overlay -->
+    <div id="aiResultOverlay" class="ctt-overlay" style="display:none;">
+        <div class="ctt-modal ai-result-modal">
+            <div class="ctt-header ai-result-header">
+                <div class="ctt-header-left">
+                    <svg class="ctt-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 7h16"/>
+                        <path d="M4 12h16"/>
+                        <path d="M4 17h10"/>
+                    </svg>
+                    <h3 id="aiResultTitle" class="ctt-title">{% trans "AI Result" %}</h3>
+                </div>
+                <button id="closeAiResultOverlay" class="ctt-close-btn" title="{% trans 'Close' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="ctt-meta" id="aiResultMeta"></div>
+            <div class="ai-result-content-wrap">
+                <pre id="aiResultContent" class="ai-result-content" dir="auto"></pre>
+            </div>
+
+            <div class="ctt-actions ai-result-actions">
+                <div class="ai-result-download-group">
+                    <label for="aiResultFormatSelect" class="ai-result-format-label">{% trans "Format" %}</label>
+                    <select id="aiResultFormatSelect" class="ai-result-format-select">
+                        <option value="pdf">PDF</option>
+                        <option value="doc">WORD</option>
+                        <option value="txt">TXT</option>
+                        <option value="md">MD</option>
+                        <option value="json">JSON</option>
+                    </select>
+                    <button id="downloadAiResultBtn" class="ctt-btn ctt-btn-secondary">
+                        {% trans "Download" %}
+                    </button>
+                </div>
+                <button id="copyAiResultBtn" class="ctt-btn ctt-btn-primary">
+                    {% trans "Copy" %}
+                </button>
+                <button id="closeAiResultBtn" class="ctt-btn ctt-btn-secondary">
+                    {% trans "Close operation" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Premium Document Viewer Styles -->
+<style>
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   PREMIUM DOCUMENT VIEWER - NLP PLATFORM
+   Modern, Professional, Feature-Rich Design
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+/* CSS Variables */
+:root {
+    --dv-primary: #3b82f6;
+    --dv-primary-hover: #2563eb;
+    --dv-primary-light: #60a5fa;
+    --dv-primary-glow: rgba(59, 130, 246, 0.35);
+    
+    --dv-secondary: #8b5cf6;
+    --dv-secondary-hover: #7c3aed;
+    
+    --dv-success: #10b981;
+    --dv-warning: #f59e0b;
+    --dv-danger: #ef4444;
+    
+    --dv-dark: #0f172a;
+    --dv-dark-lighter: #1e293b;
+    --dv-dark-card: #1a2332;
+    
+    --dv-surface: #0d1117;
+    --dv-surface-elevated: #161b22;
+    --dv-surface-hover: #21262d;
+    
+    --dv-border: rgba(255, 255, 255, 0.08);
+    --dv-border-light: rgba(255, 255, 255, 0.12);
+    
+    --dv-text: #f1f5f9;
+    --dv-text-secondary: #94a3b8;
+    --dv-text-muted: #64748b;
+    
+    --dv-gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --dv-gradient-2: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    --dv-gradient-header: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    
+    --dv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --dv-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --dv-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+    --dv-shadow-glow: 0 0 40px var(--dv-primary-glow);
+    
+    --dv-radius-sm: 6px;
+    --dv-radius-md: 10px;
+    --dv-radius-lg: 16px;
+    --dv-radius-xl: 24px;
+    
+    --dv-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --dv-transition-slow: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Overlay */
+.docviewer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* Backdrop with blur */
+.docviewer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    animation: backdropFadeIn 0.3s ease-out;
+}
+
+@keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Main Container */
+.docviewer-container {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 1600px;
+    height: 94vh;
+    max-height: 900px;
+    background: var(--dv-surface);
+    border-radius: var(--dv-radius-xl);
+    box-shadow: var(--dv-shadow-lg), var(--dv-shadow-glow);
+    border: 1px solid var(--dv-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: containerSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes containerSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   HEADER
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+.docviewer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: var(--dv-gradient-header);
+    border-bottom: 1px solid var(--dv-border);
+    flex-shrink: 0;
+}
+
+.docviewer-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    flex: 1;
+}
+
+.docviewer-logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.docviewer-logo-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--dv-gradient-2);
+    border-radius: var(--dv-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--dv-shadow-md);
+}
+
+.docviewer-logo-icon svg {
+    width: 22px;
+    height: 22px;
+    color: white;
+}
+
+.docviewer-title-group {
+    min-width: 0;
+}
+
+.docviewer-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--dv-text);
+    letter-spacing: -0.02em;
+}
+
+.docviewer-filename {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--dv-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+}
+
+/* Header Center - Controls */
+.docviewer-header-center {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.docviewer-control-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--dv-surface-elevated);
+    border: 1px solid var(--dv-border);
+    border-radius: var(--dv-radius-lg);
+    padding: 6px 10px;
+}
+
+.docviewer-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--dv-border-light);
+    margin: 0 6px;
+}
+
+/* Zoom Buttons */
+.docviewer-zoom-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: var(--dv-radius-md);
+    color: var(--dv-text-secondary);
+    cursor: pointer;
+    transition: var(--dv-transition);
+}
+
+.docviewer-zoom-btn:hover {
+    background: var(--dv-primary);
+    border-color: var(--dv-primary);
+    color: white;
+    transform: scale(1.08);
+    box-shadow: 0 0 20px var(--dv-primary-glow);
+}
+
+.docviewer-zoom-btn:active {
+    transform: scale(0.95);
+}
+
+.docviewer-zoom-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.docviewer-zoom-display {
+    min-width: 60px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dv-text);
+    background: var(--dv-surface);
+    padding: 8px 12px;
+    border-radius: var(--dv-radius-sm);
+    border: 1px solid var(--dv-border);
+}
+
+/* Icon Button */
+.docviewer-icon-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--dv-radius-sm);
+    color: var(--dv-text-secondary);
+    cursor: pointer;
+    transition: var(--dv-transition);
+}
+
+.docviewer-icon-btn:hover {
+    background: var(--dv-surface-hover);
+    color: var(--dv-text);
+}
+
+.docviewer-icon-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Navigation Buttons */
+.docviewer-nav-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--dv-border);
+    border-radius: var(--dv-radius-sm);
+    color: var(--dv-text-secondary);
+    cursor: pointer;
+    transition: var(--dv-transition);
+}
+
+.docviewer-nav-btn:hover:not(:disabled) {
+    background: var(--dv-primary);
+    border-color: var(--dv-primary);
+    color: white;
+}
+
+.docviewer-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.docviewer-nav-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.docviewer-page-display {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--dv-text);
+}
+
+.docviewer-page-separator {
+    color: var(--dv-text-muted);
+}
+
+/* Header Right - Actions */
+.docviewer-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.docviewer-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--dv-radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--dv-transition);
+}
+
+.docviewer-download-btn {
+    background: var(--dv-primary);
+    color: white;
+    border: none;
+}
+
+.docviewer-download-btn:hover {
+    background: var(--dv-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--dv-primary-glow);
+}
+
+.docviewer-download-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Close Button */
+.docviewer-close-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--dv-radius-md);
+    color: #f87171;
+    cursor: pointer;
+    transition: var(--dv-transition);
+}
+
+.docviewer-close-btn:hover {
+    background: var(--dv-danger);
+    border-color: var(--dv-danger);
+    color: white;
+    transform: rotate(90deg);
+}
+
+.docviewer-close-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   MAIN BODY
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+.docviewer-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* Content Area */
+.docviewer-content {
+    flex: 1;
+    overflow: auto;
+    background: #1a1f2e;
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: var(--dv-text-muted) transparent;
+}
+
+.docviewer-content::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.docviewer-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.docviewer-content::-webkit-scrollbar-thumb {
+    background: var(--dv-text-muted);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+.docviewer-content::-webkit-scrollbar-thumb:hover {
+    background: var(--dv-text-secondary);
+}
+
+/* Loading State */
+.docviewer-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+}
+
+.docviewer-loading-animation {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+
+.docviewer-spinner {
+    position: absolute;
+    inset: 0;
+    border: 3px solid var(--dv-border);
+    border-top-color: var(--dv-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.docviewer-loading-rings {
+    position: absolute;
+    inset: -20px;
+}
+
+.docviewer-loading-rings .ring {
+    position: absolute;
+    inset: 0;
+    border: 1px solid transparent;
+    border-top-color: var(--dv-primary-light);
+    border-radius: 50%;
+    opacity: 0.3;
+}
+
+.ring-1 { animation: spin 3s linear infinite; }
+.ring-2 { inset: 10px; animation: spin 2s linear infinite reverse; }
+.ring-3 { inset: 20px; animation: spin 1.5s linear infinite; }
+
+.docviewer-loading-text {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--dv-text);
+    margin: 0;
+}
+
+.docviewer-loading-subtext {
+    font-size: 13px;
+    color: var(--dv-text-muted);
+    margin: 0;
+}
+
+/* Error State */
+.docviewer-error {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 40px;
+    text-align: center;
+}
+
+.docviewer-error-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.docviewer-error-icon svg {
+    width: 40px;
+    height: 40px;
+    color: var(--dv-danger);
+}
+
+.docviewer-error h4 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--dv-text);
+}
+
+.docviewer-error p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--dv-text-muted);
+}
+
+.docviewer-retry-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--dv-primary);
+    color: white;
+    border: none;
+    border-radius: var(--dv-radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--dv-transition);
+}
+
+.docviewer-retry-btn:hover {
+    background: var(--dv-primary-hover);
+    transform: translateY(-2px);
+}
+
+.docviewer-retry-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* PDF Container */
+.docviewer-pdf-container {
+    min-height: 100%;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.docviewer-pdf-container canvas {
+    max-width: 100%;
+    box-shadow: var(--dv-shadow-lg);
+    border-radius: var(--dv-radius-sm);
+}
+
+/* DOCX Container */
+.docviewer-docx-container {
+    background: white;
+    min-height: 100%;
+    padding: 20px;
+}
+
+/* Image Container */
+.docviewer-image-container {
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.docviewer-image-container img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: var(--dv-radius-md);
+    box-shadow: var(--dv-shadow-lg);
+}
+
+/* Text Container */
+.docviewer-text-container {
+    padding: 24px;
+}
+
+.docviewer-text-container pre {
+    background: var(--dv-surface-elevated);
+    padding: 24px;
+    border-radius: var(--dv-radius-md);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--dv-text);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+}
+
+/* Unsupported Container */
+.docviewer-unsupported {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 40px;
+    text-align: center;
+}
+
+.docviewer-unsupported-icon {
+    width: 100px;
+    height: 100px;
+    background: var(--dv-surface-elevated);
+    border-radius: var(--dv-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.docviewer-unsupported-icon svg {
+    width: 50px;
+    height: 50px;
+    color: var(--dv-text-muted);
+}
+
+.docviewer-unsupported h4 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--dv-text);
+}
+
+.docviewer-unsupported p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--dv-text-muted);
+}
+
+.docviewer-download-alt-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    background: var(--dv-gradient-2);
+    color: white;
+    border: none;
+    border-radius: var(--dv-radius-lg);
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--dv-transition);
+}
+
+.docviewer-download-alt-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px var(--dv-primary-glow);
+}
+
+.docviewer-download-alt-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   NLP SIDEBAR
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+.docviewer-sidebar {
+    width: 280px;
+    background: var(--dv-surface-elevated);
+    border-left: 1px solid var(--dv-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.docviewer-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px;
+    border-bottom: 1px solid var(--dv-border);
+}
+
+.docviewer-sidebar-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--dv-gradient-1);
+    border-radius: var(--dv-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.docviewer-sidebar-icon svg {
+    width: 18px;
+    height: 18px;
+    color: white;
+}
+
+.docviewer-sidebar-header span {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--dv-text);
+    letter-spacing: -0.01em;
+}
+
+.docviewer-sidebar-content {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+}
+
+/* NLP Action Buttons */
+.docviewer-nlp-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--dv-surface);
+    border: 1px solid var(--dv-border);
+    border-radius: var(--dv-radius-md);
+    cursor: pointer;
+    transition: var(--dv-transition);
+    position: relative;
+    text-align: left;
+}
+
+.docviewer-nlp-btn:hover {
+    background: var(--dv-surface-hover);
+    border-color: var(--dv-primary);
+    transform: translateX(4px);
+}
+
+.docviewer-nlp-btn:hover .docviewer-nlp-btn-icon {
+    background: var(--dv-primary);
+}
+
+.docviewer-nlp-btn-featured {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.docviewer-nlp-btn-featured:hover {
+    border-color: var(--dv-secondary);
+}
+
+.docviewer-nlp-btn-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--dv-surface-hover);
+    border-radius: var(--dv-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: var(--dv-transition);
+}
+
+.docviewer-nlp-btn-icon svg {
+    width: 20px;
+    height: 20px;
+    color: var(--dv-text-secondary);
+    transition: var(--dv-transition);
+}
+
+.docviewer-nlp-btn:hover .docviewer-nlp-btn-icon svg {
+    color: white;
+}
+
+.docviewer-nlp-btn-icon-translate {
+    background: rgba(16, 185, 129, 0.15);
+}
+
+.docviewer-nlp-btn-icon-translate svg {
+    color: var(--dv-success);
+}
+
+.docviewer-nlp-btn-icon-ai {
+    background: var(--dv-gradient-1);
+}
+
+.docviewer-nlp-btn-icon-ai svg {
+    color: white;
+}
+
+.docviewer-nlp-btn-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.docviewer-nlp-btn-title {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--dv-text);
+}
+
+.docviewer-nlp-btn-desc {
+    display: block;
+    font-size: 12px;
+    color: var(--dv-text-muted);
+    margin-top: 2px;
+}
+
+.docviewer-nlp-btn-arrow {
+    color: var(--dv-text-muted);
+    transition: var(--dv-transition);
+}
+
+.docviewer-nlp-btn:hover .docviewer-nlp-btn-arrow {
+    color: var(--dv-primary);
+    transform: translateX(4px);
+}
+
+.docviewer-nlp-btn-arrow svg {
+    width: 16px;
+    height: 16px;
+}
+
+.docviewer-nlp-btn-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 2px 8px;
+    background: var(--dv-gradient-1);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0); }
+}
+
+.docviewer-nlp-btn-badge-purple {
+    background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+}
+
+.docviewer-nlp-btn-badge-purple {
+    animation: badgePulsePurple 2s ease-in-out infinite;
+}
+
+@keyframes badgePulsePurple {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(168, 85, 247, 0); }
+}
+
+.docviewer-nlp-btn-badge-green {
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    animation: badgePulseGreen 2s ease-in-out infinite;
+}
+
+@keyframes badgePulseGreen {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+/* Icon color variants */
+.docviewer-nlp-btn-icon-text {
+    background: rgba(96, 165, 250, 0.15);
+}
+
+.docviewer-nlp-btn-icon-text svg {
+    color: #60a5fa;
+}
+
+.docviewer-nlp-btn-icon-summarize {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+}
+
+.docviewer-nlp-btn-icon-summarize svg {
+    color: #a855f7;
+}
+
+.docviewer-nlp-btn:hover .docviewer-nlp-btn-icon-summarize {
+    background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+}
+
+.docviewer-nlp-btn:hover .docviewer-nlp-btn-icon-summarize svg {
+    color: white;
+}
+
+/* Sidebar Footer - Shortcuts */
+.docviewer-sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--dv-border);
+}
+
+.docviewer-shortcuts-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--dv-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+.docviewer-shortcuts-title svg {
+    width: 14px;
+    height: 14px;
+}
+
+.docviewer-shortcuts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.docviewer-shortcut {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--dv-text-muted);
+}
+
+.docviewer-shortcut kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    background: var(--dv-surface);
+    border: 1px solid var(--dv-border);
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--dv-text-secondary);
+}
+
+/* Exit Button */
+.docviewer-exit-btn {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    border: none;
+    border-radius: var(--dv-radius-lg);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--dv-transition);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--dv-shadow-md);
+    z-index: 100;
+}
+
+.docviewer-exit-btn:hover {
+    background: var(--dv-danger);
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+}
+
+.docviewer-exit-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   RESPONSIVE
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+@media (max-width: 1024px) {
+    .docviewer-sidebar {
+        display: none;
+    }
+    
+    .docviewer-container {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .docviewer-overlay {
+        padding: 0;
+    }
+    
+    .docviewer-container {
+        height: 100vh;
+        max-height: none;
+        border-radius: 0;
+    }
+    
+    .docviewer-header {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px 16px;
+    }
+    
+    .docviewer-header-center {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .docviewer-filename {
+        max-width: 150px;
+    }
+    
+    .docviewer-download-btn span {
+        display: none;
+    }
+    
+    .docviewer-download-btn {
+        padding: 10px;
+    }
+}
+
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   RTL SUPPORT
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+html[dir="rtl"] .docviewer-sidebar {
+    border-left: none;
+    border-right: 1px solid var(--dv-border);
+}
+
+html[dir="rtl"] .docviewer-nlp-btn:hover {
+    transform: translateX(-4px);
+}
+
+html[dir="rtl"] .docviewer-nlp-btn:hover .docviewer-nlp-btn-arrow {
+    transform: translateX(-4px);
+}
+
+html[dir="rtl"] .docviewer-nlp-btn-arrow {
+    transform: rotate(180deg);
+}
+
+html[dir="rtl"] .docviewer-exit-btn {
+    left: auto;
+    right: 24px;
+}
+
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   CONVERT TO TEXT â€” Overlay Modal Styles
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+.ctt-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10010;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: cttFadeIn 0.2s ease;
+}
+@keyframes cttFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.ctt-modal {
+    background: #ffffff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 760px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+    animation: cttSlideUp 0.25s ease;
+    overflow: hidden;
+}
+@keyframes cttSlideUp {
+    from { opacity: 0; transform: translateY(30px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ctt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+.ctt-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ctt-header-icon {
+    width: 22px;
+    height: 22px;
+    color: #6366f1;
+}
+.ctt-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+.ctt-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 6px;
+    border-radius: 8px;
+    transition: all 0.15s;
+}
+.ctt-close-btn:hover {
+    background: #f1f5f9;
+    color: #475569;
+}
+.ctt-close-btn svg {
+    width: 20px;
+    height: 20px;
+}
+/* Spinner */
+.ctt-spinner {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    gap: 16px;
+}
+.ctt-spinner-ring {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e5e7eb;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: cttSpin 0.8s linear infinite;
+}
+@keyframes cttSpin {
+    to { transform: rotate(360deg); }
+}
+.ctt-spinner-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: #334155;
+    margin: 0;
+}
+.ctt-spinner-sub {
+    font-size: 13px;
+    color: #94a3b8;
+    margin: 0;
+}
+/* Error */
+.ctt-error {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    gap: 12px;
+}
+.ctt-error-icon {
+    width: 48px;
+    height: 48px;
+    color: #ef4444;
+}
+.ctt-error-text {
+    font-size: 14px;
+    color: #64748b;
+    text-align: center;
+    max-width: 400px;
+    margin: 0;
+    line-height: 1.6;
+}
+.ctt-retry-btn {
+    margin-top: 8px;
+    padding: 8px 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.ctt-retry-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+/* Result */
+.ctt-result {
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+}
+.ctt-meta {
+    padding: 10px 24px;
+    font-size: 12px;
+    color: #94a3b8;
+    border-bottom: 1px solid #f1f5f9;
+    font-family: 'Inter', sans-serif;
+}
+.ctt-textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 340px;
+    max-height: 55vh;
+    padding: 20px 24px;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: 'Consolas', 'Courier New', 'Noto Naskh Arabic', monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #1e293b;
+    background: #fff;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+.ctt-textarea::-webkit-scrollbar {
+    width: 6px;
+}
+.ctt-textarea::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+.ctt-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    border-top: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+.ctt-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border: none;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.ctt-btn-primary {
+    background: #6366f1;
+    color: #fff;
+}
+.ctt-btn-primary:hover {
+    background: #4f46e5;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+.ctt-btn-secondary {
+    background: #fff;
+    color: #334155;
+    border: 1px solid #e5e7eb;
+}
+.ctt-btn-secondary:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.tlp-modal {
+    max-width: 520px;
+    background: linear-gradient(160deg, #18122b 0%, #21153a 55%, #2a1b4d 100%);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    box-shadow: 0 24px 56px rgba(5, 4, 16, 0.55);
+}
+
+.tlp-modal .ctt-header {
+    background: linear-gradient(145deg, rgba(167, 139, 250, 0.14), rgba(96, 165, 250, 0.08));
+    border-bottom: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+.tlp-modal .ctt-title {
+    color: #f3f1ff;
+}
+
+.tlp-modal .ctt-header-icon {
+    color: #c4b5fd;
+}
+
+.tlp-modal .ctt-close-btn {
+    color: #cbd5ff;
+}
+
+.tlp-modal .ctt-close-btn:hover {
+    background: rgba(167, 139, 250, 0.18);
+    color: #ffffff;
+}
+
+.tlp-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px 16px;
+    background: rgba(15, 10, 30, 0.35);
+}
+
+.tlp-label {
+    font-size: 0.82rem;
+    color: #c4b5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+
+.tlp-select {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(167, 139, 250, 0.55);
+    background: linear-gradient(140deg, #24193f, #2f1f52);
+    color: #f8fafc;
+    padding: 11px 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    outline: none;
+}
+
+.tlp-select:focus {
+    border-color: rgba(196, 181, 253, 0.95);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.24);
+}
+
+.tlp-select option {
+    background: #24193f;
+    color: #f8fafc;
+}
+
+.tlp-select option:checked {
+    background: #6d28d9;
+    color: #ffffff;
+}
+
+.tlp-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.tlp-actions .ctt-btn-secondary {
+    background: rgba(255, 255, 255, 0.07);
+    color: #e5e7eb;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.tlp-actions .ctt-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(167, 139, 250, 0.6);
+}
+
+.tlp-actions .ctt-btn-primary {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: #fff;
+}
+
+.tlp-actions .ctt-btn-primary:hover {
+    background: linear-gradient(135deg, #9f7aea 0%, #8b5cf6 100%);
+}
+
+@media (max-width: 560px) {
+    .tlp-actions {
+        flex-direction: column-reverse;
+    }
+
+    .tlp-actions .ctt-btn {
+        width: 100%;
+    }
+}
+
+/* RTL support */
+html[dir="rtl"] .ctt-header { flex-direction: row-reverse; }
+html[dir="rtl"] .ctt-header-left { flex-direction: row-reverse; }
+html[dir="rtl"] .ctt-actions { flex-direction: row-reverse; }
+
+.docviewer-ai-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.docviewer-ai-action-btn {
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    background: rgba(15, 23, 42, 0.45);
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.docviewer-ai-action-btn:hover {
+    border-color: rgba(96, 165, 250, 0.7);
+    background: rgba(30, 41, 59, 0.65);
+}
+
+.docviewer-ai-status {
+    color: #f8fafc;
+}
+
+.docviewer-ai-status pre {
+    color: #f8fafc;
+}
+
+.ai-result-modal {
+    width: min(94vw, 1220px);
+    max-width: none;
+    height: min(84vh, 900px);
+    background: linear-gradient(165deg, #130c24 0%, #1b1233 48%, #261645 100%);
+    border: 1px solid rgba(167, 139, 250, 0.42);
+    box-shadow: 0 30px 70px rgba(26, 10, 46, 0.55);
+}
+
+.ai-result-header {
+    background: linear-gradient(145deg, rgba(124, 58, 237, 0.3), rgba(76, 29, 149, 0.2));
+    border-bottom: 1px solid rgba(167, 139, 250, 0.4);
+}
+
+.ai-result-header .ctt-title,
+.ai-result-header .ctt-header-icon,
+.ai-result-header .ctt-close-btn {
+    color: #e2e8f0;
+}
+
+#aiResultOverlay.is-arabic-ui .ai-result-header {
+    flex-direction: row-reverse;
+    justify-content: space-between;
+}
+
+#aiResultOverlay.is-arabic-ui .ai-result-header .ctt-header-left {
+    flex-direction: row-reverse;
+    margin-left: 0;
+    margin-right: auto;
+}
+
+#aiResultOverlay.is-arabic-ui .ai-result-header .ctt-title {
+    text-align: right;
+}
+
+.ai-result-content-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background: rgba(10, 6, 22, 0.65);
+}
+
+.ai-result-content {
+    margin: 0;
+    padding: 20px 28px 22px 24px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #ede9fe;
+    line-height: 1.65;
+    font-family: 'Segoe UI', 'Noto Sans Arabic', Arial, sans-serif;
+    font-size: 12.5px;
+    font-weight: 400;
+    text-align: left;
+    letter-spacing: 0.01em;
+}
+
+.ai-result-content[dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+    unicode-bidi: plaintext;
+    padding: 20px 24px 22px 28px;
+}
+
+.ai-result-content[dir="rtl"] * {
+    text-align: right;
+}
+
+.ai-result-actions {
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    border-top: 1px solid rgba(167, 139, 250, 0.28);
+    background: rgba(18, 10, 34, 0.8);
+}
+
+.ai-result-download-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.ai-result-format-label {
+    font-size: 12px;
+    color: #c4b5fd;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.ai-result-format-select {
+    border-radius: 9px;
+    border: 1px solid rgba(167, 139, 250, 0.45);
+    background: rgba(38, 22, 69, 0.95);
+    color: #ede9fe;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+}
+
+.ai-result-format-select:focus {
+    border-color: rgba(196, 181, 253, 0.95);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.2);
+}
+
+.ai-result-format-select option {
+    background: #261645;
+    color: #ede9fe;
+}
+
+.ai-result-actions .ctt-btn {
+    border: 1px solid rgba(167, 139, 250, 0.55);
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    color: #f5f3ff;
+    padding: 8px 14px;
+}
+
+.ai-result-actions .ctt-btn:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    border-color: rgba(196, 181, 253, 0.8);
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+@media (max-width: 768px) {
+    .ai-result-modal {
+        width: 100%;
+        height: 92vh;
+    }
+
+    .ai-result-content-wrap {
+        max-height: none;
+    }
+
+    .ai-result-actions {
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .ai-result-download-group {
+        width: auto;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+}
+
+</style>
+
+<!-- PDF.js Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+</script>
+
+<!-- docx-preview Library -->
+<script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.20/dist/docx-preview.min.js"></script>
+
+<!-- jsPDF Library -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<!-- Premium Document Viewer Script -->
+<script>
+(function() {
+    'use strict';
+    
+    const DocViewer = {
+        modal: null,
+        backdrop: null,
+        currentUrl: null,
+        currentType: null,
+        currentText: null,
+        languageSampleText: null,
+        pdfDoc: null,
+        currentPage: 1,
+        totalPages: 1,
+        scale: 1,
+        baseScale: 1,
+        isOpen: false,
+        aiPollTimer: null,
+        aiRequestController: null,
+        activeAiJob: null,
+        lastAiResult: null,
+        translationPairResolver: null,
+        currentTranslationPairs: [],
+
+        isArabicUi() {
+            return String(document.documentElement?.lang || '').toLowerCase().startsWith('ar');
+        },
+
+        t(key, fallback = '') {
+            if (!this.isArabicUi()) return fallback;
+
+            const ar = {
+                choose_translation_language_pair: '\u0627\u062e\u062a\u0631 \u0632\u0648\u062c \u0644\u063a\u0627\u062a \u0627\u0644\u062a\u0631\u062c\u0645\u0629',
+                language_pair: '\u0632\u0648\u062c \u0627\u0644\u0644\u063a\u0627\u062a',
+                cancel: '\u0625\u0644\u063a\u0627\u0621',
+                start_translation: '\u0628\u062f\u0621 \u0627\u0644\u062a\u0631\u062c\u0645\u0629',
+                close_operation: '\u0625\u063a\u0644\u0627\u0642 \u0627\u0644\u0639\u0645\u0644\u064a\u0629',
+                operation_closed: '\u062a\u0645 \u0625\u063a\u0644\u0627\u0642 \u0627\u0644\u0639\u0645\u0644\u064a\u0629',
+                tracking_stopped: '\u062a\u0645 \u0625\u064a\u0642\u0627\u0641 \u062a\u062a\u0628\u0639 \u0627\u0644\u062a\u0644\u062e\u064a\u0635/\u0627\u0644\u062a\u0631\u062c\u0645\u0629.',
+                preparing: '\u062c\u0627\u0631\u064d \u0627\u0644\u062a\u062d\u0636\u064a\u0631...',
+                processing: '\u062c\u0627\u0631\u064d \u0627\u0644\u0645\u0639\u0627\u0644\u062c\u0629...',
+                ai_processing: '\u0645\u0639\u0627\u0644\u062c\u0629 \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a',
+                preparing_document_text: '\u062c\u0627\u0631\u064d \u062a\u062c\u0647\u064a\u0632 \u0646\u0635 \u0627\u0644\u0645\u0633\u062a\u0646\u062f...',
+                processing_document: '\u062c\u0627\u0631\u064d \u0645\u0639\u0627\u0644\u062c\u0629 \u0627\u0644\u0645\u0633\u062a\u0646\u062f...',
+                generating_output: '\u062c\u0627\u0631\u064d \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0645\u062e\u0631\u062c\u0627\u062a...',
+                processing_part: '\u062c\u0627\u0631\u064d \u0645\u0639\u0627\u0644\u062c\u0629 \u0627\u0644\u062c\u0632\u0621',
+                generating_final_summary: '\u062c\u0627\u0631\u064d \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0645\u0644\u062e\u0635 \u0627\u0644\u0646\u0647\u0627\u0626\u064a...',
+                ai_error: '\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a',
+                invalid_language_choice: '\u0627\u062e\u062a\u064a\u0627\u0631 \u0644\u063a\u0629 \u063a\u064a\u0631 \u0635\u0627\u0644\u062d. \u064a\u0631\u062c\u0649 \u0627\u062e\u062a\u064a\u0627\u0631 \u062e\u064a\u0627\u0631 \u0635\u062d\u064a\u062d.',
+                no_document_text: '\u0644\u0627 \u064a\u0648\u062c\u062f \u0646\u0635 \u0645\u062a\u0627\u062d \u0641\u064a \u0627\u0644\u0645\u0633\u062a\u0646\u062f. \u062a\u0639\u0630\u0631 \u0627\u0633\u062a\u062e\u0631\u0627\u062c \u0627\u0644\u0646\u0635 \u0645\u0646 \u0647\u0630\u0627 \u0627\u0644\u0645\u0644\u0641.',
+                unable_generate_parts: '\u062a\u0639\u0630\u0631 \u0625\u0646\u0634\u0627\u0621 \u0646\u0627\u062a\u062c \u0645\u0646 \u0627\u0644\u0623\u062c\u0632\u0627\u0621 \u0627\u0644\u0645\u0639\u0627\u0644\u062c\u0629.',
+                unable_process: '\u062a\u0639\u0630\u0631 \u0645\u0639\u0627\u0644\u062c\u0629 \u0627\u0644\u0637\u0644\u0628.',
+                service_unreachable: '\u062a\u0639\u0630\u0631 \u0627\u0644\u0648\u0635\u0648\u0644 \u0625\u0644\u0649 \u062e\u062f\u0645\u0629 \u0627\u0644\u062a\u0631\u062c\u0645\u0629/\u0627\u0644\u062a\u0644\u062e\u064a\u0635. \u062a\u062d\u0642\u0642 \u0645\u0646 \u0645\u0633\u0627\u0631 /ts-ai \u0641\u064a nginx \u0648\u062d\u0627\u0644\u0629 \u0627\u0644\u0634\u0628\u0643\u0629 \u062b\u0645 \u0623\u0639\u062f \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629.',
+                rate_limit_reached: '\u062a\u0645 \u0628\u0644\u0648\u063a \u062d\u062f \u0645\u0632\u0648\u062f \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a \u0645\u0624\u0642\u062a\u0627. \u064a\u0631\u062c\u0649 \u0627\u0644\u0627\u0646\u062a\u0638\u0627\u0631 \u0642\u0644\u064a\u0644\u0627 \u062b\u0645 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629.',
+                ai_result: '\u0646\u062a\u064a\u062c\u0629 \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a',
+                generated_in_page: '\u062a\u0645 \u0627\u0644\u0625\u0646\u0634\u0627\u0621 \u062f\u0648\u0646 \u0645\u063a\u0627\u062f\u0631\u0629 \u0627\u0644\u0635\u0641\u062d\u0629 \u0627\u0644\u062d\u0627\u0644\u064a\u0629.',
+                job_label: '\u0627\u0644\u0645\u0647\u0645\u0629',
+                copy: '\u0646\u0633\u062e',
+                copied: '\u062a\u0645 \u0627\u0644\u0646\u0633\u062e!',
+                translation: '\u062a\u0631\u062c\u0645\u0629',
+                summarization: '\u0645\u0644\u062e\u0635',
+                translation_completed: '\u0627\u0643\u062a\u0645\u0644\u062a \u0627\u0644\u062a\u0631\u062c\u0645\u0629 \u0641\u064a \u0627\u0644\u0635\u0641\u062d\u0629 \u0627\u0644\u062d\u0627\u0644\u064a\u0629.',
+                summary_generated: '\u062a\u0645 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0645\u0644\u062e\u0635 \u0641\u064a \u0627\u0644\u0635\u0641\u062d\u0629 \u0627\u0644\u062d\u0627\u0644\u064a\u0629.',
+            };
+
+            return ar[key] || fallback;
+        },
+
+        applyRuntimeTranslations() {
+            const pairTitle = document.querySelector('#translationPairOverlay .ctt-title');
+            const pairLabel = document.querySelector('label[for="translationPairSelect"]');
+            const cancelPairBtn = document.getElementById('cancelTranslationPairBtn');
+            const confirmPairBtn = document.getElementById('confirmTranslationPairBtn');
+            const closeAiBtn = document.getElementById('closeAiResultBtn');
+
+            if (pairTitle) pairTitle.textContent = this.t('choose_translation_language_pair', pairTitle.textContent || '');
+            if (pairLabel) pairLabel.textContent = this.t('language_pair', pairLabel.textContent || '');
+            if (cancelPairBtn) cancelPairBtn.textContent = this.t('cancel', cancelPairBtn.textContent || '');
+            if (confirmPairBtn) confirmPairBtn.textContent = this.t('start_translation', confirmPairBtn.textContent || '');
+            if (closeAiBtn) closeAiBtn.textContent = this.t('close_operation', closeAiBtn.textContent || '');
+        },
+        
+        init() {
+            if (this._initialized) return;
+            console.log('DocViewer: Initializing components...');
+            
+            this.modal = document.getElementById('documentViewerModal');
+            this.backdrop = document.getElementById('docViewerBackdrop');
+            
+            if (!this.modal) {
+                console.error('DocViewer: Modal element not found during init!');
+                return;
+            }
+            
+            this.bindEvents();
+            this.applyRuntimeTranslations();
+            this._initialized = true;
+            console.log('DocViewer: Initialization complete.');
+        },
+        
+        bindEvents() {
+            // Close buttons
+            document.getElementById('closeDocViewer')?.addEventListener('click', () => this.close());
+            document.getElementById('exitViewerBtn')?.addEventListener('click', () => this.close());
+            this.backdrop?.addEventListener('click', () => this.close());
+            
+            // Zoom controls
+            document.getElementById('zoomInBtn')?.addEventListener('click', () => this.zoomIn());
+            document.getElementById('zoomOutBtn')?.addEventListener('click', () => this.zoomOut());
+            document.getElementById('fitWidthBtn')?.addEventListener('click', () => this.fitWidth());
+            
+            // Page navigation
+            document.getElementById('prevPageBtn')?.addEventListener('click', () => this.prevPage());
+            document.getElementById('nextPageBtn')?.addEventListener('click', () => this.nextPage());
+            
+            // NLP buttons (placeholder actions)
+            document.getElementById('convertToTextBtn')?.addEventListener('click', () => this.convertToText());
+            document.getElementById('summarizeDocBtn')?.addEventListener('click', (event) => this.summarizeDoc(event.currentTarget));
+            document.getElementById('translateDocBtn')?.addEventListener('click', (event) => this.translateDoc(event.currentTarget));
+            document.getElementById('askChatbotBtn')?.addEventListener('click', () => this.askChatbot());
+
+            // Convert-to-text overlay close
+            document.getElementById('closeConvertOverlay')?.addEventListener('click', () => this.closeConvertOverlay());
+            document.getElementById('convertTextOverlay')?.addEventListener('click', (e) => {
+                if (e.target.id === 'convertTextOverlay') this.closeConvertOverlay();
+            });
+
+            // Translation language modal
+            document.getElementById('closeTranslationPairOverlay')?.addEventListener('click', () => this.closeTranslationPairOverlay(null));
+            document.getElementById('cancelTranslationPairBtn')?.addEventListener('click', () => this.closeTranslationPairOverlay(null));
+            document.getElementById('confirmTranslationPairBtn')?.addEventListener('click', () => this.confirmTranslationPairSelection());
+            document.getElementById('translationPairOverlay')?.addEventListener('click', (e) => {
+                if (e.target.id === 'translationPairOverlay') this.closeTranslationPairOverlay(null);
+            });
+
+            // AI result overlay
+            document.getElementById('closeAiResultOverlay')?.addEventListener('click', () => this.closeAiOperationResult());
+            document.getElementById('closeAiResultBtn')?.addEventListener('click', () => this.closeAiOperationResult());
+            document.getElementById('copyAiResultBtn')?.addEventListener('click', () => this.copyAiResult());
+            document.getElementById('downloadAiResultBtn')?.addEventListener('click', () => this.downloadAiResult());
+            document.getElementById('aiResultOverlay')?.addEventListener('click', (e) => {
+                if (e.target.id === 'aiResultOverlay') this.closeAiOperationResult();
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+        },
+        
+        open(url, fileType = null, resourceId = null, resourceTitle = null, convertUrl = null) {
+            console.log('DocViewer: Opening URL:', url);
+            if (!url) {
+                console.warn('DocViewer: No URL provided to open()');
+                return;
+            }
+            if (!this.modal) {
+                console.error('DocViewer: Cannot open, modal not initialized!');
+                // Try one last time to find it
+                this.modal = document.getElementById('documentViewerModal');
+                if (!this.modal) return;
+                this.init();
+            }
+
+            // Always reset buttons and cancel any previous document's AI tasks
+            this.cancelAiOperation(false);
+            this.setNlpButtonLoading('translateDocBtn', false);
+            this.setNlpButtonLoading('summarizeDocBtn', false);
+            this.setNlpButtonLoading('convertToTextBtn', false);
+            
+            this.currentUrl = url;
+            this.currentType = fileType || this.getFileType(url);
+            this.currentText = null;
+            this.languageSampleText = null;
+            this.isOpen = true;
+
+            if (resourceId) {
+                this.modal.dataset.resourceId = resourceId;
+            }
+            if (resourceTitle) {
+                this.modal.dataset.resourceTitle = resourceTitle;
+            }
+            if (convertUrl) {
+                this.modal.dataset.convertUrl = convertUrl;
+            } else if (resourceId) {
+                this.modal.dataset.convertUrl = `/resources/api/convert-to-text/${encodeURIComponent(resourceId)}/`;
+            }
+            
+            // Reset state
+            this.scale = 1;
+            this.currentPage = 1;
+            this.pdfDoc = null;
+            
+            // Update UI
+            const filename = this.getFilename(url);
+            document.getElementById('docViewerFilename').textContent = filename;
+            document.getElementById('downloadBtn').href = url;
+            document.getElementById('unsupportedDownload').href = url;
+            
+            // Show modal with animation
+            this.modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            
+            // Hide all containers
+            this.hideAllContainers();
+            this.showLoading();
+            
+            // Load content
+            setTimeout(() => this.loadContent(), 100);
+        },
+        
+        close() {
+            if (!this.modal) return;
+            
+            this.isOpen = false;
+            
+            // Animate out
+            this.modal.querySelector('.docviewer-container').style.animation = 'containerSlideOut 0.25s ease-in forwards';
+            this.backdrop.style.animation = 'backdropFadeOut 0.25s ease-out forwards';
+            
+            setTimeout(() => {
+                this.modal.style.display = 'none';
+                document.body.style.overflow = '';
+                this.modal.querySelector('.docviewer-container').style.animation = '';
+                this.backdrop.style.animation = '';
+                this.cleanup();
+            }, 250);
+        },
+        
+        cleanup() {
+            document.getElementById('pdfContainer').innerHTML = '';
+            document.getElementById('docxContainer').innerHTML = '';
+            document.getElementById('imageViewer').src = '';
+            document.getElementById('textViewer').textContent = '';
+            this.cancelAiOperation(false);
+            this.closeTranslationPairOverlay(null);
+            this.closeAiResultOverlay();
+            const statusBox = document.getElementById('docviewerAiStatus');
+            if (statusBox) {
+                statusBox.style.display = 'none';
+                statusBox.innerHTML = '';
+            }
+            this.lastAiResult = null;
+            this.pdfDoc = null;
+            this.currentText = null;
+            this.languageSampleText = null;
+        },
+
+        closeAiOperationResult() {
+            this.lastAiResult = null;
+            this.closeAiResultOverlay();
+            const box = document.getElementById('docviewerAiStatus');
+            if (box) {
+                box.style.display = 'none';
+                box.innerHTML = '';
+            }
+        },
+
+
+        openAiResultOverlay() {
+            if (!this.lastAiResult) return;
+
+            const overlay = document.getElementById('aiResultOverlay');
+            const titleEl = document.getElementById('aiResultTitle');
+            const metaEl = document.getElementById('aiResultMeta');
+            const contentEl = document.getElementById('aiResultContent');
+            if (!overlay || !titleEl || !metaEl || !contentEl) return;
+
+            titleEl.textContent = this.lastAiResult.title || this.t('ai_result', '{% trans "AI Result"|escapejs %}');
+            if (this.isArabicUi()) {
+                const task = String(this.lastAiResult.task || '').toLowerCase();
+                if (task === 'summarization') {
+                    titleEl.textContent = '\u0645\u0644\u062e\u0635'; // Ù…Ù„Ø®Øµ
+                } else if (task === 'translation') {
+                    titleEl.textContent = '\u062a\u0631\u062c\u0645\u0629'; // ØªØ±Ø¬Ù…Ø©
+                }
+            }
+            metaEl.textContent = this.lastAiResult.meta || this.t('generated_in_page', '{% trans "Generated without leaving the current page."|escapejs %}');
+            contentEl.textContent = this.formatAiResultDisplayText(
+                this.lastAiResult.output || '',
+                this.lastAiResult.task || 'result'
+            );
+            const isArabicResult = this.isArabicUi()
+                || /[\u0600-\u06FF]/.test(String(titleEl.textContent || ''))
+                || /[\u0600-\u06FF]/.test(String(contentEl.textContent || ''));
+            overlay.classList.toggle('is-arabic-ui', isArabicResult);
+            const resultHeaderEl = overlay.querySelector('.ai-result-header');
+            const resultHeaderLeftEl = overlay.querySelector('.ai-result-header .ctt-header-left');
+            if (resultHeaderEl && resultHeaderLeftEl) {
+                if (isArabicResult) {
+                    resultHeaderEl.style.flexDirection = 'row-reverse';
+                    resultHeaderLeftEl.style.flexDirection = 'row-reverse';
+                    resultHeaderLeftEl.style.marginLeft = '0';
+                    resultHeaderLeftEl.style.marginRight = 'auto';
+                } else {
+                    resultHeaderEl.style.flexDirection = '';
+                    resultHeaderLeftEl.style.flexDirection = '';
+                    resultHeaderLeftEl.style.marginLeft = '';
+                    resultHeaderLeftEl.style.marginRight = '';
+                }
+            }
+            const isArabicTarget = String(this.lastAiResult.targetLanguage || '').trim().toLowerCase().startsWith('ar');
+            contentEl.dir = isArabicTarget ? 'rtl' : 'auto';
+            contentEl.style.direction = isArabicTarget ? 'rtl' : 'auto';
+            contentEl.style.textAlign = isArabicTarget ? 'right' : 'left';
+            const copyBtn = document.getElementById('copyAiResultBtn');
+            if (copyBtn) {
+                copyBtn.textContent = this.t('copy', '{% trans "Copy"|escapejs %}');
+            }
+            overlay.style.display = 'flex';
+        },
+
+        updateAiResultOverlay() {
+            const overlay = document.getElementById('aiResultOverlay');
+            if (!overlay) return;
+            if (overlay.style.display !== 'flex' && overlay.style.display !== 'block') {
+                this.openAiResultOverlay();
+                return;
+            }
+            this.openAiResultOverlay();
+        },
+
+        formatAiResultDisplayText(rawText, task = 'result') {
+            const normalizedTask = String(task || '').toLowerCase();
+            const normalized = String(rawText || '')
+                .replace(/\r\n/g, '\n')
+                .replace(/\n{3,}/g, '\n\n')
+                .split('\n')
+                .map((line) => {
+                    const trimmed = String(line || '').trim();
+                    if (!trimmed) {
+                        return '';
+                    }
+
+                    if (normalizedTask === 'translation') {
+                        return trimmed;
+                    }
+
+                    const headingMatch = trimmed.match(/^#{1,6}\s*(.+)$/);
+                    if (headingMatch) {
+                        const heading = headingMatch[1].trim();
+                        if (/^(document|documenet|documet)$/i.test(heading)) {
+                            return '';
+                        }
+                        return heading;
+                    }
+
+                    return trimmed
+                        .replace(/^[-*â€¢]\s+/, '')
+                        .replace(/^â†’\s+/, '')
+                        .replace(/\s{2,}/g, ' ');
+                })
+                .join('\n')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+
+            const withoutDocumentLabel = normalized
+                .split('\n')
+                .filter((line) => !/^(document|documenet|documet)$/i.test(String(line || '').trim()))
+                .join('\n')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+
+            return withoutDocumentLabel;
+        },
+
+        closeAiResultOverlay() {
+            const overlay = document.getElementById('aiResultOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        },
+
+        async copyAiResult() {
+            if (!this.lastAiResult?.output) return;
+            const copyBtn = document.getElementById('copyAiResultBtn');
+            try {
+                await navigator.clipboard.writeText(this.lastAiResult.output);
+                if (copyBtn) {
+                    copyBtn.textContent = this.t('copied', '{% trans "Copied!"|escapejs %}');
+                    setTimeout(() => {
+                        copyBtn.textContent = this.t('copy', '{% trans "Copy"|escapejs %}');
+                    }, 1400);
+                }
+            } catch (err) {
+                console.warn('Copy AI result failed:', err);
+            }
+        },
+
+        buildAiResultDownloadContent(format) {
+            const output = String(this.lastAiResult?.output || '');
+            const task = String(this.lastAiResult?.task || 'result');
+            const title = String(this.lastAiResult?.title || 'AI Result');
+            const meta = String(this.lastAiResult?.meta || '');
+
+            const escapeHtml = (value) => String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+            if (format === 'doc') {
+                const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head><body style="font-family:Segoe UI,Arial,sans-serif;line-height:1.6;color:#111;"><h2>${escapeHtml(title)}</h2><p><strong>Meta:</strong> ${escapeHtml(meta)}</p><pre style="white-space:pre-wrap;font-family:Consolas,monospace;">${escapeHtml(output)}</pre></body></html>`;
+                return {
+                    ext: 'doc',
+                    mime: 'application/msword;charset=utf-8',
+                    body: html,
+                };
+            }
+
+            if (format === 'md') {
+                return {
+                    ext: 'md',
+                    mime: 'text/markdown;charset=utf-8',
+                    body: `# ${title}\n\n- Task: ${task}\n- Meta: ${meta}\n\n## Output\n\n${output}\n`,
+                };
+            }
+
+            if (format === 'json') {
+                return {
+                    ext: 'json',
+                    mime: 'application/json;charset=utf-8',
+                    body: JSON.stringify({
+                        task,
+                        title,
+                        meta,
+                        output,
+                        exported_at: new Date().toISOString(),
+                    }, null, 2),
+                };
+            }
+
+            return {
+                ext: 'txt',
+                mime: 'text/plain;charset=utf-8',
+                body: `${title}\n${meta}\n\n${output}`,
+            };
+        },
+
+        containsArabicText(value) {
+            return /[\u0600-\u06FF]/.test(String(value || ''));
+        },
+
+        async ensurePdfArabicFont(doc) {
+            if (!doc || typeof doc.addFileToVFS !== 'function' || typeof doc.addFont !== 'function') {
+                return false;
+            }
+
+            if (this._pdfArabicFontReady) {
+                return true;
+            }
+
+            try {
+                const fontUrl = 'https://cdn.jsdelivr.net/gh/google/fonts/ofl/notonaskharabic/NotoNaskhArabic-Regular.ttf';
+                const response = await fetch(fontUrl);
+                if (!response.ok) {
+                    throw new Error(`Arabic font fetch failed: ${response.status}`);
+                }
+                const buffer = await response.arrayBuffer();
+                const bytes = new Uint8Array(buffer);
+                let binary = '';
+                const chunkSize = 0x8000;
+                for (let i = 0; i < bytes.length; i += chunkSize) {
+                    const slice = bytes.subarray(i, i + chunkSize);
+                    binary += String.fromCharCode.apply(null, slice);
+                }
+                const base64Font = btoa(binary);
+                doc.addFileToVFS('NotoNaskhArabic-Regular.ttf', base64Font);
+                doc.addFont('NotoNaskhArabic-Regular.ttf', 'NotoNaskhArabic', 'normal');
+                this._pdfArabicFontReady = true;
+                return true;
+            } catch (err) {
+                console.warn('DocViewer: Unable to load Arabic PDF font, falling back to default font.', err);
+                return false;
+            }
+        },
+
+        buildWrappedCanvasLines(ctx, text, maxWidth) {
+            const lines = [];
+            const paragraphs = String(text || '').replace(/\r\n/g, '\n').split('\n');
+
+            for (const paragraph of paragraphs) {
+                const trimmed = String(paragraph || '').trim();
+                if (!trimmed) {
+                    lines.push('');
+                    continue;
+                }
+
+                const words = trimmed.split(/\s+/);
+                let current = '';
+                for (const word of words) {
+                    const candidate = current ? `${current} ${word}` : word;
+                    if (ctx.measureText(candidate).width <= maxWidth) {
+                        current = candidate;
+                        continue;
+                    }
+                    if (current) {
+                        lines.push(current);
+                    }
+                    current = word;
+                }
+                if (current) {
+                    lines.push(current);
+                }
+            }
+
+            return lines;
+        },
+
+        renderArabicPdfByCanvas(doc, content, margin) {
+            const pageWidthPt = doc.internal.pageSize.getWidth();
+            const pageHeightPt = doc.internal.pageSize.getHeight();
+            const pageWidthPx = 1240;
+            const pageHeightPx = Math.round((pageHeightPt / pageWidthPt) * pageWidthPx);
+            const leftRightPaddingPx = 70;
+            const topPaddingPx = 90;
+            const lineHeightPx = 44;
+            const maxTextWidthPx = pageWidthPx - (leftRightPaddingPx * 2);
+            const maxLinesPerPage = Math.max(1, Math.floor((pageHeightPx - (topPaddingPx * 2)) / lineHeightPx));
+
+            const measureCanvas = document.createElement('canvas');
+            const measureCtx = measureCanvas.getContext('2d');
+            if (!measureCtx) {
+                throw new Error('Canvas context unavailable for Arabic PDF fallback');
+            }
+            measureCtx.font = "32px 'Tahoma', 'Arial', sans-serif";
+            measureCtx.direction = 'rtl';
+
+            const allLines = this.buildWrappedCanvasLines(measureCtx, content, maxTextWidthPx);
+            const pages = [];
+            for (let i = 0; i < allLines.length; i += maxLinesPerPage) {
+                pages.push(allLines.slice(i, i + maxLinesPerPage));
+            }
+            if (!pages.length) {
+                pages.push(['']);
+            }
+
+            pages.forEach((pageLines, pageIndex) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = pageWidthPx;
+                canvas.height = pageHeightPx;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#111827';
+                ctx.font = "32px 'Tahoma', 'Arial', sans-serif";
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'top';
+                ctx.direction = 'rtl';
+
+                let y = topPaddingPx;
+                for (const line of pageLines) {
+                    if (line) {
+                        ctx.fillText(String(line), canvas.width - leftRightPaddingPx, y);
+                    }
+                    y += lineHeightPx;
+                }
+
+                const imageData = canvas.toDataURL('image/png');
+                if (pageIndex > 0) {
+                    doc.addPage();
+                }
+                doc.addImage(
+                    imageData,
+                    'PNG',
+                    margin,
+                    margin,
+                    pageWidthPt - (margin * 2),
+                    pageHeightPt - (margin * 2)
+                );
+            });
+        },
+
+        async downloadAiResultPdf(fileName) {
+            const content = `${String(this.lastAiResult?.title || 'AI Result')}\n${String(this.lastAiResult?.meta || '')}\n\n${String(this.lastAiResult?.output || '')}`;
+            const jsPdfNs = window.jspdf;
+            if (!jsPdfNs || !jsPdfNs.jsPDF) {
+                throw new Error('PDF library is not available');
+            }
+
+            const doc = new jsPdfNs.jsPDF({ unit: 'pt', format: 'a4' });
+            const margin = 44;
+            const pageWidth = doc.internal.pageSize.getWidth() - (margin * 2);
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const shouldUseArabicFont = this.containsArabicText(content);
+            if (shouldUseArabicFont) {
+                const arabicFontReady = await this.ensurePdfArabicFont(doc);
+                if (arabicFontReady) {
+                    doc.setFont('NotoNaskhArabic', 'normal');
+                    if (typeof doc.setLanguage === 'function') {
+                        doc.setLanguage('ar');
+                    }
+                    if (typeof doc.setR2L === 'function') {
+                        doc.setR2L(true);
+                    }
+                } else {
+                    this.renderArabicPdfByCanvas(doc, content, margin);
+                    doc.save(fileName);
+                    return;
+                }
+            } else {
+                doc.setFont('courier', 'normal');
+            }
+            const lines = doc.splitTextToSize(content, pageWidth);
+
+            let y = 56;
+            doc.setFontSize(11);
+            for (const line of lines) {
+                if (y > pageHeight - 48) {
+                    doc.addPage();
+                    y = 56;
+                }
+                if (shouldUseArabicFont) {
+                    doc.text(String(line), doc.internal.pageSize.getWidth() - margin, y, { align: 'right' });
+                } else {
+                    doc.text(String(line), margin, y);
+                }
+                y += 15;
+            }
+
+            doc.save(fileName);
+        },
+
+        async downloadAiResult() {
+            if (!this.lastAiResult?.output) return;
+
+            const select = document.getElementById('aiResultFormatSelect');
+            const format = String(select?.value || 'pdf').toLowerCase();
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const task = String(this.lastAiResult.task || 'result').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
+
+            if (format === 'pdf') {
+                const fileName = `ai-${task}-${timestamp}.pdf`;
+                await this.downloadAiResultPdf(fileName);
+                return;
+            }
+
+            const payload = this.buildAiResultDownloadContent(format);
+            const fileName = `ai-${task}-${timestamp}.${payload.ext}`;
+            const blob = new Blob([payload.body], { type: payload.mime });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        },
+
+        cancelAiOperation(showStatus = true) {
+            if (this.aiPollTimer) {
+                clearInterval(this.aiPollTimer);
+                this.aiPollTimer = null;
+            }
+
+            if (this.aiRequestController) {
+                this.aiRequestController.abort();
+                this.aiRequestController = null;
+            }
+
+            // Always try to reset both buttons to prevent stuck "Preparing..." states
+            this.setNlpButtonLoading('translateDocBtn', false);
+            this.setNlpButtonLoading('summarizeDocBtn', false);
+
+            const stoppedJobId = this.activeAiJob?.jobId || '';
+            this.activeAiJob = null;
+
+            if (showStatus) {
+                this.showAiStatus(
+                    'info',
+                    this.t('operation_closed', '{% trans "Operation closed"|escapejs %}'),
+                    this.t('tracking_stopped', '{% trans "Summarization/translation tracking stopped."|escapejs %}'),
+                    { jobId: stoppedJobId }
+                );
+            }
+        },
+
+        closeAiStatusOperation() {
+            console.log('DocViewer: Closing AI status operation and cancelling tasks...');
+            this.cancelAiOperation(false);
+            const box = document.getElementById('docviewerAiStatus');
+            if (box) {
+                box.style.display = 'none';
+                box.innerHTML = '';
+            }
+        },
+
+        getCurrentFileUri() {
+            if (!this.currentUrl) return null;
+            try {
+                return new URL(this.currentUrl, window.location.origin).href;
+            } catch {
+                return this.currentUrl;
+            }
+        },
+
+        getAiBaseUrl() {
+            const base = this.modal?.dataset?.tsBase || '/ts-ai';
+            let normalized = String(base || '').trim() || '/ts-ai';
+
+            if (normalized.endsWith('/')) {
+                normalized = normalized.slice(0, -1);
+            }
+
+            return normalized;
+        },
+
+        getCsrfToken() {
+            return document.cookie.split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];
+        },
+
+        getLocalizedProxyPath(apiPath) {
+            const normalizedApiPath = String(apiPath || '').startsWith('/')
+                ? String(apiPath || '')
+                : `/${String(apiPath || '')}`;
+            const pathName = String(window.location.pathname || '');
+            const langMatch = pathName.match(/^\/([a-z]{2})(?:\/|$)/i);
+            if (!langMatch) {
+                return normalizedApiPath;
+            }
+            return `/${langMatch[1]}${normalizedApiPath}`;
+        },
+
+        getTranslateProxyEndpoint() {
+            return this.modal?.dataset?.translateProxy || this.getLocalizedProxyPath('/api/ts/translate/');
+        },
+
+        getSummarizeProxyEndpoint() {
+            return this.modal?.dataset?.summarizeProxy || this.getLocalizedProxyPath('/api/ts/summarize/');
+        },
+
+        getAiBaseCandidates(path = '') {
+            const normalizedPath = String(path || '');
+            const candidates = [];
+            const isProxyPath = normalizedPath.includes('/api/ts/');
+
+            if (isProxyPath) {
+                // Django proxy endpoints are same-origin only.
+                candidates.push(window.location.origin);
+            } else {
+                const primary = this.getAiBaseUrl();
+                candidates.push(primary);
+
+                // Same-origin nginx proxy path.
+                candidates.push('/ts-ai');
+
+                // Host-level nginx fallback when page is served from a non-standard port.
+                candidates.push(`${window.location.protocol}//${window.location.hostname}/ts-ai`);
+
+                // Direct standalone service fallback for local Docker setup.
+                // Avoid mixed-content failures when the page is served via HTTPS.
+                const isHttpsPage = window.location.protocol === 'https:';
+                const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+                if (!isHttpsPage || isLocalHost) {
+                    candidates.push('http://localhost:8010');
+                }
+
+                if (!isHttpsPage) {
+                    candidates.push(`http://${window.location.hostname}:8010`);
+                }
+            }
+
+            const deduped = [...new Set(candidates.filter(Boolean).map((u) => String(u).replace(/\/$/, '')))];
+            console.log('AI Base Candidates:', { path: normalizedPath, bases: deduped });
+            return deduped;
+        },
+
+        async fetchAiWithFallback(path, options = {}) {
+            const { timeoutMs: requestedTimeoutMs, signal: externalSignal, ...fetchOptions } = options;
+            const bases = this.getAiBaseCandidates(path);
+            let lastError = null;
+            let lastHttpFailure = null;
+            const timeoutMs = Math.max(45000, Number(requestedTimeoutMs || 300000));
+
+            for (const base of bases) {
+                const url = `${base}${path}`;
+                let timedOut = false;
+                const controller = new AbortController();
+                const onExternalAbort = () => controller.abort();
+                const timeoutId = setTimeout(() => {
+                    timedOut = true;
+                    controller.abort();
+                }, timeoutMs);
+
+                if (externalSignal) {
+                    if (externalSignal.aborted) {
+                        controller.abort();
+                    } else {
+                        externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+                    }
+                }
+
+                try {
+                    console.log('DocViewer AI trying URL:', url);
+                    const response = await fetch(url, {
+                        ...fetchOptions,
+                        signal: controller.signal,
+                    });
+                    if (!response.ok) {
+                        const status = Number(response.status || 0);
+                        const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                        const isHtmlLike = contentType.includes('text/html');
+                        const looksLikeWrongRoute =
+                            status === 404 ||
+                            status === 405 ||
+                            (status >= 500 && isHtmlLike) ||
+                            (status >= 400 && isHtmlLike);
+
+                        if (looksLikeWrongRoute) {
+                            lastHttpFailure = { response, base, url };
+                            continue;
+                        }
+
+                        // Validation/auth/task errors from the actual AI service are returned immediately.
+                        return { response, base, url };
+                    }
+                    this.lastWorkingAiBase = base;
+                    return { response, base, url };
+                } catch (err) {
+                    if (timedOut) {
+                        throw new Error('{% trans "Translation/Summarization request timed out. Please retry in a moment. Long or complex documents may need more processing time." %}');
+                    }
+                    lastError = err;
+                } finally {
+                    clearTimeout(timeoutId);
+                    if (externalSignal) {
+                        externalSignal.removeEventListener('abort', onExternalAbort);
+                    }
+                }
+            }
+
+            if (lastHttpFailure) {
+                return lastHttpFailure;
+            }
+
+            if (lastError) {
+                throw lastError;
+            }
+
+            throw lastError || new Error('Unable to reach AI service');
+        },
+
+        setNlpButtonLoading(buttonId, loading, loadingText) {
+            const btn = document.getElementById(buttonId);
+            if (!btn) return;
+            
+            btn.disabled = loading;
+            btn.style.opacity = loading ? '0.7' : '1';
+            btn.style.cursor = loading ? 'not-allowed' : 'pointer';
+            btn.style.pointerEvents = loading ? 'none' : 'auto';
+            
+            const desc = btn.querySelector('.docviewer-nlp-btn-desc');
+            if (!desc) return;
+            
+            if (loading) {
+                // Only capture description if it's not already a loading message
+                const currentText = desc.textContent;
+                const isAlreadyLoading = currentText.includes('...') || currentText.toLowerCase().includes('wait');
+                if (!btn.dataset.originalDesc && !isAlreadyLoading) {
+                    btn.dataset.originalDesc = currentText;
+                }
+                desc.textContent = loadingText || this.t('processing', '{% trans "Processing..."|escapejs %}');
+            } else {
+                // Restore original description or use a sane default based on the button
+                if (btn.dataset.originalDesc) {
+                    desc.textContent = btn.dataset.originalDesc;
+                } else {
+                    // Fallbacks if data-original-desc was lost or captured incorrectly
+                    if (buttonId === 'translateDocBtn') desc.textContent = '{% trans "AR â†” EN translation"|escapejs %}';
+                    else if (buttonId === 'summarizeDocBtn') desc.textContent = '{% trans "AI-powered summary"|escapejs %}';
+                }
+                btn.removeAttribute('data-original-desc');
+            }
+        },
+
+        escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        },        getSupportedTranslationLanguages() {
+            const ar = this.isArabicUi();
+            return [
+                { code: 'ar', label: ar ? '\u0627\u0644\u0639\u0631\u0628\u064a\u0629' : 'Arabic' },
+                { code: 'en', label: ar ? '\u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a\u0629' : 'English' },
+                { code: 'fr', label: ar ? '\u0627\u0644\u0641\u0631\u0646\u0633\u064a\u0629' : 'French' },
+            ];
+        },
+
+        getLanguageLabel(code) {
+            const normalized = this.normalizeLangCode(code);
+            const match = this.getSupportedTranslationLanguages().find((item) => item.code === normalized);
+            return match ? match.label : String(code || '').trim().toUpperCase();
+        },        getTranslationLanguagePairs() {
+            const ar = this.isArabicUi();
+            const detectedSource = this.detectDocumentLanguage() || 'auto';
+            return this.getSupportedTranslationLanguages()
+                .filter((item) => item.code !== detectedSource)
+                .map((item) => ({
+                    source: detectedSource,
+                    target: item.code,
+                    label: detectedSource === 'auto'
+                        ? (ar ? `\u0643\u0634\u0641 \u062a\u0644\u0642\u0627\u0626\u064a -> ${item.label}` : `Auto-detect -> ${item.label}`)
+                        : `${this.getLanguageLabel(detectedSource)} -> ${item.label}`,
+                }));
+        },        normalizeLangCode(lang) {
+            const value = String(lang || '').trim().toLowerCase();
+            if (!value) return '';
+            const aliases = {
+                auto: 'auto',
+                ar: 'ar',
+                arabic: 'ar',
+                arab: 'ar',
+                '\u0627\u0644\u0639\u0631\u0628\u064a\u0629': 'ar',
+                fr: 'fr',
+                fra: 'fr',
+                fre: 'fr',
+                french: 'fr',
+                francais: 'fr',
+                'fran\u00e7ais': 'fr',
+                en: 'en',
+                eng: 'en',
+                english: 'en',
+                anglais: 'en',
+            };
+            if (aliases[value]) return aliases[value];
+            const normalized = value.replace('_', '-').split('-', 1)[0];
+            if (aliases[normalized]) return aliases[normalized];
+            return /^[a-z]{2,8}$/.test(normalized) ? normalized : '';
+        },
+
+        async ensureLanguageSampleForDetection() {
+            const fullText = String(this.currentText || '').trim();
+            if (fullText) {
+                this.languageSampleText = fullText.slice(0, 6000);
+                return;
+            }
+
+            if (String(this.languageSampleText || '').trim()) {
+                return;
+            }
+
+            if (this.currentType === 'pdf' && this.pdfDoc) {
+                try {
+                    const maxPages = Math.min(2, this.pdfDoc.numPages || 0);
+                    const parts = [];
+                    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+                        const page = await this.pdfDoc.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        const pageText = (textContent.items || [])
+                            .map((item) => (item && typeof item.str === 'string') ? item.str : '')
+                            .join(' ')
+                            .trim();
+                        if (pageText) {
+                            parts.push(pageText);
+                        }
+                    }
+                    if (parts.length) {
+                        this.languageSampleText = parts.join('\n\n');
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('DocViewer language sample extraction failed for PDF:', err);
+                }
+            }
+
+            if (this.currentType === 'docx') {
+                const docxContainer = document.getElementById('docxContainer');
+                const docxText = String(docxContainer?.innerText || '').trim();
+                if (docxText) {
+                    this.languageSampleText = docxText.slice(0, 6000);
+                }
+            }
+        },
+
+        async ensureDocumentTextForAi() {
+            const existing = String(this.currentText || '').trim();
+            if (existing) {
+                return existing;
+            }
+
+            // Prefer backend conversion endpoint for robust extraction with structural preservation.
+            const apiUrl = this.modal?.dataset?.convertUrl || '';
+            if (apiUrl) {
+                try {
+                    const resp = await fetch(apiUrl, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                        signal: this.aiRequestController?.signal
+                    });
+                    const data = await resp.json();
+                    if (resp.ok && data?.success && String(data.text || '').trim()) {
+                        this.currentText = String(data.text || '').trim();
+                        return this.currentText;
+                    }
+                } catch (err) {
+                    console.warn('DocViewer ensureDocumentTextForAi backend failed, falling back to local extraction:', err);
+                }
+            }
+
+            const localText = await this.extractDocumentTextFromViewer();
+            if (localText) {
+                this.currentText = localText;
+            }
+            return localText || '';
+        },
+
+        async extractDocumentTextFromViewer() {
+            const visibleText = [];
+
+            if (this.currentType === 'docx') {
+                const docxContainer = document.getElementById('docxContainer');
+                const docxText = String(docxContainer?.innerText || '').trim();
+                if (docxText) {
+                    visibleText.push(docxText);
+                }
+            }
+
+            if (this.currentType === 'pdf' && this.pdfDoc) {
+                try {
+                    const maxPages = Math.min(3, this.pdfDoc.numPages || 0);
+                    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+                        const page = await this.pdfDoc.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        
+                        let pageText = '';
+                        let lastY = -1;
+                        
+                        for (const item of textContent.items) {
+                            if (!item || typeof item.str !== 'string') continue;
+                            
+                            // Determine if we need a newline based on vertical position
+                            if (lastY !== -1 && Math.abs(item.transform[5] - lastY) > 5) {
+                                pageText += '\n';
+                            } else if (pageText && !pageText.endsWith(' ') && !pageText.endsWith('\n')) {
+                                pageText += ' ';
+                            }
+                            
+                            pageText += item.str;
+                            lastY = item.transform[5];
+                            
+                            if (item.hasEOL) {
+                                pageText += '\n';
+                            }
+                        }
+                        
+                        pageText = pageText.trim();
+                        if (pageText) {
+                            visibleText.push(pageText);
+                        }
+                    }
+                } catch (err) {
+                    console.warn('DocViewer extractDocumentTextFromViewer failed for PDF:', err);
+                }
+            }
+
+            if (this.currentType === 'text') {
+                const textViewer = document.getElementById('textViewer');
+                const text = String(textViewer?.textContent || '').trim();
+                if (text) {
+                    visibleText.push(text);
+                }
+            }
+
+            return visibleText.join('\n\n').trim();
+        },
+
+        detectDocumentLanguage() {
+            const explicit = this.normalizeLangCode(this.modal?.dataset?.resourceLanguage || '');
+            if (explicit) return explicit;
+
+            const sample = String(this.currentText || this.languageSampleText || '').slice(0, 4000);
+            if (sample) {
+                if (/[\u0600-\u06FF]/.test(sample)) {
+                    return 'ar';
+                }
+
+                const lower = sample.toLowerCase();
+                const frenchHints = [' le ', ' la ', ' les ', ' des ', ' est ', ' une ', ' un ', ' que ', ' qui ', ' dans ', ' pour ', ' avec ', ' sur '];
+                const englishHints = [' the ', ' and ', ' with ', ' this ', ' that ', ' for ', ' from ', ' are ', ' was ', ' were ', ' of ', ' to '];
+                const frenchScore = frenchHints.reduce((acc, token) => acc + (lower.includes(token) ? 1 : 0), 0);
+                const englishScore = englishHints.reduce((acc, token) => acc + (lower.includes(token) ? 1 : 0), 0);
+
+                if (frenchScore > englishScore) return 'fr';
+                if (englishScore > frenchScore) return 'en';
+            }
+
+            // Do not infer document language from UI language.
+            // If we have no text evidence, return unknown and let caller keep all pairs.
+            return '';
+        },
+
+        getAvailableTranslationPairs() {
+            const sourceLang = this.detectDocumentLanguage();
+            const all = this.getTranslationLanguagePairs();
+            if (!sourceLang) {
+                return all;
+            }
+            const filtered = all.filter((pair) => pair.source === sourceLang);
+            return filtered.length ? filtered : all;
+        },
+
+        getDefaultTranslationPairIndex() {
+            const source = this.detectDocumentLanguage();
+            const pairs = this.getAvailableTranslationPairs();
+            if (!pairs.length) return 0;
+            const preferredTarget = source === 'ar' ? 'en' : 'ar';
+            const preferredIndex = pairs.findIndex((pair) => pair.target === preferredTarget);
+            return preferredIndex >= 0 ? preferredIndex : 0;
+        },
+
+        async askTranslationPair() {
+            // Cancel any pending resolver to avoid Promise leaks
+            if (this.translationPairResolver) {
+                this.closeTranslationPairOverlay(null);
+            }
+
+            // Try to gather a language sample first so default pair matches document language.
+            try {
+                await this.ensureLanguageSampleForDetection();
+            } catch (err) {
+                console.warn('DocViewer language sampling failed:', err);
+            }
+            const pairs = this.getAvailableTranslationPairs();
+            const defaultIndex = this.getDefaultTranslationPairIndex();
+            const overlay = document.getElementById('translationPairOverlay');
+            const select = document.getElementById('translationPairSelect');
+            if (!overlay || !select) {
+                return Promise.resolve(null);
+            }
+
+            this.currentTranslationPairs = pairs;
+
+            select.innerHTML = pairs
+                .map((pair, index) => `<option value="${index}">${this.escapeHtml(pair.label)}</option>`)
+                .join('');
+            const safeIndex = Math.max(0, Math.min(defaultIndex, pairs.length - 1));
+            select.value = String(safeIndex);
+            overlay.style.display = 'flex';
+
+            return new Promise((resolve) => {
+                this.translationPairResolver = resolve;
+                setTimeout(() => select.focus(), 0);
+            });
+        },
+
+        closeTranslationPairOverlay(selectedPair = null) {
+            const overlay = document.getElementById('translationPairOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+
+            this.currentTranslationPairs = [];
+
+            if (this.translationPairResolver) {
+                this.translationPairResolver(selectedPair);
+                this.translationPairResolver = null;
+            }
+        },
+
+        confirmTranslationPairSelection() {
+            const pairs = this.currentTranslationPairs?.length ? this.currentTranslationPairs : this.getAvailableTranslationPairs();
+            const select = document.getElementById('translationPairSelect');
+            if (!select) {
+                this.closeTranslationPairOverlay(null);
+                return;
+            }
+
+            const idx = Number.parseInt(select.value, 10);
+            if (!Number.isInteger(idx) || idx < 0 || idx >= pairs.length) {
+                this.showAiStatus(
+                    'error',
+                    this.t('ai_error', '{% trans "AI Error" %}'),
+                    this.t('invalid_language_choice', '{% trans "Invalid language choice. Please select a valid option." %}')
+                );
+                return;
+            }
+
+            this.closeTranslationPairOverlay(pairs[idx]);
+        },
+
+        showAiStatus(kind, title, message, meta = {}) {
+            const box = document.getElementById('docviewerAiStatus');
+            if (!box) return;
+
+            const safeTitle = this.escapeHtml(title);
+            const safeMessage = this.escapeHtml(message);
+            const safeJobId = this.escapeHtml(meta.jobId || '');
+            const safeOutput = this.escapeHtml(meta.output || '');
+            const showActions = Boolean(meta.canCloseOperation);
+            const showRetry = typeof meta.retryHandler === 'function';
+
+            box.style.display = 'block';
+            box.innerHTML = `
+                <div style="font-weight:700;margin-bottom:6px;">${safeTitle}</div>
+                <div style="font-size:0.9rem;line-height:1.35;">${safeMessage}</div>
+                ${meta.jobId ? `<div style="margin-top:8px;font-size:0.78rem;opacity:0.8;">${this.escapeHtml(this.t('job_label', 'Job'))}: ${safeJobId}</div>` : ''}
+                ${meta.output ? `<pre style="margin-top:10px;white-space:pre-wrap;background:rgba(255,255,255,0.07);padding:10px;border-radius:10px;max-height:180px;overflow:auto;">${safeOutput}</pre>` : ''}
+                ${showActions ? `
+                    <div class="docviewer-ai-actions">
+                        ${meta.canCloseOperation ? `
+                            <button type="button" class="docviewer-ai-action-btn" id="docviewerCloseOperationBtn">
+                                ${this.escapeHtml(this.t('close_operation', '{% trans "Close operation" %}'))}
+                            </button>
+                        ` : ''}
+                        ${showRetry ? `
+                            <button type="button" class="docviewer-ai-action-btn" id="docviewerRetryOperationBtn">
+                                ${this.escapeHtml(meta.retryLabel || this.t('retry', '{% trans "Retry" %}'))}
+                            </button>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            `;
+            box.style.border = kind === 'error' ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid rgba(99, 102, 241, 0.35)';
+            box.style.background = kind === 'error' ? 'rgba(127, 29, 29, 0.22)' : 'rgba(30, 41, 59, 0.28)';
+            box.style.color = '#f8fafc';
+            box.style.padding = '12px';
+            box.style.borderRadius = '12px';
+            box.style.marginTop = '12px';
+
+            if (meta.canCloseOperation) {
+                const closeBtn = box.querySelector('#docviewerCloseOperationBtn');
+                closeBtn?.addEventListener('click', () => this.closeAiStatusOperation());
+            }
+
+            if (showRetry) {
+                const retryBtn = box.querySelector('#docviewerRetryOperationBtn');
+                retryBtn?.addEventListener('click', () => meta.retryHandler());
+            }
+
+        },
+
+        getDocumentIdFromButton(buttonId) {
+            const button = document.getElementById(buttonId);
+            const buttonIdValue = button?.dataset?.documentId || '';
+            const modalIdValue = this.modal?.dataset?.resourceId || '';
+            const currentIdValue = this.currentResourceId || '';
+            const resolved = buttonIdValue || modalIdValue || currentIdValue;
+            console.log('DocViewer document_id:', resolved);
+            return resolved;
+        },
+
+        isInvalidAiInputText(text) {
+            const raw = (text === null || text === undefined) ? '' : String(text);
+            const trimmed = raw.trim();
+
+            if (!trimmed || trimmed.length < 20) {
+                return true;
+            }
+
+            // Guard against unresolved placeholders and template markers.
+            const placeholderPatterns = [
+                /\{\{[^}]*\}\}/,
+                /\{TEXT_CHUNK\}/i,
+                /<<[^>]*>>/,
+                /\[(?:TEXT|EXTRAIT|PLACEHOLDER|PASTE\s+HERE|INSERT\s+HERE)\]/i,
+            ];
+
+            return placeholderPatterns.some((pattern) => pattern.test(trimmed));
+        },
+
+        splitTextForAi(text, maxSize = 2000) {
+            const source = String(text || '').trim();
+            if (!source) return [];
+            if (source.length <= maxSize) return [source];
+
+            // Preserve paragraph boundaries when possible to keep chunk coherence.
+            const paragraphs = source.split(/\n\s*\n/);
+            const chunks = [];
+            let current = '';
+
+            const pushCurrent = () => {
+                const trimmed = current.trim();
+                if (trimmed) chunks.push(trimmed);
+                current = '';
+            };
+
+            for (const paragraph of paragraphs) {
+                const cleanParagraph = String(paragraph || '').trim();
+                if (!cleanParagraph) continue;
+
+                // If a paragraph itself is larger than max, split it in fixed slices.
+                if (cleanParagraph.length > maxSize) {
+                    pushCurrent();
+                    for (let i = 0; i < cleanParagraph.length; i += maxSize) {
+                        const part = cleanParagraph.slice(i, i + maxSize).trim();
+                        if (part) chunks.push(part);
+                    }
+                    continue;
+                }
+
+                const candidate = current ? `${current}\n\n${cleanParagraph}` : cleanParagraph;
+                if (candidate.length <= maxSize) {
+                    current = candidate;
+                } else {
+                    pushCurrent();
+                    current = cleanParagraph;
+                }
+            }
+
+            pushCurrent();
+            return chunks;
+        },
+
+        buildAiRequestTimeoutMs(task, text) {
+            const contentLength = String(text || '').length;
+            if (task === 'translation') {
+                // Generous timeout for provider retries / queue delay on long or complex chunks.
+                return Math.max(90000, Math.min(420000, 90000 + (contentLength * 35)));
+            }
+            // Summarization tends to run longer than direct translation.
+            return Math.max(120000, Math.min(540000, 120000 + (contentLength * 40)));
+        },
+
+        buildTranslationChunkSize(text, sourceLanguage, targetLanguage) {
+            const contentLength = String(text || '').length;
+            const commonLangs = new Set(['ar', 'en', 'fr']);
+            const normalizedSource = this.normalizeLangCode(sourceLanguage) || 'auto';
+            const normalizedTarget = this.normalizeLangCode(targetLanguage) || 'en';
+            const isCommonPair =
+                normalizedSource !== 'auto' &&
+                commonLangs.has(normalizedSource) &&
+                commonLangs.has(normalizedTarget);
+
+            if (isCommonPair) {
+                if (contentLength > 80000) return 1800;
+                if (contentLength > 30000) return 2400;
+                return 3200;
+            }
+
+            if (contentLength > 80000) return 1400;
+            return 1800;
+        },
+
+        buildSummaryChunkSize(text) {
+            const contentLength = String(text || '').length;
+            if (contentLength > 120000) return 5000;
+            if (contentLength > 60000) return 6500;
+            if (contentLength > 25000) return 8000;
+            return 10000;
+        },
+
+        async waitWithCountdown(seconds, titleText, labelText, retryHandler = null, requestController = null) {
+            const totalSeconds = Math.max(0, Math.round(seconds));
+            if (totalSeconds === 0) {
+                return;
+            }
+            for (let remaining = totalSeconds; remaining > 0; remaining--) {
+                if (requestController?.signal?.aborted) {
+                    const abortError = new Error('AbortError');
+                    abortError.name = 'AbortError';
+                    throw abortError;
+                }
+                this.showAiStatus(
+                    'info',
+                    titleText,
+                    `${labelText}: ${remaining}s`,
+                    {
+                        canCloseOperation: true,
+                        retryLabel: retryHandler ? this.t('retry_now', '{% trans "Retry now"|escapejs %}') : '',
+                        retryHandler,
+                    }
+                );
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        },
+
+        async submitAiRequest(endpoint, payload, requestOptions = {}) {
+            const isProxy = endpoint.includes('/api/ts/');
+            const headers = { 'Content-Type': 'application/json' };
+            
+            if (isProxy) {
+                const csrf = this.getCsrfToken();
+                if (csrf) headers['X-CSRFToken'] = csrf;
+            }
+
+            const submitResult = await this.fetchAiWithFallback(endpoint, {
+                method: 'POST',
+                headers: headers,
+                credentials: 'same-origin',
+                signal: this.aiRequestController?.signal,
+                timeoutMs: requestOptions.timeoutMs,
+                body: JSON.stringify(payload),
+            });
+            const response = submitResult.response;
+            const responseText = await response.text();
+            let responseJson = {};
+            try {
+                responseJson = responseText ? JSON.parse(responseText) : {};
+            } catch {
+                responseJson = {};
+            }
+
+            if (response.ok) {
+                // Proxy returns {ok: true, output: ...}, direct returns {output: ...}
+                return String(responseJson.output || '').trim();
+            }
+
+            const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+            const looksLikeHtml = contentType.includes('text/html') || /<!doctype html|<html/i.test(responseText || '');
+            const status = Number(response.status || 0);
+            
+            console.error(`DocViewer AI: Request to ${endpoint} failed with status ${status}`, { contentType });
+
+            let msg = '';
+            if (looksLikeHtml) {
+                if (status === 403) {
+                    msg = '{% trans "CSRF verification failed or session expired. Please refresh the page and try again."|escapejs %}';
+                } else if (status >= 500) {
+                    msg = '{% trans "Django backend server error (500). Please check server logs for details."|escapejs %}';
+                } else if (status === 404) {
+                    msg = '{% trans "AI proxy route not found (404). Please verify translate/urls.py is correctly included."|escapejs %}';
+                } else {
+                    msg = '{% trans "AI service route misconfigured or blocked by security policy."|escapejs %}';
+                }
+            } else {
+                msg = responseJson.detail || responseJson.error || responseText || '{% trans "Request failed."|escapejs %}';
+            }
+            throw new Error(msg);
+        },
+
+        isAiTimeoutError(error) {
+            const message = String(error?.message || '').toLowerCase();
+            return message.includes('timed out') || message.includes('timeout');
+        },
+
+        async translateChunkWithAdaptiveRetry(endpoint, chunk, options = {}, depth = 0) {
+            const sourceText = String(chunk || '').trim();
+            if (!sourceText) {
+                return '';
+            }
+
+            const sourceLanguage = options.sourceLanguage || this.detectDocumentLanguage() || 'auto';
+            const targetLanguage = options.targetLanguage || 'en';
+            const timeoutMs = this.buildAiRequestTimeoutMs('translation', sourceText);
+
+            try {
+                return await this.submitAiRequest(endpoint, {
+                    text: sourceText,
+                    source_language: sourceLanguage,
+                    target_language: targetLanguage,
+                }, { timeoutMs });
+            } catch (err) {
+                const canSplitAgain = depth < 2 && sourceText.length > 900 && this.isAiTimeoutError(err);
+                if (!canSplitAgain) {
+                    throw err;
+                }
+
+                const smallerChunkSize = Math.max(700, Math.floor(sourceText.length / 2));
+                const parts = this.splitTextForAi(sourceText, smallerChunkSize);
+                if (parts.length <= 1) {
+                    throw err;
+                }
+
+                const translatedParts = [];
+                for (const part of parts) {
+                    const translated = await this.translateChunkWithAdaptiveRetry(
+                        endpoint,
+                        part,
+                        options,
+                        depth + 1,
+                    );
+                    if (translated) {
+                        translatedParts.push(translated);
+                    }
+                }
+                return translatedParts.join('\n\n').trim();
+            }
+        },
+
+        async summarizeChunkWithAdaptiveRetry(endpoint, chunk, options = {}, depth = 0) {
+            const sourceText = String(chunk || '').trim();
+            if (!sourceText) {
+                return '';
+            }
+
+            const language = options.language || this.detectDocumentLanguage() || 'auto';
+            const maxWords = Number(options.maxWords || 220);
+            const timeoutMs = this.buildAiRequestTimeoutMs('summarization', sourceText);
+
+            try {
+                return await this.submitAiRequest(endpoint, {
+                    text: sourceText,
+                    language,
+                    style: 'professional',
+                    max_words: maxWords,
+                }, { timeoutMs });
+            } catch (err) {
+                const canSplitAgain = depth < 2 && sourceText.length > 1400 && this.isAiTimeoutError(err);
+                if (!canSplitAgain) {
+                    throw err;
+                }
+
+                const smallerChunkSize = Math.max(900, Math.floor(sourceText.length / 2));
+                const parts = this.splitTextForAi(sourceText, smallerChunkSize);
+                if (parts.length <= 1) {
+                    throw err;
+                }
+
+                const summarizedParts = [];
+                for (const part of parts) {
+                    const summary = await this.summarizeChunkWithAdaptiveRetry(
+                        endpoint,
+                        part,
+                        {
+                            language,
+                            maxWords: Math.max(100, Math.round(maxWords * 0.75)),
+                        },
+                        depth + 1,
+                    );
+                    if (summary) {
+                        summarizedParts.push(summary);
+                    }
+                }
+                return summarizedParts.join('\n\n').trim();
+            }
+        },
+
+        async startAiJob(task, buttonElement = null, options = {}) {
+            const buttonId = task === 'translation' ? 'translateDocBtn' : 'summarizeDocBtn';
+            const isTranslation = task === 'translation';
+
+            this.closeAiResultOverlay();
+            this.lastAiResult = null;
+
+            this.cancelAiOperation(false);
+            this.activeAiJob = {
+                task,
+                buttonId,
+                jobId: '',
+            };
+            this.aiRequestController = new AbortController();
+            this.setNlpButtonLoading(buttonId, true, this.t('preparing', '{% trans "Preparing..."|escapejs %}'));
+            this.showAiStatus(
+                'info',
+                this.t('ai_processing', '{% trans "AI Processing"|escapejs %}'),
+                this.t('preparing_document_text', '{% trans "Preparing document text..."|escapejs %}'),
+                { canCloseOperation: true }
+            );
+
+            try {
+                const textForAi = await this.ensureDocumentTextForAi();
+                const finalPrompt = String(textForAi || '').trim();
+                const detectedLang = this.detectDocumentLanguage() || 'auto';
+                const sourceWords = finalPrompt ? finalPrompt.split(/\s+/).filter(Boolean).length : 0;
+                const summaryTargetWords = Math.max(120, Math.min(360, Math.round(sourceWords * 0.18)));
+                
+                // Use proxy endpoints if available
+                const translateProxy = this.getTranslateProxyEndpoint();
+                const summarizeProxy = this.getSummarizeProxyEndpoint();
+                const endpoint = isTranslation 
+                    ? translateProxy
+                    : summarizeProxy;
+
+                // Use chunking for both translation and summarization to avoid timeouts.
+                // Summarization chunks are larger but still capped to keep requests under the timeout.
+                const translationChunkSize = this.buildTranslationChunkSize(
+                    finalPrompt,
+                    options.sourceLanguage || detectedLang,
+                    options.targetLanguage || 'en',
+                );
+                const summaryChunkSize = this.buildSummaryChunkSize(finalPrompt);
+                const chunks = isTranslation 
+                    ? this.splitTextForAi(finalPrompt, translationChunkSize) 
+                    : this.splitTextForAi(finalPrompt, summaryChunkSize);
+
+                if (!finalPrompt || this.isInvalidAiInputText(finalPrompt)) {
+                    this.activeAiJob = null;
+                    this.aiRequestController = null;
+                    this.setNlpButtonLoading(buttonId, false);
+                    console.error('INVALID INPUT DETECTED');
+                    this.showAiStatus(
+                        'error',
+                        this.t('ai_error', '{% trans "AI Error"|escapejs %}'),
+                        this.t('no_document_text', '{% trans "No document text available. Unable to extract text from this file."|escapejs %}')
+                    );
+                    return;
+                }
+
+                console.log('FINAL TEXT:');
+                console.log(finalPrompt);
+                console.log('LENGTH:', finalPrompt?.length);
+                console.log('CHUNKS:', chunks.length);
+
+                this.setNlpButtonLoading(buttonId, true, this.t('processing', '{% trans "Processing..."|escapejs %}'));
+                this.showAiStatus(
+                    'info',
+                    this.t('ai_processing', '{% trans "AI Processing"|escapejs %}'),
+                    this.t('generating_output', '{% trans "Generating output..."|escapejs %}'),
+                    { canCloseOperation: true }
+                );
+
+                const chunkOutputs = [];
+                for (let i = 0; i < chunks.length; i++) {
+                    const chunk = chunks[i];
+                    const progress = `${i + 1}/${chunks.length}`;
+                    this.showAiStatus(
+                        'info',
+                        this.t('ai_processing', '{% trans "AI Processing"|escapejs %}'),
+                        isTranslation
+                            ? `${this.t('processing_document', '{% trans "Processing document..."|escapejs %}')} ${progress}`
+                            : `${this.t('processing_part', '{% trans "Processing part"|escapejs %}')} ${progress}...`,
+                        { canCloseOperation: true }
+                    );
+
+                    const partOutput = isTranslation
+                        ? await this.translateChunkWithAdaptiveRetry(endpoint, chunk, {
+                            sourceLanguage: options.sourceLanguage || detectedLang,
+                            targetLanguage: options.targetLanguage || 'en',
+                        })
+                        : await this.summarizeChunkWithAdaptiveRetry(endpoint, chunk, {
+                            language: detectedLang,
+                            maxWords: summaryTargetWords,
+                        });
+                    if (partOutput) {
+                        chunkOutputs.push(partOutput);
+                        if (isTranslation) {
+                            this.lastAiResult = {
+                                task: 'translation',
+                                title: this.t('translation', '{% trans "Translation"|escapejs %}'),
+                                meta: `${this.t('processing_document', '{% trans "Processing document..."|escapejs %}')} ${progress}`,
+                                targetLanguage: String(options.targetLanguage || '').trim().toLowerCase(),
+                                output: chunkOutputs.join('\n\n'),
+                            };
+                            this.updateAiResultOverlay();
+                        }
+                    }
+                }
+
+                let output = '';
+                if (isTranslation) {
+                    output = chunkOutputs.join('\n\n');
+                } else {
+                    // Build a final synthesis from chunk-level summaries.
+                    const combinedSummary = chunkOutputs.join('\n\n');
+                    const combinedSummaryWords = combinedSummary
+                        ? combinedSummary.split(/\s+/).filter(Boolean).length
+                        : 0;
+                    const shouldCondenseCombinedSummary =
+                        chunks.length > 4 &&
+                        combinedSummaryWords > 1200;
+                    if (shouldCondenseCombinedSummary && combinedSummary) {
+                        this.showAiStatus(
+                            'info',
+                            this.t('ai_processing', '{% trans "AI Processing"|escapejs %}'),
+                            this.t('generating_final_summary', '{% trans "Generating final summary..."|escapejs %}'),
+                            { canCloseOperation: true }
+                        );
+                        output = await this.summarizeChunkWithAdaptiveRetry(summarizeProxy, combinedSummary, {
+                            language: detectedLang,
+                            maxWords: 260,
+                        });
+                    } else {
+                        output = combinedSummary;
+                    }
+                }
+
+                if (!output) {
+                    throw new Error(this.t('unable_generate_parts', '{% trans "Unable to generate output from processed parts."|escapejs %}'));
+                }
+
+                this.setNlpButtonLoading(buttonId, false);
+                this.aiRequestController = null;
+                this.activeAiJob = null;
+                this.lastAiResult = {
+                    task: isTranslation ? 'translation' : 'summarization',
+                    title: isTranslation
+                        ? this.t('translation', '{% trans "Translation"|escapejs %}')
+                        : this.t('summarization', '{% trans "Summarization"|escapejs %}'),
+                    meta: isTranslation
+                        ? this.t('translation_completed', '{% trans "Translation completed in current page."|escapejs %}')
+                        : this.t('summary_generated', '{% trans "Summary generated in current page."|escapejs %}'),
+                    targetLanguage: isTranslation ? String(options.targetLanguage || '').trim().toLowerCase() : '',
+                    output,
+                };
+                this.openAiResultOverlay();
+
+                const statusBox = document.getElementById('docviewerAiStatus');
+                if (statusBox) {
+                    statusBox.style.display = 'none';
+                    statusBox.innerHTML = '';
+                }
+            } catch (err) {
+                if (err?.name === 'AbortError') {
+                    return;
+                }
+                this.closeAiResultOverlay();
+                this.lastAiResult = null;
+                this.aiRequestController = null;
+                this.activeAiJob = null;
+                this.setNlpButtonLoading(buttonId, false);
+                const isNetworkFetchError = Boolean(
+                    err && (
+                        err.name === 'TypeError' ||
+                        String(err.message || '').toLowerCase().includes('failed to fetch')
+                    )
+                );
+                const rawErrorMessage = String(err?.message || '');
+                const loweredErrorMessage = rawErrorMessage.toLowerCase();
+                const isRateLimited = loweredErrorMessage.includes('rate limit') || loweredErrorMessage.includes('too many requests') || loweredErrorMessage.includes('429');
+                const message = isNetworkFetchError
+                    ? this.t('service_unreachable', '{% trans "Translation/Summarization service is unreachable. Please verify the /ts-ai nginx route and network connectivity, then retry."|escapejs %}')
+                    : (isRateLimited
+                        ? this.t('rate_limit_reached', '{% trans "AI provider rate limit reached. Please wait a moment and retry."|escapejs %}')
+                        : (rawErrorMessage || this.t('unable_process', '{% trans "Unable to process request."|escapejs %}')));
+                this.showAiStatus('error', this.t('ai_error', '{% trans "AI Error"|escapejs %}'), message, {
+                    canCloseOperation: true,
+                    retryLabel: this.t('retry_now', '{% trans "Retry now"|escapejs %}'),
+                    retryHandler: () => {
+                        this.cancelAiOperation(false);
+                        this.startAiJob(task, buttonElement, options);
+                    },
+                });
+            }
+        },
+        
+        hideAllContainers() {
+            ['pdfContainer', 'docxContainer', 'imageContainer', 'textContainer', 'unsupportedContainer'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+        },
+        
+        showLoading() {
+            const loading = document.getElementById('docViewerLoading');
+            const error = document.getElementById('docViewerError');
+            if (loading) loading.style.display = 'flex';
+            if (error) error.style.display = 'none';
+        },
+        
+        hideLoading() {
+            const loading = document.getElementById('docViewerLoading');
+            if (loading) loading.style.display = 'none';
+        },
+        
+        showError(msg) {
+            this.hideLoading();
+            const error = document.getElementById('docViewerError');
+            const errorMsg = document.getElementById('docViewerErrorMsg');
+            if (error) error.style.display = 'flex';
+            if (errorMsg && msg) errorMsg.textContent = msg;
+        },
+        
+        async loadContent() {
+            try {
+                switch (this.currentType) {
+                    case 'pdf':
+                        await this.loadPDF();
+                        break;
+                    case 'docx':
+                        await this.loadDOCX();
+                        break;
+                    case 'image':
+                        await this.loadImage();
+                        break;
+                    case 'text':
+                        await this.loadText();
+                        break;
+                    default:
+                        this.showUnsupported();
+                }
+            } catch (error) {
+                console.error('DocViewer Error:', error);
+                this.showError(error.message || 'Failed to load document');
+            }
+        },
+        
+        async loadPDF() {
+            if (typeof pdfjsLib === 'undefined') {
+                throw new Error('PDF.js library not loaded');
+            }
+            
+            const loadingTask = pdfjsLib.getDocument(this.currentUrl);
+            this.pdfDoc = await loadingTask.promise;
+            this.totalPages = this.pdfDoc.numPages;
+            
+            document.getElementById('totalPages').textContent = this.totalPages;
+            document.getElementById('zoomControls').style.display = 'flex';
+            document.getElementById('pageControls').style.display = 'flex';
+            
+            this.hideLoading();
+            document.getElementById('pdfContainer').style.display = 'flex';
+            
+            await this.renderPDF();
+        },
+        
+        async renderPDF() {
+            const container = document.getElementById('pdfContainer');
+            container.innerHTML = '';
+            
+            const page = await this.pdfDoc.getPage(this.currentPage);
+            const containerWidth = container.clientWidth - 48;
+            const viewport = page.getViewport({ scale: 1 });
+            this.baseScale = containerWidth / viewport.width;
+            
+            const scaledViewport = page.getViewport({ scale: this.baseScale * this.scale });
+            
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = scaledViewport.height;
+            canvas.width = scaledViewport.width;
+            
+            await page.render({
+                canvasContext: context,
+                viewport: scaledViewport
+            }).promise;
+            
+            container.appendChild(canvas);
+            
+            document.getElementById('currentPage').textContent = this.currentPage;
+            this.updatePageButtons();
+        },
+        
+        async loadDOCX() {
+            if (typeof docx === 'undefined') {
+                throw new Error('docx-preview library not loaded');
+            }
+            
+            const response = await fetch(this.currentUrl);
+            const blob = await response.blob();
+            
+            const container = document.getElementById('docxContainer');
+            await docx.renderAsync(blob, container);
+            
+            this.hideLoading();
+            container.style.display = 'block';
+        },
+        
+        async loadImage() {
+            const img = document.getElementById('imageViewer');
+            
+            return new Promise((resolve, reject) => {
+                img.onload = () => {
+                    this.hideLoading();
+                    document.getElementById('imageContainer').style.display = 'flex';
+                    document.getElementById('zoomControls').style.display = 'flex';
+                    resolve();
+                };
+                img.onerror = () => reject(new Error('Failed to load image'));
+                img.src = this.currentUrl;
+            });
+        },
+        
+        async loadText() {
+            const response = await fetch(this.currentUrl);
+            const text = await response.text();
+            
+            this.currentText = text;
+            document.getElementById('textViewer').textContent = text;
+            this.hideLoading();
+            document.getElementById('textContainer').style.display = 'block';
+        },
+        
+        showUnsupported() {
+            this.hideLoading();
+            document.getElementById('unsupportedContainer').style.display = 'flex';
+        },
+        
+        zoomIn() {
+            if (this.scale < 3) {
+                this.scale = Math.min(3, this.scale + 0.25);
+                this.updateZoom();
+            }
+        },
+        
+        zoomOut() {
+            if (this.scale > 0.25) {
+                this.scale = Math.max(0.25, this.scale - 0.25);
+                this.updateZoom();
+            }
+        },
+        
+        fitWidth() {
+            this.scale = 1;
+            this.updateZoom();
+        },
+        
+        updateZoom() {
+            document.getElementById('zoomLevel').textContent = Math.round(this.scale * 100);
+            
+            if (this.currentType === 'pdf' && this.pdfDoc) {
+                this.renderPDF();
+            } else if (this.currentType === 'image') {
+                const img = document.getElementById('imageViewer');
+                img.style.transform = `scale(${this.scale})`;
+            }
+        },
+        
+        prevPage() {
+            if (this.currentPage > 1) {
+                this.currentPage--;
+                this.renderPDF();
+            }
+        },
+        
+        nextPage() {
+            if (this.currentPage < this.totalPages) {
+                this.currentPage++;
+                this.renderPDF();
+            }
+        },
+        
+        updatePageButtons() {
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+            
+            if (prevBtn) prevBtn.disabled = this.currentPage <= 1;
+            if (nextBtn) nextBtn.disabled = this.currentPage >= this.totalPages;
+        },
+        
+        handleKeyboard(e) {
+            if (!this.isOpen) return;
+            
+            switch (e.key) {
+                case 'Escape':
+                    this.close();
+                    break;
+                case '+':
+                case '=':
+                    e.preventDefault();
+                    this.zoomIn();
+                    break;
+                case '-':
+                    e.preventDefault();
+                    this.zoomOut();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    this.prevPage();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    this.nextPage();
+                    break;
+            }
+        },
+        
+        getFileType(url) {
+            const ext = url.split('.').pop().toLowerCase().split('?')[0];
+            if (ext === 'pdf') return 'pdf';
+            if (['doc', 'docx'].includes(ext)) return 'docx';
+            if (['ppt', 'pptx'].includes(ext)) return 'pptx';
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return 'image';
+            if (['txt', 'md', 'json', 'xml', 'csv', 'log'].includes(ext)) return 'text';
+            return 'unknown';
+        },
+        
+        getFilename(url) {
+            try {
+                return decodeURIComponent(url.split('/').pop().split('?')[0]);
+            } catch {
+                return url.split('/').pop().split('?')[0];
+            }
+        },
+        
+        retry() {
+            if (this.currentUrl) {
+                this.hideAllContainers();
+                this.showLoading();
+                this.loadContent();
+            }
+        },
+        
+        // NLP Feature Placeholders
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // Convert to Text â€” real implementation
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        convertToText() {
+            const modal     = document.getElementById('documentViewerModal');
+            const overlay   = document.getElementById('convertTextOverlay');
+            const resultBox = document.getElementById('convertTextResult');
+            const textArea  = document.getElementById('convertedTextArea');
+            const spinner   = document.getElementById('convertTextSpinner');
+            const errorBox  = document.getElementById('convertTextError');
+            const errorMsg  = document.getElementById('convertTextErrorMsg');
+            const metaInfo  = document.getElementById('convertTextMeta');
+            const copyBtn   = document.getElementById('copyExtractedTextBtn');
+            const downloadBtn = document.getElementById('downloadExtractedTextBtn');
+
+            // Reset UI
+            overlay.style.display   = 'flex';
+            spinner.style.display   = 'flex';
+            resultBox.style.display = 'none';
+            errorBox.style.display  = 'none';
+            if (copyBtn) copyBtn.textContent = '{% trans "Copy to Clipboard"|escapejs %}';
+
+            const apiUrl = modal.dataset.convertUrl;
+
+            fetch(apiUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            })
+            .then(resp => resp.json())
+            .then(data => {
+                spinner.style.display = 'none';
+                if (data.success) {
+                    this.currentText = String(data.text || '').trim();
+                    this.languageSampleText = this.currentText.slice(0, 6000);
+                    textArea.value = data.text;
+                    metaInfo.textContent = data.filename
+                        + '  â€¢  ' + (data.word_count || 0).toLocaleString() + ' {% trans "words"|escapejs %}'
+                        + '  â€¢  ' + (data.char_count || 0).toLocaleString() + ' {% trans "chars"|escapejs %}';
+                    resultBox.style.display = 'flex';
+
+                    // Copy button
+                    copyBtn.onclick = () => {
+                        navigator.clipboard.writeText(data.text).then(() => {
+                            copyBtn.textContent = '{% trans "Copied!"|escapejs %}';
+                            setTimeout(() => copyBtn.textContent = '{% trans "Copy to Clipboard"|escapejs %}', 2000);
+                        });
+                    };
+
+                    // Download as .txt
+                    downloadBtn.onclick = () => {
+                        const blob = new Blob([data.text], { type: 'text/plain;charset=utf-8' });
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = (data.filename || 'extracted') + '.txt';
+                        a.click();
+                        URL.revokeObjectURL(a.href);
+                    };
+                } else {
+                    errorMsg.textContent = data.error || '{% trans "Unknown error"|escapejs %}';
+                    errorBox.style.display = 'flex';
+                }
+            })
+            .catch(err => {
+                spinner.style.display = 'none';
+                errorMsg.textContent = '{% trans "Network error. Please try again."|escapejs %}';
+                errorBox.style.display = 'flex';
+                console.error('Convert to text error:', err);
+            });
+        },
+
+        closeConvertOverlay() {
+            document.getElementById('convertTextOverlay').style.display = 'none';
+        },
+        
+        summarizeDoc(buttonElement) {
+            this.startAiJob('summarization', buttonElement);
+        },
+        
+        async translateDoc(buttonElement) {
+            const selection = await this.askTranslationPair();
+            if (selection === null) {
+                return;
+            }
+
+            this.startAiJob('translation', buttonElement, {
+                sourceLanguage: selection.source,
+                targetLanguage: selection.target,
+            });
+        },
+        
+        askChatbot() {
+            // Redirect to chatbot with document context for analysis
+            const chatbotUrl = '{% url "chatbot:chatbot_interface" %}';
+            const resourceId = this.modal.dataset.resourceId || '';
+            const resourceTitle = this.modal.dataset.resourceTitle || this.getFilename(this.currentUrl);
+            const fileUrl = this.currentUrl || '';
+            const params = new URLSearchParams({
+                doc_action: 'analyse',
+                doc_id: resourceId,
+                doc_title: resourceTitle,
+                doc_file: fileUrl
+            });
+            window.open(chatbotUrl + '?' + params.toString(), '_blank');
+        }
+    };
+    
+    // Initialize on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => DocViewer.init());
+    } else {
+        DocViewer.init();
+    }
+    
+    // Global function for opening viewer
+    window.openDocumentViewer = (url, type, resourceId, resourceTitle, convertUrl) => {
+        if (window.DocViewer && typeof window.DocViewer.cancelAiOperation === 'function') {
+            window.DocViewer.cancelAiOperation(false);
+        }
+        return DocViewer.open(url, type, resourceId, resourceTitle, convertUrl);
+    };
+    window.DocViewer = DocViewer;
+    
+})();
+</script>
+
+<style>
+/* Close/Exit animations */
+@keyframes containerSlideOut {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+    }
+}
+
+@keyframes backdropFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+</style>
+
+
+
+

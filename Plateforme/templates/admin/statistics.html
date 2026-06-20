@@ -4,517 +4,108 @@
 
 {% block extra_css %}
 <style>
-  :root {
-    --primary-color: #4361ee;
-    --primary-dark: #3730a3;
-    --success-color: #10b981;
-    --warning-color: #f59e0b;
-    --danger-color: #ef4444;
-    --info-color: #3b82f6;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-900: #111827;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  }
-
-  /* Header Section */
-  .stats-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-    border-radius: 16px;
-    padding: 2rem;
-    color: white;
-    margin-bottom: 2rem;
-    box-shadow: var(--shadow-lg);
-  }
-
-  .stats-header h1 {
-    font-size: 1.875rem;
-    font-weight: 700;
-    margin: 0 0 0.5rem 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .stats-header p {
-    margin: 0;
-    opacity: 0.9;
-  }
-
-  /* Date Filter Section */
-  .filter-card {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-md);
-    margin-bottom: 2rem;
-  }
-
-  .filter-form {
-    display: flex;
-    gap: 1rem;
-    align-items: end;
-    flex-wrap: wrap;
-  }
-
-  .form-group {
-    flex: 1;
-    min-width: 200px;
-  }
-
-  .form-label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--gray-700);
-    margin-bottom: 0.5rem;
-  }
-
-  .form-input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid var(--gray-200);
-    border-radius: 10px;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-  }
-
-  .form-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
-  }
-
-  .btn-filter {
-    padding: 0.75rem 2rem;
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .btn-filter:hover {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
-  }
-
-  /* Stats Cards Grid */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .stat-card {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-md);
-    transition: all 0.3s ease;
-    border-left: 4px solid;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 100px;
-    height: 100px;
-    background: currentColor;
-    opacity: 0.05;
-    border-radius: 50%;
-    transform: translate(30%, -30%);
-  }
-
-  .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .stat-card.users { border-left-color: var(--primary-color); }
-  .stat-card.resources { border-left-color: var(--success-color); }
-  .stat-card.publications { border-left-color: var(--info-color); }
-  .stat-card.tools { border-left-color: var(--warning-color); }
-
-  .stat-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-  }
-
-  .stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    color: white;
-  }
-
-  .stat-card.users .stat-icon { background: var(--primary-color); }
-  .stat-card.resources .stat-icon { background: var(--success-color); }
-  .stat-card.publications .stat-icon { background: var(--info-color); }
-  .stat-card.tools .stat-icon { background: var(--warning-color); }
-
-  .stat-title {
-    font-size: 0.875rem;
-    color: var(--gray-600);
-    font-weight: 500;
-    margin: 0 0 0.5rem 0;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-  }
-
-  .stat-trend {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-top: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: 50px;
-  }
-
-  .stat-trend.positive {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-  }
-
-  .stat-trend.negative {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger-color);
-  }
-
-  /* Charts Grid */
-  .charts-container {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .chart-card {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-md);
-  }
-
-  .chart-card.full-width {
-    grid-column: 1 / -1;
-  }
-
-  .chart-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-  }
-
-  .chart-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
-  }
-
-  .chart-canvas {
-    height: 300px !important;
-  }
-
-  .chart-canvas.small {
-    height: 250px !important;
-  }
-
-  /* Top Resources List */
-  .resources-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .resource-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--gray-200);
-    transition: all 0.2s ease;
-  }
-
-  .resource-item:last-child {
-    border-bottom: none;
-  }
-
-  .resource-item:hover {
-    background: var(--gray-50);
-    padding-left: 0.5rem;
-    margin: 0 -0.5rem;
-    border-radius: 8px;
-  }
-
-  .resource-info {
-    flex: 1;
-  }
-
-  .resource-title {
-    font-weight: 600;
-    color: var(--gray-900);
-    margin: 0 0 0.25rem 0;
-    font-size: 0.95rem;
-  }
-
-  .resource-views {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    background: var(--gray-100);
-    border-radius: 50px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--gray-700);
-  }
-
-  /* Responsive Design */
-  @media (max-width: 1200px) {
-    .charts-container {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .stats-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .filter-form {
-      flex-direction: column;
-    }
-
-    .form-group {
-      width: 100%;
-    }
-
-    .btn-filter {
-      width: 100%;
-    }
-  }
-
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 3rem;
-    color: var(--gray-600);
-  }
-
-  .empty-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-  }
+.st-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.25rem;margin-bottom:1.5rem;}
+.st-chart{background:var(--n-surface);border:1px solid var(--n-border);border-radius:var(--n-radius);padding:1.25rem;}
+.st-chart h4{font-size:.95rem;font-weight:600;color:var(--n-text);margin:0 0 1rem;}
+.st-chart canvas{height:260px!important;}
+.st-list{list-style:none;padding:0;margin:0;}
+.st-list li{display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;border-bottom:1px solid var(--n-border);}
+.st-list li:last-child{border-bottom:none;}
+.st-views{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;background:var(--n-bg);border-radius:6px;font-size:.8rem;font-weight:600;color:var(--n-text-2);}
+.st-trend{display:inline-flex;align-items:center;gap:.25rem;font-size:.8rem;font-weight:600;padding:.15rem .5rem;border-radius:20px;margin-top:.35rem;}
+.st-trend.up{background:rgba(16,185,129,.1);color:var(--n-green);}
+.st-trend.down{background:rgba(239,68,68,.1);color:var(--n-red);}
+@media(max-width:900px){.st-grid{grid-template-columns:1fr;}}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-  <!-- Header -->
-  <div class="stats-header">
-    <h1>
-      <i class="fas fa-chart-line"></i>
-      {% trans "Statistics Dashboard" %}
-    </h1>
-    <p>{% trans "Overview of your platform's performance and activity" %}</p>
+<div class="pg-head">
+  <div>
+    <h1><i class="fas fa-chart-line"></i> {% trans "Statistics Dashboard" %}</h1>
+    <p class="pg-sub">{% trans "Overview of your platform's performance and activity" %}</p>
   </div>
+</div>
 
-  <!-- Date Filter -->
-  <div class="filter-card">
-    <form method="get" class="filter-form">
-      <div class="form-group">
-        <label for="start_date" class="form-label">
-          <i class="fas fa-calendar-alt me-1"></i>
-          {% trans "Start date" %}
-        </label>
-        <input
-          type="date"
-          class="form-input"
-          id="start_date"
-          name="start_date"
-          value="{{ start_date|date:'Y-m-d' }}"
-        />
+<!-- Date Filter -->
+<div class="n-card mb-3">
+  <div class="n-card-body">
+    <form method="get">
+      <div class="n-filter">
+        <div class="n-form-group">
+          <label class="n-form-label">{% trans "Start date" %}</label>
+          <input type="date" class="n-input" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+        </div>
+        <div class="n-form-group">
+          <label class="n-form-label">{% trans "End date" %}</label>
+          <input type="date" class="n-input" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+        </div>
+        <button type="submit" class="n-btn n-btn-primary" style="align-self:flex-end;">
+          <i class="fas fa-filter"></i> {% trans "Apply Filter" %}
+        </button>
       </div>
-      <div class="form-group">
-        <label for="end_date" class="form-label">
-          <i class="fas fa-calendar-alt me-1"></i>
-          {% trans "End date" %}
-        </label>
-        <input
-          type="date"
-          class="form-input"
-          id="end_date"
-          name="end_date"
-          value="{{ end_date|date:'Y-m-d' }}"
-        />
-      </div>
-      <button type="submit" class="btn-filter">
-        <i class="fas fa-filter me-2"></i>
-        {% trans "Apply Filter" %}
-      </button>
     </form>
   </div>
+</div>
 
-  <!-- Stats Cards -->
-  <div class="stats-grid">
-    <!-- Users Card -->
-    <div class="stat-card users">
-      <div class="stat-header">
-        <div class="stat-icon">
-          <i class="fas fa-users"></i>
-        </div>
-      </div>
-      <h3 class="stat-title">{% trans "Total Users" %}</h3>
-      <p class="stat-value">{{ current_stats.users_count|default:0 }}</p>
-      <span class="stat-trend {% if current_stats.users_growth >= 0 %}positive{% else %}negative{% endif %}">
-        <i class="fas fa-arrow-{% if current_stats.users_growth >= 0 %}up{% else %}down{% endif %}"></i>
-        {{ current_stats.users_growth|default:0|floatformat:1 }}%
-      </span>
-    </div>
-
-    <!-- Resources Card -->
-    <div class="stat-card resources">
-      <div class="stat-header">
-        <div class="stat-icon">
-          <i class="fas fa-folder-open"></i>
-        </div>
-      </div>
-      <h3 class="stat-title">{% trans "Total Resources" %}</h3>
-      <p class="stat-value">{{ current_stats.resources_count|default:0 }}</p>
-      <span class="stat-trend {% if current_stats.resources_growth >= 0 %}positive{% else %}negative{% endif %}">
-        <i class="fas fa-arrow-{% if current_stats.resources_growth >= 0 %}up{% else %}down{% endif %}"></i>
-        {{ current_stats.resources_growth|default:0|floatformat:1 }}%
-      </span>
-    </div>
-
-    <!-- Publications Card -->
-    <div class="stat-card publications">
-      <div class="stat-header">
-        <div class="stat-icon">
-          <i class="fas fa-file-alt"></i>
-        </div>
-      </div>
-      <h3 class="stat-title">{% trans "Publications" %}</h3>
-      <p class="stat-value">{{ current_stats.publications_count|default:0 }}</p>
-      <span class="stat-trend positive">
-        <i class="fas fa-check"></i>
-        {% trans "Active" %}
-      </span>
-    </div>
-
-    <!-- Tools Card -->
-    <div class="stat-card tools">
-      <div class="stat-header">
-        <div class="stat-icon">
-          <i class="fas fa-tools"></i>
-        </div>
-      </div>
-      <h3 class="stat-title">{% trans "NLP Tools" %}</h3>
-      <p class="stat-value">{{ current_stats.tools_count|default:0 }}</p>
-      <span class="stat-trend positive">
-        <i class="fas fa-check"></i>
-        {% trans "Available" %}
-      </span>
-    </div>
+<!-- Stats Cards -->
+<div class="n-st-grid" style="grid-template-columns:repeat(4,1fr);">
+  <div class="n-st">
+    <span class="n-st-val" style="color:var(--n-blue);">{{ current_stats.users_count|default:0 }}</span>
+    <span class="n-st-lbl">{% trans "Total Users" %}</span>
+    <span class="st-trend {% if current_stats.users_growth >= 0 %}up{% else %}down{% endif %}">
+      <i class="fas fa-arrow-{% if current_stats.users_growth >= 0 %}up{% else %}down{% endif %}"></i>
+      {{ current_stats.users_growth|default:0|floatformat:1 }}%
+    </span>
   </div>
+  <div class="n-st">
+    <span class="n-st-val" style="color:var(--n-green);">{{ current_stats.resources_count|default:0 }}</span>
+    <span class="n-st-lbl">{% trans "Total Resources" %}</span>
+    <span class="st-trend {% if current_stats.resources_growth >= 0 %}up{% else %}down{% endif %}">
+      <i class="fas fa-arrow-{% if current_stats.resources_growth >= 0 %}up{% else %}down{% endif %}"></i>
+      {{ current_stats.resources_growth|default:0|floatformat:1 }}%
+    </span>
+  </div>
+  <div class="n-st">
+    <span class="n-st-val" style="color:var(--n-blue);">{{ current_stats.publications_count|default:0 }}</span>
+    <span class="n-st-lbl">{% trans "Publications" %}</span>
+  </div>
+  <div class="n-st">
+    <span class="n-st-val" style="color:var(--n-amber);">{{ current_stats.tools_count|default:0 }}</span>
+    <span class="n-st-lbl">{% trans "NLP Tools" %}</span>
+  </div>
+</div>
 
-  <!-- Charts Grid -->
-  <div class="charts-container">
-    <!-- User Registrations Chart -->
-    <div class="chart-card">
-      <div class="chart-header">
-        <h4 class="chart-title">
-          <i class="fas fa-user-plus me-2"></i>
-          {% trans "User Registrations" %}
-        </h4>
-      </div>
-      <canvas id="usersChart" class="chart-canvas small"></canvas>
-    </div>
-
-    <!-- Resources by Category -->
-    <div class="chart-card">
-      <div class="chart-header">
-        <h4 class="chart-title">
-          <i class="fas fa-chart-pie me-2"></i>
-          {% trans "Resources by Category" %}
-        </h4>
-      </div>
-      <canvas id="resourcesChart" class="chart-canvas small"></canvas>
-    </div>
-
-    <!-- Top 5 Resources -->
-    <div class="chart-card">
-      <div class="chart-header">
-        <h4 class="chart-title">
-          <i class="fas fa-fire me-2"></i>
-          {% trans "Top 5 Most Viewed Resources" %}
-        </h4>
-      </div>
-      <ul class="resources-list">
-        {% for resource in top_resources %}
-        <li class="resource-item">
-          <div class="resource-info">
-            <h6 class="resource-title">{{ resource.title|truncatechars:50 }}</h6>
-          </div>
-          <span class="resource-views">
-            <i class="fas fa-eye"></i>
-            {{ resource.views }}
-          </span>
-        </li>
-        {% empty %}
-        <li class="empty-state">
-          <div class="empty-icon">
-            <i class="fas fa-inbox"></i>
-          </div>
-          <p>{% trans "No data available" %}</p>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-
-    <!-- Activity by Category -->
-    <div class="chart-card">
-      <div class="chart-header">
-        <h4 class="chart-title">
-          <i class="fas fa-chart-bar me-2"></i>
-          {% trans "Activity by Category" %}
-        </h4>
-      </div>
-      <canvas id="activityChart" class="chart-canvas small"></canvas>
-    </div>
+<!-- Charts -->
+<div class="st-grid">
+  <div class="st-chart">
+    <h4><i class="fas fa-user-plus me-2"></i>{% trans "User Registrations" %}</h4>
+    <canvas id="usersChart"></canvas>
+  </div>
+  <div class="st-chart">
+    <h4><i class="fas fa-chart-pie me-2"></i>{% trans "Resources by Category" %}</h4>
+    <canvas id="resourcesChart"></canvas>
+  </div>
+  <div class="st-chart">
+    <h4><i class="fas fa-fire me-2"></i>{% trans "Top 5 Most Viewed Resources" %}</h4>
+    <ul class="st-list">
+      {% for resource in top_page_obj %}
+      <li>
+        <span class="fw-semibold" style="font-size:.9rem;">{{ resource.title|truncatechars:50 }}</span>
+        <span class="st-views"><i class="fas fa-eye"></i> {{ resource.views }}</span>
+      </li>
+      {% empty %}
+      <li class="n-empty" style="border:none;">
+        <i class="fas fa-inbox"></i>
+        <p>{% trans "No data available" %}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% include 'admin/_pagination.html' with page_obj=top_page_obj query_string=top_pagination_qs page_param='top_page' %}
+  </div>
+  <div class="st-chart">
+    <h4><i class="fas fa-newspaper me-2" style="color:#A78BFA;"></i>{% trans "Activity by Category" %}</h4>
+    <canvas id="activityChart"></canvas>
   </div>
 </div>
 {% endblock %}
@@ -522,143 +113,24 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Chart.js Configuration
-  Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-  Chart.defaults.color = '#6b7280';
-  Chart.defaults.plugins.legend.position = 'bottom';
-  Chart.defaults.plugins.legend.labels.padding = 15;
-  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.font.family="'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+Chart.defaults.color='#6b7280';
+Chart.defaults.plugins.legend.position='bottom';
+Chart.defaults.plugins.legend.labels.padding=15;
+Chart.defaults.plugins.legend.labels.usePointStyle=true;
 
-  // User Registrations Chart
-  const usersCtx = document.getElementById('usersChart');
-  if (usersCtx) {
-    new Chart(usersCtx.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: {{ user_reg_dates|safe|default:"[]" }},
-        datasets: [{
-          label: '{% trans "Registrations" %}',
-          data: {{ user_reg_counts|safe|default:"[]" }},
-          borderColor: '#4361ee',
-          backgroundColor: 'rgba(67, 97, 238, 0.1)',
-          tension: 0.4,
-          fill: true,
-          borderWidth: 3,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          pointBackgroundColor: '#4361ee',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: '#1e293b',
-            padding: 12,
-            cornerRadius: 8,
-            titleColor: '#fff',
-            bodyColor: '#e2e8f0'
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1 },
-            grid: { color: '#f1f5f9' }
-          },
-          x: {
-            grid: { display: false }
-          }
-        }
-      }
-    });
-  }
+const ttOpts={backgroundColor:'#1e293b',padding:12,cornerRadius:8,titleColor:'#fff',bodyColor:'#e2e8f0'};
 
-  // Resources by Category Chart
-  const resourcesCtx = document.getElementById('resourcesChart');
-  if (resourcesCtx) {
-    new Chart(resourcesCtx.getContext('2d'), {
-      type: 'doughnut',
-      data: {
-        labels: ['{% trans "Publications" %}', '{% trans "Corpus" %}', '{% trans "Tools" %}'],
-        datasets: [{
-          data: [
-            {{ current_stats.publications_count|default:0 }},
-            {{ current_stats.corpus_count|default:0 }},
-            {{ current_stats.tools_count|default:0 }}
-          ],
-          backgroundColor: ['#4361ee', '#10b981', '#f59e0b'],
-          borderWidth: 3,
-          borderColor: '#fff',
-          hoverOffset: 8
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { padding: 15, font: { size: 12 } }
-          },
-          tooltip: {
-            backgroundColor: '#1e293b',
-            padding: 12,
-            cornerRadius: 8
-          }
-        }
-      }
-    });
-  }
+// User Registrations
+const u=document.getElementById('usersChart');
+if(u){new Chart(u.getContext('2d'),{type:'line',data:{labels:{{ user_reg_dates|safe|default:"[]" }},datasets:[{label:'{% trans "Registrations" %}',data:{{ user_reg_counts|safe|default:"[]" }},borderColor:'var(--n-blue,#3B82F6)',backgroundColor:'rgba(59,130,246,.1)',tension:.4,fill:true,borderWidth:3,pointRadius:4,pointHoverRadius:6,pointBackgroundColor:'#3B82F6',pointBorderColor:'#fff',pointBorderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:ttOpts},scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});}
 
-  // Activity by Category Chart
-  const activityCtx = document.getElementById('activityChart');
-  if (activityCtx) {
-    new Chart(activityCtx.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: ['{% trans "Publications" %}', '{% trans "Corpus" %}', '{% trans "Tools" %}', '{% trans "Projects" %}', '{% trans "Forum" %}'],
-        datasets: [{
-          label: '{% trans "Activity" %}',
-          data: [
-            {{ current_stats.publications_count|default:0 }},
-            {{ current_stats.corpus_count|default:0 }},
-            {{ current_stats.tools_count|default:0 }},
-            {{ current_stats.projects_count|default:0 }},
-            {{ current_stats.forum_posts_count|default:0 }}
-          ],
-          backgroundColor: '#4361ee',
-          borderRadius: 8,
-          borderSkipped: false
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: '#1e293b',
-            padding: 12,
-            cornerRadius: 8
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1 },
-            grid: { color: '#f1f5f9' }
-          },
-          x: {
-            grid: { display: false }
-          }
-        }
-      }
-    });
-  }
+// Resources by Category
+const r=document.getElementById('resourcesChart');
+if(r){new Chart(r.getContext('2d'),{type:'doughnut',data:{labels:['{% trans "Publications" %}','{% trans "Corpus" %}','{% trans "Tools" %}'],datasets:[{data:[{{ current_stats.publications_count|default:0 }},{{ current_stats.corpus_count|default:0 }},{{ current_stats.tools_count|default:0 }}],backgroundColor:['#3B82F6','#10B981','#F59E0B'],borderWidth:3,borderColor:'#fff',hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:15,font:{size:12}}},tooltip:ttOpts}}});}
+
+// Activity by Category
+const a=document.getElementById('activityChart');
+if(a){new Chart(a.getContext('2d'),{type:'bar',data:{labels:['{% trans "Publications" %}','{% trans "Corpus" %}','{% trans "Tools" %}','{% trans "Projects" %}','{% trans "Forum" %}'],datasets:[{label:'{% trans "Activity" %}',data:[{{ current_stats.publications_count|default:0 }},{{ current_stats.corpus_count|default:0 }},{{ current_stats.tools_count|default:0 }},{{ current_stats.projects_count|default:0 }},{{ current_stats.forum_posts_count|default:0 }}],backgroundColor:'#3B82F6',borderRadius:8,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:ttOpts},scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});}
 </script>
 {% endblock %}

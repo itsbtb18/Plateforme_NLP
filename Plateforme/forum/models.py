@@ -1,24 +1,167 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 import uuid
+
+
+class TopicSoftDeleteQuerySet(models.QuerySet):
+    def alive(self):
+        return self.filter(is_deleted=False)
+
+    def deleted(self):
+        return self.filter(is_deleted=True)
+
+    def delete(self):
+        from django.utils import timezone
+
+        return super().update(is_deleted=True, deleted_at=timezone.now())
+
+    def hard_delete(self):
+        return super().delete()
+
+
+class ActiveTopicManager(models.Manager.from_queryset(TopicSoftDeleteQuerySet)):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
+class AllTopicManager(models.Manager.from_queryset(TopicSoftDeleteQuerySet)):
+    pass
+
+
 class Topic(models.Model):
+    APPROVAL_STATUS_CHOICES = (
+        ('pending', _('Pending')),
+        ('approved', _('Approved')),
+        ('rejected', _('Rejected')),
+    )
+    
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
         editable=False
     )
     title = models.CharField(max_length=200)
+    title_ar = models.CharField(max_length=200, blank=True, default='', verbose_name=_('Title (Arabic)'))
+    title_en = models.CharField(max_length=200, blank=True, default='', verbose_name=_('Title (English)'))
     description = models.TextField()
+    description_ar = models.TextField(blank=True, default='', verbose_name=_('Description (Arabic)'))
+    description_en = models.TextField(blank=True, default='', verbose_name=_('Description (English)'))
     creator = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='topics')
     created_at = models.DateTimeField(auto_now_add=True)
+    views = models.PositiveIntegerField(default=0)
     is_closed = models.BooleanField(default=False)
+    related_project = models.ForeignKey(
+        "projects.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="forum_topics",
+    )
+    related_event = models.ForeignKey(
+        "events.Event",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="forum_topics",
+    )
+    related_news = models.ForeignKey(
+        "QA.Post",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="forum_topics",
+    )
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default='pending',
+        verbose_name=_('Approval Status')
+    )
+    rejection_reason = models.TextField(
+        verbose_name=_('Rejection Reason'),
+        blank=True,
+        null=True,
+        default='',
+        help_text=_('Reason for rejection (only filled when status is rejected)')
+    )
+    # Legacy field for backward compatibility
+    is_approved = models.BooleanField(default=False, verbose_name=_('Is Approved'))
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_topics_set",
+    )
+
+    objects = ActiveTopicManager()
+    all_objects = AllTopicManager()
 
     def __str__(self):
         return self.title
+
+    def get_localized_title(self):
+        """Return title based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang == 'ar' and self.title_ar:
+            return self.title_ar
+        elif self.title_en:
+            return self.title_en
+        return self.title
+
+    def get_localized_description(self):
+        """Return description based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang == 'ar' and self.description_ar:
+            return self.description_ar
+        elif self.description_en:
+            return self.description_en
+        return self.description
+
+    @property
+    def title_display(self):
+        """Return title based on current language - NO fallback (strict i18n)."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.title_ar or ''
+        return self.title_en or ''
+
+    @property
+    def description_display(self):
+        """Return description based on current language - NO fallback (strict i18n)."""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar'):
+            return self.description_ar or ''
+        return self.description_en or ''
     
     def get_absolute_url(self):
         return reverse('forum:topic-list')
+
+    def soft_delete(self, user=None):
+        from django.utils import timezone
+
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        if user and getattr(user, "is_authenticated", False):
+            self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def hard_delete(self):
+        super().delete()
 
 class ChatRoom(models.Model):
     id = models.UUIDField(
@@ -28,12 +171,36 @@ class ChatRoom(models.Model):
     )
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='chatrooms')
     name = models.CharField(max_length=200)
+    name_ar = models.CharField(max_length=200, blank=True, default='', verbose_name=_('Name (Arabic)'))
+    name_en = models.CharField(max_length=200, blank=True, default='', verbose_name=_('Name (English)'))
     description = models.TextField()
+    description_ar = models.TextField(blank=True, default='', verbose_name=_('Description (Arabic)'))
+    description_en = models.TextField(blank=True, default='', verbose_name=_('Description (English)'))
     creator = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='created_chatrooms')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
+    
+    def get_localized_name(self):
+        """Return name based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.name_ar:
+            return self.name_ar
+        elif self.name_en:
+            return self.name_en
+        return self.name
+
+    def get_localized_description(self):
+        """Return description based on current language"""
+        from django.utils.translation import get_language
+        lang = get_language()
+        if lang and lang.startswith('ar') and self.description_ar:
+            return self.description_ar
+        elif self.description_en:
+            return self.description_en
+        return self.description
     
     def get_absolute_url(self):
         return reverse('forum:chatroom-detail', kwargs={'pk': self.pk})
@@ -46,7 +213,15 @@ class Message(models.Model):
     )
     chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='forum_messages')
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replies",
+    )
     content = models.TextField()
+    rendered_content = models.TextField(blank=True, default="")
     timestamp = models.DateTimeField(auto_now_add=True)
     is_edited = models.BooleanField(default=False)
     edited_at = models.DateTimeField(null=True, blank=True)
@@ -54,8 +229,14 @@ class Message(models.Model):
     class Meta:
         ordering = ['timestamp']  # Tri par défaut des messages par ordre chronologique
 
+    def save(self, *args, **kwargs):
+        from .rendering import render_message_markdown
+
+        self.rendered_content = render_message_markdown(self.content or "")
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"Message de {self.user.username} à {self.timestamp.strftime('%H:%M:%S')}"
+        return f"Message de {self.user.email} à {self.timestamp.strftime('%H:%M:%S')}"
 
 class BannedUser(models.Model):
     id = models.UUIDField(
@@ -74,4 +255,4 @@ class BannedUser(models.Model):
         ordering = ['-banned_at']
 
     def __str__(self):
-        return f"{self.user.username} banni de {self.chatroom.name}"
+        return f"{self.user.email} banni de {self.chatroom.name}"

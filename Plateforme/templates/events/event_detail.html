@@ -1,546 +1,1695 @@
-{% extends "base.html" %} {% load i18n %} {% block title %}{{ event.title }} | {% trans "Events" %}{% endblock %} {% block extra_css %}
-<style>
-  /* Custom CSS for enhanced event detail page */
-  .event-hero {
-    background: linear-gradient(135deg, #e0f2fe 0%, #ede9fe 100%);
-    position: relative;
-    overflow: hidden;
-  }
+{% extends 'base.html' %}
+{% load i18n static %}
 
-  .event-hero::before {
-    content: "";
-    position: absolute;
+{% block title %}{{ event.get_localized_title }} | {% translate "Events" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== EVENT DETAIL CSS ===== */
+:root {
+    /* Primary Colors - Purple/Violet Theme */
+    --ed-primary: #a78bfa;
+    --ed-primary-dark: #8b5cf6;
+    --ed-primary-light: #c4b5fd;
+    --ed-accent: #7c3aed;
+    --ed-accent-cyan: #06b6d4;
+    --ed-accent-pink: #ec4899;
+    --ed-primary-glow: rgba(167, 139, 250, 0.2);
+    
+    /* Status Colors - Event Specific */
+    --ed-upcoming: #34d399;
+    --ed-upcoming-bg: rgba(52, 211, 153, 0.15);
+    --ed-ongoing: #818cf8;
+    --ed-ongoing-bg: rgba(129, 140, 248, 0.15);
+    --ed-past: #9ca3af;
+    --ed-past-bg: rgba(156, 163, 175, 0.1);
+    
+    /* Dark Surfaces */
+    --ed-deep: #0f1419;
+    --ed-navy: #1a1a2e;
+    --ed-white: #ffffff;
+    --ed-bg: #0f1419;
+    --ed-muted: rgba(167, 139, 250, 0.08);
+    --ed-subtle: rgba(167, 139, 250, 0.12);
+    
+    /* Dark Typography */
+    --ed-text: #ffffff;
+    --ed-text-secondary: #d1d5db;
+    --ed-text-muted: #9ca3af;
+    
+    /* Dark Effects */
+    --ed-border: rgba(167, 139, 250, 0.2);
+    --ed-border-light: rgba(167, 139, 250, 0.1);
+    --ed-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --ed-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --ed-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.3);
+    --ed-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --ed-shadow-hover: 0 20px 40px rgba(167, 139, 250, 0.2);
+    --ed-shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    
+    /* Status Colors */
+    --ed-success: #34d399;
+    --ed-success-bg: rgba(52, 211, 153, 0.15);
+    
+    --ed-warning: #fbbf24;
+    --ed-warning-bg: rgba(251, 191, 36, 0.15);
+    
+    --ed-danger: #ef4444;
+    --ed-danger-bg: rgba(239, 68, 68, 0.15);
+    
+    --ed-purple: #8b5cf6;
+    --ed-purple-bg: rgba(139, 92, 246, 0.15);
+    
+    --ed-cyan: #06b6d4;
+    --ed-cyan-bg: rgba(6, 182, 212, 0.15);
+    
+    /* Radii */
+    --ed-radius-sm: 6px;
+    --ed-radius-md: 10px;
+    --ed-radius-lg: 14px;
+    --ed-radius-xl: 20px;
+    --ed-radius-full: 9999px;
+}
+
+body { 
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    color: var(--ed-text);
+}
+html[dir="rtl"] body { 
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
+
+.ed-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.ed-page::before {
+    content: '';
+    position: fixed;
     top: 0;
+    left: 0;
     right: 0;
     bottom: 0;
-    left: 0;
-    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%232564eb' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
-    opacity: 0.5;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
     z-index: 0;
-  }
+}
 
-  .event-hero .container {
+/* Hero Banner */
+.ed-hero {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+    padding: 3rem 0;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.ed-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        radial-gradient(ellipse 60% 80% at 70% 30%, rgba(167, 139, 250, 0.1), transparent),
+        none;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.ed-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
     position: relative;
     z-index: 1;
-  }
+}
 
-  .event-card {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
+.ed-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
 
-  .event-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
+.ed-breadcrumb a {
+    font-size: 0.875rem;
+    color: var(--ed-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
 
-  .badge-pill {
-    border-radius: 9999px;
-    padding-left: 0.85em;
-    padding-right: 0.85em;
-  }
+.ed-breadcrumb a:hover { color: var(--ed-white); }
+.ed-breadcrumb span { font-size: 0.875rem; color: rgba(255, 255, 255, 0.5); }
 
-  .badge-event-conference {
-    background-color: rgba(59, 130, 246, 0.1);
-    color: #2563eb;
-  }
+.ed-hero-badges {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
 
-  .badge-event-workshop {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: #059669;
-  }
+.ed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: var(--ed-radius-full);
+}
 
-  .badge-event-call_for_papers {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: #d97706;
-  }
+.ed-badge-type {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(124, 58, 237, 0.1));
+    color: var(--ed-primary);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+}
 
-  .badge-event-hackathon {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: #dc2626;
-  }
+.ed-badge-status {
+    background: var(--ed-success-bg);
+    color: var(--ed-success);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
 
-  .badge-event-other {
-    background-color: rgba(107, 114, 128, 0.1);
-    color: #4b5563;
-  }
+.ed-badge-upcoming { 
+    background: var(--ed-upcoming-bg); 
+    color: var(--ed-upcoming);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+.ed-badge-ongoing { 
+    background: var(--ed-ongoing-bg); 
+    color: var(--ed-ongoing);
+    border: 1px solid rgba(129, 140, 248, 0.3);
+}
+.ed-badge-past { 
+    background: rgba(156, 163, 175, 0.1); 
+    color: var(--ed-text-muted);
+    border: 1px solid rgba(156, 163, 175, 0.2);
+}
 
-  .icon-circle {
+.ed-badge-pending { 
+    background: var(--ed-warning-bg); 
+    color: var(--ed-warning);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+.ed-badge-approved { 
+    background: var(--ed-success-bg); 
+    color: var(--ed-success);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+.ed-badge-rejected { 
+    background: var(--ed-danger-bg); 
+    color: var(--ed-danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.ed-hero-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--ed-primary) 0%, var(--ed-accent-cyan) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 1rem;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+}
+
+.ed-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.ed-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--ed-text-secondary);
+}
+
+.ed-meta-item i { color: var(--ed-primary); }
+
+.ed-hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ed-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: var(--ed-radius-md);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.ed-btn-primary {
+    background: linear-gradient(135deg, var(--ed-primary), var(--ed-accent));
+    color: var(--ed-deep);
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.ed-btn-primary:hover {
+    background: linear-gradient(135deg, var(--ed-primary-dark), var(--ed-primary));
+    color: var(--ed-deep);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+}
+
+.ed-btn-success {
+    background: linear-gradient(135deg, var(--ed-upcoming), #10b981);
+    color: var(--ed-deep);
+    box-shadow: 0 4px 12px rgba(52, 211, 153, 0.3);
+}
+
+.ed-btn-success:hover {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: var(--ed-deep);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(52, 211, 153, 0.4);
+}
+
+.ed-btn-outline {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--ed-primary);
+    border-color: rgba(167, 139, 250, 0.3);
+}
+
+.ed-btn-outline:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--ed-primary);
+    color: var(--ed-white);
+}
+
+.ed-btn-danger-outline {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--ed-danger);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.ed-btn-danger-outline:hover {
+    background: var(--ed-danger);
+    color: var(--ed-white);
+    border-color: var(--ed-danger);
+}
+
+/* ===== ACTION BAR ===== */
+.ed-action-bar {
+    background: rgba(167, 139, 250, 0.08);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.ed-action-bar-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.ed-action-group {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ed-btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: var(--ed-radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+    font-family: inherit;
+}
+
+.ed-btn-action.btn-view {
+    background: linear-gradient(135deg, var(--ed-primary), var(--ed-accent));
+    color: var(--ed-deep);
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.ed-btn-action.btn-view:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+    color: var(--ed-deep);
+}
+
+.ed-btn-action.btn-download {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--ed-text-secondary);
+}
+
+.ed-btn-action.btn-download:hover {
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+    background: rgba(167, 139, 250, 0.15);
+    transform: translateY(-2px);
+}
+
+.ed-btn-action.btn-website {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--ed-text-secondary);
+}
+
+.ed-btn-action.btn-website:hover {
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+    background: rgba(167, 139, 250, 0.15);
+    transform: translateY(-2px);
+}
+
+.ed-btn-action.btn-edit {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--ed-text-secondary);
+}
+
+.ed-btn-action.btn-edit:hover {
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+    background: rgba(167, 139, 250, 0.15);
+}
+
+.ed-btn-action.btn-delete {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}
+
+.ed-btn-action.btn-delete:hover {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+.ed-btn-action i {
+    font-size: 1rem;
+}
+
+.ed-view-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ed-text-muted);
+    font-size: 0.9rem;
+}
+
+.ed-view-counter i {
+    color: var(--ed-primary);
+}
+
+/* Main Layout */
+.ed-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 2rem 4rem;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 2rem;
+    position: relative;
+    z-index: 2;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ed-page {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+/* RTL Support */
+html[dir="rtl"] .ed-organizer {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .ed-logistics-item {
+    flex-direction: row-reverse;
+}
+
+@media (max-width: 900px) {
+    .ed-main { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+    .ed-hero {
+        padding: 1.5rem 0 3rem;
+    }
+    
+    .ed-main {
+        padding: 0 1rem 3rem;
+    }
+}
+
+/* Main Content */
+.ed-content { display: flex; flex-direction: column; gap: 2rem; }
+
+.ed-section {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-xl);
+    padding: 1.75rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out;
+}
+
+.ed-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.ed-section-icon {
     width: 40px;
     height: 40px;
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-  }
+    color: var(--ed-primary);
+    font-size: 1.1rem;
+}
 
-  .bg-blue-soft {
-    background-color: rgba(59, 130, 246, 0.1);
-  }
+.ed-section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ed-text);
+    margin: 0;
+    background: linear-gradient(135deg, var(--ed-primary) 0%, var(--ed-accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
 
-  .bg-green-soft {
-    background-color: rgba(16, 185, 129, 0.1);
-  }
+.ed-description {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: var(--ed-text-secondary);
+}
 
-  .bg-yellow-soft {
-    background-color: rgba(245, 158, 11, 0.1);
-  }
+.ed-description p { 
+    color: var(--ed-text-secondary);
+    margin: 0 0 1rem; 
+}
+.ed-description p:last-child { margin-bottom: 0; }
 
-  .bg-red-soft {
-    background-color: rgba(239, 68, 68, 0.1);
-  }
+/* Domains */
+.ed-domains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
 
-  .bg-purple-soft {
-    background-color: rgba(124, 58, 237, 0.1);
-  }
-
-  .text-truncate-1 {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-  }
-
-  .event-detail-info p {
-    margin-bottom: 0.5rem;
-  }
-
-  .event-domains span {
-    display: inline-block;
-    margin-right: 0.5rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .btn-outline-custom {
-    background-color: transparent;
-    transition: all 0.2s;
-  }
-
-  .btn-outline-custom:hover {
-    transform: translateY(-1px);
-  }
-
-  .btn-outline-primary {
-    border-color: #3b82f6;
-    color: #3b82f6;
-  }
-
-  .btn-outline-primary:hover {
-    background-color: rgba(59, 130, 246, 0.1);
-  }
-
-  .btn-outline-danger {
-    border-color: #ef4444;
-    color: #ef4444;
-  }
-
-  .btn-outline-danger:hover {
-    background-color: rgba(239, 68, 68, 0.1);
-  }
-
-  .btn-outline-success {
-    border-color: #10b981;
-    color: #10b981;
-  }
-
-  .btn-outline-success:hover {
-    background-color: rgba(16, 185, 129, 0.1);
-  }
-
-  .btn-success {
-    background-color: #10b981;
-    border-color: #10b981;
-  }
-
-  .btn-success:hover {
-    background-color: #059669;
-    border-color: #059669;
-  }
-
-  /* Animation */
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .event-status-card {
-    animation: fadeIn 0.5s ease-out;
-  }
-
-  .event-detail-card {
-    animation: fadeIn 0.5s ease-out;
-  }
-
-  /* Media queries */
-  @media (max-width: 767.98px) {
-    .event-hero h1 {
-      font-size: 1.5rem;
-    }
-
-    .event-badge-container {
-      flex-wrap: wrap;
-    }
-
-    .badge-pill {
-      margin-bottom: 0.5rem;
-    }
-
-    .event-action-buttons {
-      flex-direction: column;
-    }
-
-    .event-action-buttons .btn {
-      width: 100%;
-      margin-bottom: 0.5rem;
-    }
-  }
-
-  /* Improve accessibility */
-  .skip-to-content {
-    position: absolute;
-    left: -9999px;
-  }
-
-  .skip-to-content:focus {
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
+.ed-domain-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
     padding: 0.5rem 1rem;
-    background: #fff;
-    border: 1px solid #3b82f6;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ed-text-secondary);
+    transition: all 0.2s;
+}
+
+.ed-domain-tag:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+}
+
+.ed-domain-tag i { color: var(--ed-primary); font-size: 0.8rem; }
+
+/* Organizer */
+.ed-organizer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ed-organizer-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ed-primary);
+    font-size: 1.5rem;
+}
+
+.ed-organizer-info { flex: 1; }
+
+.ed-organizer-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ed-text);
+    margin: 0 0 0.25rem;
+}
+
+.ed-organizer-contact {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--ed-primary);
+}
+
+.ed-organizer-contact a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.ed-organizer-contact a:hover { 
+    color: var(--ed-accent-cyan);
+    text-decoration: underline; 
+}
+
+/* Sidebar */
+.ed-sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+
+@media (min-width: 901px) {
+    .ed-sidebar { position: sticky; top: 2rem; height: fit-content; }
+}
+
+/* Logistics Card */
+.ed-logistics {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-xl);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out 0.1s both;
+}
+
+.ed-logistics-header {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(124, 58, 237, 0.15) 100%);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.ed-logistics-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.ed-logistics-day {
+    font-size: 3rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--ed-primary), var(--ed-accent-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+}
+
+.ed-logistics-month {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ed-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.25rem;
+}
+
+.ed-logistics-body { 
+    padding: 1.5rem;
+    background: rgba(167, 139, 250, 0.04);
+}
+
+.ed-logistics-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+}
+
+.ed-logistics-item:last-child { border-bottom: none; padding-bottom: 0; }
+.ed-logistics-item:first-child { padding-top: 0; }
+
+.ed-logistics-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ed-primary);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.ed-logistics-content { flex: 1; min-width: 0; }
+
+.ed-logistics-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--ed-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+    opacity: 0.8;
+}
+
+.ed-logistics-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ed-text);
+    word-break: break-word;
+}
+
+.ed-logistics-value a {
+    color: var(--ed-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.ed-logistics-value a:hover { 
+    color: var(--ed-accent-cyan);
+    text-decoration: underline; 
+}
+
+/* Registration Status */
+.ed-registration {
+    padding: 1rem 1.5rem;
+    background: rgba(52, 211, 153, 0.15);
+    border-top: 1px solid rgba(52, 211, 153, 0.2);
+}
+
+.ed-registration.closed {
+    background: rgba(167, 139, 250, 0.08);
+}
+
+.ed-registration-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ed-registration-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ed-success);
+}
+
+.ed-registration.closed .ed-registration-label { color: var(--ed-text-muted); }
+
+.ed-registration-count {
+    font-size: 0.8rem;
+    color: var(--ed-text-secondary);
+}
+
+/* Deadline Card */
+.ed-deadline {
+    background: var(--ed-warning-bg);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: var(--ed-radius-xl);
+    padding: 1.25rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out 0.15s both;
+}
+
+.ed-deadline-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.ed-deadline-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(251, 191, 36, 0.2);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ed-warning);
+    font-size: 1.1rem;
+}
+
+.ed-deadline-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ed-warning);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ed-deadline-date {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--ed-text);
+    margin-bottom: 0.5rem;
+}
+
+.ed-deadline-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--ed-warning);
+    color: var(--ed-white);
+    font-size: 0.8rem;
+    font-weight: 700;
+    border-radius: var(--ed-radius-full);
+}
+
+/* Attachment Card */
+.ed-attachment {
+    background: var(--ed-white);
+    border: 1px solid var(--ed-border);
+    border-radius: var(--ed-radius-xl);
+    padding: 1.25rem;
+}
+
+.ed-attachment-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+}
+
+.ed-attachment-link:hover { transform: translateX(4px); }
+html[dir="rtl"] .ed-attachment-link:hover { transform: translateX(-4px); }
+
+.ed-attachment-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--ed-danger-bg);
+    border-radius: var(--ed-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ed-danger);
+    font-size: 1.25rem;
+}
+
+.ed-attachment-info { flex: 1; }
+
+.ed-attachment-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ed-text);
+    margin-bottom: 0.125rem;
+}
+
+.ed-attachment-meta {
+    font-size: 0.75rem;
+    color: var(--ed-text-muted);
+}
+
+/* ===== ACTION CARD (Course-Style) ===== */
+.ed-event-action-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-lg);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    margin-bottom: 1.5rem;
+    animation: slideInRight 0.4s ease-out 0.2s both;
+}
+
+.ed-event-action-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(124, 58, 237, 0.15) 100%);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    color: var(--ed-primary);
+    text-align: center;
+}
+
+.ed-event-action-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin: 0 0 0.25rem;
+}
+
+.ed-event-action-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, var(--ed-primary), var(--ed-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.ed-event-action-body {
+    padding: 1.5rem;
+    background: rgba(167, 139, 250, 0.04);
+}
+
+.event-action-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.ed-event-action-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.875rem 0.5rem;
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-md);
+    text-align: center;
+}
+
+.event-action-stat i {
+    font-size: 1.25rem;
+    color: var(--ed-primary);
+    margin-bottom: 0.375rem;
+}
+
+.event-action-stat-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--ed-text);
+}
+
+.event-action-stat-label {
+    font-size: 0.7rem;
+    color: var(--ed-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.ed-event-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    border-radius: var(--ed-radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.25s;
+    border: none;
+    margin-bottom: 0.75rem;
+}
+
+.ed-event-action-btn.primary {
+    background: linear-gradient(135deg, var(--ed-primary), var(--ed-accent));
+    color: var(--ed-deep);
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.ed-event-action-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+    color: var(--ed-deep);
+}
+
+.ed-event-action-btn.secondary {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--ed-text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.ed-event-action-btn.secondary:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+}
+
+.ed-event-action-btn.ai-chatbot {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--ed-primary);
+    border: 2px solid rgba(167, 139, 250, 0.3);
+    position: relative;
+    overflow: hidden;
+    margin-top: 0;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
+}
+
+.ed-event-action-btn.ai-chatbot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(167, 139, 250, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.ed-event-action-btn.ai-chatbot:hover::before {
+    left: 100%;
+}
+
+.ed-event-action-btn.ai-chatbot:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+}
+
+.ed-event-action-btn.ai-chatbot i {
+    color: var(--ed-primary);
+    font-size: 1.125rem;
+}
+
+/* Action Card HTML Classes (Sidebar) */
+.event-action-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-lg);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out 0.2s both;
+}
+
+.event-action-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(124, 58, 237, 0.15) 100%);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    color: var(--ed-primary);
+    text-align: center;
+}
+
+.event-action-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin: 0 0 0.25rem;
+    color: var(--ed-text-muted);
+}
+
+.event-action-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, var(--ed-primary), var(--ed-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: var(--ed-primary);
+}
+
+.event-action-body {
+    padding: 1.5rem;
+    background: rgba(167, 139, 250, 0.04);
+}
+
+.event-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    border-radius: var(--ed-radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.25s;
+    border: none;
+    margin-bottom: 0.75rem;
+    font-family: inherit;
+}
+
+.event-action-btn.primary {
+    background: linear-gradient(135deg, var(--ed-primary), var(--ed-accent));
+    color: var(--ed-deep);
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.event-action-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+    color: var(--ed-deep);
+}
+
+.event-action-btn.secondary {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--ed-text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.event-action-btn.secondary:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+}
+
+.event-action-btn.ai-chatbot {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--ed-primary);
+    border: 2px solid rgba(167, 139, 250, 0.3);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
+}
+
+.event-action-btn.ai-chatbot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(167, 139, 250, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.event-action-btn.ai-chatbot:hover::before {
+    left: 100%;
+}
+
+.event-action-btn.ai-chatbot:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+}
+
+.event-action-btn.ai-chatbot i {
+    color: var(--ed-primary);
+    font-size: 1.125rem;
+}
+
+.event-action-btn i {
+    font-size: 1rem;
+}
+
+.ai-badge-inline {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 6px;
     border-radius: 4px;
-    top: 0.5rem;
-  }
+    margin-left: 0.25rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+}
+
+html[dir="rtl"] .ai-badge-inline {
+    margin-left: 0;
+    margin-right: 0.25rem;
+}
+
+/* Owner Actions */
+.ed-owner-actions {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-xl);
+    padding: 1.25rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    animation: slideInRight 0.4s ease-out 0.25s both;
+}
+
+.ed-owner-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ed-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+}
+
+.ed-owner-btns { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.ed-owner-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--ed-radius-md);
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--ed-text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ed-owner-btn:hover {
+    border-color: var(--ed-primary);
+    color: var(--ed-primary);
+    background: rgba(167, 139, 250, 0.15);
+    transform: translateY(-2px);
+}
+
+.ed-owner-btn.danger:hover {
+    border-color: var(--ed-danger);
+    color: var(--ed-danger);
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.ed-review-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.62rem 1rem;
+    border-radius: var(--ed-radius-md);
+    border: 1px solid transparent;
+    font-weight: 700;
+    text-decoration: none;
+    color: #fff;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.ed-review-btn:hover {
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+.ed-review-btn.back { 
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.3), rgba(124, 58, 237, 0.2));
+    color: var(--ed-primary);
+}
+.ed-review-btn.back:hover { 
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.4), rgba(124, 58, 237, 0.3));
+    color: var(--ed-white);
+}
+
+.ed-review-form {
+    display: inline-flex;
+    margin: 0;
+}
 </style>
-{% endblock %} {% block content %}
-<!-- Hero section with event title and badge -->
-<div class="event-hero py-5 mb-4">
-  <div class="container">
-    <a href="#main-content" class="skip-to-content">{% trans "Skip to main content" %}</a>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-          <a href="{% url 'events:event_list' %}">{% trans "Events" %}</a>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">
-          {{ event.title }}
-        </li>
-      </ol>
-    </nav>
+{% endblock %}
 
-    <div class="row align-items-center">
-      <div class="col-md-8">
-        <h1 class="display-5 fw-bold mb-3">{{ event.title }}</h1>
-        <div class="d-flex flex-wrap event-badge-container gap-2 mb-3">
-          <span
-            class="badge badge-pill {% if event.event_type == 'conference' %}badge-event-conference{% elif event.event_type == 'workshop' %}badge-event-workshop{% elif event.event_type == 'call_for_papers' %}badge-event-call_for_papers{% elif event.event_type == 'hackathon' %}badge-event-hackathon{% else %}badge-event-other{% endif %}"
-          >
-            <i
-              class="fas {% if event.event_type == 'conference' %}fa-users{% elif event.event_type == 'workshop' %}fa-chalkboard-teacher{% elif event.event_type == 'call_for_papers' %}fa-file-alt{% elif event.event_type == 'hackathon' %}fa-laptop-code{% else %}fa-calendar-alt{% endif %} me-1"
-            ></i>
-            {{ event.get_event_type_display }}
-          </span>
-
-          <span class="badge badge-pill bg-light text-dark">
-            <i class="fas fa-calendar-alt me-1"></i>
-            {{ event.start_date|date:"M d, Y" }} {% if event.start_date != event.end_date %} - {{ event.end_date|date:"M d, Y" }} {% endif %}
-          </span>
-
-          <span
-            class="badge badge-pill {% if event.is_virtual %}bg-info text-dark{% else %}bg-secondary text-white{% endif %}"
-          >
-            <i
-              class="fas {% if event.is_virtual %}fa-video{% else %}fa-map-marker-alt{% endif %} me-1"
-            ></i>
-            {% if event.is_virtual %}{% trans "Virtual Event" %}{% else %}{{ event.location|truncatechars:20 }}{% endif %}
-          </span>
-
-          {% if event.is_ongoing %}
-          <span class="badge badge-pill bg-success">
-            <i class="fas fa-calendar-check me-1"></i> {% trans "Ongoing" %}
-          </span>
-          {% elif event.is_upcoming %}
-          <span class="badge badge-pill bg-primary">
-            <i class="fas fa-calendar-alt me-1"></i> {% trans "Upcoming" %}
-          </span>
-          {% else %}
-          <span class="badge badge-pill bg-secondary">
-            <i class="fas fa-calendar-times me-1"></i> {% trans "Ended" %}
-          </span>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="main-content" class="container mb-5">
-  <div class="row g-4">
-    <!-- Main content -->
-    <div class="col-lg-8">
-      <div class="card event-detail-card rounded-3 border-0">
-        <div class="card-body p-4">
-          <h2 class="card-title h4 mb-4 pb-2 border-bottom">
-            {% trans "About This Event" %}
-          </h2>
-
-          <!-- Event description -->
-          <div class="event-description mb-4">
-            {{ event.description|linebreaks }}
-          </div>
-
-          <!-- Event details -->
-          <div class="row g-4 mb-4 event-detail-info">
-            <div class="col-md-6">
-              <div class="d-flex">
-                <div class="icon-circle bg-blue-soft me-3">
-                  <i class="fas fa-building text-primary"></i>
-                </div>
-                <div>
-                  <p class="text-muted mb-1 small">{% trans "Organizer" %}</p>
-                  <p class="fw-bold">{{ event.organizer }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <div class="d-flex">
-                <div class="icon-circle bg-green-soft me-3">
-                  <i class="fas fa-envelope text-success"></i>
-                </div>
-                <div>
-                  <p class="text-muted mb-1 small">{% trans "Contact" %}</p>
-                  <p class="fw-bold text-truncate-1">
-                    {{ event.contact_email }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {% if event.submission_deadline %}
-            <div class="col-md-6">
-              <div class="d-flex">
-                <div class="icon-circle bg-red-soft me-3">
-                  <i class="fas fa-clock text-danger"></i>
-                </div>
-                <div>
-                  <p class="text-muted mb-1 small">
-                    {% trans "Submission Deadline" %}
-                  </p>
-                  <p class="fw-bold">
-                    {{ event.submission_deadline|date:"M d, Y" }} {% if event.days_until_deadline != None %}
-                    <span class="badge bg-warning text-dark ms-2"
-                      >{{ event.days_until_deadline }} {% trans "days left" %}</span
-                    >
+{% block content %}
+<div class="ed-page">
+    
+    <!-- Hero Banner -->
+    <section class="ed-hero">
+        <div class="ed-hero-container">
+            
+            <nav class="ed-breadcrumb">
+                <a href="{% url 'events:event_list' %}">{% translate "Events" %}</a>
+                <span>/</span>
+                <span>{{ event.get_localized_title|truncatechars:40 }}</span>
+            </nav>
+            
+            <div class="ed-hero-badges">
+                <span class="ed-badge ed-badge-type">
+                    <i class="bi bi-tag"></i>
+                    {{ event.get_event_type_display }}
+                </span>
+                {% if event.is_ongoing %}
+                <span class="ed-badge ed-badge-ongoing">
+                    <i class="bi bi-broadcast"></i>
+                    {% translate "Ongoing" %}
+                </span>
+                {% elif event.is_upcoming %}
+                <span class="ed-badge ed-badge-upcoming">
+                    <i class="bi bi-clock"></i>
+                    {% translate "Upcoming" %}
+                </span>
+                {% else %}
+                <span class="ed-badge ed-badge-past">
+                    {% translate "Past Event" %}
+                </span>
+                {% endif %}
+                {% if show_approval_status %}
+                <span class="ed-badge ed-badge-{{ event.approval_status }}">
+                    {% if event.approval_status == 'pending' %}
+                    <i class="bi bi-hourglass-split"></i> {% translate "Pending Approval" %}
+                    {% elif event.approval_status == 'approved' %}
+                    <i class="bi bi-check-circle"></i> {% translate "Approved" %}
+                    {% else %}
+                    <i class="bi bi-x-circle"></i> {% translate "Rejected" %}
                     {% endif %}
-                  </p>
-                </div>
-              </div>
+                </span>
+                {% endif %}
             </div>
-            {% endif %} {% if event.website %}
-            <div class="col-md-6">
-              <div class="d-flex">
-                <div class="icon-circle bg-purple-soft me-3">
-                  <i class="fas fa-globe text-primary"></i>
+            
+            <h1 class="ed-hero-title">{{ event.get_localized_title }}</h1>
+            
+            <div class="ed-hero-meta">
+                <span class="ed-meta-item">
+                    <i class="bi bi-calendar-event"></i>
+                    {{ event.start_date|date:"F d, Y" }}{% if event.start_date != event.end_date %} - {{ event.end_date|date:"F d, Y" }}{% endif %}
+                </span>
+                <span class="ed-meta-item">
+                    <i class="bi bi-geo-alt"></i>
+                    {% if event.is_virtual %}
+                    {% translate "Virtual Event" %}
+                    {% else %}
+                    {{ event.get_localized_location }}
+                    {% endif %}
+                </span>
+                <span class="ed-meta-item">
+                    <i class="bi bi-building"></i>
+                    {{ event.organizer }}
+                </span>
+            </div>
+            
+            <div class="ed-hero-actions">
+                {% if event.website %}
+                <a href="{{ event.website }}" target="_blank" class="ed-btn ed-btn-primary">
+                    <i class="bi bi-globe"></i>
+                    {% translate "Visit Website" %}
+                </a>
+                {% endif %}
+                
+                {% if user.is_authenticated %}
+                    {% if is_registered %}
+                    <form method="post" action="{% url 'events:event_unregister' event.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="ed-btn ed-btn-outline">
+                            <i class="bi bi-x-circle"></i>
+                            {% translate "Cancel Registration" %}
+                        </button>
+                    </form>
+                    {% elif event.is_upcoming or event.is_ongoing %}
+                    <form method="post" action="{% url 'events:event_register' event.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="ed-btn ed-btn-success">
+                            <i class="bi bi-check-circle"></i>
+                            {% translate "Register Now" %}
+                        </button>
+                    </form>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    
+    <!-- ===== ACTION BAR ===== -->
+    <div class="ed-action-bar">
+        <div class="ed-action-bar-container">
+            <div class="ed-action-group">
+                {% if event.attachment %}
+                <button type="button" 
+                        class="ed-btn-action btn-view" 
+                    onclick="openDocumentViewer('{{ event.attachment.url }}', null, '{{ event.pk }}', '{{ event.title|escapejs }}', `{% url 'events:event-convert-to-text' event.pk %}`)">
+                    <i class="bi bi-eye"></i>
+                    <span>{% translate "View Document" %}</span>
+                </button>
+                <a href="{{ event.attachment.url }}" class="ed-btn-action btn-download" download>
+                    <i class="bi bi-cloud-download"></i>
+                    <span>{% translate "Download Attachment" %}</span>
+                </a>
+                {% else %}
+                <button type="button" 
+                        class="ed-btn-action btn-view" 
+                        style="opacity: 0.5; cursor: not-allowed;"
+                        disabled>
+                    <i class="bi bi-eye"></i>
+                    <span>{% translate "View Document" %}</span>
+                </button>
+                <button type="button" 
+                        class="ed-btn-action btn-download" 
+                        style="opacity: 0.5; cursor: not-allowed;"
+                        disabled>
+                    <i class="bi bi-cloud-download"></i>
+                    <span>{% translate "Download Attachment" %}</span>
+                </button>
+                {% endif %}
+                
+                {% if event.website %}
+                <a href="{{ event.website }}" class="ed-btn-action btn-website" target="_blank">
+                    <i class="bi bi-globe"></i>
+                    <span>{% translate "Event Website" %}</span>
+                </a>
+                {% endif %}
+
+                <a href="{% url 'events:event_ics_export' event.pk %}" class="ed-btn-action btn-download">
+                    <i class="bi bi-calendar-plus"></i>
+                    <span>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                        أضف إلى التقويم (.ics)
+                        {% else %}
+                        {% translate "Add to Calendar" %} (.ics)
+                        {% endif %}
+                    </span>
+                </a>
+
+                <a href="{{ google_calendar_url }}" class="ed-btn-action btn-website" target="_blank" rel="noopener">
+                    <i class="bi bi-google"></i>
+                    <span>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                        أضف إلى تقويم Google
+                        {% else %}
+                        {% translate "Add to Google Calendar" %}
+                        {% endif %}
+                    </span>
+                </a>
+                
+                {% if request.user.is_staff and request.GET.admin_review and request.GET.review_model and request.GET.review_pk or request.user.is_superuser and request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
+                <a class="ed-review-btn back" href="{% url 'pages:admin_calls' %}?tab=pending">
+                    <i class="bi bi-arrow-left"></i>{% translate "Back" %}
+                </a>
+                {% elif request.user == event.author %}
+                <a href="{% url 'events:event-update' pk=event.pk %}" class="ed-btn-action btn-edit">
+                    <i class="bi bi-pencil"></i>
+                    <span>{% translate "Edit" %}</span>
+                </a>
+                <a href="{% url 'events:event-delete' pk=event.pk %}" class="ed-btn-action btn-delete">
+                    <i class="bi bi-trash"></i>
+                    <span>{% translate "Delete" %}</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <main class="ed-main">
+        
+        <!-- Left Column -->
+        <div class="ed-content">
+            
+            <!-- Description -->
+            <section class="ed-section">
+                <div class="ed-section-header">
+                    <div class="ed-section-icon">
+                        <i class="bi bi-file-text"></i>
+                    </div>
+                    <h2 class="ed-section-title">{% translate "About This Event" %}</h2>
                 </div>
-                <div>
-                  <p class="text-muted mb-1 small">{% trans "Website" %}</p>
-                  <p class="fw-bold">
-                    <a
-                      href="{{ event.website }}"
-                      target="_blank"
-                      class="text-truncate-1 d-block"
-                      style="max-width: 200px"
-                    >
-                      {{ event.website }}
+                <div class="ed-description">
+                    {{ event.get_localized_description|linebreaks }}
+                </div>
+            </section>
+            
+            <!-- Domains -->
+            {% if event.domain_list %}
+            <section class="ed-section">
+                <div class="ed-section-header">
+                    <div class="ed-section-icon">
+                        <i class="bi bi-tags"></i>
+                    </div>
+                    <h2 class="ed-section-title">{% translate "Research Domains" %}</h2>
+                </div>
+                <div class="ed-domains">
+                    {% for domain in event.domain_list %}
+                    <span class="ed-domain-tag">
+                        <i class="bi bi-hash"></i>
+                        {{ domain }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Organizer -->
+            <section class="ed-section">
+                <div class="ed-section-header">
+                    <div class="ed-section-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <h2 class="ed-section-title">{% translate "Organizer" %}</h2>
+                </div>
+                <div class="ed-organizer">
+                    <div class="ed-organizer-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <div class="ed-organizer-info">
+                        <h3 class="ed-organizer-name">{{ event.organizer }}</h3>
+                        <div class="ed-organizer-contact">
+                            <i class="bi bi-envelope"></i>
+                            <a href="mailto:{{ event.contact_email }}">{{ event.contact_email }}</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {% if speakers %}
+            <section class="ed-section">
+                <div class="ed-section-header">
+                    <div class="ed-section-icon">
+                        <i class="bi bi-mic"></i>
+                    </div>
+                    <h2 class="ed-section-title">{% translate "Speakers" %}</h2>
+                </div>
+                <div style="display:grid; gap:0.75rem;">
+                    {% for speaker in speakers %}
+                        {% include "events/partials/speaker_card.html" with speaker=speaker %}
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+            
+        </div>
+        
+        <!-- Sidebar -->
+        <aside class="ed-sidebar">
+            
+            <!-- Action Card (Course Style) -->
+            <div class="event-action-card">
+                <div class="event-action-header">
+                    <p class="event-action-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الحدث{% else %}{% translate "Event" %}{% endif %}</p>
+                    <h3 class="event-action-title">{{ event.get_event_type_display }}</h3>
+                </div>
+                <div class="event-action-body">
+                    <div class="event-action-stats">
+                        <div class="event-action-stat">
+                            <i class="bi bi-people"></i>
+                            <span class="event-action-stat-value">{{ registration_count }}</span>
+                            <span class="event-action-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مسجل{% else %}{% translate "Registered" %}{% endif %}</span>
+                        </div>
+                        <div class="event-action-stat">
+                            <i class="bi bi-calendar-check"></i>
+                            <span class="event-action-stat-value">{{ event.days_until_start|default:"â€”" }}</span>
+                            <span class="event-action-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأيام المتبقية{% else %}{% translate "Days Left" %}{% endif %}</span>
+                        </div>
+                    </div>
+                    
+                    {% if event.attachment %}
+                    <button type="button" 
+                            class="event-action-btn primary"
+                            onclick="openDocumentViewer('{{ event.attachment.url }}', null, '{{ event.pk }}', '{{ event.title|escapejs }}', `{% url 'events:event-convert-to-text' event.pk %}`)">
+                        <i class="bi bi-eye"></i>
+                        {% trans "View Document" %}
+                    </button>
+                    <a href="{{ event.attachment.url }}" class="event-action-btn secondary" download>
+                        <i class="bi bi-download"></i>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحميل المرفق{% else %}{% trans "Download Attachment" %}{% endif %}
                     </a>
-                  </p>
+                    {% elif event.website %}
+                    <a href="{{ event.website }}" target="_blank" class="event-action-btn primary">
+                        <i class="bi bi-globe"></i>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}موقع الحدث{% else %}{% trans "Event Website" %}{% endif %}
+                    </a>
+                    {% endif %}
+                    
+                    <button type="button" class="event-action-btn secondary" onclick="window.print()">
+                        <i class="bi bi-printer"></i>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طباعة المعلومات{% else %}{% trans "Print Info" %}{% endif %}
+                    </button>
+                    
+                    <a href="{% url 'chatbot:chatbot_interface' %}?context=event&id={{ event.id }}" class="event-action-btn ai-chatbot">
+                        <i class="bi bi-robot"></i>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل روبوت الذكاء الاصطناعي{% else %}{% trans "Ask AI Robot" %}{% endif %}
+                        <span class="ai-badge-inline">AI</span>
+                    </a>
                 </div>
-              </div>
+            </div>
+            
+            <!-- Logistics Card -->
+            <div class="ed-logistics">
+                <div class="ed-logistics-header">
+                    <div class="ed-logistics-date">
+                        <span class="ed-logistics-day">{{ event.start_date|date:"d" }}</span>
+                        <span class="ed-logistics-month">{{ event.start_date|date:"M Y" }}</span>
+                    </div>
+                </div>
+                <div class="ed-logistics-body">
+                    <div class="ed-logistics-item">
+                        <div class="ed-logistics-icon">
+                            <i class="bi bi-calendar-range"></i>
+                        </div>
+                        <div class="ed-logistics-content">
+                            <div class="ed-logistics-label">{% translate "Date & Time" %}</div>
+                            <div class="ed-logistics-value">
+                                {{ event.start_date|date:"F d, Y" }}{% if event.start_date != event.end_date %} - {{ event.end_date|date:"F d, Y" }}{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="ed-logistics-item">
+                        <div class="ed-logistics-icon">
+                            <i class="bi bi-geo-alt"></i>
+                        </div>
+                        <div class="ed-logistics-content">
+                            <div class="ed-logistics-label">{% translate "Location" %}</div>
+                            <div class="ed-logistics-value">
+                                {% if event.is_virtual %}
+                                {% translate "Virtual Event" %}
+                                {% else %}
+                                {{ event.get_localized_location }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if event.website %}
+                    <div class="ed-logistics-item">
+                        <div class="ed-logistics-icon">
+                            <i class="bi bi-globe"></i>
+                        </div>
+                        <div class="ed-logistics-content">
+                            <div class="ed-logistics-label">{% translate "Website" %}</div>
+                            <div class="ed-logistics-value">
+                                <a href="{{ event.website }}" target="_blank">{% translate "Visit Event Page" %}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="ed-logistics-item">
+                        <div class="ed-logistics-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="ed-logistics-content">
+                            <div class="ed-logistics-label">{% translate "Registrations" %}</div>
+                            <div class="ed-logistics-value">{{ registration_count }} {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مسجل{% else %}{% translate "Registered" %}{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ed-registration {% if event.is_past %}closed{% endif %}">
+                    <div class="ed-registration-status">
+                        <span class="ed-registration-label">
+                            {% if event.is_past %}
+                            {% translate "Registration Closed" %}
+                            {% else %}
+                            {% translate "Registration Open" %}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Deadline Card -->
+            {% if event.submission_deadline and event.days_until_deadline is not None %}
+            <div class="ed-deadline">
+                <div class="ed-deadline-header">
+                    <div class="ed-deadline-icon">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                    <span class="ed-deadline-title">{% translate "Submission Deadline" %}</span>
+                </div>
+                <div class="ed-deadline-date">{{ event.submission_deadline|date:"F d, Y" }}</div>
+                <span class="ed-deadline-countdown">
+                    <i class="bi bi-clock"></i>
+                    {{ event.days_until_deadline }} {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأيام المتبقية{% else %}{% translate "Days Left" %}{% endif %}
+                </span>
             </div>
             {% endif %}
-          </div>
-
-          <!-- Research domains -->
-          <div class="mb-4">
-            <h3 class="h6 mb-3">
-              <i class="fas fa-tags text-muted me-2"></i> {% trans "Research Domains" %}
-            </h3>
-            <div class="event-domains">
-              {% for domain in event.domain_list %}
-              <span class="badge bg-light text-dark">{{ domain }}</span>
-              {% endfor %}
-            </div>
-          </div>
-
-          <!-- Attachment -->
-          {% if event.attachment %}
-          <div class="border-top pt-4">
-            <a
-              href="{{ event.attachment.url }}"
-              class="btn btn-outline-secondary"
-              target="_blank"
-            >
-              <i class="fas fa-download me-2"></i> {% trans "Download Attachment" %}
-            </a>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-
-      <!-- User action buttons -->
-      {% if user.is_authenticated %}
-      <div class="card mt-4 border-0">
-        <div class="card-body p-4 bg-light rounded-3">
-          <div
-            class="d-flex flex-wrap justify-content-between event-action-buttons gap-2"
-          >
-            <div class="d-flex flex-wrap gap-2">
-              {% if user == event.created_by or user.is_staff %}
-              <a
-                href="{% url 'events:event_update' event.pk %}"
-                class="btn btn-outline-custom btn-outline-primary"
-              >
-                <i class="fas fa-edit me-2"></i> {% trans "Edit" %}
-              </a>
-              <a
-                href="{% url 'events:event_delete' event.pk %}"
-                class="btn btn-outline-custom btn-outline-danger"
-              >
-                <i class="fas fa-trash me-2"></i> {% trans "Delete" %}
-              </a>
-              {% endif %}
-            </div>
-
-            <div>
-              {% if event.is_upcoming or event.is_ongoing %} {% if is_registered %}
-              <a
-                href="{% url 'events:event_unregister' event.pk %}"
-                class="btn btn-outline-custom btn-outline-danger"
-              >
-                <i class="fas fa-user-minus me-2"></i> {% trans "Unregister" %}
-              </a>
-              {% endif %} {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endif %}
-    </div>
-
-    <!-- Sidebar -->
-    <div class="col-lg-4">
-      <!-- Event status card -->
-      <div class="card rounded-3 mb-4 event-status-card border-0">
-        <div class="card-header bg-light py-3">
-          <h5 class="mb-0">{% trans "Event Status" %}</h5>
-        </div>
-        <div class="card-body p-4">
-          {% if event.is_ongoing %}
-          <div
-            class="alert alert-success d-flex align-items-center"
-            role="alert"
-          >
-            <i class="fas fa-calendar-check me-3 fs-4"></i>
-            <div>
-              <h6 class="mb-1">
-                {% trans "This event is currently ongoing" %}
-              </h6>
-              <p class="mb-0 small">{% trans "Event in progress" %}</p>
-            </div>
-          </div>
-          {% elif event.is_upcoming %}
-          <div
-            class="alert alert-primary d-flex align-items-center"
-            role="alert"
-          >
-            <i class="fas fa-calendar-alt me-3 fs-4"></i>
-            <div>
-              <h6 class="mb-1">{% trans "This is an upcoming event" %}</h6>
-              <p class="mb-0 small">{% trans "Mark your calendar" %}</p>
-            </div>
-          </div>
-          {% else %}
-          <div
-            class="alert alert-secondary d-flex align-items-center"
-            role="alert"
-          >
-            <i class="fas fa-calendar-times me-3 fs-4"></i>
-            <div>
-              <h6 class="mb-1">{% trans "This event has ended" %}</h6>
-              <p class="mb-0 small">{% trans "Event completed" %}</p>
-            </div>
-          </div>
-          {% endif %} {% if user.is_authenticated and is_registered %}
-          <div
-            class="alert alert-success d-flex align-items-center mt-3"
-            role="alert"
-          >
-            <i class="fas fa-check-circle me-3 fs-4"></i>
-            <div>
-              <h6 class="mb-0">
-                {% trans "You are registered for this event" %}
-              </h6>
-            </div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-
-      <!-- Share card -->
-      <div class="card rounded-3 mb-4 border-0">
-        <div class="card-header bg-light py-3">
-          <h5 class="mb-0">{% trans "Share This Event" %}</h5>
-        </div>
-        <div class="card-body p-4">
-          <div class="d-grid gap-2">
-            <a
-              href="mailto:?subject={{ event.title }}&body={{ request.build_absolute_uri }}"
-              class="btn btn-outline-secondary"
-            >
-              <i class="fas fa-envelope me-2"></i> {% trans "Email" %}
-            </a>
-            <a
-              href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ event.title }}"
-              target="_blank"
-              class="btn btn-outline-primary"
-            >
-              <i class="fab fa-twitter me-2"></i> {% trans "Twitter" %}
-            </a>
-            <a
-              href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri }}&title={{ event.title }}"
-              target="_blank"
-              class="btn btn-outline-primary"
-            >
-              <i class="fab fa-linkedin me-2"></i> {% trans "LinkedIn" %}
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Admin actions -->
-       
-{% if show_approval_status and not event.is_approved %}
-<div class="alert alert-warning" role="alert">
-    <h4 class="alert-heading">{% trans "Pending Approval" %}</h4>
-    <p>{% trans "This event is currently pending approval and is not visible to other users." %}</p>
-    {% if user.is_staff %}
-        <hr>
-        <p class="mb-0">
-            <a href="{% url 'events:event_validate' event.pk %}" class="btn btn-success btn-sm">
-                {% trans "Approve Event" %}
-            </a>
-        </p>
-    {% endif %}
+            
+        </aside>
+    </main>
 </div>
-{% endif %}
-    </div>
-  </div>
-</div>
+
+<script>
+    window.TS_WIDGET_CONFIG = {
+        csrfToken: '{{ csrf_token }}',
+        translateUrl: '{% url "translate:api_ts_translate" %}',
+        summarizeUrl: '{% url "translate:api_ts_summarize" %}',
+        sections: [
+            {
+                id: 'description',
+                label: '{% translate "Description" %}',
+                sourceText: `{{ event.description|striptags|escapejs }}`,
+                sourceLang: '{{ event.original_language|default:"en" }}'
+            }
+        ]
+    };
+</script>
+{% include "partials/ts_widget.html" %}
+
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}
+

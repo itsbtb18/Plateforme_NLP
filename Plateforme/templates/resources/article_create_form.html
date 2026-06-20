@@ -1,0 +1,1650 @@
+{% extends "base.html" %}
+{% load static crispy_forms_tags i18n %}
+
+{% block title %}
+{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+{% if object %}تعديل المقالة{% else %}إضافة مقالة جديدة{% endif %} - الموارد
+{% else %}
+{% if object %}Edit Document{% else %}Create New Document{% endif %} - Resources
+{% endif %}
+{% endblock %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== CSS VARIABLES - Modern Dark Theme ===== */
+:root {
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --bg-card-hover: rgba(167, 139, 250, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    /* Legacy variables for compatibility */
+    --primary-accent: #8B5CF6;
+    --primary-hover: #7C3AED;
+    --primary-purple: #7C3AED;
+    --surface-white: #18142b;
+    --surface-bg: #0A0B18;
+    --border-subtle: rgba(167, 139, 250, 0.16);
+    --border-focus: #8B5CF6;
+    --text-primary-legacy: #F8FAFC;
+    --text-secondary-legacy: #CBD5E1;
+    --text-muted-legacy: #94A3B8;
+    --radius: 8px;
+    --success: #059669;
+    --success-light: #ECFDF5;
+    --danger: #DC2626;
+    --teal: #0D9488;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.article-form-page {
+    min-height: calc(100vh - 100px);
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    padding: 1rem;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.article-form-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(124, 58, 237, 0.06) 0%, transparent 45%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== MINIMAL PAGE HEADER (Simplified Hero) ===== */
+.page-hero {
+    margin-bottom: 2.5rem;
+    text-align: center;
+}
+
+.page-hero::before {
+    display: none;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.5);
+    list-style: none;
+    padding: 0;
+    margin-left: 0;
+    flex-wrap: wrap;
+}
+
+.breadcrumb a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-weight: 500;
+}
+
+.breadcrumb a:hover { 
+    color: var(--accent-cyan);
+}
+
+.breadcrumb .separator { 
+    color: rgba(255,255,255,0.3); 
+    font-size: 0.7rem;
+}
+
+.breadcrumb .current { 
+    color: rgba(255,255,255,0.8); 
+    font-weight: 600;
+}
+
+/* Hero Icon */
+.hero-icon-wrap {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.75rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.25);
+    transition: all 0.3s ease;
+}
+
+.hero-icon-wrap::after {
+    display: none;
+}
+
+.hero-icon-wrap:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+}
+
+.page-hero h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.02em;
+}
+
+.page-hero p {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.9rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Steps bar */
+.steps-bar {
+    display: none;
+}
+
+/* RTL Support */
+html[dir="rtl"] .form-group label { text-align: right; }
+html[dir="rtl"] .form-group input,
+html[dir="rtl"] .form-group textarea,
+html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
+html[dir="rtl"] .translation-toggle { flex-direction: row-reverse; }
+html[dir="rtl"] .translation-toggle-content { flex-direction: row-reverse; }
+html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; text-align: right; }
+html[dir="rtl"] .icon-file-preview { flex-direction: row-reverse; text-align: right; }
+html[dir="rtl"] .page-hero { text-align: center; }
+html[dir="rtl"] .page-hero .breadcrumb { justify-content: center; }
+
+/* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
+.card {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.03) 0%, rgba(124, 58, 237, 0.01) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+}
+
+.card:hover {
+    /* Minimal hover effect */
+}
+
+.card-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.card-header-icon.blue { background: rgba(59, 130, 246, 0.1); color: #60A5FA; }
+.card-header-icon.purple { background: rgba(167, 139, 250, 0.1); color: #A78BFA; }
+.card-header-icon.teal { background: rgba(13, 148, 136, 0.1); color: #0D9488; }
+.card-header-icon.gray { background: rgba(71, 85, 105, 0.1); color: #94A3B8; }
+
+.card-header-text h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-header-text p {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-group { margin-bottom: 1.5rem; }
+
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.form-group label .required { color: #ef4444; margin-left: 0.125rem; }
+
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="number"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.9rem;
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 8px;
+    background: rgba(255,255,255,.05);
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.1);
+    background: rgba(255,255,255,.08);
+}
+
+.form-group input:hover,
+.form-group textarea:hover,
+.form-group select:hover { 
+    border-color: rgba(167, 139, 250, 0.18);
+}
+
+.form-group textarea {
+    min-height: 110px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+/* Input with leading icon */
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon .input-icon {
+    position: absolute;
+    left: 0.875rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 1rem;
+    pointer-events: none;
+}
+
+.input-with-icon input {
+    padding-left: 2.5rem;
+}
+
+html[dir="rtl"] .input-with-icon .input-icon { left: auto; right: 0.875rem; }
+html[dir="rtl"] .input-with-icon input { padding-left: 0.875rem; padding-right: 2.5rem; }
+
+/* URL validation */
+.url-valid { border-color: var(--success) !important; }
+.url-invalid { border-color: var(--danger) !important; }
+
+.url-feedback {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.url-feedback.valid { color: var(--success); }
+.url-feedback.invalid { color: var(--danger); }
+
+/* ===== CHAR COUNTER ===== */
+.char-counter-wrap { display: flex; justify-content: flex-end; margin-top: 0.375rem; }
+
+.char-counter {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 0.25rem 0.5rem;
+    background: rgba(167, 139, 250, 0.1);
+    border-radius: 6px;
+    border: 1px solid var(--border-light);
+}
+
+.char-counter.warn { 
+    color: #f97316; 
+    background: rgba(249, 115, 22, 0.1);
+    border-color: #f97316;
+}
+
+.char-counter.danger { 
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #DC2626;
+}
+
+/* Field Grid for Side-by-Side Inputs */
+.field-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Form Grid */
+.form-grid {
+    display: block;
+}
+
+/* Page Header */
+.page-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.page-header h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+    letter-spacing: -0.025em;
+}
+
+.page-header p {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+    .page-hero h1 { font-size: 1.875rem; }
+    .page-hero { padding: 2rem 0; }
+    .form-container { padding: 0 1rem; }
+}
+
+.translation-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(13, 148, 136, 0.12) 0%, rgba(13, 148, 136, 0.08) 100%);
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(13, 148, 136, 0.18);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.translation-toggle:hover {
+    background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(13, 148, 136, 0.1) 100%);
+    border-color: rgba(13, 148, 136, 0.25);
+}
+
+.translation-toggle-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.translation-toggle-content i { 
+    font-size: 1.5rem; 
+    color: #0D9488;
+}
+
+.translation-toggle-content h4 {
+    margin: 0 0 0.125rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.translation-toggle-content p {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.toggle-switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: rgba(255,255,255,.2);
+    border-radius: 999px;
+    transition: all 0.2s ease;
+}
+
+.toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background: rgba(255,255,255,.9);
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.toggle-switch input:checked + .toggle-slider { background: var(--teal); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+/* Conditional fields - Arabic Content */
+.arabic-fields { display: none; }
+.arabic-fields.visible {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Arabic section divider */
+.lang-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1.5rem 0 1.25rem;
+}
+
+.lang-divider-line { flex: 1; height: 1px; background: var(--border-light); }
+
+.lang-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.lang-badge.en { background: var(--primary-color); color: white; }
+.lang-badge.ar { background: #0D9488; color: white; }
+
+/* ===== SUBMIT BUTTONS ===== */
+.btn-submit-wrapper {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(124, 58, 237, 0.02) 100%);
+    border-top: 1px solid rgba(167, 139, 250, 0.1);
+}
+
+.btn-submit {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.25);
+}
+
+.btn-submit:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-submit:active { 
+    transform: translateY(0) scale(0.98); 
+}
+
+.btn-submit:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed; 
+    transform: none; 
+}
+
+.btn-submit .spinner {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-submit.loading .spinner { display: block; }
+.btn-submit.loading .btn-text { display: none; }
+.btn-submit.loading .btn-icon { display: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: rgba(255,255,255,.05);
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.25s ease;
+    width: 100%;
+}
+
+.btn-cancel:hover {
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--primary-color);
+    background: rgba(167, 139, 250, 0.06);
+}
+
+/* ===== ERROR ALERT ===== */
+.alert {
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #FCA5A5;
+}
+
+.alert-icon { 
+    font-size: 1.25rem; 
+    flex-shrink: 0; 
+    margin-top: 0.125rem;
+    color: #DC2626;
+}
+
+.alert-content h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #FCA5A5;
+}
+
+.alert-content ul { 
+    margin: 0; 
+    padding-left: 1.25rem; 
+    font-size: 0.875rem; 
+}
+
+.alert-content li { margin-bottom: 0.25rem; }
+
+/* ===== ARTICLE TYPE SELECTOR ===== */
+.article-type-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .article-type-selector {
+        grid-template-columns: 1fr;
+    }
+}
+
+.type-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.75rem 1.5rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
+    border: 2px solid rgba(167, 139, 250, 0.2);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    text-align: center;
+}
+
+.type-card:hover {
+    border-color: rgba(167, 139, 250, 0.4);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(124, 58, 237, 0.06) 100%);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 28px rgba(167, 139, 250, 0.15);
+}
+
+.type-card input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.type-card input:checked + .type-icon + .type-label,
+.type-card input:checked ~ .type-icon + .type-label {
+    color: #a78bfa;
+}
+
+.type-card input:checked + .type-icon,
+.type-card input:checked ~ .type-icon {
+    background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+    color: white;
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.35);
+    border-color: #a78bfa;
+    transform: scale(1.08);
+}
+
+.type-card input:checked + .type-icon + .type-label,
+.type-card input:checked ~ .type-icon + .type-label {
+    color: #a78bfa;
+    font-weight: 700;
+}
+
+.type-card input:checked {
+    border-color: #a78bfa;
+}
+
+.type-card.selected {
+    border-color: #a78bfa;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.18) 0%, rgba(124, 58, 237, 0.12) 100%);
+    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.18);
+}
+
+.type-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    line-height: 1;
+    background: rgba(167, 139, 250, 0.15);
+    color: #a78bfa;
+    border: 2px solid rgba(167, 139, 250, 0.3);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 2px 12px rgba(167, 139, 250, 0.12);
+    position: relative;
+}
+
+.type-icon i {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    line-height: 1;
+}
+
+.type-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #d1d5db;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    letter-spacing: -0.01em;
+}
+
+/* ===== FILE UPLOAD ZONE ===== */
+.icon-upload-zone {
+    position: relative;
+    padding: 2.5rem 2rem;
+    border: 2px dashed rgba(167, 139, 250, 0.4);
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    text-align: center;
+    min-height: 220px;
+}
+
+.icon-upload-zone:hover {
+    border-color: rgba(167, 139, 250, 0.6);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(124, 58, 237, 0.06) 100%);
+    box-shadow: 0 8px 32px rgba(167, 139, 250, 0.15);
+    transform: translateY(-2px);
+}
+
+.icon-upload-zone.dragging {
+    border-color: #a78bfa;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.18) 0%, rgba(124, 58, 237, 0.1) 100%);
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.25);
+    transform: scale(1.02);
+}
+
+.icon-upload-zone.drag-over {
+    border-color: #a78bfa;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.18) 0%, rgba(124, 58, 237, 0.1) 100%);
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.25);
+    transform: scale(1.02);
+}
+
+.icon-preview-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+    box-shadow: 0 8px 28px rgba(167, 139, 250, 0.25);
+    animation: float-icon 3s ease-in-out infinite;
+}
+
+@keyframes float-icon {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+}
+
+.icon-upload-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.icon-upload-sub {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin: 0;
+}
+
+.icon-upload-formats {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0;
+    font-weight: 400;
+}
+
+#icon-input,
+#icon-input-thesis,
+#icon-input-memoir {
+    display: none;
+}
+
+/* File Preview Section */
+.icon-file-preview {
+    display: none;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.04) 100%);
+    border: 1.5px solid rgba(16, 185, 129, 0.3);
+    border-radius: 14px;
+    margin-top: 1rem;
+    align-items: center;
+    gap: 1.25rem;
+    animation: slideIn 0.3s ease;
+}
+
+.icon-file-preview.visible {
+    display: flex;
+}
+
+.icon-file-preview.show {
+    display: flex;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.icon-file-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: #10b981;
+    flex-shrink: 0;
+}
+
+.icon-file-info {
+    flex: 1;
+}
+
+.icon-file-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem;
+    word-break: break-word;
+}
+
+.icon-file-size {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.icon-file-remove {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.icon-file-remove:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #fca5a5;
+    transform: scale(1.1);
+}
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ===== FORM BODY ===== -->
+<div class="article-form-page">
+    <div class="page-hero">
+        <!-- Breadcrumb -->
+        <ol class="breadcrumb">
+            <li><a href="{% url 'resources:article_list' %}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الموارد{% else %}Resources{% endif %}</a></li>
+            <li><span class="separator"><i class="bi bi-chevron-left"></i></span></li>
+            <li class="current">{% if object %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل المقالة{% else %}Edit Document{% endif %}{% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مقالة جديدة{% else %}New Document{% endif %}{% endif %}</li>
+        </ol>
+
+        <!-- Icon -->
+        <div class="hero-icon-wrap">
+            <i class="bi bi-pencil-square"></i>
+        </div>
+
+        <!-- Title -->
+        <h1>{% if object %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تعديل المقالة{% else %}{% trans "Edit Document" %}{% endif %}{% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة مقالة جديدة{% else %}{% trans "Add New Document" %}{% endif %}{% endif %}</h1>
+        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}شارك مقالتك مع مجتمع البحث في المنصة{% else %}{% trans "Share your document with the research community" %}{% endif %}</p>
+    </div>
+
+    <div class="form-container">
+
+        <form method="post" enctype="multipart/form-data" id="article-form" novalidate>
+            {% csrf_token %}
+
+            <!-- ===== CARD 0: ARTICLE TYPE SELECTOR ===== -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-icon gray"><i class="bi bi-bookmark"></i></div>
+                    <div class="card-header-text">
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نوع المستند{% else %}{% trans "Document Type" %}{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اختر نوع المستند الذي تريد مشاركته{% else %}{% trans "Select the type of document you want to share" %}{% endif %}</p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="article-type-selector">
+                        <!-- Article Option -->
+                        <label class="type-card">
+                            <input type="radio" name="resource_type" value="article" checked data-type="article">
+                            <div class="type-icon">
+                                <i class="bi bi-file-text"></i>
+                            </div>
+                            <span class="type-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مقالة علمية{% else %}Document{% endif %}</span>
+                        </label>
+
+                        <!-- Thesis Option -->
+                        <label class="type-card">
+                            <input type="radio" name="resource_type" value="thesis" data-type="thesis">
+                            <div class="type-icon">
+                                <i class="bi bi-mortarboard"></i>
+                            </div>
+                            <span class="type-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أطروحة{% else %}Thesis{% endif %}</span>
+                        </label>
+
+                        <!-- Memoir Option -->
+                        <label class="type-card">
+                            <input type="radio" name="resource_type" value="memoir" data-type="memoir">
+                            <div class="type-icon">
+                                <i class="bi bi-journal-text"></i>
+                            </div>
+                            <span class="type-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مذكرة{% else %}Memoir{% endif %}</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Errors -->
+            {% if form.errors or form.non_field_errors %}
+            <div class="alert alert-error" role="alert">
+                <div class="alert-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div class="alert-content">
+                    <h4>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}يرجى تصحيح الأخطاء التالية:{% else %}Please correct the following errors:{% endif %}</h4>
+                    {% if form.non_field_errors %}
+                        <ul>{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.errors %}
+                        <ul>
+                        {% for field, errors in form.errors.items %}
+                            {% if field != '__all__' %}
+                                {% for error in errors %}
+                                    <li><strong>{{ field }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ===== CARD 1: ARTICLE IDENTITY ===== -->
+            <div id="article-fields" style="display: block;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-icon blue"><i class="bi bi-book-half"></i></div>
+                    <div class="card-header-text">
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}هوية المقالة{% else %}{% trans "Document Information" %}{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان، اللغة، المجلة، والوصف{% else %}{% trans "Title, language, journal and description" %}{% endif %}</p>
+                    </div>
+                </div>
+                <div class="card-body">
+
+                    <!-- Title English -->
+                    <div class="form-group">
+                        <label for="id_title_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان (بالإنجليزية){% else %}Title (English){% endif %} <span class="required">*</span></label>
+                        {{ form.title_en }}
+                    </div>
+
+                    <!-- Language Row -->
+                    <div class="form-group">
+                        <label for="id_language">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اللغة{% else %}Language{% endif %} <span class="required">*</span></label>
+                        {{ form.language }}
+                    </div>
+
+                    <!-- Journal & Publication Date Row -->
+                    <div class="field-row">
+                        <div class="form-group">
+                            <label for="id_journal">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المجلة{% else %}Journal{% endif %} <span class="required">*</span></label>
+                            {{ form.journal }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_publication_date">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تاريخ النشر{% else %}Publication Date{% endif %} <span class="required">*</span></label>
+                            {{ form.publication_date }}
+                        </div>
+                    </div>
+
+                    <!-- DOI -->
+                    <div class="form-group">
+                        <label for="id_doi">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}معرّف DOI{% else %}DOI{% endif %}</label>
+                        {{ form.doi }}
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المعرّف الرقمي للمحتوى (مثال: 10.1234/abcd){% else %}Digital Object Identifier (e.g., 10.1234/abcd){% endif %}</span>
+                    </div>
+
+                    <!-- Description English -->
+                    <div class="form-group">
+                        <label for="id_description_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف (بالإنجليزية){% else %}Description (English){% endif %}</label>
+                        {{ form.description_en }}
+                        <div class="char-counter-wrap">
+                            <span class="char-counter" id="en-counter">0 / 2000</span>
+                        </div>
+                    </div>
+
+                    <!-- Keywords -->
+                    <div class="form-group">
+                        <label for="id_keywords">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</label>
+                        {{ form.keywords }}
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل الكلمات المفتاحية مفصولة بفواصل لمساعدة المستخدمين على اكتشاف مقالتك{% else %}Comma-separated keywords to help users discover your article{% endif %}</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ===== CARD 2: Document File & ACCESS ===== -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-icon purple"><i class="bi bi-file-pdf"></i></div>
+                    <div class="card-header-text">
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ملف المقالة{% else %}Document File{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ارفع ملف المقالة (PDF أو DOCX) أو أضف رابط الوصول{% else %}Upload your Document File (PDF, DOCX) or provide access link{% endif %}</p>
+                    </div>
+                </div>
+                <div class="card-body">
+
+                    <!-- Upload File -->
+                    <div class="form-group">
+                        <label for="file-input">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رفع الملف{% else %}{% trans "Upload Document" %}{% endif %}</label>
+                        <div class="icon-upload-zone" id="icon-upload-zone">
+                            <div class="icon-preview-circle" id="icon-preview-circle">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                            </div>
+                            <div class="icon-upload-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسحب ملف المقالة وأفلته هنا{% else %}{% trans "Drag & drop your Document File" %}{% endif %}</div>
+                            <div class="icon-upload-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أو اضغط للاختيار{% else %}{% trans "or click to browse" %}{% endif %}</div>
+                            <div class="icon-upload-formats">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}PDF، DOCX، أو أنواع أخرى · الحد الأقصى 50MB{% else %}PDF, DOCX or other formats · 50MB max{% endif %}</div>
+                            <input type="file" id="icon-input" name="uploaded_file" accept="*/*" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}اختر ملفًا{% else %}Choose file{% endif %}">
+                        </div>
+                        <div class="icon-file-preview" id="icon-file-preview">
+                            <div class="icon-file-icon"><i class="bi bi-file-earmark-check"></i></div>
+                            <div class="icon-file-info">
+                                <div class="icon-file-name" id="icon-file-name">ملف-مقالة.pdf</div>
+                                <div class="icon-file-size" id="icon-file-size">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}0 كيلوبايت{% else %}0 KB{% endif %}</div>
+                            </div>
+                            <button type="button" class="icon-file-remove" id="icon-file-remove">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Access Link -->
+                    <div class="form-group">
+                        <label for="id_access_link">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط الوصول{% else %}Access Link{% endif %}</label>
+                        <div class="input-with-icon">
+                            <i class="bi bi-link-45deg input-icon"></i>
+                            {{ form.access_link }}
+                        </div>
+                        <div id="access-feedback"></div>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط خارجي يمكن عبره الوصول إلى المقالة (اختياري){% else %}External URL where the article can be accessed (optional){% endif %}</span>
+                    </div>
+
+                </div>
+            </div>
+            </div>
+
+            <!-- ===== THESIS FIELDS ===== -->
+            <div id="thesis-fields" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-icon blue"><i class="bi bi-mortarboard-fill"></i></div>
+                    <div class="card-header-text">
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}معلومات الأطروحة{% else %}{% trans "Thesis Information" %}{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان، المشرف، الجامعة والوصف{% else %}{% trans "Title, supervisor, institution and description" %}{% endif %}</p>
+                    </div>
+                </div>
+                <div class="card-body">
+
+                    <!-- Title English -->
+                    <div class="form-group">
+                        <label for="id_title_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان (بالإنجليزية){% else %}Title (English){% endif %} <span class="required">*</span></label>
+                        {{ form.title_en }}
+                    </div>
+
+                    <!-- Language Row -->
+                    <div class="form-group">
+                        <label for="id_language">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اللغة{% else %}Language{% endif %} <span class="required">*</span></label>
+                        {{ form.language }}
+                    </div>
+
+                    <!-- Supervisor & Institution Row -->
+                    <div class="field-row">
+                        <div class="form-group">
+                            <label for="id_supervisor">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المشرف{% else %}Supervisor{% endif %} <span class="required">*</span></label>
+                            {{ form.supervisor }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_thesis_institution">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسة{% else %}Institution{% endif %} <span class="required">*</span></label>
+                            {{ form.thesis_institution }}
+                        </div>
+                    </div>
+
+                    <!-- Defense Year -->
+                    <div class="form-group">
+                        <label for="id_defense_year">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}سنة المناقشة{% else %}Defense Year{% endif %} <span class="required">*</span></label>
+                        {{ form.defense_year }}
+                    </div>
+
+                    <!-- Description English -->
+                    <div class="form-group">
+                        <label for="id_description_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف (بالإنجليزية){% else %}Description (English){% endif %}</label>
+                        {{ form.description_en }}
+                        <div class="char-counter-wrap">
+                            <span class="char-counter" id="en-counter">0 / 2000</span>
+                        </div>
+                    </div>
+
+                    <!-- Keywords -->
+                    <div class="form-group">
+                        <label for="id_keywords">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</label>
+                        {{ form.keywords }}
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل الكلمات المفتاحية مفصولة بفواصل لمساعدة المستخدمين على اكتشاف أطروحتك{% else %}Comma-separated keywords to help users discover your thesis{% endif %}</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ===== CARD 2: THESIS FILE & ACCESS ===== -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-icon purple"><i class="bi bi-file-pdf"></i></div>
+                    <div class="card-header-text">
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ملف الأطروحة{% else %}Thesis File{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ارفع ملف الأطروحة (PDF أو DOCX) أو أضف رابط الوصول{% else %}Upload your thesis file (PDF, DOCX) or provide access link{% endif %}</p>
+                    </div>
+                </div>
+                <div class="card-body">
+
+                    <!-- Upload File -->
+                    <div class="form-group">
+                        <label for="file-input">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رفع الملف{% else %}{% trans "Upload Thesis" %}{% endif %}</label>
+                        <div class="icon-upload-zone" id="icon-upload-zone-thesis">
+                            <div class="icon-preview-circle" id="icon-preview-circle-thesis">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                            </div>
+                            <div class="icon-upload-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسحب ملف الأطروحة وأفلته هنا{% else %}{% trans "Drag & drop your thesis file" %}{% endif %}</div>
+                            <div class="icon-upload-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أو اضغط للاختيار{% else %}{% trans "or click to browse" %}{% endif %}</div>
+                            <div class="icon-upload-formats">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}PDF، DOCX، أو أنواع أخرى · الحد الأقصى 50MB{% else %}PDF, DOCX or other formats · 50MB max{% endif %}</div>
+                            <input type="file" id="icon-input-thesis" name="uploaded_file" accept="*/*" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}اختر ملفًا{% else %}Choose file{% endif %}">
+                        </div>
+                        <div class="icon-file-preview" id="icon-file-preview-thesis">
+                            <div class="icon-file-icon"><i class="bi bi-file-earmark-check"></i></div>
+                            <div class="icon-file-info">
+                                <div class="icon-file-name" id="icon-file-name-thesis">ملف-أطروحة.pdf</div>
+                                <div class="icon-file-size" id="icon-file-size-thesis">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}0 كيلوبايت{% else %}0 KB{% endif %}</div>
+                            </div>
+                            <button type="button" class="icon-file-remove" id="icon-file-remove-thesis">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Access Link -->
+                    <div class="form-group">
+                        <label for="id_access_link">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط الوصول{% else %}Access Link{% endif %}</label>
+                        <div class="input-with-icon">
+                            <i class="bi bi-link-45deg input-icon"></i>
+                            {{ form.access_link }}
+                        </div>
+                        <div id="access-feedback-thesis"></div>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط خارجي يمكن عبره الوصول إلى الأطروحة (اختياري){% else %}External URL where the thesis can be accessed (optional){% endif %}</span>
+                    </div>
+
+                </div>
+            </div>
+            </div>
+
+            <!-- ===== MEMOIR FIELDS ===== -->
+            <div id="memoir-fields" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-icon blue"><i class="bi bi-journal-text"></i></div>
+                    <div class="card-header-text">
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}معلومات المذكرة{% else %}{% trans "Memoir Information" %}{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان، المستوى، الجامعة والوصف{% else %}{% trans "Title, academic level, institution and description" %}{% endif %}</p>
+                    </div>
+                </div>
+                <div class="card-body">
+
+                    <!-- Title English -->
+                    <div class="form-group">
+                        <label for="id_title_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان (بالإنجليزية){% else %}Title (English){% endif %} <span class="required">*</span></label>
+                        {{ form.title_en }}
+                    </div>
+
+                    <!-- Language Row -->
+                    <div class="form-group">
+                        <label for="id_language">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اللغة{% else %}Language{% endif %} <span class="required">*</span></label>
+                        {{ form.language }}
+                    </div>
+
+                    <!-- Academic Level & Institution Row -->
+                    <div class="field-row">
+                        <div class="form-group">
+                            <label for="id_memoir_level">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المستوى الأكاديمي{% else %}Academic Level{% endif %} <span class="required">*</span></label>
+                            {{ form.memoir_level }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_memoir_institution">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسة{% else %}Institution{% endif %} <span class="required">*</span></label>
+                            {{ form.memoir_institution }}
+                        </div>
+                    </div>
+
+                    <!-- Defense Year -->
+                    <div class="form-group">
+                        <label for="id_memoir_defense_year">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}سنة المناقشة{% else %}Defense Year{% endif %} <span class="required">*</span></label>
+                        {{ form.memoir_defense_year }}
+                    </div>
+
+                    <!-- Description English -->
+                    <div class="form-group">
+                        <label for="id_description_en">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف (بالإنجليزية){% else %}Description (English){% endif %}</label>
+                        {{ form.description_en }}
+                        <div class="char-counter-wrap">
+                            <span class="char-counter" id="en-counter">0 / 2000</span>
+                        </div>
+                    </div>
+
+                    <!-- Keywords -->
+                    <div class="form-group">
+                        <label for="id_keywords">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الكلمات المفتاحية{% else %}Keywords{% endif %}</label>
+                        {{ form.keywords }}
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل الكلمات المفتاحية مفصولة بفواصل لمساعدة المستخدمين على اكتشاف مذكرتك{% else %}Comma-separated keywords to help users discover your memoir{% endif %}</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ===== CARD 2: MEMOIR FILE & ACCESS ===== -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-icon purple"><i class="bi bi-file-pdf"></i></div>
+                    <div class="card-header-text">
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ملف المذكرة{% else %}Memoir File{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ارفع ملف المذكرة (PDF أو DOCX) أو أضف رابط الوصول{% else %}Upload your memoir file (PDF, DOCX) or provide access link{% endif %}</p>
+                    </div>
+                </div>
+                <div class="card-body">
+
+                    <!-- Upload File -->
+                    <div class="form-group">
+                        <label for="file-input">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رفع الملف{% else %}{% trans "Upload Memoir" %}{% endif %}</label>
+                        <div class="icon-upload-zone" id="icon-upload-zone-memoir">
+                            <div class="icon-preview-circle" id="icon-preview-circle-memoir">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                            </div>
+                            <div class="icon-upload-title">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسحب ملف المذكرة وأفلته هنا{% else %}{% trans "Drag & drop your memoir file" %}{% endif %}</div>
+                            <div class="icon-upload-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أو اضغط للاختيار{% else %}{% trans "or click to browse" %}{% endif %}</div>
+                            <div class="icon-upload-formats">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}PDF، DOCX، أو أنواع أخرى · الحد الأقصى 50MB{% else %}PDF, DOCX or other formats · 50MB max{% endif %}</div>
+                            <input type="file" id="icon-input-memoir" name="uploaded_file" accept="*/*" aria-label="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}اختر ملفًا{% else %}Choose file{% endif %}">
+                        </div>
+                        <div class="icon-file-preview" id="icon-file-preview-memoir">
+                            <div class="icon-file-icon"><i class="bi bi-file-earmark-check"></i></div>
+                            <div class="icon-file-info">
+                                <div class="icon-file-name" id="icon-file-name-memoir">ملف-مذكرة.pdf</div>
+                                <div class="icon-file-size" id="icon-file-size-memoir">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}0 كيلوبايت{% else %}0 KB{% endif %}</div>
+                            </div>
+                            <button type="button" class="icon-file-remove" id="icon-file-remove-memoir">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Access Link -->
+                    <div class="form-group">
+                        <label for="id_access_link">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط الوصول{% else %}Access Link{% endif %}</label>
+                        <div class="input-with-icon">
+                            <i class="bi bi-link-45deg input-icon"></i>
+                            {{ form.access_link }}
+                        </div>
+                        <div id="access-feedback-memoir"></div>
+                        <span class="form-text">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رابط خارجي يمكن عبره الوصول إلى المذكرة (اختياري){% else %}External URL where the memoir can be accessed (optional){% endif %}</span>
+                    </div>
+
+                </div>
+            </div>
+            </div>
+
+            <!-- ===== CARD 3: MULTILINGUAL CONTENT ===== -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-icon teal"><i class="bi bi-translate"></i></div>
+                    <div class="card-header-text">
+                        <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المحتوى متعدد اللغات{% else %}Multilingual Content{% endif %}</h2>
+                        <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أضف الترجمات العربية لمعلومات المستند{% else %}Add Arabic translations for your document information{% endif %}</p>
+                    </div>
+                </div>
+                <div class="card-body">
+
+                    <!-- Arabic Translation Toggle -->
+                    <div class="translation-toggle">
+                        <div class="translation-toggle-content">
+                            <i class="bi bi-globe2"></i>
+                            <div>
+                                <h4>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الترجمة العربية{% else %}Arabic Translation{% endif %}</h4>
+                                <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}فعّل لإضافة العنوان والوصف بالعربية{% else %}Enable to add Arabic title & description{% endif %}</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="arabic-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Arabic fields (conditional) -->
+                    <div class="arabic-fields" id="arabic-fields">
+                        <div class="lang-divider">
+                            <span class="lang-badge ar">AR</span>
+                            <div class="lang-divider-line"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="id_title_ar">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان (بالعربية){% else %}Title (Arabic){% endif %}</label>
+                            {{ form.title_ar }}
+                        </div>
+
+                        <div class="form-group">
+                            <label for="id_description_ar">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الوصف (بالعربية){% else %}Description (Arabic){% endif %}</label>
+                            {{ form.description_ar }}
+                            <div class="char-counter-wrap">
+                                <span class="char-counter" id="ar-counter">0 / 2000</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Submit inside card footer -->
+                <div class="btn-submit-wrapper">
+                    <button type="submit" class="btn-submit" id="submit-btn">
+                        <span class="spinner"></span>
+                        <i class="bi bi-check2 btn-icon"></i>
+                        <span class="btn-text">
+                            {% if object %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحديث المستند{% else %}Update Document{% endif %}{% else %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إرسال المستند{% else %}Submit Document{% endif %}{% endif %}
+                        </span>
+                    </button>
+                    <a href="{% url 'resources:article_list' %}" class="btn-cancel">
+                        <i class="bi bi-x"></i>
+                        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}
+                    </a>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ===== Document Type Handler =====
+    const typeRadios = document.querySelectorAll('input[name="resource_type"]');
+    const articleFields = document.getElementById('article-fields');
+    const thesisFields = document.getElementById('thesis-fields');
+    const memoirFields = document.getElementById('memoir-fields');
+
+    function updateFieldsVisibility() {
+        const selectedType = document.querySelector('input[name="resource_type"]:checked').value;
+        
+        // Hide all
+        if (articleFields) articleFields.style.display = 'none';
+        if (thesisFields) thesisFields.style.display = 'none';
+        if (memoirFields) memoirFields.style.display = 'none';
+        
+        // Show selected
+        if (selectedType === 'article' && articleFields) {
+            articleFields.style.display = 'block';
+        } else if (selectedType === 'thesis' && thesisFields) {
+            thesisFields.style.display = 'block';
+        } else if (selectedType === 'memoir' && memoirFields) {
+            memoirFields.style.display = 'block';
+        }
+    }
+
+    typeRadios.forEach(radio => {
+        radio.addEventListener('change', updateFieldsVisibility);
+    });
+
+    // Initial visibility
+    updateFieldsVisibility();
+
+    // ===== Arabic Toggle =====
+    const arabicToggle = document.getElementById('arabic-toggle');
+    const arabicFields = document.getElementById('arabic-fields');
+
+    if (arabicToggle && arabicFields) {
+        arabicToggle.addEventListener('change', function() {
+            arabicFields.classList.toggle('visible', this.checked);
+        });
+    }
+
+    // ===== FILE UPLOAD - GENERIC FOR ALL DOCUMENT TYPES =====
+    (function initAllIconUploads() {
+        const uploadConfigs = [
+            { zoneId: 'icon-upload-zone', inputId: 'icon-input', previewId: 'icon-file-preview', nameId: 'icon-file-name', sizeId: 'icon-file-size', removeId: 'icon-file-remove', circleId: 'icon-preview-circle' },
+            { zoneId: 'icon-upload-zone-thesis', inputId: 'icon-input-thesis', previewId: 'icon-file-preview-thesis', nameId: 'icon-file-name-thesis', sizeId: 'icon-file-size-thesis', removeId: 'icon-file-remove-thesis', circleId: 'icon-preview-circle-thesis' },
+            { zoneId: 'icon-upload-zone-memoir', inputId: 'icon-input-memoir', previewId: 'icon-file-preview-memoir', nameId: 'icon-file-name-memoir', sizeId: 'icon-file-size-memoir', removeId: 'icon-file-remove-memoir', circleId: 'icon-preview-circle-memoir' }
+        ];
+
+        // Function to format file size
+        function formatSize(bytes) {
+            const isArabicUI = document.documentElement.lang === 'ar' || document.documentElement.dir === 'rtl';
+            if (!bytes || bytes === 0) return isArabicUI ? '0 بايت' : '0 Bytes';
+            const k = 1024;
+            const sizes = isArabicUI
+                ? ['بايت', 'كيلوبايت', 'ميغابايت', 'غيغابايت']
+                : ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        uploadConfigs.forEach(config => {
+            const zone = document.getElementById(config.zoneId);
+            const input = document.getElementById(config.inputId);
+            const preview = document.getElementById(config.previewId);
+            const fileName = document.getElementById(config.nameId);
+            const fileSize = document.getElementById(config.sizeId);
+            const removeBtn = document.getElementById(config.removeId);
+            const circle = document.getElementById(config.circleId);
+
+            if (!zone || !input) return;
+            
+            // Avoid double initialization
+            if (zone._iconUploadInitialized) return;
+            zone._iconUploadInitialized = true;
+
+            // Function to show selected file
+            function showFile(file) {
+                if (!file) return;
+                
+                fileName.textContent = file.name;
+                fileSize.textContent = formatSize(file.size);
+                if (preview) preview.classList.add('visible');
+            }
+
+            // Function to clear file
+            function clearFile() {
+                input.value = '';
+                if (preview) preview.classList.remove('visible');
+            }
+
+            // ===== DRAG & DROP =====
+            zone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add('drag-over');
+            });
+
+            zone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('drag-over');
+            });
+
+            zone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('drag-over');
+
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    input.files = dataTransfer.files;
+                    showFile(file);
+                }
+            });
+
+            // Handle click on upload zone
+            zone.addEventListener('click', function(e) {
+                // Don't open dialog if clicking the remove button
+                if (e.target.closest('.icon-file-remove')) {
+                    return;
+                }
+                
+                input.click();
+            });
+
+            input.addEventListener('change', function() {
+                if (this.files.length) {
+                    showFile(this.files[0]);
+                }
+            });
+
+            // Handle remove button
+            if (removeBtn) {
+                removeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    clearFile();
+                });
+            }
+        });
+
+    })();
+
+    // ===== URL Validation =====
+    function validateUrl(inputEl, feedbackEl) {
+        const isArabic = "{{ request.LANGUAGE_CODE|slice:':2' }}" === 'ar';
+        const val = inputEl.value.trim();
+        const pattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$/;
+
+        inputEl.classList.remove('url-valid', 'url-invalid');
+        if (feedbackEl) feedbackEl.innerHTML = '';
+
+        if (!val) return;
+
+        if (pattern.test(val)) {
+            inputEl.classList.add('url-valid');
+            if (feedbackEl) {
+                feedbackEl.innerHTML = isArabic
+                    ? '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> رابط صحيح</span>'
+                    : '<span class="url-feedback valid"><i class="bi bi-check-circle-fill"></i> Valid URL</span>';
+            }
+        } else {
+            inputEl.classList.add('url-invalid');
+            if (feedbackEl) {
+                feedbackEl.innerHTML = isArabic
+                    ? '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> يرجى إدخال رابط صحيح (https://...)</span>'
+                    : '<span class="url-feedback invalid"><i class="bi bi-x-circle-fill"></i> Please enter a valid URL (https://...)</span>';
+            }
+        }
+    }
+
+    const accessInput = document.getElementById('id_access_link');
+    const accessFeedback = document.getElementById('access-feedback');
+
+    if (accessInput) accessInput.addEventListener('input', function() { validateUrl(accessInput, accessFeedback); });
+    if (accessInput && accessInput.value) validateUrl(accessInput, accessFeedback);
+
+    // ===== Character Counters =====
+    function setupCounter(textareaId, counterId, max) {
+        const ta = document.getElementById(textareaId);
+        const ct = document.getElementById(counterId);
+        if (!ta || !ct) return;
+
+        function update() {
+            const len = ta.value.length;
+            const pct = (len / max) * 100;
+            ct.textContent = len + ' / ' + max;
+            ct.classList.remove('warn', 'danger');
+            if (pct >= 90) ct.classList.add('danger');
+            else if (pct >= 75) ct.classList.add('warn');
+        }
+
+        ta.addEventListener('input', update);
+        update();
+    }
+
+    setupCounter('id_description_en', 'en-counter', 2000);
+    setupCounter('id_description_ar', 'ar-counter', 2000);
+
+});
+</script>
+{% endblock %}
+
+

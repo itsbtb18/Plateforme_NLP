@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التحقق بخطوتين - منصة العربية للمعالجة اللغوية{% else %}{% trans "Two-Factor Authentication" %} - {% trans "Arabic NLP Platform" %}{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+  .content {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: calc(100vh - var(--site-header-height));
+  }
+
+  .main-container {
+    min-height: calc(100vh - var(--site-header-height)) !important;
+  }
+
+  .twofa-page {
+    min-height: calc(100vh - var(--site-header-height));
+    display: grid;
+    align-items: stretch;
+    justify-items: stretch;
+    padding: 0;
+    background:
+      radial-gradient(circle at 18% 28%, rgba(168, 85, 247, 0.16) 0%, transparent 34%),
+      radial-gradient(circle at 82% 20%, rgba(124, 58, 237, 0.14) 0%, transparent 30%),
+      radial-gradient(circle at 70% 76%, rgba(236, 72, 153, 0.1) 0%, transparent 28%),
+      linear-gradient(135deg, #1a1a2e 0%, #1a1a2e 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .twofa-page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 36px 36px;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  .twofa-shell {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    min-height: calc(100vh - var(--site-header-height));
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(167, 139, 250, 0.18);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(18px);
+    overflow: hidden;
+  }
+
+  .twofa-visual {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem;
+    background: #1a1a2e;
+  }
+
+  .twofa-visual::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 24% 22%, rgba(167, 139, 250, 0.18), transparent 24%),
+      radial-gradient(circle at 78% 72%, rgba(124, 58, 237, 0.2), transparent 28%);
+    pointer-events: none;
+  }
+
+  .twofa-visual-content {
+    position: relative;
+    z-index: 1;
+    max-width: 420px;
+    color: #fff;
+  }
+
+  .twofa-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 999px;
+    margin-bottom: 1.4rem;
+    border: 1px solid rgba(167, 139, 250, 0.28);
+    background: rgba(167, 139, 250, 0.12);
+    color: #c4b5fd;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .twofa-visual-title {
+    margin: 0 0 1rem;
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    line-height: 1.08;
+    font-weight: 900;
+    color: #fff;
+  }
+
+  .twofa-visual-title .accent {
+    background: linear-gradient(135deg, #A78BFA 0%, #A78BFA 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .twofa-visual-subtitle {
+    margin: 0;
+    max-width: 380px;
+    color: rgba(255,255,255,0.78);
+    font-size: 1.05rem;
+    line-height: 1.8;
+  }
+
+  .twofa-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background: rgba(10, 14, 20, 0.88);
+  }
+
+  .twofa-card-inner {
+    width: min(100%, 460px);
+  }
+
+  .twofa-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    margin-bottom: 1.25rem;
+    background: rgba(167, 139, 250, 0.12);
+    border: 1px solid rgba(167, 139, 250, 0.18);
+    color: #c4b5fd;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .twofa-sub {
+    margin: 0 0 1.5rem;
+    color: #cbd5e1;
+    font-size: 0.98rem;
+    line-height: 1.7;
+  }
+
+  .twofa-account {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1rem 1.1rem;
+    margin-bottom: 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(167, 139, 250, 0.16);
+    color: #fff;
+    word-break: break-word;
+  }
+
+  .twofa-account-label {
+    color: #a78bfa;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .twofa-account-value {
+    color: #e5e7eb;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .twofa-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .twofa-input {
+    width: 100%;
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    border: 1px solid rgba(167, 139, 250, 0.18);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    text-align: center;
+    font-size: 1.1rem;
+    letter-spacing: 0.28em;
+    outline: none;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+
+  .twofa-input::placeholder {
+    color: #94a3b8;
+    letter-spacing: 0.18em;
+  }
+
+  .twofa-input:focus {
+    border-color: #A78BFA;
+    background: rgba(167, 139, 250, 0.08);
+    box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.12);
+  }
+
+  .twofa-meta {
+    color: #cbd5e1;
+    font-size: 0.92rem;
+    margin-top: -0.15rem;
+  }
+
+  .twofa-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .twofa-btn {
+    width: 100%;
+    border: 0;
+    border-radius: 16px;
+    padding: 1rem 1.2rem;
+    font-size: 1rem;
+    font-weight: 700;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+  }
+
+  .twofa-btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .twofa-btn-primary {
+    background: linear-gradient(135deg, #A78BFA 0%, #A78BFA 100%);
+    color: #0f1419;
+    box-shadow: 0 16px 32px rgba(124, 58, 237, 0.35);
+  }
+
+  .twofa-btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: #e5e7eb;
+    border: 1px solid rgba(167, 139, 250, 0.16);
+  }
+
+  .twofa-msg {
+    min-height: 1.4rem;
+    margin-top: 0.25rem;
+    font-size: 0.94rem;
+  }
+
+  .twofa-msg.error { color: #fca5a5; }
+  .twofa-msg.success { color: #86efac; }
+
+  html[dir="rtl"] .twofa-visual-content,
+  html[dir="rtl"] .twofa-card-inner {
+    text-align: right;
+  }
+
+  html[dir="rtl"] .twofa-input {
+    direction: ltr;
+    text-align: center;
+  }
+
+  @media (max-width: 980px) {
+    .twofa-shell {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+
+    .twofa-visual {
+      padding: 2.5rem 2rem 2rem;
+    }
+
+    .twofa-card {
+      padding: 2rem 1.5rem 2.5rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .twofa-page {
+      padding: 0;
+    }
+
+    .twofa-visual,
+    .twofa-card {
+      padding-inline: 1.25rem;
+    }
+    .twofa-visual-title {
+      font-size: 2rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="twofa-page">
+  <div class="twofa-shell">
+    <div class="twofa-visual">
+      <div class="twofa-visual-content">
+        <div class="twofa-badge">
+          <i class="bi bi-shield-lock"></i>
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طبقة أمان إضافية{% else %}{% trans "Extra Security Layer" %}{% endif %}
+        </div>
+        <h1 class="twofa-visual-title">
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+            تحقق <span class="accent">آمن</span> لحسابك
+          {% else %}
+            Secure <span class="accent">Verification</span> for your account
+          {% endif %}
+        </h1>
+        <p class="twofa-visual-subtitle">
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+            خطوة أخيرة لحماية حسابك والوصول إلى جميع ميزات المنصة بأمان كامل.
+          {% else %}
+            One final step to protect your account and unlock the platform with stronger security.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <div class="twofa-card">
+      <div class="twofa-card-inner">
+        <div class="twofa-kicker">
+          <i class="bi bi-patch-check"></i>
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التحقق بخطوتين{% else %}{% trans "Two-Factor Authentication" %}{% endif %}
+        </div>
+
+        <p class="twofa-sub">
+          {% if is_totp_method %}
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل الرمز الظاهر في تطبيق المصادقة.{% else %}{% trans "Enter the code from your authenticator app." %}{% endif %}
+          {% else %}
+            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل الرمز الذي تم إرساله إلى بريدك الإلكتروني.{% else %}{% trans "Enter the code sent to your email." %}{% endif %}
+          {% endif %}
+        </p>
+
+        <div class="twofa-account">
+          <span class="twofa-account-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الحساب{% else %}{% trans "Account" %}{% endif %}</span>
+          <span class="twofa-account-value">{{ user_email }}</span>
+        </div>
+
+        <form id="otp-form" method="post" class="twofa-form">
+          {% csrf_token %}
+          <input
+            id="otp_code"
+            name="otp_code"
+            type="text"
+            maxlength="8"
+            autocomplete="one-time-code"
+            class="twofa-input"
+            placeholder="{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}رمز التحقق{% else %}{% trans 'Verification code' %}{% endif %}"
+            required
+            dir="ltr"
+          />
+
+          {% if not is_totp_method %}
+            <div class="twofa-meta">
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تنتهي صلاحية الرمز خلال{% else %}{% trans "Code expires in" %}{% endif %}: <span id="remaining">{{ remaining_seconds|default:0 }}</span>s
+            </div>
+          {% endif %}
+
+          <div class="twofa-actions">
+            <button class="twofa-btn twofa-btn-primary" id="verify-btn" type="submit">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}تحقق{% else %}{% trans "Verify" %}{% endif %}</button>
+            {% if not is_totp_method %}
+              <button class="twofa-btn twofa-btn-secondary" id="resend-btn" type="button">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إعادة إرسال الرمز{% else %}{% trans "Resend code" %}{% endif %}</button>
+            {% endif %}
+            <a class="twofa-btn twofa-btn-secondary" href="{% url 'accounts:cancel_2fa' %}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}</a>
+          </div>
+        </form>
+
+        <div id="msg" class="twofa-msg"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    const form = document.getElementById("otp-form");
+    const msg = document.getElementById("msg");
+    const verifyBtn = document.getElementById("verify-btn");
+    const resendBtn = document.getElementById("resend-btn");
+    const remainingEl = document.getElementById("remaining");
+
+    const COPY = {
+      verifyFailed: "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}فشل التحقق.{% else %}Verification failed.{% endif %}",
+      resendSuccess: "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تمت إعادة إرسال الرمز بنجاح.{% else %}Code resent.{% endif %}",
+      resendFailed: "{% if request.LANGUAGE_CODE|slice:':2' == 'ar' %}تعذرت إعادة إرسال الرمز.{% else %}Failed to resend code.{% endif %}"
+    };
+
+    function showMessage(text, type) {
+      msg.textContent = text || "";
+      msg.className = "twofa-msg" + (type ? " " + type : "");
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      verifyBtn.disabled = true;
+      showMessage("", "");
+      const data = new FormData(form);
+
+      fetch("", {
+        method: "POST",
+        body: data,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            window.location.href = data.redirect_url || "/";
+          } else {
+            showMessage(data.message || COPY.verifyFailed, "error");
+          }
+        })
+        .catch(() => showMessage(COPY.verifyFailed, "error"))
+        .finally(() => { verifyBtn.disabled = false; });
+    });
+
+    if (resendBtn) {
+      resendBtn.addEventListener("click", function () {
+        resendBtn.disabled = true;
+        const csrf = form.querySelector("input[name='csrfmiddlewaretoken']").value;
+        fetch("{% url 'accounts:resend_otp' %}", {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": csrf,
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              showMessage(data.message || COPY.resendSuccess, "success");
+            } else {
+              showMessage(data.message || COPY.resendFailed, "error");
+            }
+          })
+          .catch(() => showMessage(COPY.resendFailed, "error"))
+          .finally(() => { resendBtn.disabled = false; });
+      });
+    }
+
+    if (remainingEl) {
+      let remaining = parseInt(remainingEl.textContent || "0", 10);
+      if (!Number.isNaN(remaining) && remaining > 0) {
+        setInterval(function () {
+          if (remaining > 0) {
+            remaining -= 1;
+            remainingEl.textContent = String(remaining);
+          }
+        }, 1000);
+      }
+    }
+  })();
+</script>
+{% endblock %}

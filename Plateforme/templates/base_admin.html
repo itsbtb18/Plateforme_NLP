@@ -7,17 +7,91 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% trans "Administration" %}{% endblock %}</title>
-    <link rel="icon" href="{% static 'images/logo.png' %}" type="image/png">
+    <link rel="icon" href="{% static 'favicon.ico' %}?v=20260520" type="image/x-icon">
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}?v=20260520" type="image/x-icon">
+    <link rel="apple-touch-icon" href="{% static 'images/navbarlogo.png' %}?v=20260520">
+    <script>
+      (function () {
+        var iconUrl = "{% static 'favicon.ico' %}";
+        var cacheBuster = "?v=" + Date.now();
+        var links = document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']");
+        links.forEach(function (link) {
+          link.href = iconUrl + cacheBuster;
+        });
+      })();
+    </script>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <link rel="stylesheet" href="{% static 'css/admin.css' %}?v=5">
+    <link rel="stylesheet" href="{% static 'css/admin.css' %}?v=15">
     {% if LANGUAGE_CODE == 'ar' %}
-    <link rel="stylesheet" href="{% static 'css/admin-rtl.css' %}?v=5">
+    <link rel="stylesheet" href="{% static 'css/admin-rtl.css' %}?v=15">
     {% endif %}
+    <style>
+      /* Align admin tables vertically and center content */
+      .table, .table-modern {
+        width: 100%;
+      }
+      .table th, .table td,
+      .table-modern th, .table-modern td,
+      .table-responsive table th,
+      .table-responsive table td {
+        vertical-align: middle !important;
+        text-align: center !important;
+      }
+
+      /* Global dual-action buttons for pending admin rows (except courses) */
+      .admin-global-eye-btn,
+      .admin-global-edit-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 0.62rem;
+        text-decoration: none;
+        border: 1.5px solid #3b82f6;
+        background: #ffffff;
+        color: #2563eb;
+        transition: all 0.2s ease;
+      }
+      .admin-global-eye-btn:hover {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
+        transform: translateY(-1px);
+      }
+      .admin-global-edit-btn {
+        border-color: #4f46e5;
+        color: #4338ca;
+      }
+      .admin-global-edit-btn:hover {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #fff;
+        transform: translateY(-1px);
+      }
+      .admin-global-eye-btn i,
+      .admin-global-edit-btn i {
+        font-size: 0.88rem;
+      }
+      .admin-global-action-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .n-acts-pending {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        width: fit-content;
+        margin-inline: auto;
+      }
+    </style>
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -25,14 +99,42 @@
     <!-- Admin Header -->
     <header class="admin-header">
         <div class="admin-header-container">
-            <!-- LEFT: Logo + Admin Panel Title -->
+            <!-- LEFT: Logo + Sidebar Toggle + Admin Panel Title -->
             <div class="admin-logo">
-                <img src="{% static 'images/logo.png' %}" alt="Logo" class="admin-logo-img">
+                <button id="sidebarToggleBtn" class="sidebar-toggle-btn" type="button" aria-label="{% trans 'Toggle sidebar' %}">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <img src="{% static 'images/navbarlogo.png' %}" alt="Logo" class="admin-logo-img">
                 <h5 class="admin-title">{% trans "Admin Panel" %}</h5>
             </div>
             
             <!-- RIGHT: Action Buttons -->
             <div class="admin-actions">
+                <div class="language-dropdown-container action-dropdown-container">
+                    <button class="action-btn icon-btn language-icon-btn" id="languageIconBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Language">
+                        <i class="fas fa-globe"></i>
+                        <span class="btn-label">{% if LANGUAGE_CODE == 'en' %}EN{% elif LANGUAGE_CODE == 'ar' %}AR{% endif %}</span>
+                        <i class="fas fa-chevron-down caret" aria-hidden="true"></i>
+                    </button>
+                    <div class="dropdown-panel language-dropdown" id="languageDropdown" role="menu" aria-labelledby="languageIconBtn">
+                        <a href="{% url 'translate:switch_language' %}?language=en"
+                           class="language-dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}"
+                           role="menuitem">
+                            <span>{% trans "English" %}</span>
+                            {% if LANGUAGE_CODE == 'en' %}
+                            <i class="fas fa-check"></i>
+                            {% endif %}
+                        </a>
+                        <a href="{% url 'translate:switch_language' %}?language=ar"
+                           class="language-dropdown-item {% if LANGUAGE_CODE == 'ar' %}active{% endif %}"
+                           role="menuitem">
+                            <span>{% trans "Arabic" %}</span>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                            <i class="fas fa-check"></i>
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
                 <a href="{% url 'pages:home' %}" class="btn-admin btn-admin-secondary">
                     <i class="fas fa-home"></i>
                     <span>{% trans "Return to site" %}</span>
@@ -45,97 +147,122 @@
         </div>
     </header>
 
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block sidebar">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'pages:admin_dashboard' %}">
-                                <i class="fas fa-tachometer-alt"></i> {% trans "Dashboard" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_users' %}active{% endif %}" href="{% url 'pages:admin_users' %}">
-                                <i class="fas fa-users"></i> {% trans "Users" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_publications' %}active{% endif %}" href="{% url 'pages:admin_publications' %}">
-                                <i class="fas fa-book"></i> {% trans "Publications" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_corpora' %}active{% endif %}" href="{% url 'pages:admin_corpora' %}">
-                                <i class="fas fa-database"></i> {% trans "Corpus" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_tools' %}active{% endif %}" href="{% url 'pages:admin_tools' %}">
-                                <i class="fas fa-tools"></i> {% trans "tools" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_projects' %}active{% endif %}" href="{% url 'pages:admin_projects' %}">
-                                <i class="fas fa-project-diagram"></i> {% trans "Projects" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_courses' %}active{% endif %}" href="{% url 'pages:admin_courses' %}">
-                                <i class="fas fa-graduation-cap"></i> {% trans "Course" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_forum' %}active{% endif %}" href="{% url 'pages:admin_forum' %}">
-                                <i class="fas fa-comments"></i> {% trans "Forum" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_institutions' %}active{% endif %}" href="{% url 'pages:admin_institutions' %}">
-                                <i class="fas fa-university"></i> {% trans "Institutions" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_calls' %}active{% endif %}" href="{% url 'pages:admin_calls' %}">
-                                <i class="fas fa-bullhorn"></i> {% trans "Calls" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_statistics' %}active{% endif %}" href="{% url 'pages:admin_statistics' %}">
-                                <i class="fas fa-chart-bar"></i> {% trans "Statistics" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_settings' %}active{% endif %}" href="{% url 'pages:admin_settings' %}">
-                                <i class="fas fa-cog"></i> {% trans "Settings" %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_security' %}active{% endif %}" href="{% url 'pages:admin_security' %}">
-                                <i class="fas fa-shield-alt"></i> {% trans "Security" %}
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
+    <div class="admin-shell">
+        <!-- Sidebar -->
+        <nav id="sidebar" class="sidebar">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'pages:admin_dashboard' %}">
+                            <i class="fas fa-tachometer-alt"></i> <span>{% trans "Dashboard" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_users' %}active{% endif %}" href="{% url 'pages:admin_users' %}">
+                            <i class="fas fa-users"></i> <span>{% trans "Users" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_publications' %}active{% endif %}" href="{% url 'pages:admin_publications' %}">
+                            <i class="fas fa-book"></i> <span>{% trans "Publications" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_corpora' %}active{% endif %}" href="{% url 'pages:admin_corpora' %}">
+                            <i class="fas fa-database"></i> <span>{% trans "Corpus" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_tools' %}active{% endif %}" href="{% url 'pages:admin_tools' %}">
+                            <i class="fas fa-tools"></i> <span>{% trans "tools" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_projects' %}active{% endif %}" href="{% url 'pages:admin_projects' %}">
+                            <i class="fas fa-project-diagram"></i> <span>{% trans "Projects" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_courses' %}active{% endif %}" href="{% url 'pages:admin_courses' %}">
+                            <i class="fas fa-graduation-cap"></i> <span>{% trans "Courses" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_opportunities' %}active{% endif %}" href="{% url 'pages:admin_opportunities' %}">
+                            <i class="fas fa-briefcase"></i> <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_forum' %}active{% endif %}" href="{% url 'pages:admin_forum' %}">
+                            <i class="fas fa-comments"></i> <span>{% trans "Forum" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_feed' %}active{% endif %}" href="{% url 'pages:admin_feed' %}">
+                            <i class="fas fa-newspaper"></i> <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}Feed{% endif %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_news' or request.resolver_match.url_name == 'admin_news_create' or request.resolver_match.url_name == 'admin_news_edit' %}active{% endif %}" href="{% url 'pages:admin_news' %}">
+                            <i class="fas fa-book-open"></i> <span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الأخبار{% else %}Admin News{% endif %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_institutions' %}active{% endif %}" href="{% url 'pages:admin_institutions' %}">
+                            <i class="fas fa-university"></i> <span>{% trans "Institutions" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_calls' %}active{% endif %}" href="{% url 'pages:admin_calls' %}">
+                            <i class="fas fa-bullhorn"></i> <span>{% trans "Calls" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_statistics' %}active{% endif %}" href="{% url 'pages:admin_statistics' %}">
+                            <i class="fas fa-chart-bar"></i> <span>{% trans "Statistics" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_settings' %}active{% endif %}" href="{% url 'pages:admin_settings' %}">
+                            <i class="fas fa-cog"></i> <span>{% trans "Settings" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_security' %}active{% endif %}" href="{% url 'pages:admin_security' %}">
+                            <i class="fas fa-shield-alt"></i> <span>{% trans "Security" %}</span>
+                        </a>
+                    </li>
+                    {% url 'scraping:dashboard' as scraping_dashboard_url %}
+                    <li class="nav-item">
+                        {% if scraping_dashboard_url %}
+                        <a class="nav-link {% if page == 'scraping' %}active{% endif %}" href="{{ scraping_dashboard_url }}">
+                            <i class="fas fa-spider"></i> <span>{% trans "Web Scraping" %}</span>
+                        </a>
+                        {% else %}
+                        <span class="nav-link disabled" aria-disabled="true">
+                            <i class="fas fa-spider"></i> <span>{% trans "Web Scraping" %}</span>
+                        </span>
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+        </nav>
 
-            <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
-                {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    {% endfor %}
+        <!-- Main content -->
+        <main class="main-content">
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
 
-                {% block content %}{% endblock %}
-            </main>
-        </div>
+            {% block content %}{% endblock %}
+        </main>
     </div>
 
     <!-- Bootstrap Bundle with Popper -->
@@ -144,6 +271,257 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+    /* ===== Sidebar collapse/expand toggle ===== */
+    (function() {
+      var btn = document.getElementById('sidebarToggleBtn');
+      var sidebar = document.getElementById('sidebar');
+      var STORAGE_KEY = 'admin_sidebar_collapsed';
+      var isRTL = document.documentElement.dir === 'rtl';
+      var isDesktop = window.matchMedia('(min-width: 992px)').matches;
+
+      function applyState(collapsed) {
+        if (collapsed && isDesktop) {
+          /* Desktop: collapse to icon-only sidebar */
+          document.body.classList.add('sidebar-collapsed');
+          sidebar.classList.add('collapsed');
+          if (btn) btn.querySelector('i').className = isRTL ? 'fas fa-outdent' : 'fas fa-indent';
+        } else {
+          /* Desktop: expand sidebar */
+          document.body.classList.remove('sidebar-collapsed');
+          sidebar.classList.remove('collapsed');
+          if (btn) btn.querySelector('i').className = 'fas fa-bars';
+        }
+      }
+
+      /* Responsive breakpoint listener */
+      window.matchMedia('(max-width: 991px)').addEventListener('change', function(event) {
+        if (event.matches) {
+          /* Switching to mobile: close sidebar, switch to is-open mode */
+          sidebar.classList.remove('collapsed');
+          document.body.classList.remove('sidebar-collapsed');
+          sidebar.classList.remove('is-open');
+          if (btn) btn.querySelector('i').className = 'fas fa-bars';
+        } else {
+          /* Switching to desktop: close collapsed state, remove is-open */
+          sidebar.classList.remove('is-open');
+          localStorage.removeItem(STORAGE_KEY);
+          applyState(false);
+        }
+      });
+
+      /* Restore saved state on page load (desktop only) */
+      if (isDesktop) {
+        var saved = localStorage.getItem(STORAGE_KEY);
+        if (saved === 'true') applyState(true);
+      }
+
+      /* Toggle button: collapse on desktop, open/close drawer on mobile */
+      if (btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var currentlyDesktop = window.matchMedia('(min-width: 992px)').matches;
+          
+          if (currentlyDesktop) {
+            /* Desktop: toggle collapsed state */
+            var collapsed = !sidebar.classList.contains('collapsed');
+            applyState(collapsed);
+            localStorage.setItem(STORAGE_KEY, collapsed);
+          } else {
+            /* Mobile: toggle is-open drawer */
+            var isOpen = sidebar.classList.contains('is-open');
+            if (isOpen) {
+              sidebar.classList.remove('is-open');
+            } else {
+              sidebar.classList.add('is-open');
+            }
+          }
+        });
+      }
+
+      /* Close sidebar when clicking on a nav link (mobile) */
+      var navLinks = sidebar.querySelectorAll('.nav-link');
+      navLinks.forEach(function(link) {
+        link.addEventListener('click', function() {
+          if (!window.matchMedia('(min-width: 992px)').matches) {
+            sidebar.classList.remove('is-open');
+          }
+        });
+      });
+    })();
+    </script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const actionContainerSelectors = [
+          '.ab-group',
+          '.pm-btn-group',
+          '.action-buttons',
+          '.course-actions',
+          '.review-actions',
+          '.table-actions',
+          '.actions'
+        ];
+
+        function normalizeUrl(url) {
+          try {
+            return new URL(url, window.location.origin).pathname.replace(/\/+$/, '');
+          } catch (e) {
+            return (url || '').replace(/\/+$/, '');
+          }
+        }
+
+        function getOrCreateActionContainer(row) {
+          for (const selector of actionContainerSelectors) {
+            const container = row.querySelector(selector);
+            if (container) return container;
+          }
+          const cells = row.querySelectorAll('td');
+          if (!cells.length) return null;
+          const targetCell = cells[cells.length - 1];
+          const wrapper = document.createElement('div');
+          wrapper.className = 'admin-global-action-wrap';
+          targetCell.prepend(wrapper);
+          return wrapper;
+        }
+
+        function createEyeButton(url) {
+          const eye = document.createElement('a');
+          eye.href = url;
+          eye.className = 'admin-global-eye-btn';
+          eye.title = 'Visualiser';
+          eye.setAttribute('aria-label', 'Visualiser');
+          eye.innerHTML = '<i class="fas fa-eye"></i>';
+          return eye;
+        }
+
+        function createEditButton(url) {
+          const edit = document.createElement('a');
+          edit.href = url;
+          edit.className = 'admin-global-edit-btn';
+          edit.title = 'Modifier';
+          edit.setAttribute('aria-label', 'Modifier');
+          edit.innerHTML = '<i class="fas fa-edit"></i>';
+          return edit;
+        }
+
+        function extractModelType(url) {
+          const p = normalizeUrl(url);
+          const m = p.match(/\/admin\/approve\/([^/]+)\//);
+          return m ? m[1] : null;
+        }
+
+        function toViewUrlFromApprove(approveUrl) {
+          return approveUrl.replace('/admin/approve/', '/admin/view/');
+        }
+
+        document.querySelectorAll('main tr').forEach(function (row) {
+          // Keep page-specific action sets intact (modern admin tables define their own n-act buttons).
+          if (row.querySelector('.n-acts .n-act')) {
+          // Keep modern action groups intact, while hiding any legacy approve/reject controls in the same row.
+          if (row.querySelector('.n-acts .n-act')) {
+            row.querySelectorAll('form[action*="/admin/approve/"], form[action*="/admin/reject/"]').forEach(function (formEl) {
+              formEl.style.display = 'none';
+            });
+            row.querySelectorAll('a[href*="/admin/approve/"], a[href*="/admin/reject/"], a.icon-btn.approve').forEach(function (aEl) {
+              if (aEl.closest('.n-acts')) return;
+              aEl.style.display = 'none';
+            });
+            row.querySelectorAll('button.action-btn-approve, button.action-btn-reject, .ab-approve, .ab-reject').forEach(function (btn) {
+              btn.style.display = 'none';
+            });
+            return;
+          }
+
+          const approveForm = row.querySelector('form[action*="/admin/approve/"]');
+          const reviewApproveLink = Array.from(row.querySelectorAll('a[href]')).find(function (a) {
+            return normalizeUrl(a.href).indexOf('/admin/approve/') !== -1;
+          });
+          const newsApproveLink = Array.from(row.querySelectorAll('a[href]')).find(function (a) {
+            return normalizeUrl(a.href).indexOf('/admin/feed/') !== -1 && normalizeUrl(a.href).indexOf('/approve') !== -1;
+          });
+          const newsViewLink = Array.from(row.querySelectorAll('a[href]')).find(function (a) {
+            const p = normalizeUrl(a.href);
+            return p.indexOf('/admin/feed/') !== -1 && p.indexOf('/view') !== -1;
+          });
+
+          let targetUrl = null;
+          let modelType = null;
+          if (approveForm && approveForm.action) {
+            targetUrl = approveForm.action;
+          } else if (reviewApproveLink) {
+            targetUrl = reviewApproveLink.href;
+          } else if (newsViewLink && newsApproveLink) {
+            const newsPath = normalizeUrl(newsApproveLink.href);
+            const newsIdMatch = newsPath.match(/(.*)\/admin\/news\/([^/]+)\/approve$/);
+            if (newsIdMatch && newsIdMatch[2]) {
+              const localePrefix = newsIdMatch[1] || '';
+              targetUrl = `${localePrefix}/admin/approve/post/${newsIdMatch[2]}/`;
+            } else {
+              targetUrl = newsViewLink.href;
+            }
+            modelType = 'post';
+          }
+
+          if (!targetUrl) return;
+          if (!modelType) modelType = extractModelType(targetUrl);
+          const allowedModels = new Set(['document', 'corpus', 'nlptool', 'project', 'topic', 'event', 'post']);
+          if (!allowedModels.has(modelType)) return;
+
+          const actionContainer = getOrCreateActionContainer(row);
+          if (!actionContainer) return;
+
+          const reviewUrl = targetUrl;
+          const viewUrl = toViewUrlFromApprove(reviewUrl);
+          const editUrl = reviewUrl + (reviewUrl.indexOf('?') === -1 ? '?mode=edit' : '&mode=edit');
+          const keepEye = createEyeButton(viewUrl);
+          const keepEdit = createEditButton(editUrl);
+          actionContainer.innerHTML = '';
+          actionContainer.appendChild(keepEye);
+          actionContainer.appendChild(keepEdit);
+
+          // Hide direct approve/reject controls in this row to keep only edit/review actions.
+          row.querySelectorAll('form[action*="/admin/approve/"], form[action*="/admin/reject/"]').forEach(function (formEl) {
+            formEl.style.display = 'none';
+          });
+          row.querySelectorAll('a[href*="/admin/approve/"], a[href*="/admin/reject/"], a.icon-btn.approve').forEach(function (aEl) {
+            if (aEl.classList.contains('admin-global-eye-btn')) return;
+            if (aEl.closest('.n-acts')) return;
+            aEl.style.display = 'none';
+          });
+          row.querySelectorAll('button.action-btn-approve, button.action-btn-reject, .ab-approve, .ab-reject').forEach(function (btn) {
+            btn.style.display = 'none';
+          });
+        });
+      });
+    </script>
+
+    <script>
+      /* Language dropdown toggle for admin panel */
+      const languageIconBtn = document.getElementById('languageIconBtn');
+      const languageDropdown = document.getElementById('languageDropdown');
+
+      if (languageIconBtn && languageDropdown) {
+        languageIconBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const isShown = languageDropdown.classList.contains('show');
+          languageDropdown.classList.toggle('show', !isShown);
+          languageIconBtn.setAttribute('aria-expanded', !isShown);
+        });
+
+        /* Close dropdown when clicking outside */
+        document.addEventListener('click', function(e) {
+          if (languageDropdown.classList.contains('show') &&
+              !languageDropdown.contains(e.target) &&
+              !languageIconBtn.contains(e.target)) {
+            languageDropdown.classList.remove('show');
+            if (languageIconBtn) languageIconBtn.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>

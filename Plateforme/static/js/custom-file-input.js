@@ -16,8 +16,6 @@ document.addEventListener('DOMContentLoaded', function() {
             file: 'ملف'
         },
         'en': {
-            chooseFile: 'Choose file',
-            noFileChosen: 'No file chosen',
             chooseImage: 'Choose image',
             noImageChosen: 'No image chosen',
             image: 'Image',
@@ -39,13 +37,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInputs = document.querySelectorAll('input[type="file"]');
     
     fileInputs.forEach(function(input) {
+        // Skip inputs that are intentionally hidden (e.g. avatar input on profile page)
+        // Also skip the attachment input in events form (uses ef-file-zone instead)
+        if (input.style.display === 'none' || input.hidden || input.closest('.custom-file-input-wrapper') || 
+            input.id === 'attachmentInput' || input.closest('.ef-file-zone')) {
+            return;
+        }
+
         // Créer un wrapper personnalisé
         const wrapper = document.createElement('div');
         wrapper.className = 'custom-file-input-wrapper';
         
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'custom-file-button btn btn-outline-secondary';
+    
         
         // Déterminer si c'est une image ou un fichier général
         const isImage = input.accept && input.accept.includes('image');

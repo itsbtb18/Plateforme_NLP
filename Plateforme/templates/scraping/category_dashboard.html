@@ -1,0 +1,1644 @@
+{% extends 'scraping/category_base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Category Dashboard" %} — {{ category_name|default:scraping_current_category|title }}{% endblock %}
+
+{% block scraping_header_meta %}
+<div class="cat-header-meta">
+  <span class="cat-header-kicker">{% trans "Scraping workspace" %}</span>
+  <div class="cat-header-row">
+    <h1 class="cat-header-title">{{ category_name|default:scraping_current_category|title }}</h1>
+    <span class="cat-header-badge">{{ active_prompt_count|default:0 }}/{{ max_active_prompts|default:0 }} {% trans "prompts" %}</span>
+  </div>
+  <p class="cat-header-subtitle">{% trans "Manage prompts, run scrapes, and review results from one clean workspace." %}</p>
+</div>
+{% endblock %}
+
+{% block category_extra_css %}
+<style>
+  .cat-header-meta {
+    display: grid;
+    gap: 0.14rem;
+    min-width: 0;
+    padding-inline-end: 0.3rem;
+  }
+
+  .cat-header-kicker {
+    color: #7c3aed;
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .cat-header-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-header-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+  }
+
+  .cat-header-badge {
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 999px;
+    background: rgba(124, 58, 237, 0.08);
+    color: #5b21b6;
+    font-size: 0.68rem;
+    font-weight: 900;
+    padding: 0.28rem 0.52rem;
+    white-space: nowrap;
+  }
+
+  .cat-header-subtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  .cat-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+
+  .cat-kpi {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    padding: 1rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .cat-kpi-label {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .cat-kpi-value {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  .cat-split {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .cat-panel {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    padding: 1.5rem;
+  }
+
+  .cat-panel-title {
+    margin: 0 0 0.85rem;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .cat-prompts-list {
+    display: grid;
+    gap: 0.55rem;
+    max-height: 40rem;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+
+  .cat-prompts-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .cat-prompts-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .cat-prompts-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  .cat-prompts-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  .cat-prompts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .cat-prompts-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-action-btn {
+    border: 1px solid #dbe3f0;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    color: #1d4ed8;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.48rem 0.8rem;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+
+  .cat-action-btn:hover {
+    transform: translateY(-1px);
+    background: #eff6ff;
+    box-shadow: 0 8px 16px rgba(29, 78, 216, 0.12);
+  }
+
+  .cat-action-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .cat-action-btn--primary {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    border-color: transparent;
+    color: #ffffff;
+  }
+
+  .cat-action-btn--primary:hover {
+    background: linear-gradient(135deg, #1e40af, #1d4ed8);
+  }
+
+  .cat-prompt-composer {
+    display: none;
+    gap: 0.7rem;
+    margin-bottom: 0.85rem;
+    padding: 0.9rem;
+    border: 1px solid #dbe3f0;
+    border-radius: 0.9rem;
+    background: linear-gradient(180deg, #fbfdff, #f8fafc);
+  }
+
+  .cat-prompt-composer.is-open {
+    display: grid;
+  }
+
+  .cat-prompt-composer-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.6rem;
+    align-items: start;
+  }
+
+  .cat-prompt-input {
+    width: 100%;
+    min-height: 3.25rem;
+    resize: vertical;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    font: inherit;
+    color: #0f172a;
+    background: #ffffff;
+  }
+
+  .cat-prompt-input:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.2);
+    border-color: #2563eb;
+  }
+
+  .cat-prompt-help {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.74rem;
+  }
+
+  .cat-prompt-pill {
+    position: relative;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.42rem 2rem 0.42rem 0.8rem;
+    line-height: 1.4;
+  }
+
+  .cat-prompt-pill-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .cat-prompt-delete {
+    position: absolute;
+    top: 50%;
+    right: 0.45rem;
+    transform: translateY(-50%);
+    width: 1.35rem;
+    height: 1.35rem;
+    border: none;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  }
+
+  .cat-prompt-delete:hover {
+    background: #fecaca;
+    color: #991b1b;
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  .cat-prompt-empty {
+    border: 1px dashed #dbe3f0;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+    padding: 0.8rem 0.9rem;
+    color: #64748b;
+    font-size: 0.78rem;
+  }
+
+  .cat-prompt-feedback {
+    min-height: 1rem;
+    color: #475569;
+    font-size: 0.76rem;
+    font-weight: 600;
+  }
+
+  .cat-suggestions-panel {
+    margin-bottom: 0.85rem;
+    border: 1px solid #dbe3f0;
+    border-radius: 0.9rem;
+    background: linear-gradient(180deg, #fbfdff, #f8fafc);
+    padding: 0.9rem;
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .cat-suggestions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-suggestions-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 0.88rem;
+    font-weight: 800;
+  }
+
+  .cat-suggestions-list {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .cat-suggestion-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #ffffff;
+    padding: 0.65rem 0.75rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .cat-suggestion-item.is-existing {
+    background: #f8fafc;
+    border-color: #e5e7eb;
+  }
+
+  .cat-suggestion-text {
+    font-size: 0.78rem;
+    color: #334155;
+    line-height: 1.35;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-suggestion-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.12rem 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+  }
+
+  .cat-suggestion-empty {
+    border: 1px dashed #dbe3f0;
+    border-radius: 0.75rem;
+    background: #ffffff;
+    padding: 0.7rem 0.75rem;
+    color: #64748b;
+    font-size: 0.76rem;
+  }
+
+  .cat-inline-spinner {
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0.35rem;
+    animation: catSpin 0.85s linear infinite;
+  }
+
+  .cat-toast {
+    position: fixed;
+    right: 1.2rem;
+    bottom: 1.2rem;
+    z-index: 9999;
+    background: #0f172a;
+    color: #ffffff;
+    border-radius: 0.65rem;
+    padding: 0.58rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.28);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .cat-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @keyframes catSpin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .cat-run-box {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-self: start;
+  }
+
+  .cat-run-actions {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .cat-run-btn {
+    width: 100%;
+    border: none;
+    border-radius: 0.8rem;
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 800;
+    padding: 0.82rem 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .cat-run-btn--secondary {
+    background: #ffffff;
+    color: #b45309;
+    border: 1px solid #f6ad55;
+    box-shadow: none;
+  }
+
+  .cat-run-btn--secondary:hover {
+    box-shadow: 0 12px 24px rgba(245, 158, 11, 0.22);
+    border-color: #f59e0b;
+  }
+
+  .cat-run-btn--ghost {
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    box-shadow: none;
+  }
+
+  .cat-run-btn--ghost:hover {
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+    border-color: #94a3b8;
+  }
+
+  .cat-run-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 30px rgba(37, 99, 235, 0.34);
+  }
+
+  .cat-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+  }
+
+  .cat-modal[hidden] {
+    display: none;
+  }
+
+  .cat-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.62);
+    backdrop-filter: blur(8px);
+  }
+
+  .cat-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 34rem);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 1.1rem;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+    padding: 1.25rem;
+  }
+
+  .cat-modal-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .cat-modal-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 900;
+  }
+
+  .cat-modal-copy {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.83rem;
+    line-height: 1.5;
+  }
+
+  .cat-modal-close {
+    border: none;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #0f172a;
+    width: 2rem;
+    height: 2rem;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 900;
+  }
+
+  .cat-modal-form {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .cat-modal-field {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .cat-modal-label {
+    color: #334155;
+    font-size: 0.8rem;
+    font-weight: 800;
+  }
+
+  .cat-modal-input {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.85rem;
+    padding: 0.82rem 0.9rem;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+  }
+
+  .cat-modal-input:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.18);
+    border-color: #2563eb;
+  }
+
+  .cat-modal-feedback {
+    min-height: 1.1rem;
+    margin: 0;
+    color: #475569;
+    font-size: 0.77rem;
+    font-weight: 600;
+  }
+
+  .cat-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+  }
+
+  .cat-run-status {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    color: #334155;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .cat-table-wrap {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+  }
+
+  .cat-table-head {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  .cat-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .cat-table th,
+  .cat-table td {
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+    padding: 0.74rem 1.2rem;
+    font-size: 0.8rem;
+    color: #334155;
+  }
+
+  .cat-table th {
+    background: #fcfdff;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+
+  .cat-run-kind {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.12rem 0.5rem;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    margin-left: 0.35rem;
+    border: 1px solid transparent;
+  }
+
+  .cat-run-kind--standard {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+  }
+
+  .cat-run-kind--quick {
+    background: #ffedd5;
+    border-color: #fdba74;
+    color: #c2410c;
+  }
+
+  @media (max-width: 1160px) {
+    .cat-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cat-split {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .cat-kpi-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block category_content %}
+<section class="cat-kpi-grid" aria-label="{% trans 'Category KPI cards' %}">
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Items scraped" %}</p>
+    <p class="cat-kpi-value">{{ kpi_scraped|default:0 }}</p>
+  </article>
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Pending" %}</p>
+    <p class="cat-kpi-value">{{ kpi_pending|default:0 }}</p>
+  </article>
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Approved" %}</p>
+    <p class="cat-kpi-value">{{ kpi_approved|default:0 }}</p>
+  </article>
+  <article class="cat-kpi">
+    <p class="cat-kpi-label">{% trans "Success rate" %}</p>
+    <p class="cat-kpi-value">{{ kpi_success_rate|default:'0%' }}</p>
+  </article>
+</section>
+
+<section class="cat-split" aria-label="{% trans 'Dashboard middle layout' %}">
+  <article class="cat-panel">
+    <div class="cat-prompts-header">
+      <h2 class="cat-panel-title" style="margin-bottom: 0;">{% trans "AI Prompts" %}</h2>
+      <div class="cat-prompts-actions">
+        <button type="button" class="cat-action-btn cat-action-btn--primary" id="catPromptGenerateBtn">
+          {% trans "Generate" %}
+        </button>
+        <button type="button" class="cat-action-btn cat-action-btn--primary" id="catPromptAddBtn">
+          + {% trans "Add prompt" %}
+        </button>
+      </div>
+    </div>
+
+    <form class="cat-prompt-composer" id="catPromptComposer" data-add-url="{% url 'scraping:add_prompt_api' %}" data-generate-url="{% url 'scraping:generate_search_prompts' %}" data-category="{{ category_key }}" data-max-prompts="{{ max_active_prompts }}" data-active-prompts="{{ active_prompt_count }}">
+      {% csrf_token %}
+      <div class="cat-prompt-composer-row">
+        <textarea
+          class="cat-prompt-input"
+          id="catPromptInput"
+          name="query_text"
+          maxlength="500"
+          rows="2"
+          placeholder="{% trans 'Type a new prompt, then add it to this category.' %}"
+        ></textarea>
+        <button type="submit" class="cat-action-btn cat-action-btn--primary" id="catPromptSubmitBtn">
+          {% trans "Save" %}
+        </button>
+      </div>
+      <p class="cat-prompt-help">{% blocktrans with current=active_prompt_count max=max_active_prompts %}Prompts are saved for this category and become available to the scraper immediately. {{ current }}/{{ max }} used.{% endblocktrans %}</p>
+      <p class="cat-prompt-feedback" id="catPromptFeedback"></p>
+    </form>
+
+    <section class="cat-suggestions-panel" id="catSuggestionsPanel" hidden>
+      <div class="cat-suggestions-header">
+        <h3 class="cat-suggestions-title">{% trans "Suggested prompts" %}</h3>
+        <button type="button" class="cat-action-btn" id="catAddAllSuggestionsBtn">{% trans "Add all" %}</button>
+      </div>
+      <div class="cat-suggestions-list" id="catSuggestionsList"></div>
+    </section>
+
+    <div class="cat-prompts-list">
+      {% for prompt in ai_prompts %}
+      <div class="cat-prompt-pill" data-prompt-id="{{ prompt.id }}" data-prompt-text="{{ prompt.query_text|escape }}">
+        <span class="cat-prompt-pill-text">{{ prompt.query_text }}</span>
+        <button
+          type="button"
+          class="cat-prompt-delete"
+          data-delete-url="{% url 'scraping:delete_prompt_api' prompt.id %}"
+          data-prompt-id="{{ prompt.id }}"
+          aria-label="{% trans 'Delete prompt' %}"
+          title="{% trans 'Delete prompt' %}"
+        >
+          ×
+        </button>
+      </div>
+      {% empty %}
+      <div class="cat-prompt-empty" data-empty-prompts>{% trans "No prompts configured for this category." %}</div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <aside class="cat-panel cat-run-box">
+    <h2 class="cat-panel-title">{% trans "Run Control" %}</h2>
+    <div class="cat-run-actions">
+      <button
+        type="button"
+        class="cat-run-btn"
+        id="catRunScraperBtn"
+        data-run-url="{% url 'scraping:run_scraper' category_key|default:scraping_current_category %}"
+        data-run-kind="standard"
+        data-status-url-template="{% url 'scraping:run_scraper_status' '00000000-0000-0000-0000-000000000000' %}"
+      >
+        {% trans "Run Scraper" %}
+      </button>
+      <button
+        type="button"
+        class="cat-run-btn cat-run-btn--secondary"
+        id="catQuickScrapeBtn"
+        data-run-url="{% url 'scraping:run_quick_scrape' category_key|default:scraping_current_category %}"
+        data-run-kind="quick"
+        title="Broad discovery mode — searches the full web with relaxed filters. All results go to pending review."
+      >
+        {% trans "Quick Scrape" %}
+      </button>
+      <button
+        type="button"
+        class="cat-run-btn cat-run-btn--ghost"
+        id="catCustomElementBtn"
+        data-run-url="{% url 'scraping:run_custom_element' category_key|default:scraping_current_category %}"
+        title="Scrape a single URL as a direct element for the current category."
+      >
+        {% trans "Add custom element" %}
+      </button>
+    </div>
+    <div class="cat-run-status">
+      <strong>{% trans "Last run" %}</strong>
+      <span id="catRunStatusLabel">{{ last_run_status|default:_('No run yet') }}</span>
+      <span id="catRunStatusTime">{{ last_run_time|default:'' }}</span>
+    </div>
+  </aside>
+</section>
+
+<section class="cat-table-wrap" aria-label="{% trans 'Recent run snapshots' %}">
+  <div class="cat-table-head">{% trans "Recent Run Snapshots" %}</div>
+  <table class="cat-table">
+    <thead>
+      <tr>
+        <th>{% trans "Run ID" %}</th>
+        <th>{% trans "Started" %}</th>
+        <th>{% trans "Duration" %}</th>
+        <th>{% trans "Created" %}</th>
+        <th>{% trans "Updated" %}</th>
+        <th>{% trans "Skipped" %}</th>
+        <th>{% trans "Status" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recent_run_snapshots %}
+      <tr>
+        <td>
+          {{ row.run_id }}
+          {% if row.run_mode == 'quick' %}
+          <span class="cat-run-kind cat-run-kind--quick">{% trans "Quick" %}</span>
+          {% else %}
+          <span class="cat-run-kind cat-run-kind--standard">{% trans "Run" %}</span>
+          {% endif %}
+        </td>
+        <td>{{ row.started_at }}</td>
+        <td>{{ row.duration }}</td>
+        <td>{{ row.items_created }}</td>
+        <td>{{ row.items_updated }}</td>
+        <td>{{ row.items_skipped }}</td>
+        <td>{{ row.status }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7">{% trans "No snapshots available for this category." %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<div class="cat-toast" id="catPromptToast" role="status" aria-live="polite"></div>
+
+<div class="cat-modal" id="catCustomElementModal" hidden>
+  <div class="cat-modal-backdrop" data-custom-element-close="true"></div>
+  <div class="cat-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="catCustomElementTitle">
+    <div class="cat-modal-header">
+      <div>
+        <h3 class="cat-modal-title" id="catCustomElementTitle">{% trans "Add custom element" %}</h3>
+        <p class="cat-modal-copy">
+          {% trans "Paste a single item URL. The scraper will validate the page, confirm the category, and ingest the item directly." %}
+        </p>
+      </div>
+      <button type="button" class="cat-modal-close" id="catCustomElementCloseBtn" aria-label="{% trans 'Close custom element dialog' %}">×</button>
+    </div>
+
+    <form class="cat-modal-form" id="catCustomElementForm" data-run-url="{% url 'scraping:run_custom_element' category_key|default:scraping_current_category %}">
+      {% csrf_token %}
+      <div class="cat-modal-field">
+        <label class="cat-modal-label" for="catCustomElementUrl">{% trans "Element URL" %}</label>
+        <input
+          class="cat-modal-input"
+          id="catCustomElementUrl"
+          name="url"
+          type="url"
+          autocomplete="url"
+          placeholder="https://example.com/item"
+          required
+        />
+      </div>
+      <p class="cat-modal-feedback" id="catCustomElementFeedback"></p>
+      <div class="cat-modal-actions">
+        <button type="button" class="cat-action-btn" id="catCustomElementCancelBtn">{% trans "Cancel" %}</button>
+        <button type="submit" class="cat-action-btn cat-action-btn--primary" id="catCustomElementSubmitBtn">{% trans "Scrape element" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const composer = document.getElementById('catPromptComposer');
+    const addButton = document.getElementById('catPromptAddBtn');
+    const generateButton = document.getElementById('catPromptGenerateBtn');
+    const input = document.getElementById('catPromptInput');
+    const submitButton = document.getElementById('catPromptSubmitBtn');
+    const feedback = document.getElementById('catPromptFeedback');
+    const suggestionsPanel = document.getElementById('catSuggestionsPanel');
+    const suggestionsList = document.getElementById('catSuggestionsList');
+    const addAllSuggestionsButton = document.getElementById('catAddAllSuggestionsBtn');
+    const toast = document.getElementById('catPromptToast');
+    const promptsList = document.querySelector('.cat-prompts-list');
+    const runButton = document.getElementById('catRunScraperBtn');
+    const quickRunButton = document.getElementById('catQuickScrapeBtn');
+    const customElementButton = document.getElementById('catCustomElementBtn');
+    const customElementModal = document.getElementById('catCustomElementModal');
+    const customElementForm = document.getElementById('catCustomElementForm');
+    const customElementInput = document.getElementById('catCustomElementUrl');
+    const customElementFeedback = document.getElementById('catCustomElementFeedback');
+    const customElementSubmitButton = document.getElementById('catCustomElementSubmitBtn');
+    const customElementCloseButton = document.getElementById('catCustomElementCloseBtn');
+    const customElementCancelButton = document.getElementById('catCustomElementCancelBtn');
+    const runStatusLabel = document.getElementById('catRunStatusLabel');
+    const runStatusTime = document.getElementById('catRunStatusTime');
+    const runUrl = runButton?.dataset?.runUrl || '';
+    const quickRunUrl = quickRunButton?.dataset?.runUrl || '';
+    const customElementRunUrl = customElementForm?.dataset?.runUrl || customElementButton?.dataset?.runUrl || '';
+    const runStatusTemplate = runButton?.dataset?.statusUrlTemplate || '';
+    const categoryKey = composer?.dataset?.category || '';
+    const maxPrompts = Number(composer?.dataset?.maxPrompts || 0);
+    const addUrl = composer?.dataset?.addUrl || '';
+    const generateUrl = composer?.dataset?.generateUrl || '';
+    const runStatusPlaceholder = '00000000-0000-0000-0000-000000000000';
+    const generateDefaultLabel = generateButton ? generateButton.innerHTML : '';
+    let runPollTimer = null;
+    let toastTimer = null;
+
+    if (!composer || !addButton || !input || !submitButton || !promptsList || !addUrl) {
+      return;
+    }
+
+    function readCsrfToken() {
+      const inputToken = composer.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+      if (inputToken) {
+        return inputToken;
+      }
+      return (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || '';
+    }
+
+    function setFeedback(message, isError = false) {
+      if (!feedback) {
+        return;
+      }
+      feedback.textContent = message || '';
+      feedback.style.color = isError ? '#b91c1c' : '#475569';
+
+      // If composer is closed and we have an error, show a toast too
+      if (isError && !composer.classList.contains('is-open')) {
+        showToast(message);
+      }
+    }
+
+    function openComposer() {
+      composer.classList.add('is-open');
+      input.focus();
+    }
+
+    function closeComposer() {
+      composer.classList.remove('is-open');
+      input.value = '';
+      setFeedback('');
+    }
+
+    function showToast(message) {
+      if (!toast) {
+        return;
+      }
+      toast.textContent = message || '';
+      toast.classList.add('is-visible');
+      if (toastTimer) {
+        clearTimeout(toastTimer);
+      }
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('is-visible');
+      }, 2600);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function removeEmptyStateIfNeeded() {
+      const empty = promptsList.querySelector('[data-empty-prompts]');
+      if (empty) {
+        empty.remove();
+      }
+    }
+
+    function ensureEmptyStateIfNeeded() {
+      const promptItems = promptsList.querySelectorAll('[data-prompt-id]');
+      if (promptItems.length > 0) {
+        return;
+      }
+      const empty = document.createElement('div');
+      empty.className = 'cat-prompt-empty';
+      empty.setAttribute('data-empty-prompts', 'true');
+      empty.textContent = '{% trans "No prompts configured for this category." %}';
+      promptsList.appendChild(empty);
+    }
+
+    function createPromptNode(prompt) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cat-prompt-pill';
+      wrapper.dataset.promptId = prompt.id;
+      wrapper.dataset.promptText = prompt.query_text;
+      wrapper.innerHTML = `
+        <span class="cat-prompt-pill-text">${escapeHtml(prompt.query_text)}</span>
+        <button
+          type="button"
+          class="cat-prompt-delete"
+          data-delete-url="${prompt.delete_url}"
+          data-prompt-id="${prompt.id}"
+          aria-label="{% trans 'Delete prompt' %}"
+          title="{% trans 'Delete prompt' %}"
+        >
+          ×
+        </button>
+      `;
+      return wrapper;
+    }
+
+    function normalizePromptKey(value) {
+      return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    }
+
+    function currentPromptKeys() {
+      const keys = new Set();
+      promptsList.querySelectorAll('[data-prompt-id]').forEach((node) => {
+        const key = normalizePromptKey(node.dataset.promptText || node.textContent || '');
+        if (key) {
+          keys.add(key);
+        }
+      });
+      return keys;
+    }
+
+    function currentPromptCount() {
+      return promptsList.querySelectorAll('[data-prompt-id]').length;
+    }
+
+    function hasReachedPromptLimit() {
+      return Number.isFinite(maxPrompts) && maxPrompts > 0 && currentPromptCount() >= maxPrompts;
+    }
+
+    function promptLimitMessage() {
+      return `Maximum prompts reached for this category (${currentPromptCount()}/${maxPrompts}).`;
+    }
+
+    function updateHeaderBadge(current, max) {
+      const badge = document.querySelector('.cat-header-badge');
+      if (badge) {
+        badge.textContent = `${current}/${max} {% trans "prompts" %}`;
+      }
+      const helpText = composer.querySelector('.cat-prompt-help');
+      if (helpText) {
+        // Simple regex replace for "X/Y used"
+        helpText.textContent = helpText.textContent.replace(/\d+\/\d+/, `${current}/${max}`);
+      }
+    }
+
+    function setGenerateLoading(isLoading) {
+      if (!generateButton) {
+        return;
+      }
+      generateButton.disabled = isLoading;
+      if (isLoading) {
+        generateButton.innerHTML = '<span class="cat-inline-spinner"></span>{% trans "Generating..." %}';
+      } else {
+        generateButton.innerHTML = generateDefaultLabel;
+      }
+    }
+
+    function createSuggestionItem(promptText, promptKeys) {
+      const row = document.createElement('div');
+      row.className = 'cat-suggestion-item';
+      row.dataset.promptText = promptText;
+      const alreadyAdded = promptKeys.has(normalizePromptKey(promptText));
+      if (alreadyAdded) {
+        row.classList.add('is-existing');
+      }
+      row.innerHTML = `
+        <div class="cat-suggestion-text">
+          <span class="cat-suggestion-badge">New</span>
+          <span>${escapeHtml(promptText)}</span>
+        </div>
+        <button type="button" class="cat-action-btn cat-suggestion-add" ${alreadyAdded ? 'disabled' : ''}>
+          ${alreadyAdded ? '{% trans "Already added" %}' : '+ {% trans "Add" %}'}
+        </button>
+      `;
+      return row;
+    }
+
+    function refreshSuggestionStates() {
+      if (!suggestionsList) {
+        return;
+      }
+      const promptKeys = currentPromptKeys();
+      suggestionsList.querySelectorAll('.cat-suggestion-item').forEach((row) => {
+        const action = row.querySelector('.cat-suggestion-add');
+        if (!action) {
+          return;
+        }
+        const exists = promptKeys.has(normalizePromptKey(row.dataset.promptText || ''));
+        row.classList.toggle('is-existing', exists);
+        action.disabled = exists;
+        action.textContent = exists ? '{% trans "Already added" %}' : '+ {% trans "Add" %}';
+      });
+    }
+
+    function renderSuggestions(prompts) {
+      if (!suggestionsPanel || !suggestionsList) {
+        return;
+      }
+      suggestionsList.innerHTML = '';
+
+      if (!Array.isArray(prompts) || prompts.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'cat-suggestion-empty';
+        empty.textContent = '{% trans "No suggestions returned." %}';
+        suggestionsList.appendChild(empty);
+        suggestionsPanel.hidden = false;
+        return;
+      }
+
+      const promptKeys = currentPromptKeys();
+      let renderedCount = 0;
+      prompts.forEach((promptText) => {
+        const text = String(promptText || '').trim();
+        if (!text) {
+          return;
+        }
+        if (promptKeys.has(normalizePromptKey(text))) {
+          return;
+        }
+        suggestionsList.appendChild(createSuggestionItem(text, promptKeys));
+        renderedCount += 1;
+      });
+
+      if (!renderedCount) {
+        const empty = document.createElement('div');
+        empty.className = 'cat-suggestion-empty';
+        empty.textContent = '{% trans "All generated prompts already exist in this category." %}';
+        suggestionsList.appendChild(empty);
+      }
+      suggestionsPanel.hidden = false;
+      refreshSuggestionStates();
+    }
+
+    function hideSuggestionsIfEmpty() {
+      if (!suggestionsPanel || !suggestionsList) {
+        return;
+      }
+      const hasRows = suggestionsList.querySelector('.cat-suggestion-item');
+      if (!hasRows) {
+        suggestionsPanel.hidden = true;
+      }
+    }
+
+    async function addPromptByText(queryText) {
+      if (hasReachedPromptLimit()) {
+        throw new Error(promptLimitMessage());
+      }
+
+      const data = await postJson(addUrl, {
+        category: categoryKey,
+        query_text: queryText,
+        is_active: true,
+      });
+
+      const key = normalizePromptKey(data.query_text || queryText);
+      const existsInList = Array.from(promptsList.querySelectorAll('[data-prompt-id]')).some((node) => {
+        return normalizePromptKey(node.dataset.promptText || '') === key;
+      });
+
+      if (!existsInList) {
+        removeEmptyStateIfNeeded();
+        promptsList.prepend(createPromptNode({
+          id: data.id,
+          query_text: data.query_text,
+          delete_url: `{% url 'scraping:delete_prompt_api' 0 %}`.replace('/0/', `/${data.id}/`),
+        }));
+        ensureEmptyStateIfNeeded();
+      }
+
+      if (data.active_count !== undefined && data.max_active_prompts !== undefined) {
+        updateHeaderBadge(data.active_count, data.max_active_prompts);
+      }
+
+      refreshSuggestionStates();
+      return data;
+    }
+
+    async function postJson(url, payload) {
+      const csrfToken = readCsrfToken();
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data.error || data.message || '{% trans "Request failed." %}';
+        throw new Error(message);
+      }
+      return data;
+    }
+
+    function setRunStatus(message, isError = false) {
+      if (!runStatusLabel) {
+        return;
+      }
+      runStatusLabel.textContent = message || '';
+      runStatusLabel.style.color = isError ? '#b91c1c' : '#334155';
+    }
+
+    function stopRunPolling() {
+      if (runPollTimer) {
+        clearInterval(runPollTimer);
+        runPollTimer = null;
+      }
+    }
+
+    function setRunButtonsDisabled(disabled) {
+      if (runButton) {
+        runButton.disabled = disabled;
+      }
+      if (quickRunButton) {
+        quickRunButton.disabled = disabled;
+      }
+      if (customElementButton) {
+        customElementButton.disabled = disabled;
+      }
+    }
+
+    function setCustomElementFeedback(message, isError = false) {
+      if (!customElementFeedback) {
+        return;
+      }
+      customElementFeedback.textContent = message || '';
+      customElementFeedback.style.color = isError ? '#b91c1c' : '#475569';
+    }
+
+    function openCustomElementModal() {
+      if (!customElementModal) {
+        return;
+      }
+      customElementModal.hidden = false;
+      document.body.style.overflow = 'hidden';
+      setCustomElementFeedback('');
+      if (customElementInput) {
+        customElementInput.focus();
+      }
+    }
+
+    function closeCustomElementModal() {
+      if (!customElementModal) {
+        return;
+      }
+      customElementModal.hidden = true;
+      document.body.style.overflow = '';
+      setCustomElementFeedback('');
+      if (customElementForm) {
+        customElementForm.reset();
+      }
+    }
+
+    async function runCustomElement(urlValue) {
+      if (!customElementRunUrl) {
+        throw new Error('{% trans "Custom element endpoint is unavailable." %}');
+      }
+
+      setRunButtonsDisabled(true);
+      setCustomElementFeedback('{% trans "Validating custom element..." %}');
+      setRunStatus('{% trans "Validating custom element..." %}');
+
+      try {
+        const data = await postJson(customElementRunUrl, { url: urlValue });
+        const status = String(data.status || '').toLowerCase();
+
+        if (status === 'success') {
+          const created = Number(data.items_created || 0);
+          const updated = Number(data.items_updated || 0);
+          const skipped = Number(data.items_skipped || 0);
+          const message = data.message || `Custom element complete: ${created} Created, ${updated} Updated, ${skipped} Skipped`;
+          setRunStatus(message);
+          setCustomElementFeedback(message);
+          if (runStatusTime) {
+            runStatusTime.textContent = new Date().toLocaleString();
+          }
+          closeCustomElementModal();
+          setTimeout(() => window.location.reload(), 900);
+          return;
+        }
+
+        const failureMessage = data.message || (Array.isArray(data.errors) ? data.errors.join(' | ') : '');
+        throw new Error(failureMessage || '{% trans "Unable to scrape custom element." %}');
+      } catch (error) {
+        const message = error.message || '{% trans "Unable to scrape custom element." %}';
+        setRunStatus(message, true);
+        setCustomElementFeedback(message, true);
+        throw error;
+      } finally {
+        setRunButtonsDisabled(false);
+      }
+    }
+
+    async function pollRunStatus(runId) {
+      if (!runStatusTemplate || !runId) {
+        return;
+      }
+
+      const statusUrl = runStatusTemplate.replace(runStatusPlaceholder, String(runId));
+      try {
+        const response = await fetch(statusUrl, {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.error || data.message || '{% trans "Unable to check run status." %}');
+        }
+
+        const status = String(data.status || '').toLowerCase();
+        if (status === 'running' || status === 'pending' || status === 'started') {
+          const progress = data.total ? ` (${data.current || 0}/${data.total || 0})` : '';
+          const currentMessage = data.current_message || data.message || '{% trans "Scraper is running..." %}';
+          setRunStatus(`${currentMessage}${progress}`);
+          return;
+        }
+
+        stopRunPolling();
+        setRunButtonsDisabled(false);
+
+        if (status === 'completed') {
+          setRunStatus(
+            `Run Complete: ${data.items_created || 0} Created, ${data.items_updated || 0} Updated, ${data.items_skipped || 0} Skipped`
+          );
+          if (runStatusTime) {
+            runStatusTime.textContent = new Date().toLocaleString();
+          }
+          setTimeout(() => window.location.reload(), 900);
+          return;
+        }
+
+        if (status === 'failed') {
+          const failureMessage = data.message || (Array.isArray(data.errors) ? data.errors.join(' | ') : '');
+          setRunStatus(failureMessage || '{% trans "Run failed." %}', true);
+          return;
+        }
+
+        setRunStatus(status ? status.toUpperCase() : '{% trans "Unknown status." %}', status !== 'ok');
+      } catch (error) {
+        stopRunPolling();
+        setRunButtonsDisabled(false);
+        setRunStatus(error.message || '{% trans "Unable to poll run status." %}', true);
+      }
+    }
+
+    async function startRun(runEndpoint, kindLabel) {
+      setRunButtonsDisabled(true);
+      stopRunPolling();
+      if (kindLabel === 'quick') {
+        setRunStatus('{% trans "Starting quick scrape..." %}');
+      } else {
+        setRunStatus('{% trans "Starting scraper..." %}');
+      }
+
+      try {
+        const data = await postJson(runEndpoint, {});
+        const status = String(data.status || '').toLowerCase();
+        const runId = data.run_id;
+
+        if (status === 'started' && runId) {
+          setRunStatus(
+            kindLabel === 'quick'
+              ? '{% trans "Quick scrape dispatched. Running in background..." %}'
+              : '{% trans "Scraper dispatched. Running in background..." %}'
+          );
+          runPollTimer = setInterval(() => {
+            pollRunStatus(runId);
+          }, 2000);
+          pollRunStatus(runId);
+          return;
+        }
+
+        if (status === 'success') {
+          const prefix = kindLabel === 'quick' ? 'Quick Run Complete' : 'Run Complete';
+          setRunStatus(
+            `${prefix}: ${data.items_created || 0} Created, ${data.items_updated || 0} Updated, ${data.items_skipped || 0} Skipped`
+          );
+          if (runStatusTime) {
+            runStatusTime.textContent = new Date().toLocaleString();
+          }
+          setRunButtonsDisabled(false);
+          setTimeout(() => window.location.reload(), 900);
+          return;
+        }
+
+        const failureMessage = data.message || (Array.isArray(data.errors) ? data.errors.join(' | ') : '');
+        setRunStatus(failureMessage || '{% trans "Unable to start scraper." %}', true);
+        setRunButtonsDisabled(false);
+      } catch (error) {
+        setRunStatus(error.message || '{% trans "Unable to start scraper." %}', true);
+        setRunButtonsDisabled(false);
+      }
+    }
+
+    if (runButton && runUrl) {
+      runButton.addEventListener('click', async () => {
+        await startRun(runUrl, 'standard');
+      });
+    }
+
+    if (quickRunButton && quickRunUrl) {
+      quickRunButton.addEventListener('click', async () => {
+        await startRun(quickRunUrl, 'quick');
+      });
+    }
+
+    if (customElementButton && customElementModal) {
+      customElementButton.addEventListener('click', () => {
+        openCustomElementModal();
+      });
+    }
+
+    if (customElementCloseButton) {
+      customElementCloseButton.addEventListener('click', closeCustomElementModal);
+    }
+
+    if (customElementCancelButton) {
+      customElementCancelButton.addEventListener('click', closeCustomElementModal);
+    }
+
+    if (customElementModal) {
+      customElementModal.addEventListener('click', (event) => {
+        if (event.target?.dataset?.customElementClose === 'true') {
+          closeCustomElementModal();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && customElementModal && !customElementModal.hidden) {
+        closeCustomElementModal();
+      }
+    });
+
+    if (customElementForm) {
+      customElementForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const urlValue = (customElementInput?.value || '').trim();
+        if (!urlValue) {
+          setCustomElementFeedback('{% trans "Please enter a URL first." %}', true);
+          if (customElementInput) {
+            customElementInput.focus();
+          }
+          return;
+        }
+
+        customElementSubmitButton.disabled = true;
+        try {
+          await runCustomElement(urlValue);
+        } finally {
+          customElementSubmitButton.disabled = false;
+        }
+      });
+    }
+
+    addButton.addEventListener('click', () => {
+      if (composer.classList.contains('is-open')) {
+        closeComposer();
+      } else {
+        openComposer();
+        // If limit is reached, show it inside the composer immediately
+        if (hasReachedPromptLimit()) {
+          setFeedback(promptLimitMessage(), true);
+        }
+      }
+    });
+
+    composer.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const queryText = input.value.trim();
+      if (!queryText) {
+        setFeedback('{% trans "Please enter a prompt first." %}', true);
+        input.focus();
+        return;
+      }
+      if (hasReachedPromptLimit()) {
+        setFeedback(promptLimitMessage(), true);
+        return;
+      }
+
+      submitButton.disabled = true;
+      addButton.disabled = true;
+      setFeedback('{% trans "Saving..." %}');
+
+      try {
+        const data = await addPromptByText(queryText);
+
+        setFeedback(data.created ? '{% trans "Prompt added." %}' : '{% trans "Prompt updated." %}');
+        closeComposer();
+        ensureEmptyStateIfNeeded();
+      } catch (error) {
+        setFeedback(error.message || '{% trans "Unable to save prompt." %}', true);
+      } finally {
+        submitButton.disabled = false;
+        addButton.disabled = false;
+      }
+    });
+
+    if (generateButton && generateUrl) {
+      generateButton.addEventListener('click', async () => {
+        if (hasReachedPromptLimit()) {
+          const message = promptLimitMessage();
+          setFeedback(message, true);
+          showToast(message);
+          return;
+        }
+
+        setGenerateLoading(true);
+        try {
+          const data = await postJson(generateUrl, { category: categoryKey });
+          renderSuggestions(Array.isArray(data.prompts) ? data.prompts : []);
+        } catch (error) {
+          const message = error?.message || '{% trans "Could not generate prompts. Try again." %}';
+          setFeedback(message, true);
+          showToast(message);
+        } finally {
+          setGenerateLoading(false);
+        }
+      });
+    }
+
+    if (suggestionsList) {
+      suggestionsList.addEventListener('click', async (event) => {
+        const addSuggestionButton = event.target.closest('.cat-suggestion-add');
+        if (!addSuggestionButton || addSuggestionButton.disabled) {
+          return;
+        }
+        const row = addSuggestionButton.closest('.cat-suggestion-item');
+        const promptText = row?.dataset?.promptText || '';
+        if (!promptText) {
+          return;
+        }
+        if (hasReachedPromptLimit()) {
+          setFeedback(promptLimitMessage(), true);
+          return;
+        }
+
+        addSuggestionButton.disabled = true;
+        try {
+          await addPromptByText(promptText);
+          row?.remove();
+          hideSuggestionsIfEmpty();
+          setFeedback('{% trans "Prompt added." %}');
+        } catch (error) {
+          addSuggestionButton.disabled = false;
+          setFeedback(error.message || '{% trans "Unable to save prompt." %}', true);
+        }
+      });
+    }
+
+    if (addAllSuggestionsButton) {
+      addAllSuggestionsButton.addEventListener('click', async () => {
+        const addableRows = Array.from(suggestionsList?.querySelectorAll('.cat-suggestion-item') || []).filter((row) => {
+          const action = row.querySelector('.cat-suggestion-add');
+          return action && !action.disabled;
+        });
+        if (!addableRows.length) {
+          return;
+        }
+        if (hasReachedPromptLimit()) {
+          setFeedback(promptLimitMessage(), true);
+          return;
+        }
+
+        addAllSuggestionsButton.disabled = true;
+        for (const row of addableRows) {
+          const action = row.querySelector('.cat-suggestion-add');
+          const promptText = row.dataset.promptText || '';
+          if (!action || !promptText) {
+            continue;
+          }
+          if (hasReachedPromptLimit()) {
+            break;
+          }
+          action.disabled = true;
+          try {
+            await addPromptByText(promptText);
+            row.remove();
+          } catch (_error) {
+            action.disabled = false;
+          }
+        }
+        refreshSuggestionStates();
+        hideSuggestionsIfEmpty();
+        addAllSuggestionsButton.disabled = false;
+      });
+    }
+
+    promptsList.addEventListener('click', async (event) => {
+      const deleteButton = event.target.closest('.cat-prompt-delete');
+      if (!deleteButton) {
+        return;
+      }
+
+      const promptId = deleteButton.dataset.promptId;
+      const deleteUrl = deleteButton.dataset.deleteUrl;
+      const promptNode = deleteButton.closest('.cat-prompt-pill');
+
+      if (!promptId || !deleteUrl || !promptNode) {
+        return;
+      }
+
+      deleteButton.disabled = true;
+      try {
+        const data = await postJson(deleteUrl, {});
+        promptNode.remove();
+        ensureEmptyStateIfNeeded();
+        refreshSuggestionStates();
+        setFeedback('{% trans "Prompt removed." %}');
+
+        if (data.active_count !== undefined && data.max_active_prompts !== undefined) {
+          updateHeaderBadge(data.active_count, data.max_active_prompts);
+        }
+      } catch (error) {
+        setFeedback(error.message || '{% trans "Unable to delete prompt." %}', true);
+        deleteButton.disabled = false;
+      }
+    });
+
+  })();
+</script>
+{% endblock %}

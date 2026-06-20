@@ -1,87 +1,1274 @@
 {% extends "base.html" %}
 {% load static crispy_forms_tags i18n %}
 
-{% block title %}{% trans "Create New Resource" %}{% endblock title%}
+{% block title %}{% trans "Create New Resource" %} - {% trans "NLP Platform" %}{% endblock %}
+
+{% block messages_container %}
+<!-- Messages will be shown in the form body, not as toasts -->
+{% endblock messages_container %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
+<style>
+/* ===== CSS VARIABLES - Engineering Grade Theme ===== */
+:root {
+    --eng-primary: #4c1d95;
+    --eng-accent: #8b5cf6;
+    --eng-accent-light: #a78bfa;
+    --eng-teal: #7c3aed;
+    --eng-surface: linear-gradient(180deg, rgba(24,18,52,.98) 0%, rgba(14,12,32,.98) 100%);
+    --eng-background: linear-gradient(180deg, #0a0b18 0%, #120f2a 52%, #0a0b18 100%);
+    --eng-muted: rgba(255,255,255,.05);
+    --eng-border: rgba(196,181,253,.14);
+    --eng-border-dark: rgba(196,181,253,.22);
+    --eng-text: #f8fafc;
+    --eng-text-secondary: #cbd5e1;
+    --eng-text-muted: #94a3b8;
+    --eng-success: #059669;
+    --eng-success-bg: #ecfdf5;
+    --eng-warning: #d97706;
+    --eng-warning-bg: #fffbeb;
+    --eng-danger: #dc2626;
+    --eng-danger-bg: #fef2f2;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.resource-form-page {
+    min-height: calc(100vh - 200px);
+    background: var(--eng-background);
+    padding: 2rem 0 4rem;
+}
+
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* ===== PAGE HEADER ===== */
+.page-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.page-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--eng-text);
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.page-header h1 i {
+    color: var(--eng-accent);
+}
+
+.page-header p {
+    color: var(--eng-text-secondary);
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* ===== SECTION CARDS ===== */
+.section-card {
+    background: var(--eng-surface);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    animation: slideUp 0.4s ease-out forwards;
+    opacity: 0;
+}
+
+.section-card:nth-child(1) { animation-delay: 0.1s; }
+.section-card:nth-child(2) { animation-delay: 0.2s; }
+.section-card:nth-child(3) { animation-delay: 0.3s; }
+.section-card:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(180deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%);
+    border-bottom: 1px solid var(--eng-border);
+    text-align: start;
+}
+
+.section-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.section-icon.core { background: rgba(96,165,250,.16); color: #bfdbfe; }
+.section-icon.content { background: rgba(139,92,246,.18); color: #ddd6fe; }
+.section-icon.category { background: rgba(168,85,247,.16); color: #e9d5ff; }
+.section-icon.specific { background: rgba(196,181,253,.14); color: #ede9fe; }
+
+.section-header-text h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--eng-text);
+    text-align: start;
+}
+
+.section-header-text p {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--eng-text-muted);
+    text-align: start;
+}
+
+.section-body {
+    padding: 1.5rem;
+    text-align: start;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--eng-text);
+    margin-bottom: 0.5rem;
+    text-align: start;
+}
+
+.required-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    background: var(--eng-danger-bg);
+    color: var(--eng-danger);
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 50px;
+    text-transform: uppercase;
+}
+
+.form-control,
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    border: 2px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    background: var(--eng-surface);
+    transition: all 0.3s ease;
+    color: var(--eng-text);
+    text-align: start;
+}
+
+.form-control:focus,
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--eng-accent);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.12);
+}
+
+.form-group textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+.form-group .form-text,
+.form-group .help-text {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--eng-text-muted);
+    text-align: start;
+}
+
+/* Field Grid */
+.field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 576px) {
+    .field-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== RESOURCE TYPE SELECTOR ===== */
+.type-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    .type-selector {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .type-selector {
+        grid-template-columns: 1fr;
+    }
+}
+
+.type-option {
+    position: relative;
+}
+
+.type-option input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.type-option label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1rem;
+    background: var(--eng-muted);
+    border: 2px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.type-option label:hover {
+    border-color: var(--eng-accent);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.type-option input:checked + label {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: var(--eng-accent);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.12);
+}
+
+.type-option .type-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    background: var(--eng-surface);
+    color: var(--eng-text-muted);
+    transition: all 0.3s ease;
+}
+
+.type-option input:checked + label .type-icon {
+    background: var(--eng-accent);
+    color: white;
+}
+
+.type-option .type-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--eng-text);
+}
+
+/* ===== FILE UPLOAD ZONE ===== */
+.file-upload-zone {
+    border: 2px dashed var(--eng-border);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    background: var(--eng-muted);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.file-upload-zone:hover {
+    border-color: var(--eng-accent);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.file-upload-zone.dragover {
+    border-color: var(--eng-accent);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.upload-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1rem;
+    background: var(--eng-surface);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: var(--eng-accent);
+    box-shadow: var(--shadow-md);
+}
+
+.file-upload-zone h4 {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--eng-text);
+}
+
+.file-upload-zone p {
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+    color: var(--eng-text-muted);
+}
+
+.file-upload-zone input[type="file"] {
+    display: none;
+}
+
+/* Hide the custom file wrapper added by custom-file-input.js */
+.file-upload-zone .custom-file-input-wrapper {
+    display: contents;
+}
+
+.file-upload-zone .custom-file-button,
+.file-upload-zone .custom-file-name {
+    display: none !important;
+}
+
+.btn-browse {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--eng-surface);
+    border: 1px solid var(--eng-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--eng-accent);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-browse:hover {
+    background: var(--eng-accent);
+    border-color: var(--eng-accent);
+    color: white;
+}
+
+.file-preview {
+    display: none;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--eng-success-bg);
+    border-radius: var(--radius-sm);
+    color: var(--eng-success);
+    font-size: 0.9rem;
+}
+
+.file-preview.visible {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.file-preview .btn-remove-file {
+    margin-inline-start: auto;
+    background: transparent;
+    border: none;
+    color: var(--eng-danger);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.file-preview .btn-remove-file:hover {
+    background: var(--eng-danger-bg);
+}
+
+.file-upload-zone.has-file {
+    border-color: var(--eng-success);
+    background: var(--eng-success-bg);
+}
+
+.file-upload-zone.has-file .upload-icon {
+    background: var(--eng-success);
+    color: white;
+}
+
+.file-upload-zone.has-file h4,
+.file-upload-zone.has-file p,
+.file-upload-zone.has-file .btn-browse {
+    display: none;
+}
+
+/* ===== SPECIFIC FIELDS SECTIONS ===== */
+.specific-fields {
+    display: none;
+}
+
+.specific-fields.visible {
+    display: block;
+    animation: slideUp 0.4s ease-out forwards;
+}
+
+/* ===== FORM ACTIONS ===== */
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--eng-border);
+    margin-top: 1rem;
+}
+
+.btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    background: transparent;
+    color: var(--eng-text-secondary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 2px solid var(--eng-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-cancel:hover {
+    border-color: var(--eng-text-secondary);
+    color: var(--eng-text);
+}
+
+.btn-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 2rem;
+    background: linear-gradient(135deg, var(--eng-accent) 0%, var(--eng-accent-light) 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-submit .spinner {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-submit.loading .spinner {
+    display: block;
+}
+
+.btn-submit.loading .btn-text {
+    display: none;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== FORM ERROR STYLES ===== */
+.page-message {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.page-message i {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.page-message.message-error,
+.page-message.message-danger {
+    background-color: #fef2f2;
+    border: 2px solid #dc2626;
+    color: #991b1b;
+}
+
+.page-message.message-warning {
+    background-color: #fffbeb;
+    border: 2px solid #d97706;
+    color: #92400e;
+}
+
+.page-message.message-success {
+    background-color: #ecfdf5;
+    border: 2px solid #059669;
+    color: #065f46;
+}
+
+.page-message.message-info {
+    background-color: #eff6ff;
+    border: 2px solid #2563eb;
+    color: #1e40af;
+}
+
+.form-errors-alert {
+    background-color: #fef2f2;
+    border: 2px solid #dc2626;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.form-errors-alert .alert-icon {
+    color: #dc2626;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.form-errors-alert .alert-content {
+    flex: 1;
+}
+
+.form-errors-alert h4 {
+    color: #991b1b;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+}
+
+.form-errors-alert ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: #991b1b;
+}
+
+.form-errors-alert li {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.field-error {
+    color: #dc2626;
+    font-size: 0.85rem;
+    margin-top: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 500;
+}
+
+.field-error i {
+    font-size: 0.8rem;
+}
+
+.form-group.has-error input,
+.form-group.has-error select,
+.form-group.has-error textarea {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+}
+
+/* ===== CRISPY FORMS OVERRIDES ===== */
+.asteriskField {
+    color: var(--eng-danger);
+}
+
+#div_id_resource_type,
+#div_id_language {
+    margin-bottom: 1.5rem;
+}
+
+/* Hide auto-rendered uploaded_file field from Django form */
+#div_id_uploaded_file {
+    display: none !important;
+}
+
+/* ===== RTL SUPPORT (logical properties handle most alignment) ===== */
+html[dir="rtl"] .resource-form-page {
+    direction: rtl;
+}
+
+html[dir="rtl"] .form-group label {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+html[dir="rtl"] .form-control,
+html[dir="rtl"] .form-group input[type="text"],
+html[dir="rtl"] .form-group input[type="url"],
+html[dir="rtl"] .form-group input[type="number"],
+html[dir="rtl"] .form-group input[type="date"],
+html[dir="rtl"] .form-group textarea,
+html[dir="rtl"] .form-group select {
+    direction: rtl;
+}
+
+/* RTL grid: reverse column order so items swap sides */
+html[dir="rtl"] .field-grid {
+    direction: rtl;
+}
+
+/* Action buttons: Create on right, Cancel on left in RTL */
+html[dir="rtl"] .form-actions {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .btn-cancel,
+html[dir="rtl"] .btn-submit {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .type-option label {
+    flex-direction: column;
+}
+
+/* File upload stays centered */
+html[dir="rtl"] .file-upload-zone {
+    text-align: center;
+}
+
+html[dir="rtl"] .file-preview {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .btn-browse {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .required-badge {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .page-header h1 {
+    flex-direction: row-reverse;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .btn-cancel, .btn-submit {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <h1 class="mb-4">{% trans "Create New Resource" %}</h1>
-    
-    <form method="post" enctype="multipart/form-data" novalidate>
-        {% csrf_token %}
+<div class="resource-form-page">
+    <div class="form-container">
         
-        <!-- Champs communs -->
-        <div class="common-fields">
-            {{ form.resource_type|as_crispy_field }}
-            {{ form.language|as_crispy_field }}
-            {{ form.title|as_crispy_field }}
-            {{ form.description|as_crispy_field }}
-            {{ form.keywords|as_crispy_field }}
-            {{ form.access_link|as_crispy_field }}
-        </div>
+        <!-- Page Header -->
+        <header class="page-header">
+            <h1>
+                <i class="bi bi-plus-circle"></i>
+                {% trans "Create New Resource" %}
+            </h1>
+            <p>{% trans "Share your research with the NLP community" %}</p>
+        </header>
         
-        <!-- Champs spécifiques aux cours -->
-        <div id="course-fields" class="specific-field" style="display: none;">
-            <h3>{% trans "Course Details" %}</h3>
-            {{ form.course_field|as_crispy_field }}
-            {{ form.academic_level|as_crispy_field }}
-            {{ form.course_institution|as_crispy_field }}
-            {{ form.academic_year|as_crispy_field }}
-        </div>
-        
-        <!-- Champs spécifiques aux outils NLP -->
-        <div id="nlp_tool-fields" class="specific-field" style="display: none;">
-            <h3>{% trans "NLP Tool Details" %}</h3>
-            {{ form.tool_type|as_crispy_field }}
-            {{ form.tool_version|as_crispy_field }}
-            {{ form.documentation|as_crispy_field }}
-            {{ form.supported_languages|as_crispy_field }}
-        </div>
-        
-        <!-- Champs spécifiques aux corpus -->
-        <div id="corpus-fields" class="specific-field" style="display: none;">
-            <h3>{% trans "Corpus Details" %}</h3>
-            {{ form.corpus_size|as_crispy_field }}
-            {{ form.corpus_field|as_crispy_field }}
-            {{ form.corpus_format|as_crispy_field }}
-        </div>
-        
-        <!-- Champs spécifiques aux articles -->
-        <div id="article-fields" class="specific-field" style="display: none;">
-            <h3>{% trans "Article Details" %}</h3>
-            {{ form.document_format|as_crispy_field }}
-            {{ form.journal|as_crispy_field }}
-            {{ form.publication_date|as_crispy_field }}
-            {{ form.doi|as_crispy_field }}
-        </div>
-        
-        <!-- Champs spécifiques aux thèses -->
-        <div id="thesis-fields" class="specific-field" style="display: none;">
-            <h3>{% trans "Thesis Details" %}</h3>
-            {{ form.document_format|as_crispy_field }}
-            {{ form.supervisor|as_crispy_field }}
-            {{ form.thesis_institution|as_crispy_field }}
-            {{ form.defense_year|as_crispy_field }}
-        </div>
-        
-        <!-- Champs spécifiques aux mémoires -->
-        <div id="memoir-fields" class="specific-field" style="display: none;">
-            <h3>{% trans "Memoir Details" %}</h3>
-            {{ form.document_format|as_crispy_field }}
-            {{ form.memoir_level|as_crispy_field }}
-            {{ form.memoir_institution|as_crispy_field }}
-            {{ form.memoir_defense_year|as_crispy_field }}
-        </div>
-        
-        <div class="d-flex justify-content-between mt-4">
-            <a href="{% url 'resources:list' %}" class="btn btn-secondary py-2 px-4">{% trans "Cancel" %}</a>
-            <button type="submit" class="btn btn-primary py-2 px-4">{% trans "Create" %}</button>
-        </div>
-    </form>
+        <form method="post" enctype="multipart/form-data" id="resource-form" novalidate>
+            {% csrf_token %}
+            
+            <!-- Django Messages (from view) -->
+            {% if messages %}
+            {% for message in messages %}
+            <div class="page-message {% if message.tags %}message-{{ message.tags }}{% endif %}">
+                <i class="bi {% if message.tags == 'error' or message.tags == 'danger' %}bi-exclamation-octagon-fill{% elif message.tags == 'warning' %}bi-exclamation-triangle-fill{% elif message.tags == 'success' %}bi-check-circle-fill{% else %}bi-info-circle-fill{% endif %}"></i>
+                <span>{{ message }}</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+            
+            <!-- Non-field Errors -->
+            {% if form.non_field_errors %}
+            <div class="form-errors-alert">
+                <div class="alert-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div class="alert-content">
+                    <h4>{% trans "Please fix the following errors" %}</h4>
+                    <ul>
+                        {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Form Errors Summary -->
+            {% if form.errors %}
+            <div class="form-errors-alert">
+                <div class="alert-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div class="alert-content">
+                    <h4>{% trans "Please fix the following errors" %}</h4>
+                    <ul>
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                            <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Section 1: Core Information -->
+            <section class="section-card">
+                <div class="section-header">
+                    <div class="section-icon core">
+                        <i class="bi bi-card-heading"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Core Information" %}</h2>
+                        <p>{% trans "Basic details about your resource" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    
+                    <!-- Resource Type -->
+                    <div class="form-group{% if form.resource_type.errors %} has-error{% endif %}">
+                        <label>
+                            {% trans "Resource Type" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.resource_type }}
+                        {% if form.resource_type.errors %}
+                        {% for error in form.resource_type.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Title (English) -->
+                    <div class="form-group{% if form.title_en.errors %} has-error{% endif %}">
+                        <label for="id_title_en">
+                            {% trans "Title (English)" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.title_en }}
+                        {% if form.title_en.errors %}
+                        {% for error in form.title_en.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                        <span class="form-text">{% trans "A clear, descriptive title in English" %}</span>
+                    </div>
+                    
+                    <!-- Title (Arabic) -->
+                    <div class="form-group{% if form.title_ar.errors %} has-error{% endif %}">
+                        <label for="id_title_ar">
+                            {% trans "Title (Arabic / العنوان)" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.title_ar }}
+                        {% if form.title_ar.errors %}
+                        {% for error in form.title_ar.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                        <span class="form-text">{% trans "العنوان بالعربية" %}</span>
+                    </div>
+                    
+                    <!-- Language -->
+                    <div class="form-group{% if form.language.errors %} has-error{% endif %}">
+                        <label for="id_language">
+                            {% trans "Content Language" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.language }}
+                        {% if form.language.errors %}
+                        {% for error in form.language.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    
+                </div>
+            </section>
+            
+            <!-- Section 2: Content & Files -->
+            <section class="section-card">
+                
+                <div class="section-body">
+                    
+                    <!-- Description (English) -->
+                    <div class="form-group{% if form.description_en.errors %} has-error{% endif %}">
+                        <label for="id_description_en">
+                            {% trans "Description (English)" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.description_en }}
+                        {% if form.description_en.errors %}
+                        {% for error in form.description_en.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                        <span class="form-text">{% trans "Detailed description in English" %}</span>
+                    </div>
+                    
+                    <!-- Description (Arabic) -->
+                    <div class="form-group{% if form.description_ar.errors %} has-error{% endif %}">
+                        <label for="id_description_ar">
+                            {% trans "Description (Arabic / الوصف)" %}
+                            <span class="required-badge"><i class="bi bi-asterisk"></i> {% trans "Required" %}</span>
+                        </label>
+                        {{ form.description_ar }}
+                        {% if form.description_ar.errors %}
+                        {% for error in form.description_ar.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                        <span class="form-text">{% trans "الوصف التفصيلي بالعربية" %}</span>
+                    </div>
+                    
+                    <!-- File Upload Zone -->
+                    <div class="form-group{% if form.uploaded_file.errors %} has-error{% endif %}">
+                        <label>{% trans "Upload Document" %}</label>
+                        <div class="file-upload-zone" id="file-upload-zone">
+                            <input type="file" name="uploaded_file" id="id_uploaded_file" 
+                                accept=".pdf,.docx">
+                            <div class="upload-icon">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                            </div>
+                            <h4>{% trans "Drag & drop your file here" %}</h4>
+                            <p>{% trans "or click to browse - PDF, DOC, TXT, CSV, JSON (max 50MB)" %}</p>
+                            <span class="btn-browse">
+                                <i class="bi bi-folder2-open"></i>
+                                {% trans "Browse Files" %}
+                            </span>
+                            <div class="file-preview" id="file-preview">
+                                <i class="bi bi-file-earmark-check"></i>
+                                <span id="file-name"></span>
+                                <button type="button" class="btn-remove-file" id="btn-remove-file">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <span class="field-error" id="file-upload-error" style="display: none;"></span>
+                        {% if form.uploaded_file.errors %}
+                        {% for error in form.uploaded_file.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                        <span class="form-text">{% trans "Optional: Attach a document to your resource" %}</span>
+                    </div>
+                    
+                    <!-- Access Link -->
+                    <div class="form-group">
+                        <label for="id_access_link">{% trans "Access Link" %}</label>
+                        {{ form.access_link }}
+                        <span class="form-text">{% trans "External URL to access the resource (optional)" %}</span>
+                    </div>
+                    
+                </div>
+            </section>
+            
+            <!-- Section 3: Categorization -->
+            <section class="section-card">
+                <div class="section-header">
+                    <div class="section-icon category">
+                        <i class="bi bi-tags"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Categorization" %}</h2>
+                        <p>{% trans "Keywords to help others find your resource" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    
+                    <!-- Keywords -->
+                    <div class="form-group">
+                        <label for="id_keywords">{% trans "Keywords" %}</label>
+                        {{ form.keywords }}
+                        <span class="form-text">{% trans "Comma-separated keywords (e.g., NLP, Arabic, Sentiment Analysis)" %}</span>
+                    </div>
+                    
+                </div>
+            </section>
+            
+            <!-- Course-specific fields -->
+            <section id="course-fields" class="section-card specific-fields">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-mortarboard"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Course Details" %}</h2>
+                        <p>{% trans "Specific information about the course" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="field-grid">
+                        <div class="form-group{% if form.course_field.errors %} has-error{% endif %}">
+                            <label for="id_course_field">{% trans "Field" %}</label>
+                            {{ form.course_field }}
+                            {% if form.course_field.errors %}
+                            {% for error in form.course_field.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="form-group{% if form.academic_level.errors %} has-error{% endif %}">
+                            <label for="id_academic_level">{% trans "Academic Level" %}</label>
+                            {{ form.academic_level }}
+                            {% if form.academic_level.errors %}
+                            {% for error in form.academic_level.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="field-grid">
+                        <div class="form-group{% if form.course_institution.errors %} has-error{% endif %}">
+                            <label for="id_course_institution">{% trans "Institution" %}</label>
+                            {{ form.course_institution }}
+                            {% if form.course_institution.errors %}
+                            {% for error in form.course_institution.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="form-group{% if form.academic_year.errors %} has-error{% endif %}">
+                            <label for="id_academic_year">{% trans "Academic Year" %}</label>
+                            {{ form.academic_year }}
+                            {% if form.academic_year.errors %}
+                            {% for error in form.academic_year.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- NLP Tool-specific fields -->
+            <section id="nlp_tool-fields" class="section-card specific-fields">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-cpu"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "NLP Tool Details" %}</h2>
+                        <p>{% trans "Technical specifications of the tool" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="field-grid">
+                        <div class="form-group{% if form.tool_type.errors %} has-error{% endif %}">
+                            <label for="id_tool_type">{% trans "Tool Type" %}</label>
+                            {{ form.tool_type }}
+                            {% if form.tool_type.errors %}
+                            {% for error in form.tool_type.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="form-group{% if form.tool_version.errors %} has-error{% endif %}">
+                            <label for="id_tool_version">{% trans "Version" %}</label>
+                            {{ form.tool_version }}
+                            {% if form.tool_version.errors %}
+                            {% for error in form.tool_version.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_documentation">{% trans "Documentation URL" %}</label>
+                        {{ form.documentation }}
+                    </div>
+                    <div class="form-group{% if form.supported_languages.errors %} has-error{% endif %}">
+                        <label for="id_supported_languages">{% trans "Supported Languages" %}</label>
+                        {{ form.supported_languages }}
+                        {% if form.supported_languages.errors %}
+                        {% for error in form.supported_languages.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Corpus-specific fields -->
+            <section id="corpus-fields" class="section-card specific-fields">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-database"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Corpus Details" %}</h2>
+                        <p>{% trans "Information about the corpus" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="field-grid">
+                        <div class="form-group{% if form.corpus_field.errors %} has-error{% endif %}">
+                            <label for="id_corpus_field">{% trans "Field" %}</label>
+                            {{ form.corpus_field }}
+                            {% if form.corpus_field.errors %}
+                            {% for error in form.corpus_field.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Article-specific fields -->
+            <section id="article-fields" class="section-card specific-fields">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Document Details" %}</h2>
+                        <p>{% trans "Publication information" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="field-grid">
+                        <div class="form-group{% if form.document_format.errors %} has-error{% endif %}">
+                            <label for="id_document_format">{% trans "Format" %}</label>
+                            {{ form.document_format }}
+                            {% if form.document_format.errors %}
+                            {% for error in form.document_format.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="form-group{% if form.journal.errors %} has-error{% endif %}">
+                            <label for="id_journal">{% trans "Journal" %}</label>
+                            {{ form.journal }}
+                            {% if form.journal.errors %}
+                            {% for error in form.journal.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="field-grid">
+                        <div class="form-group{% if form.publication_date.errors %} has-error{% endif %}">
+                            <label for="id_publication_date">{% trans "Publication Date" %}</label>
+                            {{ form.publication_date }}
+                            {% if form.publication_date.errors %}
+                            {% for error in form.publication_date.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_doi">{% trans "DOI" %}</label>
+                            {{ form.doi }}
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Thesis-specific fields -->
+            <section id="thesis-fields" class="section-card specific-fields">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-journal-richtext"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Thesis Details" %}</h2>
+                        <p>{% trans "Academic thesis information" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="form-group{% if form.document_format.errors %} has-error{% endif %}">
+                        <label for="id_document_format">{% trans "Format" %}</label>
+                        {{ form.document_format }}
+                        {% if form.document_format.errors %}
+                        {% for error in form.document_format.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="field-grid">
+                        <div class="form-group{% if form.supervisor.errors %} has-error{% endif %}">
+                            <label for="id_supervisor">{% trans "Supervisor" %}</label>
+                            {{ form.supervisor }}
+                            {% if form.supervisor.errors %}
+                            {% for error in form.supervisor.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="form-group{% if form.thesis_institution.errors %} has-error{% endif %}">
+                            <label for="id_thesis_institution">{% trans "Institution" %}</label>
+                            {{ form.thesis_institution }}
+                            {% if form.thesis_institution.errors %}
+                            {% for error in form.thesis_institution.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="form-group{% if form.defense_year.errors %} has-error{% endif %}">
+                        <label for="id_defense_year">{% trans "Defense Year" %}</label>
+                        {{ form.defense_year }}
+                        {% if form.defense_year.errors %}
+                        {% for error in form.defense_year.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Memoir-specific fields -->
+            <section id="memoir-fields" class="section-card specific-fields">
+                <div class="section-header">
+                    <div class="section-icon specific">
+                        <i class="bi bi-book"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h2>{% trans "Memoir Details" %}</h2>
+                        <p>{% trans "Academic memoir information" %}</p>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="form-group{% if form.document_format.errors %} has-error{% endif %}">
+                        <label for="id_document_format">{% trans "Format" %}</label>
+                        {{ form.document_format }}
+                        {% if form.document_format.errors %}
+                        {% for error in form.document_format.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="field-grid">
+                        <div class="form-group{% if form.memoir_level.errors %} has-error{% endif %}">
+                            <label for="id_memoir_level">{% trans "Level" %}</label>
+                            {{ form.memoir_level }}
+                            {% if form.memoir_level.errors %}
+                            {% for error in form.memoir_level.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="form-group{% if form.memoir_institution.errors %} has-error{% endif %}">
+                            <label for="id_memoir_institution">{% trans "Institution" %}</label>
+                            {{ form.memoir_institution }}
+                            {% if form.memoir_institution.errors %}
+                            {% for error in form.memoir_institution.errors %}
+                            <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="form-group{% if form.memoir_defense_year.errors %} has-error{% endif %}">
+                        <label for="id_memoir_defense_year">{% trans "Defense Year" %}</label>
+                        {{ form.memoir_defense_year }}
+                        {% if form.memoir_defense_year.errors %}
+                        {% for error in form.memoir_defense_year.errors %}
+                        <span class="field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'resources:article_list' %}" class="btn-cancel">
+                    <i class="bi bi-x"></i>
+                    {% trans "Cancel" %}
+                </a>
+                <button type="submit" class="btn-submit" id="submit-btn">
+                    <span class="spinner"></span>
+                    <i class="bi bi-check2"></i>
+                    <span class="btn-text">{% trans "Create Resource" %}</span>
+                </button>
+            </div>
+            
+        </form>
+    </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    
+    // ===== Resource Type Toggle =====
     const resourceTypeToId = {
         'course': 'course-fields',
         'nlp_tool': 'nlp_tool-fields',
@@ -92,43 +1279,202 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function updateFields() {
-        document.querySelectorAll('.specific-field').forEach(el => {
-            el.style.display = 'none';
+        // Hide all specific field sections
+        document.querySelectorAll('.specific-fields').forEach(el => {
+            el.classList.remove('visible');
         });
         
-        const selectedType = document.getElementById('id_resource_type').value;
-        console.log("Selected resource type:", selectedType);
-        
-        if (resourceTypeToId[selectedType]) {
-            const targetDiv = document.getElementById(resourceTypeToId[selectedType]);
-            if (targetDiv) {
-                targetDiv.style.display = 'block';
+        const resourceTypeSelect = document.getElementById('id_resource_type');
+        if (resourceTypeSelect) {
+            const selectedType = resourceTypeSelect.value;
+            
+            if (resourceTypeToId[selectedType]) {
+                const targetDiv = document.getElementById(resourceTypeToId[selectedType]);
+                if (targetDiv) {
+                    targetDiv.classList.add('visible');
+                }
+            }
+
+            const currentFileInput = document.getElementById('id_uploaded_file');
+            if (currentFileInput) {
+                currentFileInput.setAttribute('accept', '.pdf,.docx');
             }
         }
+
+        clearUploadError();
     }
 
     const resourceTypeSelect = document.getElementById('id_resource_type');
     if (resourceTypeSelect) {
         resourceTypeSelect.addEventListener('change', updateFields);
+        // Initial call
+        updateFields();
     }
     
-    updateFields();
+    // ===== File Upload Functionality =====
+    const fileUploadZone = document.getElementById('file-upload-zone');
+    const fileInput = document.getElementById('id_uploaded_file');
+    const filePreview = document.getElementById('file-preview');
+    const fileName = document.getElementById('file-name');
+    const btnRemoveFile = document.getElementById('btn-remove-file');
+    const fileUploadError = document.getElementById('file-upload-error');
+
+    const corpusFileTypes = {
+        extensions: ['.pdf', '.docx'],
+        mimeTypes: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    };
+
+    function showUploadError(message) {
+        if (!fileUploadError) {
+            return;
+        }
+        fileUploadError.innerHTML = `<i class="bi bi-exclamation-circle"></i> ${message}`;
+        fileUploadError.style.display = 'inline-flex';
+    }
+
+    function clearUploadError() {
+        if (!fileUploadError) {
+            return;
+        }
+        fileUploadError.textContent = '';
+        fileUploadError.style.display = 'none';
+    }
+
+    function validateUploadedFile(file) {
+        if (!file) {
+            clearUploadError();
+            return true;
+        }
+
+        const selectedType = resourceTypeSelect ? resourceTypeSelect.value : '';
+        const maxSize = 50 * 1024 * 1024;
+        if (file.size > maxSize) {
+            showUploadError('{% trans "File is too large. Maximum size is 50MB." %}');
+            return false;
+        }
+
+        if (selectedType === 'corpus') {
+            const lowerName = file.name.toLowerCase();
+            const hasValidExtension = corpusFileTypes.extensions.some(extension => lowerName.endsWith(extension));
+            const hasValidMimeType = corpusFileTypes.mimeTypes.includes(file.type);
+            if (!hasValidExtension || !hasValidMimeType) {
+                showUploadError('{% trans "Only PDF and DOCX files are accepted" %}');
+                return false;
+            }
+        }
+
+        clearUploadError();
+        return true;
+    }
+    
+    if (fileUploadZone && fileInput) {
+        // Click to upload
+        fileUploadZone.addEventListener('click', function(e) {
+            if (!btnRemoveFile || (e.target !== btnRemoveFile && !btnRemoveFile.contains(e.target))) {
+                fileInput.click();
+            }
+        });
+        
+        // File selected
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                if (!validateUploadedFile(this.files[0])) {
+                    this.value = '';
+                    filePreview.classList.remove('visible');
+                    fileUploadZone.classList.remove('has-file');
+                    return;
+                }
+                displayFile(this.files[0]);
+            }
+        });
+        
+        // Drag & Drop
+        fileUploadZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        fileUploadZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+        
+        fileUploadZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                if (!validateUploadedFile(e.dataTransfer.files[0])) {
+                    fileInput.value = '';
+                    filePreview.classList.remove('visible');
+                    fileUploadZone.classList.remove('has-file');
+                    return;
+                }
+                fileInput.files = e.dataTransfer.files;
+                displayFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        // Remove file
+        if (btnRemoveFile) {
+            btnRemoveFile.addEventListener('click', function(e) {
+                e.stopPropagation();
+                fileInput.value = '';
+                filePreview.classList.remove('visible');
+                fileUploadZone.classList.remove('has-file');
+                clearUploadError();
+            });
+        }
+        
+        function displayFile(file) {
+            if (!validateUploadedFile(file)) {
+                fileInput.value = '';
+                return;
+            }
+            
+            fileName.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+            filePreview.classList.add('visible');
+            fileUploadZone.classList.add('has-file');
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    }
+    
+    // ===== Submit Loading =====
+    const form = document.getElementById('resource-form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            if (fileInput && fileInput.files && fileInput.files[0] && !validateUploadedFile(fileInput.files[0])) {
+                e.preventDefault();
+                return;
+            }
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+        });
+    }
+    
+    // ===== Scroll to first error on page load =====
+    const firstError = document.querySelector('.form-errors-alert, .field-error, .has-error');
+    if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    // ===== Add form-control class to all inputs =====
+    document.querySelectorAll('.section-body input, .section-body select, .section-body textarea').forEach(el => {
+        if (!el.classList.contains('form-control') && el.type !== 'file') {
+            el.classList.add('form-control');
+        }
+    });
+    
 });
 </script>
-
-<style>
-.specific-field {
-    margin-top: 2rem;
-    padding: 1.5rem;
-    background-color: #f8f9fa;
-    border-radius: 0.5rem;
-    border-left: 4px solid #007bff;
-}
-
-.specific-field h3 {
-    color: #007bff;
-    margin-bottom: 1.5rem;
-    font-size: 1.25rem;
-}
-</style>
 {% endblock %}
+

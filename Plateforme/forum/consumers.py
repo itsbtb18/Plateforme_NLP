@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, cast
 
 from channels.generic.websocket import WebsocketConsumer
 from asgiref.sync import async_to_sync
+from django.utils.html import escape
 import json
 from .models import ChatRoom, Message, BannedUser
 
@@ -57,26 +58,45 @@ class ChatroomConsumer(WebsocketConsumer):
         try:
             text_data_json = json.loads(text_data)
             message_content = text_data_json.get('message', '').strip()
+            parent_id = (text_data_json.get('parent_id') or '').strip()
             if not message_content:
                 return
             if BannedUser.objects.filter(chatroom=self.chatroom, user=self.user).exists():
                 return
+
+            parent_message = None
+            if parent_id:
+                parent_message = Message.objects.filter(
+                    id=parent_id,
+                    chatroom=self.chatroom,
+                ).first()
+
             message = Message.objects.create(
                 chatroom=self.chatroom,
                 user=self.user,
-                content=message_content
+                content=message_content,
+                parent=parent_message,
             )
+            # Get localized user name
+            user_name = getattr(self.user, 'get_full_name_display', str(self.user))
+            if callable(user_name):
+                user_name = user_name()
+            else:
+                user_name = str(user_name) if user_name else str(self.user)
+            
             async_to_sync(self.channel_layer.group_send)(
                 self.room_group_name,
                 {
                     'type': 'chat_message',
                     'message_id': str(message.id),
-                    'content': message.content,
+                    'content': escape(message.content),
+                    'rendered_content': message.rendered_content,
                     'user_id': str(self.user.id),
-                    'user_name': str(self.user),
+                    'user_name': escape(user_name),
                     'timestamp': message.timestamp.strftime('%d/%m/%Y %H:%M'),
                     'is_edited': message.is_edited,
-                    'profile_url': f'/accounts/profile/{self.user.id}/'
+                    'profile_url': f'/accounts/profile/{self.user.id}/',
+                    'parent_id': str(message.parent_id) if message.parent_id else None,
                 }
             )
         except json.JSONDecodeError:
@@ -88,11 +108,13 @@ class ChatroomConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps({
             'message_id': event['message_id'],
             'content': event['content'],
+            'rendered_content': event.get('rendered_content', ''),
             'user_id': event['user_id'],
             'user_name': event['user_name'],
             'timestamp': event['timestamp'],
             'is_current_user': bool(self.user and str(self.user.id) == event['user_id']),
             'is_edited': event.get('is_edited', False),
-            'profile_url': event.get('profile_url', '#')
+            'profile_url': event.get('profile_url', '#'),
+            'parent_id': event.get('parent_id'),
         }))
 

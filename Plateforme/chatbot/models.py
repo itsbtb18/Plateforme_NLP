@@ -11,11 +11,18 @@ class ChatSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_sessions', verbose_name=_("User"))
     fastapi_session_id = models.CharField(max_length=255, unique=True, verbose_name=_("FastAPI Session ID"))
+    title = models.CharField(max_length=200, blank=True, null=True, verbose_name=_("Title"))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
     is_active = models.BooleanField(default=True, verbose_name=_("Is Active"))
-    pdf_uploaded = models.BooleanField(default=False, verbose_name=_("Has PDF Context"))
-    pdf_filename = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("PDF Filename"))
+    has_documents = models.BooleanField(default=False, verbose_name=_("Has Documents"))
+    document_filename = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("Document Filename"))
+    is_pinned = models.BooleanField(default=False, verbose_name=_("Pinned"))
+    
+    # Content context - what the chat is about
+    content_type = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Content Type"))
+    object_id = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("Object ID"))
+    content_title = models.CharField(max_length=500, blank=True, null=True, verbose_name=_("Content Title"))
     
     class Meta:
         verbose_name = _("Chat Session")
@@ -46,6 +53,7 @@ class ChatMessage(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name=_("Timestamp"))
     source = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("Source"))
     language = models.CharField(max_length=10, default='en', verbose_name=_("Language"))
+    is_pinned = models.BooleanField(default=False, verbose_name=_("Pinned"))
     
     class Meta:
         verbose_name = _("Chat Message")

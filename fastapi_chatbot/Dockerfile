@@ -1,78 +1,39 @@
-# ============================================
-# MULTI-STAGE FASTAPI DOCKERFILE
-# Production-ready FastAPI with Uvicorn
-# ============================================
-
-FROM python:3.11-slim as base
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    DEBIAN_FRONTEND=noninteractive
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    postgresql-client \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create app user
-RUN useradd -m -u 1000 fastapi && \
-    mkdir -p /app /app/.cache && \
-    chown -R fastapi:fastapi /app
+FROM python:3.11-slim AS development
 
 WORKDIR /app
 
-# ============================================
-# DEPENDENCIES STAGE
-# ============================================
-FROM base as dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (better layer caching)
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --timeout 180 --retries 10 --upgrade pip && \
+    pip install --no-cache-dir --timeout 300 --retries 5 --index-url https://download.pytorch.org/whl/cpu torch torchvision && \
+    pip install --no-cache-dir --index-url https://pypi.org/simple --timeout 180 --retries 5 -r requirements.txt && \
+    pip install --no-cache-dir --index-url https://pypi.org/simple --timeout 120 --retries 5 prometheus-client
 
-# Download sentence-transformers model during build
-# This speeds up container startup significantly
-RUN python -c "from sentence_transformers import SentenceTransformer; \
-    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2'); \
-    print('Model downloaded successfully')"
+COPY . .
 
-# ============================================
-# PRODUCTION STAGE
-# ============================================
-FROM base as production
+# Ensure the HuggingFace / sentence-transformers cache directory exists
+ENV HF_HOME=/app/.cache \
+    TRANSFORMERS_CACHE=/app/.cache/transformers \
+    SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
+RUN mkdir -p /app/.cache/transformers /app/.cache/sentence_transformers \
+    && chmod -R 777 /app/.cache
 
-# Copy installed packages from dependencies stage
-COPY --from=dependencies /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=dependencies /usr/local/bin /usr/local/bin
-COPY --from=dependencies /root/.cache /home/fastapi/.cache
-
-# Copy application code
-COPY --chown=fastapi:fastapi . .
-
-# Create necessary directories
-RUN mkdir -p logs && \
-    chown -R fastapi:fastapi logs
-
-# Fix cache permissions
-RUN chown -R fastapi:fastapi /home/fastapi/.cache
-
-# Switch to non-root user
-USER fastapi
-
-# Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Default command (can be overridden in docker-compose)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+
+FROM development AS production
+
+RUN addgroup --system appgroup && \
+    adduser --system --ingroup appgroup appuser && \
+    chown -R appuser:appgroup /app/.cache
+
+USER appuser
+
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "app.main:app", "--bind", "0.0.0.0:8000", "--workers", "2"]

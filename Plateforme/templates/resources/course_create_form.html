@@ -1,84 +1,880 @@
 {% extends "base.html" %}
-{% load static crispy_forms_tags i18n %}
+{% load static i18n %}
+
+{% block title %}{% if object %}{% trans "Edit Course" %}{% else %}{% trans "Create Course" %}{% endif %} - {% trans "Academic Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== CSS VARIABLES - Modern Dark Theme (Unified Corpus Design) ===== */
+:root {
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --bg-card-hover: rgba(167, 139, 250, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    --radius: 8px;
+    --success: #059669;
+    --success-light: #ECFDF5;
+    --danger: #DC2626;
+    --teal: #0D9488;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.page-wrapper {
+    min-height: calc(100vh - 100px);
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    padding: 3rem 1.5rem 4rem;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.page-wrapper::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(124, 58, 237, 0.06) 0%, transparent 45%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== PAGE HEADER ===== */
+.page-hero {
+    margin-bottom: 2.5rem;
+    text-align: center;
+}
+
+.page-hero::before {
+    display: none;
+}
+
+.page-hero .hero-inner {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.5);
+    list-style: none;
+    padding: 0;
+    margin-left: 0;
+    flex-wrap: wrap;
+}
+
+.breadcrumb a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-weight: 500;
+}
+
+.breadcrumb a:hover { color: var(--accent-cyan); }
+.breadcrumb .separator { color: rgba(255,255,255,0.3); font-size: 0.7rem; }
+.breadcrumb .current { color: rgba(255,255,255,0.8); font-weight: 600; }
+
+/* Hero Icon */
+.hero-icon-wrap {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.75rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.25);
+    transition: all 0.3s ease;
+}
+
+.hero-icon-wrap:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+}
+
+.page-hero h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.02em;
+}
+
+.page-hero p {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.9rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Steps bar */
+.steps-bar {
+    display: none;
+}
+
+/* ===== CARDS ===== */
+.card {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.03) 0%, rgba(124, 58, 237, 0.01) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-header p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-group { margin-bottom: 1.5rem; }
+
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.form-group label .required { color: #ef4444; margin-left: 0.125rem; }
+
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="number"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.9rem;
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 8px;
+    background: rgba(255,255,255,.05);
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.1);
+    background: rgba(255,255,255,.08);
+}
+
+.form-group input:hover,
+.form-group textarea:hover,
+.form-group select:hover { border-color: rgba(167, 139, 250, 0.18); }
+
+.form-group textarea {
+    min-height: 110px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .field-row { grid-template-columns: 1fr; }
+}
+
+/* ===== UPLOAD ZONE ===== */
+.upload-zone {
+    border: 1.5px dashed rgba(167, 139, 250, 0.15);
+    border-radius: 8px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    background: rgba(167, 139, 250, 0.02);
+    position: relative;
+}
+
+.upload-zone:hover {
+    border-color: rgba(167, 139, 250, 0.25);
+    background: rgba(167, 139, 250, 0.05);
+}
+
+.upload-zone.dragging {
+    border-color: #a78bfa;
+    background: rgba(167, 139, 250, 0.08);
+}
+
+.upload-icon {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 0.75rem;
+}
+
+.upload-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.upload-subtitle {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.upload-zone input[type="file"] {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.file-preview {
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(167, 139, 250, 0.08);
+    border-radius: 10px;
+    margin-top: 1rem;
+    border: 1px solid var(--border-light);
+}
+
+.file-preview.active { display: flex; }
+
+.file-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.file-info { flex: 1; min-width: 0; }
+.file-name { font-size: 0.875rem; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-size { font-size: 0.8125rem; color: var(--text-muted); }
+
+.file-remove {
+    padding: 0.375rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s;
+}
+
+.file-remove:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+}
+
+/* ===== TRANSLATION TOGGLE ===== */
+.translation-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(13, 148, 136, 0.12) 0%, rgba(13, 148, 136, 0.08) 100%);
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(13, 148, 136, 0.18);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.translation-toggle:hover {
+    background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(13, 148, 136, 0.1) 100%);
+    border-color: rgba(13, 148, 136, 0.25);
+}
+
+.translation-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.translation-toggle-label i { font-size: 1.5rem; color: #0D9488; }
+
+.toggle-switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: rgba(255,255,255,.2);
+    border-radius: 999px;
+    transition: all 0.2s ease;
+}
+
+.toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background: rgba(255,255,255,.9);
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.toggle-switch input:checked + .toggle-slider { background: var(--teal); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+.arabic-fields {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.arabic-fields.active { display: block; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== FORM ACTIONS ===== */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    justify-content: flex-end;
+}
+
+.btn-primary,
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.25);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: rgba(255,255,255,.05);
+    color: var(--text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+}
+
+.btn-secondary:hover {
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--primary-color);
+    background: rgba(167, 139, 250, 0.06);
+}
+
+/* ===== ALERT ===== */
+.alert {
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #FCA5A5;
+}
+
+.alert-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+    color: #DC2626;
+}
+
+.alert-content h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #FCA5A5;
+}
+
+.alert-content ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+}
+
+.alert-content li { margin-bottom: 0.25rem; }
+
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .form-group label { text-align: right; }
+html[dir="rtl"] .form-group input,
+html[dir="rtl"] .form-group textarea,
+html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
+html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; justify-content: center; }
+html[dir="rtl"] .translation-toggle { flex-direction: row-reverse; }
+html[dir="rtl"] .translation-toggle-label { flex-direction: row-reverse; }
+html[dir="rtl"] .file-preview { flex-direction: row-reverse; text-align: right; }
+html[dir="rtl"] .form-actions { justify-content: flex-start; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+    .page-hero h1 { font-size: 1.875rem; }
+    .form-container { padding: 0 1rem; }
+    .form-actions { flex-direction: column-reverse; }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <h1 class="mb-4">{% trans "Create New Course" %}</h1>
-    
-    <div class="card">
-        <div class="card-body">
-            <form method="post" novalidate>
-                {% csrf_token %}
-                
-                <input type="hidden" name="resource_type" value="course">
-                
-                <!-- Basic Information -->
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        {% trans "Basic Information" %}
-                    </div>
-                    <div class="card-body">
-                        {{ form.title|as_crispy_field }}
-                        {{ form.language|as_crispy_field }}
-                        {{ form.description|as_crispy_field }}
-                        {{ form.keywords|as_crispy_field }}
-                        {{ form.access_link|as_crispy_field }}
-                    </div>
-                </div>
-                
-                <!-- Course Specific Fields -->
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        {% trans "Course Details" %}
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.course_field|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6">
-                                {{ form.academic_level|as_crispy_field }}
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.course_institution|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6">
-                                {{ form.academic_year|as_crispy_field }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="text-end">
-                    <a href="{% url 'resources:list' %}" class="btn btn-secondary me-2">{% trans "Cancel" %}</a>
-                    <button type="submit" class="btn btn-primary">{% trans "Save Course" %}</button>
-                </div>
-            </form>
+<div class="page-wrapper">
+    <header class="page-hero">
+        <div class="hero-inner">
+            <ol class="breadcrumb">
+                <li><a href="{% url 'resources:course_list' %}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الدورات{% else %}{% trans "Courses" %}{% endif %}</a></li>
+                <li class="separator"><i class="bi bi-chevron-right"></i></li>
+                <li><a href="{% url 'resources:list' %}">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الموارد{% else %}{% trans "Resources" %}{% endif %}</a></li>
+                <li class="separator"><i class="bi bi-chevron-right"></i></li>
+                <li class="current">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المعلومات الأساسية{% else %}{% trans "Core details" %}{% endif %}</li>
+            </ol>
+
+            <div class="hero-icon-wrap">
+                <i class="bi bi-journal-richtext"></i>
+            </div>
+
+            <h1>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}استكشاف الدورات التدريبية{% else %}{% trans "Discover Training Courses" %}{% endif %}</h1>
+            <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}استكشف ونسّق مسارات تعليمية شاملة لمشاريع معالجة اللغة العربية{% else %}{% trans "Discover and configure comprehensive learning paths for your Arabic NLP projects" %}{% endif %}</p>
+
+            <div class="steps-bar">
+                <div class="step-item active"><span class="step-number">1</span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المعلومات الأساسية{% else %}{% trans "Core details" %}{% endif %}</div>
+                <div class="step-item"><span class="step-number">2</span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}التفاصيل{% else %}{% trans "Details" %}{% endif %}</div>
+                <div class="step-item"><span class="step-number">3</span>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المراجعة{% else %}{% trans "Review" %}{% endif %}</div>
+            </div>
         </div>
+    </header>
+    
+    <div class="form-container">
+        <form method="post" enctype="multipart/form-data" id="course-form" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="resource_type" value="course">
+            
+            <!-- Error Display -->
+            {% if form.errors or form.non_field_errors %}
+            <div class="alert alert-error" role="alert">
+                <div class="alert-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div class="alert-content">
+                    <h4>{% trans "Please correct the following errors:" %}</h4>
+                    {% if form.non_field_errors %}
+                        <ul>
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if form.errors %}
+                        <ul>
+                        {% for field, errors in form.errors.items %}
+                            {% if field != '__all__' %}
+                                {% for error in errors %}
+                                    <li><strong>{{ field }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 2-Column Grid Layout -->
+            <div class="form-grid">
+                
+                <!-- LEFT COLUMN: Upload Area (35%) -->
+                <div class="upload-area">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}رفع الملف{% else %}{% trans "Upload Document" %}{% endif %}</h2>
+                            <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الخطة، المواد، أو الموارد{% else %}{% trans "Syllabus, materials, or resources" %}{% endif %}</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="upload-zone" id="upload-zone">
+                                <div class="upload-icon">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                </div>
+                                <div class="upload-title">{% trans "Drop file here" %}</div>
+                                <div class="upload-subtitle">{% trans "or click to browse" %}</div>
+                                <input type="file" id="file-input" name="uploaded_file" aria-label="{% trans 'Choose File' %}" accept=".pdf,.doc,.docx,.ppt,.pptx">
+                            </div>
+                            
+                            <div class="file-preview" id="file-preview">
+                                <div class="file-icon">
+                                    <i class="bi bi-file-earmark-check"></i>
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name" id="file-name">filename.pdf</div>
+                                    <div class="file-size" id="file-size">2.5 MB</div>
+                                </div>
+                                <button type="button" class="file-remove" id="file-remove">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- RIGHT COLUMN: Metadata Form (65%) -->
+                <div class="metadata-area">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}معلومات الدورة{% else %}{% trans "Course Information" %}{% endif %}</h2>
+                            <p>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أدخل البيانات الأساسية للدورة{% else %}{% trans "Provide essential course details" %}{% endif %}</p>
+                        </div>
+                        <div class="card-body">
+                            
+                            <!-- Translation Toggle -->
+                            <div class="translation-toggle">
+                                <span class="translation-toggle-label">
+                                    <i class="bi bi-translate"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إضافة الترجمة العربية{% else %}{% trans "Add Arabic Translation" %}{% endif %}
+                                </span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="translation-toggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            
+                            <!-- Title (English) -->
+                            <div class="form-group">
+                                <label for="id_title_en">
+                                    {% trans "Course Title (English)" %} <span class="required">*</span>
+                                </label>
+                                {{ form.title_en }}
+                            </div>
+                            
+                            <!-- Title (Arabic) - Conditional -->
+                            <div class="arabic-fields" id="arabic-title">
+                                <div class="form-group">
+                                    <label for="id_title_ar">{% trans "Course Title (Arabic)" %}</label>
+                                    {{ form.title_ar }}
+                                </div>
+                            </div>
+                            
+                            <!-- Field & Level Row -->
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label for="id_course_field">
+                                        {% trans "Field of Study" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.course_field }}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="id_academic_level">
+                                        {% trans "Academic Level" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.academic_level }}
+                                </div>
+                            </div>
+                            
+                            <!-- Institution & Year Row -->
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label for="id_course_institution">
+                                        {% trans "Institution" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.course_institution }}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="id_academic_year">
+                                        {% trans "Academic Year" %} <span class="required">*</span>
+                                    </label>
+                                    {{ form.academic_year }}
+                                    <span class="form-text">{% trans "Format: 2023-2024" %}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Language -->
+                            <div class="form-group">
+                                <label for="id_language">
+                                    {% trans "Teaching Language" %} <span class="required">*</span>
+                                </label>
+                                {{ form.language }}
+                            </div>
+                            
+                            <!-- Description (English) -->
+                            <div class="form-group">
+                                <label for="id_description_en">{% trans "Description (English)" %} <span class="required">*</span></label>
+                                {{ form.description_en }}
+                            </div>
+                            
+                            <!-- Description (Arabic) - Conditional -->
+                            <div class="arabic-fields" id="arabic-description">
+                                <div class="form-group">
+                                    <label for="id_description_ar">{% trans "Description (Arabic)" %}</label>
+                                    {{ form.description_ar }}
+                                </div>
+                            </div>
+                            
+                            <!-- Prerequisites -->
+                            <div class="form-group">
+                                <label for="id_prerequisites">{% trans "Prerequisites" %}</label>
+                                {{ form.prerequisites }}
+                                <span class="form-text">{% trans "List required prior knowledge" %}</span>
+                            </div>
+                            
+                            <!-- Syllabus -->
+                            <div class="form-group">
+                                <label for="id_syllabus">{% trans "Syllabus & Curriculum" %}</label>
+                                {{ form.syllabus }}
+                                <span class="form-text">{% trans "Detailed course outline" %}</span>
+                            </div>
+                            
+                            <!-- Keywords & Access Link -->
+                            <div class="field-row">
+                                <div class="form-group">
+                                    <label for="id_keywords">{% trans "Keywords" %}</label>
+                                    {{ form.keywords }}
+                                    <span class="form-text">{% trans "Comma-separated" %}</span>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="id_access_link">{% trans "Course Website" %}</label>
+                                    {{ form.access_link }}
+                                </div>
+                            </div>
+                            
+                            <!-- Form Actions -->
+                            <div class="form-actions">
+                                <button type="button" class="btn-secondary" onclick="window.history.back()">
+                                    <i class="bi bi-x-lg"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}{% trans "Cancel" %}{% endif %}
+                                </button>
+                                <button type="submit" class="btn-primary" id="submit-btn">
+                                    <i class="bi bi-check-lg"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء الدورة{% else %}{% trans "Create Course" %}{% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Masquer les champs non pertinents pour un cours
-        const nonCourseFields = [
-            'document_type', 'document_format', 'tool_type', 'tool_version', 
-            'documentation', 'languages', 'corpus_language', 'corpus_size', 
-            'corpus_field', 'corpus_format', 'doi', 'journal', 
-            'publication_date', 'supervisor', 'thesis_institution', 
-            'defense_year', 'memoir_level', 'memoir_institution', 
-            'memoir_defense_year'
-        ];
+document.addEventListener('DOMContentLoaded', function() {
+    // ===== Translation Toggle =====
+    const translationToggle = document.getElementById('translation-toggle');
+    const arabicFields = document.querySelectorAll('.arabic-fields');
+    
+    if (translationToggle) {
+        translationToggle.addEventListener('change', function() {
+            arabicFields.forEach(field => {
+                field.classList.toggle('active', this.checked);
+            });
+        });
+    }
+    
+    // ===== File Upload Drag & Drop =====
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    const fileRemove = document.getElementById('file-remove');
+    
+    if (uploadZone && fileInput) {
+        uploadZone.addEventListener('click', () => fileInput.click());
         
-        nonCourseFields.forEach(field => {
-            const fieldElement = document.querySelector(`[name="${field}"]`);
-            if (fieldElement) {
-                const formGroup = fieldElement.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'none';
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragging');
+        });
+        
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragging');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragging');
+            
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                displayFile(e.dataTransfer.files[0]);
             }
         });
-    });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                displayFile(e.target.files[0]);
+            }
+        });
+    }
+    
+    function displayFile(file) {
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        uploadZone.style.display = 'none';
+        filePreview.classList.add('active');
+    }
+    
+    function clearFile() {
+        fileInput.value = '';
+        uploadZone.style.display = 'block';
+        filePreview.classList.remove('active');
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+    
+    if (fileRemove) {
+        fileRemove.addEventListener('click', function(e) {
+            e.stopPropagation();
+            clearFile();
+        });
+    }
+    
+    // ===== Submit Loading State =====
+    const form = document.getElementById('course-form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    if (form && submitBtn) {
+        {% if object %}
+        submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> {% trans "Update Course" %}';
+        {% endif %}
+        form.addEventListener('submit', function() {
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+        });
+    }
+});
 </script>
 {% endblock %}

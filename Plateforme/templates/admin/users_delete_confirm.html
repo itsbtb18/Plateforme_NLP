@@ -1,337 +1,46 @@
 {% extends "base_admin.html" %}
-{% load static %}
 {% load i18n %}
 {% block title %}{% trans "Delete User" %}{% endblock %}
 
-{% block extra_css %}
-<style>
-  :root {
-    --primary-color: #4361ee;
-    --primary-dark: #3730a3;
-    --danger-color: #ef4444;
-    --danger-dark: #dc2626;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-900: #111827;
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  }
-
-  /* Delete Confirmation Container */
-  .delete-container {
-    min-height: calc(100vh - 200px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem 0;
-  }
-
-  .delete-card {
-    background: white;
-    border-radius: 16px;
-    box-shadow: var(--shadow-lg);
-    max-width: 500px;
-    width: 100%;
-    overflow: hidden;
-    animation: slideIn 0.3s ease-out;
-  }
-
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Warning Header */
-  .delete-header {
-    background: linear-gradient(135deg, var(--danger-color) 0%, var(--danger-dark) 100%);
-    padding: 2rem;
-    text-align: center;
-    color: white;
-  }
-
-  .delete-icon {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 1rem;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    50% {
-      transform: scale(1.05);
-      opacity: 0.8;
-    }
-  }
-
-  .delete-icon i {
-    font-size: 2.5rem;
-  }
-
-  .delete-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin: 0;
-  }
-
-  /* Content */
-  .delete-content {
-    padding: 2rem;
-  }
-
-  .delete-warning {
-    background: rgba(239, 68, 68, 0.1);
-    border-left: 4px solid var(--danger-color);
-    padding: 1rem 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-  }
-
-  .delete-warning p {
-    margin: 0;
-    color: var(--gray-700);
-    font-size: 1rem;
-    line-height: 1.6;
-  }
-
-  .user-info {
-    background: var(--gray-50);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .user-name {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin-bottom: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .user-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 1.25rem;
-  }
-
-  .user-email {
-    color: var(--gray-600);
-    font-size: 0.95rem;
-    margin-left: 60px;
-  }
-
-  /* Consequences List */
-  .consequences {
-    margin: 1.5rem 0;
-  }
-
-  .consequences h4 {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 1rem;
-  }
-
-  .consequences ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .consequences li {
-    padding: 0.75rem 0;
-    color: var(--gray-700);
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    border-bottom: 1px solid var(--gray-200);
-  }
-
-  .consequences li:last-child {
-    border-bottom: none;
-  }
-
-  .consequences li i {
-    color: var(--danger-color);
-    font-size: 1rem;
-  }
-
-  /* Action Buttons */
-  .delete-actions {
-    display: flex;
-    gap: 1rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--gray-200);
-  }
-
-  .btn {
-    flex: 1;
-    padding: 0.875rem 1.5rem;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border: none;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .btn-danger {
-    background: var(--danger-color);
-    color: white;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-  }
-
-  .btn-danger:hover {
-    background: var(--danger-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
-  }
-
-  .btn-cancel {
-    background: white;
-    color: var(--gray-700);
-    border: 2px solid var(--gray-300);
-  }
-
-  .btn-cancel:hover {
-    background: var(--gray-50);
-    border-color: var(--gray-400);
-    color: var(--gray-900);
-  }
-
-  /* Responsive */
-  @media (max-width: 576px) {
-    .delete-container {
-      padding: 1rem;
-    }
-
-    .delete-card {
-      margin: 0 1rem;
-    }
-
-    .delete-content {
-      padding: 1.5rem;
-    }
-
-    .delete-actions {
-      flex-direction: column-reverse;
-    }
-
-    .btn {
-      width: 100%;
-    }
-  }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid py-4">
-  <div class="delete-container">
-    <div class="delete-card">
-      <!-- Header -->
-      <div class="delete-header">
-        <div class="delete-icon">
-          <i class="fas fa-exclamation-triangle"></i>
+<div class="container-fluid" style="padding-top:.5rem;max-width:540px;margin:0 auto;">
+  <div class="n-modal-card">
+    <div class="n-modal-icon danger"><i class="fas fa-exclamation-triangle"></i></div>
+    <div class="n-modal-body">
+      <h2>{% trans "Confirm Deletion" %}</h2>
+      <p>{% trans "This action cannot be undone. Please review the information below carefully." %}</p>
+
+      <div style="background:var(--n-bg);border:1px solid var(--n-border);border-radius:var(--n-radius);padding:1rem;margin:1rem 0;text-align:start;">
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.35rem;">
+          {% if user_obj.avatar %}
+          <img src="{{ user_obj.avatar.url }}" alt="{{ user_obj.get_full_name_display }}" style="width:42px;height:42px;border-radius:10px;object-fit:cover;flex-shrink:0;border:2px solid var(--n-border);">
+          {% else %}
+          <div class="n-av" style="width:42px;height:42px;font-size:1rem;border-radius:10px;">{{ user_obj.get_full_name_display.0|upper }}</div>
+          {% endif %}
+          <div>
+            <p style="font-weight:700;font-size:.9rem;color:var(--n-text);margin:0;">{{ user_obj.get_full_name_display }}</p>
+            <p style="font-size:.78rem;color:var(--n-text-2);margin:0;"><i class="fas fa-envelope" style="margin-inline-end:.3rem;font-size:.7rem;"></i>{{ user_obj.email }}</p>
+          </div>
         </div>
-        <h1 class="delete-title">{% trans "Confirm Deletion" %}</h1>
       </div>
 
-      <!-- Content -->
-      <div class="delete-content">
-        <!-- Warning Message -->
-        <div class="delete-warning">
-          <p>
-            <i class="fas fa-info-circle me-2"></i>
-            {% trans "This action cannot be undone. Please review the information below carefully." %}
-          </p>
-        </div>
-
-        <!-- User Info -->
-        <div class="user-info">
-          <div class="user-name">
-            <div class="user-avatar">
-              {{ user_obj.full_name.0|upper }}
-            </div>
-            {{ user_obj.full_name }}
-          </div>
-          <div class="user-email">
-            <i class="fas fa-envelope me-2"></i>
-            {{ user_obj.email }}
-          </div>
-        </div>
-
-        <!-- Consequences -->
-        <div class="consequences">
-          <h4>{% trans "What will be deleted:" %}</h4>
-          <ul>
-            <li>
-              <i class="fas fa-times-circle"></i>
-              {% trans "User account and profile" %}
-            </li>
-            <li>
-              <i class="fas fa-times-circle"></i>
-              {% trans "All user data and settings" %}
-            </li>
-            <li>
-              <i class="fas fa-times-circle"></i>
-              {% trans "User permissions and access" %}
-            </li>
-            <li>
-              <i class="fas fa-times-circle"></i>
-              {% trans "Associated activity history" %}
-            </li>
-          </ul>
-        </div>
-
-        <!-- Actions -->
-        <form method="post">
-          {% csrf_token %}
-          <div class="delete-actions">
-            <a href="{% url 'pages:admin_users' %}" class="btn btn-cancel">
-              <i class="fas fa-arrow-left"></i>
-              {% trans "Cancel" %}
-            </a>
-            <button type="submit" class="btn btn-danger">
-              <i class="fas fa-trash-alt"></i>
-              {% trans "Yes, Delete User" %}
-            </button>
-          </div>
-        </form>
+      <div style="text-align:start;margin:1rem 0;">
+        <p style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--n-text);margin-bottom:.65rem;">{% trans "What will be deleted:" %}</p>
+        <ul style="list-style:none;padding:0;margin:0;">
+          <li style="padding:.45rem 0;font-size:.82rem;color:var(--n-text-2);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--n-border-s);"><i class="fas fa-times-circle" style="color:var(--n-red);font-size:.75rem;"></i> {% trans "User account and profile" %}</li>
+          <li style="padding:.45rem 0;font-size:.82rem;color:var(--n-text-2);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--n-border-s);"><i class="fas fa-times-circle" style="color:var(--n-red);font-size:.75rem;"></i> {% trans "All user data and settings" %}</li>
+          <li style="padding:.45rem 0;font-size:.82rem;color:var(--n-text-2);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--n-border-s);"><i class="fas fa-times-circle" style="color:var(--n-red);font-size:.75rem;"></i> {% trans "User permissions and access" %}</li>
+          <li style="padding:.45rem 0;font-size:.82rem;color:var(--n-text-2);display:flex;align-items:center;gap:.5rem;"><i class="fas fa-times-circle" style="color:var(--n-red);font-size:.75rem;"></i> {% trans "Associated activity history" %}</li>
+        </ul>
       </div>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="n-modal-actions">
+          <a href="{% url 'pages:admin_users' %}" class="n-btn n-btn-outline"><i class="fas fa-arrow-left"></i> {% trans "Cancel" %}</a>
+          <button type="submit" class="n-btn n-btn-red"><i class="fas fa-trash-alt"></i> {% trans "Yes, Delete User" %}</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

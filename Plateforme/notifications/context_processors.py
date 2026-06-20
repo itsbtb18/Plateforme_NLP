@@ -1,21 +1,29 @@
 from .services import NotificationService
+from .models import Notification
 
 def notification_processor(request):
     """
-    Contexte processor pour rendre les notifications disponibles dans tous les templates
+    Context processor to make notifications available in all templates.
+    Provides both recent notifications (read + unread) and unread count.
     """
     context = {
-        'unread_notifications': [],
-        'unread_notifications_count': 0
+        'notifications': [],
+        'unread_notifications_count': 0,
     }
     
     if request.user.is_authenticated:
-        # Récupérer les 5 dernières notifications non lues
-        notifications = NotificationService.get_user_notifications(
-            request.user, read=False, limit=5
-        )
+        # Get the 10 most recent notifications (both read and unread) for dropdown
+        notifications = Notification.objects.filter(
+            recipient=request.user
+        ).select_related('content_type').order_by('-created_at')[:10]
         
-        context['unread_notifications'] = notifications
-        context['unread_notifications_count'] = notifications.count()
+        # Count only unread
+        unread_count = Notification.objects.filter(
+            recipient=request.user, 
+            read=False
+        ).count()
+        
+        context['notifications'] = notifications
+        context['unread_notifications_count'] = unread_count
     
     return context

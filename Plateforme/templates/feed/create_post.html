@@ -1,0 +1,953 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+
+{% block title %}{% if post %}{% translate "Edit Post" %}{% else %}{% translate "Create Post" %}{% endif %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
+<style>
+/* ===== CSS VARIABLES - Modern Dark Theme (Unified Corpus Design) ===== */
+:root {
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --bg-card-hover: rgba(167, 139, 250, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    --radius: 8px;
+    --success: #059669;
+    --success-light: #ECFDF5;
+    --danger: #DC2626;
+    --teal: #0D9488;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.post-form-page {
+    min-height: calc(100vh - 100px);
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    padding: 3rem;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.post-create-layout {
+    max-width: 980px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: relative;
+    z-index: 1;
+}
+
+.post-form-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(124, 58, 237, 0.06) 0%, transparent 45%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.form-container {
+    max-width: 100%;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== MINIMAL PAGE HEADER (Simplified Hero) ===== */
+.page-hero {
+    margin-bottom: 1rem;
+    text-align: center;
+    padding: 1.1rem 1.2rem;
+    border: 1px solid rgba(167, 139, 250, 0.18);
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%);
+    box-shadow: 0 10px 28px rgba(2, 6, 23, 0.26);
+    backdrop-filter: blur(8px);
+}
+
+.page-hero::before {
+    display: none;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.5);
+    list-style: none;
+    padding: 0;
+    margin-left: 0;
+    flex-wrap: wrap;
+}
+
+.breadcrumb a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-weight: 500;
+}
+
+.breadcrumb a:hover { 
+    color: var(--accent-cyan);
+}
+
+.breadcrumb .sep { 
+    color: rgba(255,255,255,0.3); 
+    font-size: 0.7rem;
+}
+
+.breadcrumb .current { 
+    color: rgba(255,255,255,0.8); 
+    font-weight: 600;
+}
+
+/* Hero Icon */
+.hero-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    font-size: 1.45rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.25);
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.hero-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+}
+
+.hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    align-items: center;
+    text-align: center;
+}
+
+.hero-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+}
+
+.page-hero h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+    letter-spacing: -0.02em;
+    text-align: center;
+}
+
+.page-hero p {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.9rem;
+    margin: 0;
+    font-weight: 400;
+    text-align: center;
+}
+
+/* Steps bar */
+.steps-bar {
+    display: none;
+}
+
+/* RTL Support */
+html[dir="rtl"] .form-group label { text-align: right; }
+html[dir="rtl"] .form-group input,
+html[dir="rtl"] .form-group textarea,
+html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
+html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; text-align: right; }
+html[dir="rtl"] .page-hero { text-align: center; }
+html[dir="rtl"] .hero-main { flex-direction: row-reverse; align-items: center; justify-content: center; gap: 0.75rem; }
+html[dir="rtl"] .hero-text { align-items: center; text-align: center; }
+html[dir="rtl"] .hero-text h1,
+html[dir="rtl"] .hero-text p { text-align: center; }
+html[dir="rtl"] .page-hero .breadcrumb { justify-content: center; }
+html[dir="rtl"] .upload-btns { flex-direction: row-reverse; }
+html[dir="rtl"] .file-chip { flex-direction: row-reverse; }
+html[dir="rtl"] .form-footer { flex-direction: row-reverse; }
+html[dir="rtl"] .btn { flex-direction: row-reverse; }
+
+/* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
+.card {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.03) 0%, rgba(124, 58, 237, 0.01) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.card-header-icon.purple { background: rgba(167, 139, 250, 0.1); color: #A78BFA; }
+
+.card-header-text h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-header-text p {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-group { margin-bottom: 1.5rem; }
+
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.form-group label .required { color: #ef4444; margin-left: 0.125rem; }
+
+.form-group textarea {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.9rem;
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 8px;
+    background: rgba(255,255,255,.05);
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+    font-family: inherit;
+    min-height: 150px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.form-group textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.1);
+    background: rgba(255,255,255,.08);
+}
+
+.form-group textarea:hover { 
+    border-color: rgba(167, 139, 250, 0.18);
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+/* ===== CHAR COUNTER ===== */
+.char-counter-wrap { display: flex; justify-content: flex-end; margin-top: 0.375rem; }
+
+.char-counter {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 0.25rem 0.5rem;
+    background: rgba(167, 139, 250, 0.1);
+    border-radius: 6px;
+    border: 1px solid var(--border-light);
+}
+
+.char-counter.warn { 
+    color: #f97316; 
+    background: rgba(249, 115, 22, 0.1);
+    border-color: #f97316;
+}
+
+.char-counter.danger { 
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #DC2626;
+}
+
+/* ===== UPLOAD ZONE ===== */
+.upload-zone {
+    border: 1.5px dashed rgba(167, 139, 250, 0.15);
+    border-radius: 8px;
+    padding: 1.5rem 1.25rem;
+    text-align: center;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    background: rgba(167, 139, 250, 0.02);
+    position: relative;
+}
+
+.upload-zone:hover {
+    border-color: rgba(167, 139, 250, 0.25);
+    background: rgba(167, 139, 250, 0.05);
+}
+
+.upload-zone.drag-over {
+    border-color: #a78bfa;
+    border-style: solid;
+    background: rgba(167, 139, 250, 0.08);
+    transform: scale(1.01);
+}
+
+.upload-zone.has-files {
+    border-color: #10b981;
+    border-style: solid;
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.upload-zone input[type="file"] {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.upload-zone-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: white;
+    margin: 0 auto 1rem;
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.upload-zone:hover .upload-zone-icon,
+.upload-zone.drag-over .upload-zone-icon {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(167, 139, 250, 0.4);
+}
+
+.upload-zone.has-files .upload-zone-icon {
+    background: linear-gradient(135deg, var(--success) 0%, #10b981 100%);
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.3);
+}
+
+.upload-zone-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.upload-zone-hint {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.upload-btns {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.upload-pick-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255,255,255,.05);
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.875rem;
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    font-family: inherit;
+    position: relative;
+}
+
+.upload-pick-btn:hover {
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--primary-color);
+    background: rgba(167, 139, 250, 0.06);
+}
+
+.upload-pick-btn.selected {
+    border-color: var(--success);
+    color: var(--success);
+    background: rgba(5, 150, 105, 0.1);
+}
+
+.upload-pick-btn input[type="file"] {
+    position: absolute;
+    left: -9999px;
+}
+
+/* File chips list */
+.file-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: 1rem;
+}
+
+.file-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(5, 150, 105, 0.2);
+    border-radius: 8px;
+}
+
+.file-chip-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(5, 150, 105, 0.15);
+    color: var(--success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.file-chip-info { flex: 1; min-width: 0; }
+
+.file-chip-name { 
+    font-size: 0.875rem; 
+    font-weight: 500; 
+    color: var(--text-primary); 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+
+.file-chip-size { 
+    font-size: 0.8125rem; 
+    color: var(--text-muted); 
+}
+
+.file-chip-remove {
+    padding: 0.375rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s;
+}
+
+.file-chip-remove:hover { 
+    background: rgba(239, 68, 68, 0.1); 
+    color: var(--danger); 
+}
+
+/* ===== SUBMIT BUTTONS ===== */
+.form-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(124, 58, 237, 0.02) 100%);
+    border-top: 1px solid rgba(167, 139, 250, 0.1);
+}
+
+.btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-family: inherit;
+}
+
+.btn-publish {
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.25);
+}
+
+.btn-publish:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+}
+
+.btn-publish:active { 
+    transform: translateY(0) scale(0.98); 
+}
+
+.btn-publish:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed; 
+    transform: none; 
+}
+
+.btn-publish .spinner {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-publish.loading .spinner { display: block; }
+.btn-publish.loading .btn-label { display: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: rgba(255,255,255,.05);
+    color: var(--text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+}
+
+.btn-cancel:hover {
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--primary-color);
+    background: rgba(167, 139, 250, 0.06);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+    .page-hero h1 { font-size: 1.875rem; }
+    .page-hero { padding: 2rem 0; }
+    .form-container { padding: 0 1rem; }
+}
+
+@media (max-width: 768px) {
+    .page-hero { padding: 1.5rem 0 3rem; }
+    .card-body { padding: 1.5rem; }
+    .form-footer { flex-direction: column-reverse; padding: 1.25rem 1.5rem; }
+    .btn { width: 100%; justify-content: center; }
+    .upload-btns { flex-direction: column; }
+    .upload-pick-btn { width: 100%; }
+}
+
+@media (max-width: 1080px) {
+    .page-hero {
+        text-align: center;
+        margin-bottom: 0.85rem;
+        padding: 0.9rem 0.95rem;
+    }
+
+    .breadcrumb {
+        justify-content: center;
+    }
+
+    .hero-main {
+        justify-content: center;
+        gap: 0.75rem;
+    }
+
+    .hero-icon {
+        width: 46px;
+        height: 46px;
+        font-size: 1.2rem;
+    }
+
+    .page-hero h1 {
+        font-size: 1.72rem;
+    }
+
+    html[dir="rtl"] .page-hero,
+    html[dir="rtl"] .page-hero .breadcrumb {
+        text-align: center;
+        justify-content: center;
+    }
+
+    html[dir="rtl"] .hero-main {
+        flex-direction: row-reverse;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ===== DARK HERO HEADER ===== -->
+<!-- ===== FORM BODY ===== -->
+<div class="post-form-page">
+    <div class="post-create-layout">
+    <div class="page-hero">
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb">
+            <a href="{% url 'feed:feed' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المنشورات{% else %}{% trans "Feed" %}{% endif %}</a>
+            <span class="sep"><i class="bi bi-chevron-right"></i></span>
+            <span class="current">{% if post %}{% trans "Edit Post" %}{% else %}{% trans "Create Post" %}{% endif %}</span>
+        </nav>
+
+        <div class="hero-main">
+            <div class="hero-icon">
+                <i class="bi bi-pencil-square"></i>
+            </div>
+            <div class="hero-text">
+                <h1>{% if post %}{% trans "Edit Post" %}{% else %}{% trans "Create Post" %}{% endif %}</h1>
+                <p>{% if post %}{% trans "Update your research note, file, or community update" %}{% else %}{% trans "Share your research, datasets, or updates with the Arabic NLP community" %}{% endif %}</p>
+            </div>
+        </div>
+
+        <!-- Steps bar (decorative) -->
+        <div class="steps-bar">
+            <div class="step-item active">
+                <span class="step-number">1</span>
+                {% trans "Content" %}
+            </div>
+            <div class="step-item">
+                <span class="step-number">2</span>
+                {% trans "Attachments" %}
+            </div>
+            <div class="step-item">
+                <span class="step-number">3</span>
+                {% trans "Publish" %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-container">
+        <!-- Form card -->
+        <div class="card">
+            <form method="POST" action="{% if post %}{% url 'feed:edit_post' post.id %}{% else %}{% url 'feed:create_post' %}{% endif %}" enctype="multipart/form-data" id="createPostForm">
+                {% csrf_token %}
+
+                <!-- Content field -->
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="postContent">{% trans "Post Content" %} <span class="required">*</span></label>
+                        <textarea
+                            name="content"
+                            id="postContent"
+                            class="content-textarea"
+                            placeholder="{% trans 'Share your research findings, announce a new dataset, ask for collaboration, or discuss the latest in Arabic NLP...' %}"
+                            required>{{ form.content.value|default:'' }}</textarea>
+                        <div class="char-counter-wrap">
+                            <span class="char-counter" id="charCount">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Upload section -->
+                    <div class="form-group" style="margin-top: 2rem;">
+                        <label style="margin-bottom: 1rem;">{% trans "Attachments" %}</label>
+                        {% if post and post.image or post and post.file %}
+                        <div class="card" style="margin-bottom:1rem;">
+                            <div class="card-body" style="padding:1rem 1.25rem;">
+                                <div style="font-weight:600;margin-bottom:.75rem;">{% trans "Current Attachments" %}</div>
+                                {% if post.image %}
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:{% if post.file %}.85rem{% else %}0{% endif %};">
+                                    <div style="display:flex;align-items:center;gap:.9rem;">
+                                        <img src="{{ post.image.url }}" alt="{% trans 'Current image' %}" style="width:72px;height:72px;object-fit:cover;border-radius:12px;border:1px solid rgba(167,139,250,.18);">
+                                        <div>
+                                            <div style="font-weight:600;">{% trans "Current image" %}</div>
+                                            <div style="color:var(--text-muted);font-size:.85rem;">{{ post.image.name|slice:"-40:" }}</div>
+                                        </div>
+                                    </div>
+                                    <label style="display:flex;align-items:center;gap:.5rem;margin:0;color:var(--text-secondary);font-size:.9rem;">
+                                        {{ form.remove_image }}
+                                        <span>{% trans "Remove image" %}</span>
+                                    </label>
+                                </div>
+                                {% endif %}
+                                {% if post.file %}
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                                    <div>
+                                        <div style="font-weight:600;">{% trans "Current file" %}</div>
+                                        <a href="{{ post.file.url }}" download style="color:var(--primary-color);text-decoration:none;font-size:.9rem;">{{ post.file.name|slice:"-60:" }}</a>
+                                    </div>
+                                    <label style="display:flex;align-items:center;gap:.5rem;margin:0;color:var(--text-secondary);font-size:.9rem;">
+                                        {{ form.remove_file }}
+                                        <span>{% trans "Remove file" %}</span>
+                                    </label>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="upload-zone" id="uploadZone">
+                            <div class="upload-zone-icon">
+                                <i class="bi bi-cloud-arrow-up" id="zoneIcon"></i>
+                            </div>
+                            <div class="upload-zone-title">{% trans "Drop files here or click to upload" %}</div>
+                            <div class="upload-zone-hint">{% trans "Supports images (PNG, JPG, GIF) and documents (PDF, CSV, JSON)" %}</div>
+
+                            <!-- File buttons -->
+                            <div class="upload-btns">
+                                <label class="upload-pick-btn" id="imgPickBtn">
+                                    <i class="bi bi-image"></i>
+                                    <span id="imgBtnLabel">{% trans "Add Image" %}</span>
+                                    <input type="file" name="image" id="imageInput" accept="image/*">
+                                </label>
+                                <label class="upload-pick-btn" id="filePickBtn">
+                                    <i class="bi bi-paperclip"></i>
+                                    <span id="fileBtnLabel">{% trans "Attach File" %}</span>
+                                    <input type="file" name="file" id="fileInput">
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Chips preview -->
+                        <div class="file-chips" id="fileChips"></div>
+                    </div>
+                </div>
+
+                <!-- Submit buttons -->
+                <div class="form-footer">
+                    <button type="submit" class="btn btn-publish" id="submitBtn">
+                        <span class="spinner"></span>
+                        <span class="btn-label">
+                            <i class="bi bi-send-fill"></i>
+                            {% if post %}{% trans "Save Changes" %}{% else %}{% trans "Publish Post" %}{% endif %}
+                        </span>
+                    </button>
+                    <a href="{% if post %}{% url 'feed:post_detail' post.slug %}{% else %}{% url 'feed:feed' %}{% endif %}" class="btn btn-cancel">
+                        <i class="bi bi-x"></i>
+                        {% trans "Cancel" %}
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    const zone      = document.getElementById('uploadZone');
+    const imgInput  = document.getElementById('imageInput');
+    const fileInput = document.getElementById('fileInput');
+    const chips     = document.getElementById('fileChips');
+    const zoneIcon  = document.getElementById('zoneIcon');
+    const imgBtn    = document.getElementById('imgPickBtn');
+    const fileBtn   = document.getElementById('filePickBtn');
+    const imgLabel  = document.getElementById('imgBtnLabel');
+    const fileLabel = document.getElementById('fileBtnLabel');
+    const charCount = document.getElementById('charCount');
+    const textarea  = document.getElementById('postContent');
+    const submitBtn = document.getElementById('submitBtn');
+    const createPostForm = document.getElementById('createPostForm');
+    const defaultImgLabel = "{% translate 'Add Image' %}";
+    const defaultFileLabel = "{% translate 'Attach File' %}";
+
+    if (!zone || !imgInput || !fileInput || !chips || !zoneIcon || !imgBtn || !fileBtn || !imgLabel || !fileLabel || !charCount || !textarea || !submitBtn || !createPostForm) {
+        return;
+    }
+
+    /* ── Char counter + auto-expand ── */
+    function updateCounter() {
+        const n = textarea.value.length;
+        charCount.textContent = n;
+        charCount.className = 'char-count' + (n > 1000 ? ' over' : n > 800 ? ' warn' : '');
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 500) + 'px';
+    }
+    textarea.addEventListener('input', updateCounter);
+    updateCounter();
+
+    /* ── File size formatter ── */
+    function fmt(b) {
+        if (!b) return '';
+        const u = ['B','KB','MB','GB'], i = Math.floor(Math.log(b) / Math.log(1024));
+        return (b / Math.pow(1024, i)).toFixed(1) + ' ' + u[i];
+    }
+
+    /* ── Add a chip ── */
+    function addChip(file, type, inputId) {
+        chips.querySelectorAll(`[data-type="${type}"]`).forEach(el => el.remove());
+        const chip = document.createElement('div');
+        chip.className = 'file-chip';
+        chip.dataset.type = type;
+        chip.innerHTML = `
+            <div class="file-chip-icon">
+                <i class="bi bi-${type === 'image' ? 'image' : 'file-earmark-check'}"></i>
+            </div>
+            <div class="file-chip-info">
+                <div class="file-chip-name">${file.name}</div>
+                <div class="file-chip-size">${fmt(file.size)}</div>
+            </div>
+            <button type="button" class="file-chip-remove" data-input="${inputId}" data-type="${type}">
+                <i class="bi bi-x-lg"></i>
+            </button>`;
+        chips.appendChild(chip);
+        refreshZoneState();
+    }
+
+    /* ── Remove chip ── */
+    chips.addEventListener('click', function (e) {
+        const btn = e.target.closest('.file-chip-remove');
+        if (!btn) return;
+        const input = document.getElementById(btn.dataset.input);
+        if (input) input.value = '';
+        btn.closest('.file-chip').remove();
+        // Reset button label
+        if (btn.dataset.type === 'image') {
+            imgLabel.textContent = defaultImgLabel;
+            imgBtn.classList.remove('selected');
+        } else {
+            fileLabel.textContent = defaultFileLabel;
+            fileBtn.classList.remove('selected');
+        }
+        refreshZoneState();
+    });
+
+    /* ── Zone state based on selections ── */
+    function refreshZoneState() {
+        const hasAny = chips.children.length > 0;
+        zone.classList.toggle('has-files', hasAny);
+        zoneIcon.className = hasAny ? 'bi bi-check2-circle' : 'bi bi-cloud-arrow-up';
+    }
+
+    /* ── Image selected ── */
+    imgInput.addEventListener('change', function () {
+        const f = this.files[0];
+        if (!f) return;
+        imgLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
+        imgBtn.classList.add('selected');
+        addChip(f, 'image', 'imageInput');
+    });
+
+    /* ── File selected ── */
+    fileInput.addEventListener('change', function () {
+        const f = this.files[0];
+        if (!f) return;
+        fileLabel.textContent = f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
+        fileBtn.classList.add('selected');
+        addChip(f, 'file', 'fileInput');
+    });
+
+    /* ── Drag & drop ── */
+    ['dragenter','dragover','dragleave','drop'].forEach(ev =>
+        zone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); })
+    );
+    ['dragenter','dragover'].forEach(ev =>
+        zone.addEventListener(ev, () => zone.classList.add('drag-over'))
+    );
+    ['dragleave','drop'].forEach(ev =>
+        zone.addEventListener(ev, () => zone.classList.remove('drag-over'))
+    );
+    zone.addEventListener('drop', function (e) {
+        const f = e.dataTransfer.files[0];
+        if (!f) return;
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        if (f.type.startsWith('image/')) {
+            imgInput.files = dt.files;
+            imgInput.dispatchEvent(new Event('change'));
+        } else {
+            fileInput.files = dt.files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+
+    /* ── Submit loading ── */
+    createPostForm.addEventListener('submit', function () {
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+    });
+
+}());
+</script>
+{% endblock %}

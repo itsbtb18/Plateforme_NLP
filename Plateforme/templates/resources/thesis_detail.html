@@ -1,26 +1,1529 @@
-{% extends "resources/resource_detail.html" %}
-{% load i18n %}
-{% block resource_specific_details %}
+{% extends "base.html" %}
+{% load i18n static %}
 
-<div class="mb-4">
-    <h3 class="h5 border-bottom pb-2 fw-bold"><i class="bi bi-file-earmark-text me-2"></i>{% trans "Thesis Details" %}</h3>
-    <div class="row mt-3">
-        <div class="col-md-6">
-            <div class="mb-3">
-                <span class="text-muted">{% trans "Institution:" %}</span>
-                <strong class="ms-2">{{ specific_object.institution }}</strong>
+{% block title %}{{ object.get_localized_title }} - {% translate "Doctoral Thesis" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ===== DOCTORAL THESIS CSS ARCHITECTURE ===== */
+/* Namespaced classes to prevent conflicts */
+
+:root {
+    /* Academic Theme Colors */
+    --academic-deep: #0f172a;
+    --academic-navy: #1e3a5f;
+    --academic-accent: #2563eb;
+    --academic-accent-light: #3b82f6;
+    --academic-accent-hover: #1d4ed8;
+    --academic-teal: #0d9488;
+    --academic-emerald: #059669;
+    
+    /* Surfaces */
+    --academic-white: #ffffff;
+    --academic-surface: #ffffff;
+    --academic-sidebar-bg: #f8fafc;
+    --academic-muted: #f1f5f9;
+    --academic-subtle: #e2e8f0;
+    
+    /* Borders */
+    --academic-border: #e2e8f0;
+    --academic-border-hover: #cbd5e1;
+    
+    /* Typography */
+    --academic-text: #0f172a;
+    --academic-text-secondary: #475569;
+    --academic-text-muted: #94a3b8;
+    
+    /* Semantic */
+    --academic-success: #059669;
+    --academic-success-bg: #ecfdf5;
+    --academic-warning: #d97706;
+    --academic-warning-bg: #fffbeb;
+    --academic-danger: #dc2626;
+    --academic-info: #0891b2;
+    --academic-info-bg: #ecfeff;
+    
+    /* Thesis-specific accent (Deep Purple) */
+    --thesis-accent: #7c3aed;
+    --thesis-accent-light: #8b5cf6;
+    --thesis-accent-hover: #6d28d9;
+    --thesis-accent-bg: rgba(124, 58, 237, 0.08);
+    --thesis-gold: #d97706;
+    --thesis-gold-bg: rgba(217, 119, 6, 0.08);
+    
+    /* Effects */
+    --academic-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --academic-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+    --academic-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    --academic-shadow-card: 0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.04);
+    
+    /* Radii */
+    --academic-radius-sm: 6px;
+    --academic-radius-md: 10px;
+    --academic-radius-lg: 14px;
+    --academic-radius-xl: 20px;
+    --academic-radius-full: 9999px;
+}
+
+/* Typography */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.academic-paper-page {
+    min-height: 100vh;
+    background: var(--academic-sidebar-bg);
+}
+
+/* ===== HERO HEADER ===== */
+.academic-paper-hero {
+    background: linear-gradient(145deg, #1e1b4b 0%, #312e81 100%);
+    padding: 2.5rem 0 3.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.academic-paper-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        radial-gradient(ellipse 50% 80% at 80% 20%, rgba(124, 58, 237, 0.2), transparent),
+        radial-gradient(ellipse 40% 60% at 20% 80%, rgba(217, 119, 6, 0.1), transparent),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+}
+
+.academic-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Breadcrumb */
+.academic-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+}
+
+.academic-breadcrumb-item a {
+    color: rgba(255, 255, 255, 0.6);
+    text-decoration: none;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    transition: color 0.2s;
+}
+
+.academic-breadcrumb-item a:hover {
+    color: var(--academic-white);
+}
+
+.academic-breadcrumb-separator {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.75rem;
+}
+
+.academic-breadcrumb-current {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.875rem;
+    max-width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Resource Type Indicator */
+.academic-paper-type-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.academic-type-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--thesis-accent), var(--thesis-accent-hover));
+    border-radius: var(--academic-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--academic-white);
+    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+    position: relative;
+}
+
+/* Doctoral Cap Icon Decoration */
+.academic-type-icon::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 18px;
+    height: 18px;
+    background: linear-gradient(135deg, #fbbf24, #d97706);
+    border-radius: 50%;
+    border: 2px solid #312e81;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.4);
+}
+
+.academic-type-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.academic-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.875rem;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(217, 119, 6, 0.15));
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: var(--academic-radius-full);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fcd34d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: fit-content;
+}
+
+.academic-degree-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: #c4b5fd;
+}
+
+/* Paper Title */
+.academic-paper-title {
+    font-size: clamp(1.625rem, 3.5vw, 2.25rem);
+    font-weight: 800;
+    color: var(--academic-white);
+    margin: 0 0 1.25rem;
+    line-height: 1.3;
+    letter-spacing: -0.25px;
+}
+
+/* Knowledge Bar */
+.academic-knowledge-bar {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.academic-knowledge-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.875rem;
+}
+
+.academic-knowledge-chip i {
+    font-size: 1rem;
+    color: var(--thesis-accent-light);
+}
+
+.academic-knowledge-chip .chip-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    margin-right: 0.25rem;
+}
+
+html[dir="rtl"] .academic-knowledge-chip .chip-label {
+    margin-right: 0;
+    margin-left: 0.25rem;
+}
+
+/* ===== MAIN CONTENT GRID (75/25 Split) ===== */
+.academic-paper-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 4rem;
+}
+
+.academic-paper-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 2.5rem;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .academic-paper-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== LEFT COLUMN - MAIN CONTENT ===== */
+.academic-main-column {
+    min-width: 0;
+}
+
+/* Content Card */
+.academic-content-card {
+    background: var(--academic-white);
+    border: 1px solid var(--academic-border);
+    border-radius: var(--academic-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--academic-shadow-card);
+    margin-bottom: 1.5rem;
+}
+
+.academic-content-card:last-child {
+    margin-bottom: 0;
+}
+
+.academic-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 1.5rem;
+    background: var(--academic-muted);
+    border-bottom: 1px solid var(--academic-border);
+}
+
+.academic-card-header i {
+    font-size: 1.1rem;
+    color: var(--thesis-accent);
+}
+
+.academic-card-header h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--academic-text);
+    margin: 0;
+}
+
+.academic-card-body {
+    padding: 1.75rem;
+}
+
+/* Abstract Section with Left Border */
+.academic-abstract-section {
+    position: relative;
+    padding-left: 1.5rem;
+    border-left: 4px solid var(--thesis-accent);
+}
+
+html[dir="rtl"] .academic-abstract-section {
+    padding-left: 0;
+    padding-right: 1.5rem;
+    border-left: none;
+    border-right: 4px solid var(--thesis-accent);
+}
+
+.academic-abstract-text {
+    color: var(--academic-text-secondary);
+    font-size: 1rem;
+    line-height: 1.8;
+}
+
+.academic-abstract-text p {
+    margin: 0 0 1rem;
+}
+
+.academic-abstract-text p:last-child {
+    margin-bottom: 0;
+}
+
+/* Translation Missing Alert */
+.academic-translation-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: var(--academic-info-bg);
+    border: 1px solid #a5f3fc;
+    border-radius: var(--academic-radius-md);
+    margin-bottom: 1rem;
+}
+
+.academic-translation-alert i {
+    font-size: 1.25rem;
+    color: var(--academic-info);
+}
+
+.academic-translation-alert span {
+    font-size: 0.875rem;
+    color: var(--academic-info);
+    font-weight: 500;
+}
+
+/* Academic Degree Section (Thesis-Specific) */
+.academic-degree-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 640px) {
+    .academic-degree-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.academic-degree-item {
+    padding: 1.25rem;
+    background: var(--academic-muted);
+    border-radius: var(--academic-radius-lg);
+    border: 1px solid var(--academic-border);
+}
+
+.academic-degree-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--academic-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.academic-degree-label i {
+    font-size: 0.9rem;
+    color: var(--thesis-accent);
+}
+
+.academic-degree-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--academic-text);
+    word-break: break-word;
+}
+
+/* Supervisor Card (Full Width) */
+.academic-supervisor-card {
+    grid-column: span 2;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: linear-gradient(135deg, var(--thesis-accent-bg), var(--academic-muted));
+    flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+    .academic-supervisor-card {
+        grid-column: span 1;
+    }
+}
+
+.academic-supervisor-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--thesis-accent), var(--thesis-accent-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--academic-white);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.academic-supervisor-info h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--academic-text);
+    margin: 0 0 0.25rem;
+}
+
+.academic-supervisor-info p {
+    font-size: 0.8rem;
+    color: var(--academic-text-muted);
+    margin: 0;
+}
+
+/* Jury Section */
+.academic-jury-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed var(--academic-border);
+}
+
+.academic-jury-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--academic-text);
+    margin-bottom: 1rem;
+}
+
+.academic-jury-header i {
+    font-size: 1rem;
+    color: var(--thesis-gold);
+}
+
+.academic-jury-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.academic-jury-member {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    background: var(--thesis-gold-bg);
+    border: 1px solid rgba(217, 119, 6, 0.15);
+    border-radius: var(--academic-radius-full);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--academic-text-secondary);
+}
+
+.academic-jury-member i {
+    font-size: 0.9rem;
+    color: var(--thesis-gold);
+}
+
+/* Laboratory Card */
+.academic-lab-card {
+    grid-column: span 2;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: linear-gradient(135deg, var(--thesis-gold-bg), var(--academic-muted));
+    border-color: rgba(217, 119, 6, 0.15);
+    flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+    .academic-lab-card {
+        grid-column: span 1;
+    }
+}
+
+.academic-lab-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--academic-radius-lg);
+    background: linear-gradient(135deg, var(--thesis-gold), #b45309);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--academic-white);
+    flex-shrink: 0;
+}
+
+.academic-lab-info h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--academic-text);
+    margin: 0 0 0.25rem;
+}
+
+.academic-lab-info p {
+    font-size: 0.8rem;
+    color: var(--academic-text-muted);
+    margin: 0;
+}
+
+/* Keywords */
+.academic-keywords-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.academic-keyword-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.4rem 0.875rem;
+    background: var(--academic-muted);
+    border: 1px solid var(--academic-border);
+    border-radius: var(--academic-radius-full);
+    font-size: 0.8rem;
+    color: var(--academic-text-secondary);
+    transition: all 0.2s;
+}
+
+.academic-keyword-chip:hover {
+    background: var(--thesis-accent);
+    border-color: var(--thesis-accent);
+    color: var(--academic-white);
+    cursor: pointer;
+}
+
+.academic-keyword-chip i {
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+/* ===== RIGHT COLUMN - SIDEBAR ===== */
+.academic-sidebar-column {
+    position: sticky;
+    top: 20px;
+}
+
+@media (max-width: 1024px) {
+    .academic-sidebar-column {
+        position: static;
+    }
+}
+
+/* Sidebar Card */
+.academic-sidebar-card {
+    background: var(--academic-white);
+    border: 1px solid var(--academic-border);
+    border-radius: var(--academic-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--academic-shadow-card);
+    margin-bottom: 1.5rem;
+}
+
+.academic-sidebar-card:last-child {
+    margin-bottom: 0;
+}
+
+.academic-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--academic-muted);
+    border-bottom: 1px solid var(--academic-border);
+}
+
+.academic-sidebar-header i {
+    font-size: 1rem;
+    color: var(--thesis-accent);
+}
+
+.academic-sidebar-header h3 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--academic-text);
+    margin: 0;
+}
+
+/* Resource Action Sidebar */
+.academic-action-card {
+    padding: 1.5rem;
+}
+
+.academic-action-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, var(--thesis-accent), var(--thesis-accent-light));
+    color: var(--academic-white);
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: var(--academic-radius-lg);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.25s;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+    margin-bottom: 1rem;
+}
+
+.academic-action-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35);
+    color: var(--academic-white);
+}
+
+.academic-action-primary i {
+    font-size: 1.1rem;
+}
+
+.academic-file-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: var(--academic-text-muted);
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed var(--academic-border);
+}
+
+.academic-file-info span {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.academic-action-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--academic-white);
+    color: var(--thesis-accent);
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: 2px solid var(--thesis-accent);
+    border-radius: var(--academic-radius-md);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 0.75rem;
+}
+
+.academic-action-secondary:hover {
+    background: var(--thesis-accent);
+    color: var(--academic-white);
+}
+
+.academic-action-ghost {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    color: var(--academic-text-secondary);
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: 1px solid var(--academic-border);
+    border-radius: var(--academic-radius-md);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.academic-action-ghost:hover {
+    background: var(--academic-muted);
+    border-color: var(--academic-border-hover);
+    color: var(--academic-text);
+}
+
+/* Author Info */
+.academic-author-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+}
+
+.academic-author-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--thesis-accent), var(--thesis-accent-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--academic-white);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.academic-author-details h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--academic-text);
+    margin: 0 0 0.25rem;
+}
+
+.academic-author-details p {
+    font-size: 0.8rem;
+    color: var(--academic-text-muted);
+    margin: 0;
+}
+
+/* Info List */
+.academic-info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.academic-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--academic-border);
+    gap: 1rem;
+}
+
+.academic-info-row:last-child {
+    border-bottom: none;
+}
+
+.academic-info-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--academic-text-muted);
+    flex-shrink: 0;
+}
+
+.academic-info-label i {
+    font-size: 0.9rem;
+    color: var(--thesis-accent);
+    width: 18px;
+    text-align: center;
+}
+
+.academic-info-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--academic-text);
+    text-align: end;
+    word-break: break-word;
+}
+
+/* ===== CITATION MODAL ===== */
+.academic-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+}
+
+.academic-modal-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.academic-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    width: 90%;
+    max-width: 560px;
+    max-height: 90vh;
+    background: var(--academic-white);
+    border-radius: var(--academic-radius-xl);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    z-index: 1001;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+    overflow: hidden;
+}
+
+.academic-modal.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.academic-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    background: var(--academic-muted);
+    border-bottom: 1px solid var(--academic-border);
+}
+
+.academic-modal-header h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--academic-text);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.academic-modal-close {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--academic-white);
+    border: 1px solid var(--academic-border);
+    border-radius: var(--academic-radius-md);
+    color: var(--academic-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.academic-modal-close:hover {
+    background: var(--academic-danger);
+    border-color: var(--academic-danger);
+    color: var(--academic-white);
+}
+
+.academic-modal-body {
+    padding: 1.5rem;
+    max-height: calc(90vh - 140px);
+    overflow-y: auto;
+}
+
+/* Citation Tabs */
+.academic-cite-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.25rem;
+    background: var(--academic-muted);
+    border-radius: var(--academic-radius-md);
+}
+
+.academic-cite-tab {
+    flex: 1;
+    padding: 0.625rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: var(--academic-radius-sm);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--academic-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.academic-cite-tab:hover {
+    color: var(--academic-text);
+}
+
+.academic-cite-tab.active {
+    background: var(--academic-white);
+    color: var(--thesis-accent);
+    box-shadow: var(--academic-shadow-sm);
+}
+
+/* Citation Content */
+.academic-cite-content {
+    display: none;
+}
+
+.academic-cite-content.active {
+    display: block;
+}
+
+.academic-cite-box {
+    position: relative;
+    padding: 1rem;
+    background: var(--academic-muted);
+    border: 1px solid var(--academic-border);
+    border-radius: var(--academic-radius-md);
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--academic-text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.academic-copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    background: var(--academic-white);
+    border: 1px solid var(--academic-border);
+    border-radius: var(--academic-radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--academic-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+html[dir="rtl"] .academic-copy-btn {
+    right: auto;
+    left: 0.5rem;
+}
+
+.academic-copy-btn:hover {
+    background: var(--thesis-accent);
+    border-color: var(--thesis-accent);
+    color: var(--academic-white);
+}
+
+.academic-copy-btn.copied {
+    background: var(--academic-success);
+    border-color: var(--academic-success);
+    color: var(--academic-white);
+}
+
+/* ===== RTL SUPPORT ===== */
+html[dir="rtl"] .academic-paper-hero {
+    direction: rtl;
+}
+
+html[dir="rtl"] .academic-paper-title {
+    text-align: right;
+    direction: rtl;
+}
+
+html[dir="rtl"] .academic-hero-container {
+    text-align: right;
+    direction: rtl;
+}
+
+html[dir="rtl"] .thesis-breadcrumb {
+    flex-direction: row-reverse;
+    text-align: right;
+    direction: rtl;
+}
+
+html[dir="rtl"] .thesis-breadcrumb li {
+    text-align: right;
+}
+
+html[dir="rtl"] .academic-paper-grid {
+    direction: rtl;
+}
+
+html[dir="rtl"] .academic-info-row {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+html[dir="rtl"] .academic-author-info {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .academic-supervisor-card,
+html[dir="rtl"] .academic-lab-card {
+    flex-direction: row-reverse;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .academic-paper-hero {
+        padding: 2rem 0 2.5rem;
+    }
+    
+    .academic-hero-container {
+        padding: 0 1rem;
+    }
+    
+    .academic-paper-title {
+        font-size: 1.375rem;
+    }
+    
+    .academic-type-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.25rem;
+    }
+    
+    .academic-knowledge-bar {
+        gap: 1rem;
+    }
+    
+    .academic-paper-container {
+        padding: 1.5rem 1rem 3rem;
+    }
+    
+    .academic-card-body {
+        padding: 1.25rem;
+    }
+    
+    .academic-degree-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .academic-supervisor-card,
+    .academic-lab-card {
+        grid-column: span 1;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="academic-paper-page">
+    
+    <!-- ============ HERO HEADER ============ -->
+    <header class="academic-paper-hero">
+        <div class="academic-hero-container">
+            
+            <!-- Breadcrumb -->
+            <nav class="academic-breadcrumb" aria-label="{% translate 'Breadcrumb' %}">
+                <div class="academic-breadcrumb-item">
+                    <a href="{% url 'resources:article_list' %}">
+                        <i class="bi bi-archive"></i>
+                        {% translate "Documents" %}
+                    </a>
+                </div>
+                <span class="academic-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+                <div class="academic-breadcrumb-item">
+                    <a href="{% url 'resources:article_list' %}?type=thesis">
+                        {% translate "Theses" %}
+                    </a>
+                </div>
+                <span class="academic-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+                <span class="academic-breadcrumb-current">{{ object.get_localized_title|truncatechars:40 }}</span>
+            </nav>
+            
+            <!-- Type Indicator -->
+            <div class="academic-paper-type-indicator">
+                <div class="academic-type-icon">
+                    <i class="bi bi-mortarboard-fill"></i>
+                </div>
+                <div class="academic-type-label">
+                    <span class="academic-type-badge">
+                        <i class="bi bi-award-fill"></i>
+                        {% translate "Doctoral Thesis (PhD)" %}
+                    </span>
+                    {% if specific_object.degree %}
+                    <span class="academic-degree-badge">
+                        <i class="bi bi-star-fill"></i>
+                        {{ specific_object.degree }}
+                    </span>
+                    {% endif %}
+                </div>
             </div>
-        
-            <div class="mb-3">
-                <span class="text-muted">{% trans "Defense Year:" %}</span>
-                <strong class="ms-2">{{ specific_object.defense_year }}</strong>
-            </div>
-            <div class="mb-3">
-                <span class="text-muted">{% trans "Supervisor:" %}</span>
-                <strong class="ms-2">{{ specific_object.supervisor }}</strong>
+            
+            <!-- Paper Title -->
+            <h1 class="academic-paper-title">{{ object.get_localized_title }}</h1>
+            
+            <!-- Knowledge Bar -->
+            <div class="academic-knowledge-bar">
+                <div class="academic-knowledge-chip">
+                    <i class="bi bi-person-circle"></i>
+                    <span>{{ object.author.get_full_name_display|default:_("Unknown Author") }}</span>
+                </div>
+                {% if specific_object.defense_year %}
+                <div class="academic-knowledge-chip">
+                    <span class="chip-label">{% translate "Defended" %}:</span>
+                    <span>{{ specific_object.defense_year }}</span>
+                </div>
+                {% endif %}
+                <div class="academic-knowledge-chip">
+                    <i class="bi bi-globe2"></i>
+                    <span>{% if object.language == "ar" %}{% translate "Arabic" %}{% else %}{% translate "English" %}{% endif %}</span>
+                </div>
+                {% if specific_object.institution %}
+                <div class="academic-knowledge-chip">
+                    <i class="bi bi-building"></i>
+                    <span>{{ specific_object.institution.name|truncatechars:30 }}</span>
+                </div>
+                {% endif %}
             </div>
             
         </div>
+    </header>
+    
+    <!-- ============ MAIN CONTENT ============ -->
+    <main class="academic-paper-container">
+        <div class="academic-paper-grid">
+            
+            <!-- ===== LEFT COLUMN (75%) ===== -->
+            <div class="academic-main-column">
+                
+                <!-- Abstract Section -->
+                <article class="academic-content-card">
+                    <div class="academic-card-header">
+                        <i class="bi bi-text-paragraph"></i>
+                        <h2>{% translate "Abstract" %}</h2>
+                    </div>
+                    <div class="academic-card-body">
+                        {% if not object.get_localized_description %}
+                        <div class="academic-translation-alert">
+                            <i class="bi bi-translate"></i>
+                            <span>{% translate "Translation in progress. The abstract will be available soon." %}</span>
+                        </div>
+                        {% endif %}
+                        <div class="academic-abstract-section">
+                            <div class="academic-abstract-text">
+                                {{ object.get_localized_description|linebreaks|default:_("No abstract provided for this thesis.") }}
+                            </div>
+                        </div>
+                    </div>
+                </article>
+                
+                <!-- Academic Degree Information (Thesis-Specific) -->
+                <article class="academic-content-card">
+                    <div class="academic-card-header">
+                        <i class="bi bi-mortarboard"></i>
+                        <h2>{% translate "Academic Degree & Supervision" %}</h2>
+                    </div>
+                    <div class="academic-card-body">
+                        <div class="academic-degree-grid">
+                            
+                            <!-- Supervisor Card -->
+                            {% if specific_object.supervisor %}
+                            <div class="academic-degree-item academic-supervisor-card">
+                                <div class="academic-supervisor-avatar">
+                                    {{ specific_object.supervisor|slice:":2"|upper }}
+                                </div>
+                                <div class="academic-supervisor-info">
+                                    <div class="academic-degree-label">
+                                        <i class="bi bi-person-check"></i>
+                                        {% translate "Thesis Supervisor" %}
+                                    </div>
+                                    <h4>{{ specific_object.supervisor }}</h4>
+                                    <p>{% translate "Professor / Director of Research" %}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if specific_object.institution %}
+                            <div class="academic-degree-item">
+                                <div class="academic-degree-label">
+                                    <i class="bi bi-building"></i>
+                                    {% translate "Institution" %}
+                                </div>
+                                <div class="academic-degree-value">{{ specific_object.institution.name }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if specific_object.defense_year %}
+                            <div class="academic-degree-item">
+                                <div class="academic-degree-label">
+                                    <i class="bi bi-calendar-check"></i>
+                                    {% translate "Defense Year" %}
+                                </div>
+                                <div class="academic-degree-value">{{ specific_object.defense_year }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Research Laboratory -->
+                            {% if specific_object.laboratory %}
+                            <div class="academic-degree-item academic-lab-card">
+                                <div class="academic-lab-icon">
+                                    <i class="bi bi-beaker"></i>
+                                </div>
+                                <div class="academic-lab-info">
+                                    <div class="academic-degree-label">
+                                        <i class="bi bi-flask"></i>
+                                        {% translate "Research Laboratory" %}
+                                    </div>
+                                    <h4>{{ specific_object.laboratory }}</h4>
+                                    <p>{% translate "Research Unit" %}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Jury Members Section -->
+                        {% if specific_object.jury_members %}
+                        <div class="academic-jury-section">
+                            <div class="academic-jury-header">
+                                <i class="bi bi-people-fill"></i>
+                                {% translate "Jury Members" %}
+                            </div>
+                            <div class="academic-jury-list">
+                                {% for member in specific_object.get_jury_members_list %}
+                                <span class="academic-jury-member">
+                                    <i class="bi bi-person-badge"></i>
+                                    {{ member }}
+                                </span>
+                                {% empty %}
+                                <span class="academic-jury-member">
+                                    <i class="bi bi-person-badge"></i>
+                                    {{ specific_object.jury_members }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </article>
+                
+                <!-- Keywords -->
+                {% if object.keywords %}
+                <article class="academic-content-card">
+                    <div class="academic-card-header">
+                        <i class="bi bi-tags"></i>
+                        <h2>{% translate "Keywords" %}</h2>
+                    </div>
+                    <div class="academic-card-body">
+                        <div class="academic-keywords-list">
+                            {% for keyword in object.get_keywords_list %}
+                            <span class="academic-keyword-chip">
+                                <i class="bi bi-hash"></i>
+                                {{ keyword }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </article>
+                {% endif %}
+                
+                <!-- Notes -->
+                {% if object.notes %}
+                <article class="academic-content-card">
+                    <div class="academic-card-header">
+                        <i class="bi bi-journal-text"></i>
+                        <h2>{% translate "Additional Notes" %}</h2>
+                    </div>
+                    <div class="academic-card-body">
+                        <div class="academic-abstract-text">
+                            {{ object.notes|linebreaks }}
+                        </div>
+                    </div>
+                </article>
+                {% endif %}
+                
+            </div>
+            
+            <!-- ===== RIGHT COLUMN (25%) - SIDEBAR ===== -->
+            <aside class="academic-sidebar-column">
+                
+                <!-- Resource Actions -->
+                <div class="academic-sidebar-card">
+                    <div class="academic-action-card">
+                        {% if object.uploaded_file %}
+                        <button type="button" 
+                                class="academic-action-primary"
+                                onclick="openDocumentViewer('{{ object.uploaded_file.url }}', null, '{{ object.pk }}', '{{ object.title|escapejs }}')">
+                            <i class="bi bi-eye"></i>
+                            {% translate "View Thesis PDF" %}
+                        </button>
+                        <a href="{{ object.uploaded_file.url }}" target="_blank" class="academic-action-secondary">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                            {% translate "Download Thesis PDF" %}
+                        </a>
+                        <div class="academic-file-info">
+                            <span><i class="bi bi-file-earmark"></i> PDF</span>
+                            <span><i class="bi bi-hdd"></i> {% translate "Full Thesis" %}</span>
+                        </div>
+                        {% elif object.access_link %}
+                        <a href="{{ object.access_link }}" target="_blank" class="academic-action-primary">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                            {% translate "Access Thesis" %}
+                        </a>
+                        {% endif %}
+                        
+                        {% if object.uploaded_file %}
+                        <a href="{% url 'chatbot:chatbot_interface' %}?doc_action=analyse&doc_id={{ object.id }}&doc_title={{ object.get_localized_title|urlencode }}&doc_file={{ object.uploaded_file.url|urlencode }}" class="academic-action-secondary" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;text-align:center">
+                            <i class="bi bi-robot"></i>
+                            {% translate "Ask Chatbot About This Document" %}
+                        </a>
+                        {% endif %}
+
+                        <button type="button" class="academic-action-secondary" onclick="openCiteModal()">
+                            <i class="bi bi-quote"></i>
+                            {% translate "Cite This Thesis" %}
+                        </button>
+                        
+                        <a href="mailto:{{ object.author.email|default:'' }}" class="academic-action-ghost">
+                            <i class="bi bi-envelope"></i>
+                            {% translate "Contact Author" %}
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Doctoral Candidate (Author) Info -->
+                <div class="academic-sidebar-card">
+                    <div class="academic-sidebar-header">
+                        <i class="bi bi-person-badge"></i>
+                        <h3>{% translate "Doctoral Candidate" %}</h3>
+                    </div>
+                    <div class="academic-author-info">
+                        <div class="academic-author-avatar">
+                            {{ object.author.get_full_name_display|slice:":2"|upper|default:"?" }}
+                        </div>
+                        <div class="academic-author-details">
+                            <h4>{{ object.author.get_full_name_display|default:_("Unknown") }}</h4>
+                            <p>{% translate "PhD Candidate" %}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Thesis Details -->
+                <div class="academic-sidebar-card">
+                    <div class="academic-sidebar-header">
+                        <i class="bi bi-info-circle"></i>
+                        <h3>{% translate "Thesis Details" %}</h3>
+                    </div>
+                    <ul class="academic-info-list">
+                        <li class="academic-info-row">
+                            <span class="academic-info-label">
+                                <i class="bi bi-calendar-plus"></i>
+                                {% translate "Submitted" %}
+                            </span>
+                            <span class="academic-info-value">{{ object.creation_date|date:"M d, Y" }}</span>
+                        </li>
+                        <li class="academic-info-row">
+                            <span class="academic-info-label">
+                                <i class="bi bi-translate"></i>
+                                {% translate "Language" %}
+                            </span>
+                            <span class="academic-info-value">
+                                {% if object.language == "ar" %}{% translate "Arabic" %}{% else %}{% translate "English" %}{% endif %}
+                            </span>
+                        </li>
+                        <li class="academic-info-row">
+                            <span class="academic-info-label">
+                                <i class="bi bi-shield-check"></i>
+                                {% translate "Status" %}
+                            </span>
+                            <span class="academic-info-value">
+                                {% if object.approval_status == 'approved' %}{% translate "Published" %}
+                                {% elif object.approval_status == 'pending' %}{% translate "Under Review" %}
+                                {% else %}{% translate "Rejected" %}{% endif %}
+                            </span>
+                        </li>
+                        <li class="academic-info-row">
+                            <span class="academic-info-label">
+                                <i class="bi bi-eye"></i>
+                                {% translate "Views" %}
+                            </span>
+                            <span class="academic-info-value">{{ object.views_count|default:"0" }}</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Admin Actions -->
+                {% if request.user == object.author or request.user.is_staff %}
+                <div class="academic-sidebar-card">
+                    <div class="academic-sidebar-header">
+                        <i class="bi bi-gear"></i>
+                        <h3>{% translate "Manage" %}</h3>
+                    </div>
+                    <div class="academic-action-card" style="padding-top: 0;">
+                        <a href="{% url 'resources:resource-update' type='thesis' pk=object.pk %}" class="academic-action-ghost" style="margin-bottom: 0.5rem;">
+                            <i class="bi bi-pencil-square"></i>
+                            {% translate "Edit Thesis" %}
+                        </a>
+                        <a href="{% url 'resources:resource-delete' type='thesis' pk=object.pk %}" class="academic-action-ghost" style="color: var(--academic-danger); border-color: #fecaca;">
+                            <i class="bi bi-trash3"></i>
+                            {% translate "Delete" %}
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                
+            </aside>
+            
+        </div>
+    </main>
+    
+</div>
+
+<!-- ============ CITATION MODAL ============ -->
+<div class="academic-modal-backdrop" id="citeModalBackdrop" onclick="closeCiteModal()"></div>
+<div class="academic-modal" id="citeModal">
+    <div class="academic-modal-header">
+        <h3><i class="bi bi-quote"></i> {% translate "Cite This Thesis" %}</h3>
+        <button type="button" class="academic-modal-close" onclick="closeCiteModal()">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    <div class="academic-modal-body">
+        <div class="academic-cite-tabs">
+            <button type="button" class="academic-cite-tab active" data-format="bibtex">BibTeX</button>
+            <button type="button" class="academic-cite-tab" data-format="apa">APA</button>
+            <button type="button" class="academic-cite-tab" data-format="mla">MLA</button>
+        </div>
+        
+        <div class="academic-cite-content active" data-content="bibtex">
+            <div class="academic-cite-box">
+                <button type="button" class="academic-copy-btn" onclick="copyCitation(this, 'bibtex')">
+                    <i class="bi bi-clipboard"></i> {% translate "Copy" %}
+                </button>@phdthesis{ {{ object.author.username|default:"author" }}{{ specific_object.defense_year|default:object.creation_date|date:"Y" }},
+  author = { {{ object.author.get_full_name_display|default:"Unknown Author" }} },
+  title = { {{ object.get_localized_title }} },
+  school = { {{ specific_object.institution.name|default:"University" }} },
+  year = { {{ specific_object.defense_year|default:object.creation_date|date:"Y" }} },
+  type = { PhD Thesis },
+}</div>
+        </div>
+        
+        <div class="academic-cite-content" data-content="apa">
+            <div class="academic-cite-box">
+                <button type="button" class="academic-copy-btn" onclick="copyCitation(this, 'apa')">
+                    <i class="bi bi-clipboard"></i> {% translate "Copy" %}
+                </button>{{ object.author.get_full_name_display|default:"Unknown Author" }} ({{ specific_object.defense_year|default:object.creation_date|date:"Y" }}). <em>{{ object.get_localized_title }}</em> [Doctoral dissertation]. {{ specific_object.institution.name|default:"University" }}.</div>
+        </div>
+        
+        <div class="academic-cite-content" data-content="mla">
+            <div class="academic-cite-box">
+                <button type="button" class="academic-copy-btn" onclick="copyCitation(this, 'mla')">
+                    <i class="bi bi-clipboard"></i> {% translate "Copy" %}
+                </button>{{ object.author.get_full_name_display|default:"Unknown Author" }}. "{{ object.get_localized_title }}." PhD diss., {{ specific_object.institution.name|default:"University" }}, {{ specific_object.defense_year|default:object.creation_date|date:"Y" }}.</div>
+        </div>
     </div>
 </div>
+
+<script>
+// Citation Modal
+function openCiteModal() {
+    document.getElementById('citeModalBackdrop').classList.add('active');
+    document.getElementById('citeModal').classList.add('active');
+}
+
+function closeCiteModal() {
+    document.getElementById('citeModalBackdrop').classList.remove('active');
+    document.getElementById('citeModal').classList.remove('active');
+}
+
+// Citation Format Tabs
+document.querySelectorAll('.academic-cite-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        const format = this.dataset.format;
+        
+        document.querySelectorAll('.academic-cite-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.academic-cite-content').forEach(c => c.classList.remove('active'));
+        
+        this.classList.add('active');
+        document.querySelector(`.academic-cite-content[data-content="${format}"]`).classList.add('active');
+    });
+});
+
+// Copy Citation
+function copyCitation(btn, format) {
+    const content = btn.parentElement.textContent.replace(/Copy|{% translate "Copy" %}/g, '').trim();
+    navigator.clipboard.writeText(content).then(() => {
+        btn.classList.add('copied');
+        btn.innerHTML = '<i class="bi bi-check"></i> {% translate "Copied!" %}';
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = '<i class="bi bi-clipboard"></i> {% translate "Copy" %}';
+        }, 2000);
+    });
+}
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeCiteModal();
+});
+</script>
+
+{% include "components/document_viewer_modal.html" %}
 {% endblock %}

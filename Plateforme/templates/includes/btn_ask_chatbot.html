@@ -1,0 +1,93 @@
+{% load i18n %}
+{# Reusable "Ask Chatbot" button component #}
+{# Parameters: content_type, object_id, title, description #}
+
+<button type="button" 
+        class="btn-ask-chatbot" 
+        data-content-type="{{ content_type }}" 
+        data-object-id="{{ object_id }}"
+        data-title="{{ title|default:'' }}"
+        data-description="{{ description|default:'' }}"
+        onclick="openChatbotWithContext(this)"
+        title="{% translate 'Ask AI about this' %}">
+    <i class="bi bi-robot"></i>
+    <span class="btn-text">{% translate "Ask AI" %}</span>
+</button>
+
+<style>
+.btn-ask-chatbot {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    color: var(--hub-text-secondary, #9ea0b1);
+    border: 1px solid var(--hub-border, rgba(157, 78, 221, 0.15));
+    border-radius: 8px; /* Modern rounded corners */
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-short, 0.2s ease);
+    box-shadow: none;
+}
+
+.btn-ask-chatbot:hover {
+    background: var(--hub-surface-hover, rgba(157, 78, 221, 0.05));
+    color: var(--hub-text-primary, #ffffff);
+    border-color: var(--hub-accent, #9d4edd);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--hub-accent-glow, rgba(157, 78, 221, 0.15));
+}
+
+.btn-ask-chatbot:hover i {
+    transform: scale(1.1);
+}
+
+.btn-ask-chatbot:active {
+
+    transform: translateY(0);
+}
+
+.btn-ask-chatbot i {
+    font-size: 1.1rem;
+}
+
+/* RTL Support */
+html[dir="rtl"] .btn-ask-chatbot {
+    flex-direction: row-reverse;
+}
+
+/* Compact version for cards */
+.btn-ask-chatbot.compact {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+}
+
+.btn-ask-chatbot.compact i {
+    font-size: 1rem;
+}
+</style>
+
+<script>
+function openChatbotWithContext(button) {
+    const contentType = button.dataset.contentType;
+    const objectId = button.dataset.objectId;
+    const title = button.dataset.title || '';
+    const description = button.dataset.description || '';
+    
+    // Build URL with context parameters
+    const url = `/chatbot/?type=${encodeURIComponent(contentType)}&id=${encodeURIComponent(objectId)}`;
+    
+    // Store context in sessionStorage for the chatbot interface
+    sessionStorage.setItem('chatbot_context', JSON.stringify({
+        content_type: contentType,
+        object_id: objectId,
+        title: title,
+        description: description,
+        timestamp: new Date().toISOString()
+    }));
+    
+    // Open in new window/tab
+    window.open(url, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+}
+</script>

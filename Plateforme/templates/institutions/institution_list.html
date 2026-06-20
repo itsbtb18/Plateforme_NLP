@@ -1,345 +1,185 @@
 {% extends 'base.html' %}
-{% load static %}
-{% load i18n %}
+{% load i18n static %}
+{% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{% trans "Institution Directory" %} | {% trans "Arabic Language Technology Platform" %}{% endblock %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسات والشركاء | منصة معالجة اللغة العربية{% else %}{% translate "Partner Institutions & Labs" %} | {% translate "Arabic NLP Platform" %}{% endif %}{% endblock %}
 
-{% block content %}
-<div class="container my-5">
-    <div class="row mb-5">
-        <div class="col-lg-10 col-md-12 mx-auto">
-            <h1 class="text-center fw-bold mb-4 display-5">
-                {% trans "Directory of Research Institutions in Arabic Language Processing" %}
-            </h1>
-            <div class="d-flex justify-content-center mb-4">
-                <div style="width: 100px; height: 4px; background-color: #0d6efd;"></div>
-            </div>
-            <p class="text-center text-muted lead mb-5">{% trans "Discover leading organizations in Arabic language technology research and development" %}</p>
-        </div>
-    </div>
-
-    <div class="card shadow-sm mb-5 search-filter-card">
-        <div class="card-body search-filter-body">
-            <form method="get" action="{% url 'institutions:institution_list' %}" class="row g-3 filter-form">
-                <div class="col-lg-3 col-md-6">
-                    {{ filter_form.institution_type.label_tag }}
-                    {{ filter_form.institution_type }}
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    {{ filter_form.country.label_tag }}
-                    {{ filter_form.country }}
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    {{ filter_form.specialty.label_tag }}
-                    {{ filter_form.specialty }}
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    {{ filter_form.search_term.label_tag }}
-                    {{ filter_form.search_term }}
-                </div>
-                <div class="col-12 text-center text-md-end mt-3">
-                    <a href="{% url 'institutions:institution_list' %}" class="btn btn-outline-secondary me-2">
-                        <i class="fas fa-undo me-1"></i> {% trans "Reset" %}
-                    </a>
-                    <button type="submit" class="btn btn-primary px-4">
-                        <i class="fas fa-search me-1"></i> {% trans "Search" %}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="row">
-        {% if institutions %}
-            {% for institution in institutions %}
-                <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm hover-shadow institution-card border-0 rounded-3 overflow-hidden transition-all">
-                        <div class="institution-logo text-center py-4 bg-light position-relative">
-                            {% if institution.logo %}
-                                <img src="{{ institution.logo.url }}" alt="{{ institution.name }}" class="img-fluid" style="max-height: 100px;">
-                            {% else %}
-                                <img src="{% static 'images/institution-placeholder.png' %}" alt="{{ institution.name }}" class="img-fluid" style="max-height: 100px;">
-                            {% endif %}
-                            <div class="position-absolute top-0 end-0 p-2">
-                                {% if institution.type.name %}
-                                    <span class="badge bg-primary rounded-pill px-3 py-2">{{ institution.type.name }}</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title fw-bold">{{ institution.name }}
-                                {% if institution.acronym %}
-                                    <span class="badge bg-secondary ms-1">{{ institution.acronym }}</span>
-                                {% endif %}
-                            </h5>
-                            <div class="card-text text-muted small mb-3">
-                                <i class="fas fa-map-marker-alt me-2"></i> {{ institution.city }}, {{ institution.country.name }}
-                                {% if institution.website %}
-                                    <div class="mt-2">
-                                        <i class="fas fa-globe me-2"></i>
-                                        <a href="{{ institution.website }}" target="_blank" class="text-decoration-none">{{ institution.website }}</a>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="mt-auto">
-                                <a href="{% url 'institutions:institution_detail' institution.pk %}" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-info-circle me-1"></i> {% trans "View Details" %}
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        {% else %}
-            <div class="col-12">
-                <div class="alert alert-info text-center p-4 rounded-3">
-                    <i class="fas fa-info-circle me-2 fa-lg"></i>
-                    {% trans "No institutions match your search criteria." %}
-                    <div class="mt-3">
-                        <a href="{% url 'institutions:institution_list' %}" class="btn btn-sm btn-outline-info">
-                            {% trans "View All Institutions" %}
-                        </a>
-                    </div>
-                </div>
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- Pagination -->
-    {% if is_paginated %}
-    <nav aria-label="{% trans 'Page Navigation' %}" class="mt-5">
-        <ul class="pagination pagination-lg justify-content-center flex-wrap">
-            {% if page_obj.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page=1" aria-label="First">
-                        <span aria-hidden="true">&laquo;</span> {% trans "First" %}
-                    </a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Previous">
-                        {% trans "Previous" %}
-                    </a>
-                </li>
-            {% endif %}
-
-            {% for num in page_obj.paginator.page_range %}
-                {% if page_obj.number == num %}
-                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li class="page-item">
-                        <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
-                    </li>
-                {% endif %}
-            {% endfor %}
-
-            {% if page_obj.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}" aria-label="Next">
-                        {% trans "Next" %}
-                    </a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.paginator.num_pages }}" aria-label="Last">
-                        {% trans "Last" %} <span aria-hidden="true">&raquo;</span>
-                    </a>
-                </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
-
-</div>
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.ip-shell{position:relative;padding:3rem 0 2.5rem;color:#fff;overflow:hidden}
+.ip-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.ip-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.ip-wrap>*{position:relative;z-index:1}
+.ip-hero{position:relative;padding:2rem 0;margin:1rem auto 1.5rem;text-align:left;display:flex;align-items:flex-start;gap:2.5rem;justify-content:flex-start;background:transparent;border:none;box-shadow:none}
+.ip-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.ip-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-left:2rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.ip-hero h1{margin:0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.ip-hero p{margin:0;font-family:'Inter',sans-serif;font-size:20.8px;color:#a78bfa;line-height:1.7;font-weight:600;text-align:left}
+.ip-hero-stats{display:flex;align-items:center;justify-content:center;gap:1.5rem;flex-direction:column;flex-shrink:0;margin-left:-11rem;margin-top:-1rem}
+.ip-stat-card{display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center;width:180px;padding-top:2rem}
+.ip-stat-number{font-size:4.5rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.ip-stat-label{font-size:1rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin:0;font-weight:700}
+.ip-stat-empty-message{font-size:.9rem;color:#9ca3af;font-weight:500;margin-top:.3rem;padding-top:.35rem;border-top:1.5px solid #9ca3af;width:100%}
+@media (max-width:1000px){.ip-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}}
+@media (max-width:768px){.ip-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center;align-items:center}.ip-hero h1{font-size:2rem;text-align:center}.ip-hero p{font-size:1rem;text-align:center}.ip-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.ip-stat-card{width:140px}}
+@media (max-width:480px){.ip-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.ip-hero h1{font-size:1.5rem}.ip-hero p{font-size:.9rem}.ip-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.ip-stat-card{width:130px;padding:1rem}.ip-stat-number{font-size:3rem}}
+.ip-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.ip-filter-form{display:grid;grid-template-columns:2.2fr repeat(2,1fr) auto;gap:1rem;align-items:stretch}
+.ip-input-wrapper{position:relative;display:flex;align-items:center}
+.ip-search-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:linear-gradient(135deg,rgba(26,26,46,.8),rgba(26,26,46,.6));color:#fff;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none}
+.ip-search-input{background:#1a1a2e !important;color:#fff !important;box-shadow:none !important}
+.ip-search-input::placeholder{color:white;opacity:.6;font-weight:400}
+.ip-search-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.ip-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background-color:#1a1a2e;color:#fff;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
+.ip-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
+.ip-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
+.ip-select:hover{border-color:rgba(167,139,250,.24);background-color:#1a1a2e;box-shadow:0 4px 12px rgba(167,139,250,.15);transform:translateY(-2px)}
+.ip-select:focus{outline:none;border-color:rgba(167,139,250,.24) !important;box-shadow:none;background-color:#1a1a2e}
+.ip-filter-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.ip-filter-btn:hover{transform:translateY(-3px);box-shadow:none;background:#a78bfa}
+.ip-filter-btn:active{transform:translateY(-1px);box-shadow:0 6px 16px rgba(167,139,250,.2)}
+.ip-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;padding-bottom:1rem;direction:ltr}
+.ip-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:390px;min-width:0;flex-shrink:1}
+.ip-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.ip-accent{height:4px;width:100%;flex-shrink:0;background:#a78bfa}
+.ip-card-header{display:flex;align-items:center;justify-content:center;padding:1.5rem;gap:.8rem;border-bottom:1px solid rgba(167,139,250,.15);background:rgba(167,139,250,.1);min-height:140px}
+.ip-card-logo{width:80px;height:80px;object-fit:contain;background:rgba(255,255,255,.05);padding:8px;border-radius:8px;filter:drop-shadow(0 0 10px rgba(167,139,250,.1))}
+.ip-card-body{padding:1.5rem 1rem .8rem;display:flex;flex-direction:column;flex:1}
+.ip-card-name{margin:.2rem 0;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3}
+.ip-card-badges{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:.55rem}
+.ip-card-location{color:#d1d5db;line-height:1.45;margin:0;font-size:.8rem;display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem}
+.ip-card-desc{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem;margin-top:.4rem}
+.ip-card-footer{display:flex;flex-direction:column;align-items:stretch;padding:.7rem 1rem .9rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;margin-top:auto;font-size:.84rem;gap:.45rem}
+.ip-footer-actions{display:flex;justify-content:flex-end;width:100%}
+.ip-card-link{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;padding:.64rem .9rem;background:rgba(255,255,255,.03);border:1px solid rgba(167,139,250,.22);border-radius:10px;color:#c4b5fd;font-weight:800;text-decoration:none;margin:0;font-size:.82rem;line-height:1.2;transition:all .2s ease}
+.ip-card-link:hover{gap:.55rem;background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.38);color:#ddd6fe}
+.ip-card-link i{transition:transform .2s}
+.ip-card-link:hover i{transform:translateX(4px)}
+html[dir="rtl"] .ip-card-link{flex-direction:row-reverse}
+html[dir="rtl"] .ip-footer-actions{justify-content:flex-start}
+.ip-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ip-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.ip-empty-inner{position:relative;z-index:1}
+.ip-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem;display:block}
+.ip-empty h3{margin:1rem 0 .75rem;font-family:'Inter',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.01em}
+.ip-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+@media (max-width:1200px){.ip-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:900px){.ip-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:768px){.ip-wrap{max-width:100%;padding:0 1.25rem}}
+@media (max-width:480px){.ip-wrap{max-width:100%;padding:0 1rem}}
+</style>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-    // Script to enhance user experience
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add Bootstrap classes to form fields
-        const formInputs = document.querySelectorAll('form select, form input[type="text"]');
-        formInputs.forEach(function(input) {
-            input.classList.add('form-control');
-        });
-        
-        // Add animation effect for cards
-        const cards = document.querySelectorAll('.institution-card');
-        cards.forEach(card => {
-            card.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-5px)';
-                this.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)';
-            });
-            
-            card.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0)';
-                this.style.boxShadow = '0 .125rem .25rem rgba(0,0,0,.075)';
-            });
-        });
-        
-        // Make filter form responsive
-        const filterForm = document.querySelector('form');
-        function adjustFormLayout() {
-            if (window.innerWidth < 768) {
-                filterForm.classList.add('flex-column');
-            } else {
-                filterForm.classList.remove('flex-column');
-            }
-        }
-        
-        window.addEventListener('resize', adjustFormLayout);
-        adjustFormLayout();
-    });
-</script>
-
-<style>
-    .hover-shadow {
-        transition: all 0.3s ease;
-    }
+{% block content %}
+<div class="ip-shell">
+  <div class="ip-wrap">
     
-    .transition-all {
-        transition: all 0.3s ease-in-out;
-    }
-    
-    .institution-card:hover {
-        border-color: #0d6efd !important;
-    }
-    
-    .form-control:focus {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-    }
-    
-    @media (max-width: 767.98px) {
-        .pagination .page-link {
-            padding: 0.375rem 0.5rem;
-            font-size: 0.875rem;
-        }
-    }
-    
-    @media (max-width: 575.98px) {
-        h1.display-5 {
-            font-size: 1.75rem;
-        }
-        
-        .lead {
-            font-size: 1rem;
-        }
-    }
-    
-    /* Style amélioré pour la barre Search and Filter */
-    .search-filter-card {
-        border-radius: 15px !important;
-        overflow: visible !important;  /* CHANGED */
-        transition: all 0.3s ease;
-        border: none !important;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08) !important;
-    }
+    <div class="ip-hero">
+      <span class="ip-hero-icon" aria-hidden="true"><i class="bi bi-building"></i></span>
+      <div class="ip-hero-inner">
+        <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسات والمخابر{% else %}{% translate "Institutions & Labs" %}{% endif %}</h1>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف الجامعات ومراكز البحث والمخابر <br>التي تدفع بمجال معالجة اللغة العربية إلى الأمام.{% else %}{% translate "Explore universities, research centers, and laboratories <br>advancing Arabic Natural Language Processing." %}{% endif %}</p>
+      </div>
+      <div class="ip-hero-stats">
+        <div class="ip-stat-card">
+          <div class="ip-stat-number">{{ paginator.count|default:"0" }}</div>
+          <div class="ip-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسات{% else %}{% translate "Institutions" %}{% endif %}</div>
+          {% if paginator.count == 0 %}
+          <div class="ip-stat-empty-message">{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد مؤسسات مسجلة بعد{% else %}{% translate "Not institutions recorded yet" %}{% endif %}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
 
-    .search-filter-card:hover {
-        box-shadow: 0 8px 25px rgba(13, 110, 253, 0.15) !important;
-        transform: translateY(-2px);
-    }
+    <div class="ip-filter-card">
+      <form method="get" class="ip-filter-form">
+        <div class="ip-input-wrapper">
+          <input class="ip-search-input" type="text" name="search_term" value="{{ filter_form.search_term.value|default:'' }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}ابحث حسب الاسم أو الاختصار أو الكلمة المفتاحية...{% else %}{% translate 'Search by name, acronym, or keyword...' %}{% endif %}">
+        </div>
+        <select class="ip-select" name="institution_type">
+          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}جميع الأنواع{% else %}{% translate "All Types" %}{% endif %}</option>
+          {% for value, label in filter_form.fields.institution_type.choices %}
+          <option value="{{ value }}" {% if filter_form.institution_type.value == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <select class="ip-select" name="country">
+          <option value="">{% if LANGUAGE_CODE|slice:":2" == "ar" %}جميع البلدان{% else %}{% translate "All Countries" %}{% endif %}</option>
+          {% for country in filter_form.fields.country.queryset %}
+          <option value="{{ country.pk }}" {% if filter_form.country.value|stringformat:"s" == country.pk|stringformat:"s" %}selected{% endif %}>{{ country }}</option>
+          {% endfor %}
+        </select>
+        <button class="ip-filter-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}تصفية{% else %}{% translate "Filter" %}{% endif %}</button>
+      </form>
+    </div>
 
-    .search-filter-header {
-        background: linear-gradient(45deg, #0d6efd, #0a58ca) !important;
-        padding: 1rem 1.5rem !important;
-        border: none;
-    }
+    <!-- Institutions Grid -->
+    {% if institutions %}
+    <div class="ip-grid">
+      {% for institution in institutions %}
+      <article class="ip-card">
+        <div class="ip-accent"></div>
+        <div class="ip-card-header">
+          {% if institution.logo %}
+          <img src="{{ institution.logo.url }}" alt="{{ institution.get_localized_name }}" class="ip-card-logo">
+          {% else %}
+          <div style="font-size:2.5rem;color:#a78bfa"><i class="bi bi-building"></i></div>
+          {% endif %}
+        </div>
+        <div class="ip-card-body">
+          <div class="ip-card-badges">
+            {% if institution.approval_status == 'pending' and institution.created_by == request.user %}
+            <span class="site-approval-badge site-approval-pending">
+              <i class="bi bi-hourglass-split"></i>
+              {% if LANGUAGE_CODE|slice:":2" == "ar" %}قيد المراجعة{% else %}{% translate "Pending Review" %}{% endif %}
+            </span>
+            {% endif %}
+          </div>
+          <h3 class="ip-card-name">{{ institution.get_localized_name }}</h3>
+          <div class="ip-card-location">
+            <i class="bi bi-geo-alt"></i>
+            <span>{{ institution.get_localized_city }}, {{ institution.country }}</span>
+          </div>
+          <p class="ip-card-desc">{{ institution.get_localized_description|truncatewords:20 }}</p>
+          <div class="ip-card-footer">
+            <div class="ip-footer-actions">
+              {% include "includes/card_top_actions.html" with content_type="institution" object_id=institution.pk title=institution.get_localized_name description=institution.get_localized_description|truncatewords:40 category=institution.get_type_display author=institution.created_by.get_full_name_display url=institution.get_absolute_url|default:'' %}
+            </div>
+            {% if institution.approval_status == 'pending' and institution.created_by == request.user %}
+              <a href="{% url 'institutions:institution_update' institution.pk %}" class="ip-card-link">
+                <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}تعديل الاستمارة{% else %}{% translate "Edit Form" %}{% endif %}</span>
+                <i class="bi bi-file-earmark-text"></i>
+              </a>
+            {% else %}
+              <a href="{% url 'institutions:institution_detail' institution.pk %}" class="ip-card-link">
+                <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}عرض التفاصيل{% else %}{% translate "View Details" %}{% endif %}</span>
+                <i class="bi bi-arrow-right"></i>
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="ip-empty">
+      <div class="ip-empty-inner">
+        <div class="ip-empty-icon">
+          <i class="bi bi-inbox"></i>
+        </div>
+        <h3 class="ip-empty-title">{% if LANGUAGE_CODE|slice:":2" == "ar" %}لم يتم العثور على مؤسسات{% else %}{% translate "No Institutions Found" %}{% endif %}</h3>
+        <p class="ip-empty-text">{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرّب تعديل عوامل التصفية أو عد لاحقًا لاكتشاف مؤسسات جديدة{% else %}{% translate "Try adjusting your filters or check back later for new institutions" %}{% endif %}</p>
+      </div>
+    </div>
+    {% endif %}
 
-    .search-filter-header h5 {
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        display: flex;
-        align-items: center;
-        margin: 0;
-    }
-
-    .search-filter-header h5 i {
-        margin-right: 10px;
-        font-size: 1.1rem;
-    }
-
-    .search-filter-body {
-        padding: 1.5rem !important;
-        background-color: #f8f9fa !important;
-        overflow: visible !important;  /* ADDED */
-    }
-
-    .filter-form .form-control, 
-    .filter-form .form-select {
-        border-radius: 8px;
-        padding: 0.6rem 1rem;
-        border: 1px solid #dee2e6;
-        transition: all 0.2s ease;
-    }
-
-    .filter-form .form-control:focus, 
-    .filter-form .form-select:focus {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
-    }
-
-    .filter-form label {
-        font-weight: 500;
-        margin-bottom: 0.5rem;
-        color: #495057;
-    }
-
-    .filter-form .btn {
-        border-radius: 8px;
-        padding: 0.6rem 1.5rem;
-        transition: all 0.3s ease;
-        font-weight: 500;
-    }
-
-    .filter-form .btn-primary {
-        background: linear-gradient(45deg, #0d6efd, #0a58ca);
-        border: none;
-        box-shadow: 0 4px 10px rgba(13, 110, 253, 0.2);
-    }
-
-    .filter-form .btn-primary:hover {
-        background: linear-gradient(45deg, #0a58ca, #084298);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(13, 110, 253, 0.3);
-    }
-
-    .filter-form .btn-outline-secondary {
-        border-color: #6c757d;
-    }
-
-    .filter-form .btn-outline-secondary:hover {
-        background-color: #6c757d;
-        color: white;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 767.98px) {
-        .search-filter-body {
-            padding: 1rem !important;
-        }
-        
-        .filter-form .col-12 {
-            margin-top: 1rem;
-        }
-        
-        .filter-form .btn {
-            width: 100%;
-            margin-top: 0.5rem;
-        }
-        
-        .filter-form .btn-outline-secondary {
-            margin-bottom: 0.5rem;
-        }
-    }
-
-    @media (max-width: 575.98px) {
-        .search-filter-header h5 {
-            font-size: 1rem;
-        }
-        
-        .filter-form label {
-            font-size: 0.9rem;
-        }
-    }
-</style>
+    <!-- Pagination -->
+    {% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
+  </div>
+</div>
 {% endblock %}

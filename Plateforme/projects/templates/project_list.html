@@ -1,464 +1,162 @@
-{% extends 'base.html' %} 
+{% extends 'base.html' %}
 {% load i18n %}
-{% block title %} {% trans "Projects - Arabic TAL Research" %} {% endblock title %}
- {% block content %}
-<div class="content">
-  <div class="projects-header">
-   
-    <div class="projects-actions">
-      <form method="get" class="search-form">
-        <div class="search-wrapper">
-          <input
-            type="text"
-            name="search"
-            placeholder={% trans "Search for a project..." %}
-            value="{{ request.GET.search }}"
-            class="search-input"
-          />
-          <button type="submit" class="search-btn">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </button>
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "ar" %}المشاريع{% else %}Projects{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.pub-shell{position:relative;padding:1rem 0 2.5rem;color:#fff;overflow:hidden}
+.pub-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.pub-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.pub-wrap>*{position:relative;z-index:1}
+.pub-hero{position:relative;padding:3rem 2rem;margin:5rem auto 1.25rem;background:transparent;border:none;border-radius:24px;box-shadow:none;backdrop-filter:none;overflow:visible;text-align:left;display:flex;align-items:center;gap:2.5rem;justify-content:space-between}
+.pub-hero-content{display:flex;align-items:center;gap:2.5rem;flex:0 1 auto}
+.pub-hero::before{content:"";position:absolute;inset:0;background:none;pointer-events:none}
+.pub-hero::after{content:"";position:absolute;inset:0;background:none;pointer-events:none}
+.pub-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.pub-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-top:-3.5rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.pub-hero h1{margin:-3rem 0 0 0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.pub-hero p{margin:0;font-family:'Inter',sans-serif;color:#a78bfa;max-width:760px;font-size:1.3rem;line-height:1.7;font-weight:600;text-align:left}
+.pub-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.pub-filter-grid{display:grid;grid-template-columns:auto 1fr 1fr auto auto;gap:1rem;align-items:center}
+.pub-input-wrapper{position:relative;display:flex;align-items:center}
+.pub-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none}
+.pub-input::placeholder{color:rgba(255,255,255,.6);font-weight:400}
+.pub-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.pub-select{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:16px;padding:.95rem 1rem;background-color:#1a1a2e;color:#fff;font-weight:500;cursor:pointer;transition:all .3s ease;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23a78bfa" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right .8rem center;background-size:12px;padding-right:2.5rem;background-attachment:scroll}
+.pub-select option{background:#1a1a2e !important;color:#fff !important;padding:.5rem;font-weight:500}
+.pub-select option:checked{background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%) !important;color:#fff !important}
+.pub-select:hover{border-color:rgba(167,139,250,.24);background-color:#1a1a2e;box-shadow:0 4px 12px rgba(167,139,250,.15);transform:translateY(-2px)}
+.pub-select:focus{outline:none;border-color:rgba(167,139,250,.24) !important;box-shadow:none;background-color:#1a1a2e}
+.pub-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.pub-btn:hover{transform:translateY(-3px);background:#a78bfa}
+.pub-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;padding-bottom:1rem;direction:ltr}
+.pub-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:340px;min-width:0;flex-shrink:1}
+.pub-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.pub-accent{height:4px;width:100%;flex-shrink:0;background:#a78bfa}
+.pub-cover{height:104px;background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.02));display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;color:#a78bfa;font-size:2.4rem}
+.pub-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
+.pub-type{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .58rem;border-radius:999px;color:#fff;font-size:.7rem;font-weight:800}
+.pub-title{margin:.55rem 0 .22rem;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pub-meta{color:#cbd5e1;font-size:.74rem;margin-bottom:.42rem;display:flex;flex-wrap:wrap;gap:.3rem}
+.pub-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem}
+.pub-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;padding-top:.55rem;border-top:1px solid rgba(167,139,250,.16)}
+.pub-tag{background:rgba(167,139,250,.12);color:#ede9fe;border-radius:999px;padding:.2rem .48rem;font-size:.66rem;font-weight:700;border:1px solid rgba(167,139,250,.18)}
+.pub-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
+.pub-link:hover{background:rgba(255,255,255,.04)}
+.pub-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pub-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.pub-empty-inner{position:relative;z-index:1}
+.pub-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem}
+.pub-empty h3{margin:1rem 0 .75rem;font-size:1.5rem;font-weight:800;color:#fff}
+.pub-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+.pub-empty-reset{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+.pub-empty-reset:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+.pub-stats{display:flex;gap:1.5rem;flex-direction:column;align-items:flex-start}
+.pub-stat-badge{background:transparent;border:none;padding:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;white-space:nowrap}
+.pub-stat-number{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.pub-stat-label{font-size:0.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.4rem;font-weight:700}
+@media (max-width:1000px){.pub-filter-grid{grid-template-columns:auto 1fr 1fr auto}.pub-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}.pub-hero-content{flex-direction:column;justify-content:center}}
+@media (max-width:1200px){.pub-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:900px){.pub-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:768px){.pub-wrap{width:min(100%,calc(100% - 1rem))}.pub-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center}.pub-hero-content{flex-direction:column;text-align:center}.pub-hero h1{font-size:2rem;text-align:center}.pub-hero p{font-size:1rem;text-align:center}.pub-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}.pub-btn{padding:.85rem 1.2rem;font-size:.85rem}}
+@media (max-width:480px){.pub-filter-grid{grid-template-columns:1fr}.pub-input-wrapper{grid-column:1/-1}.pub-btn{width:100%;padding:.75rem 1rem;font-size:.8rem}.pub-filter-card{padding:1rem;margin-bottom:1rem}.pub-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.pub-hero-content{flex-direction:column;text-align:center}.pub-hero h1{font-size:1.5rem}.pub-hero p{font-size:.9rem}.pub-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}.pub-stat-number{font-size:1.4rem}.pub-stat-label{font-size:.55rem;margin-top:.25rem}}
+</style>
+
+<div class="pub-shell">
+  <div class="pub-wrap">
+    <div class="pub-hero">
+      <div class="pub-hero-content">
+        <span class="pub-hero-icon" aria-hidden="true"><i class="fas fa-wrench"></i></span>
+        <div class="pub-hero-inner">
+          <h1>{% if LANGUAGE_CODE|slice:":2" == "ar" %}المشاريع{% else %}Projects & Resources{% endif %}</h1>
+          <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}اكتشف المشاريع الرائعة والتعاون مع الفريق.{% else %}Explore amazing projects and collaborate <br>with teams worldwide.{% endif %}</p>
         </div>
-        {% if request.GET.search %}
-        <a
-          href="{% if request.GET.my_projects %}?my_projects=1{% else %}{% url 'projects:project_list' %}{% endif %}"
-          class="clear-search"
-        >
-        Clear search
+      </div>
+    </div>
+
+    <div class="pub-filter-card">
+      <form method="get" class="pub-filter-grid">
+        <div class="pub-stat-badge">
+          <div class="pub-stat-number">{{ total_count|default:"0" }}</div>
+          <div class="pub-stat-label">{% if LANGUAGE_CODE|slice:":2" == "ar" %}مشاريع{% else %}Projects{% endif %}</div>
+        </div>
+        <div class="pub-input-wrapper">
+          <input class="pub-input" type="text" name="q" value="{{ search_query|default:'' }}" placeholder="{% if LANGUAGE_CODE|slice:":2" == "ar" %}ابحث...{% else %}Search...{% endif %}">
+        </div>
+        <select class="pub-select" name="status" onchange="this.form.submit();" id="statusFilter">
+          <option value="" {% if not request.GET.status %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}كل الحالات{% else %}All statuses{% endif %}</option>
+          <option value="ongoing" {% if request.GET.status == 'ongoing' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جار{% else %}Ongoing{% endif %}</option>
+          <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مكتمل{% else %}Completed{% endif %}</option>
+          <option value="planned" {% if request.GET.status == 'planned' %}selected{% endif %}>{% if LANGUAGE_CODE|slice:":2" == "ar" %}مخطط{% else %}Planned{% endif %}</option>
+        </select>
+        <button class="pub-btn" type="submit">{% if LANGUAGE_CODE|slice:":2" == "ar" %}بحث{% else %}Search{% endif %}</button>
+        <a href="{% url 'projects:project_new' %}" class="pub-btn" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;padding:1rem 1.2rem;font-size:0.9rem">
+          <i class="fas fa-plus"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إنشاء مشروع{% else %}create project{% endif %}
         </a>
-        {% endif %}
       </form>
-      <a href="{% url 'projects:project_new' %}" class="btn create-btn">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-         {% trans "New Project" %}      </a>
-      <a
-        href="{% if request.GET.my_projects %}{% url 'projects:project_list' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}{% else %}?my_projects=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% endif %}"
-        class="btn filter-btn {% if request.GET.my_projects %}active{% endif %}"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polygon
-            points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
-          ></polygon>
-        </svg>
-        {% if request.GET.my_projects %} {% trans "All projects" %}{% else %} {% trans "My projects" %} {% endif %}
-      </a>
-
-      {# Filtre par statut #}
-      <div class="filter-status">
-        <form method="get" action="{% url 'projects:project_list' %}">
-          {% comment %} Conserver les autres paramètres de la requête GET {% endcomment %}
-          {% for key, value in request.GET.items %}
-            {% if key != 'status' %}
-              <input type="hidden" name="{{ key }}" value="{{ value }}">
-            {% endif %}
-          {% endfor %}
-          
-          <select name="status" onchange="this.form.submit()" class="form-select">
-            <option value="">{% trans "All Statuses"  %}</option>
-            {% for status_value, status_label in project_statuses %}
-              <option value="{{ status_value }}" {% if request.GET.status == status_value %}selected{% endif %}>{{ status_label }}</option>
-            {% endfor %}
-          </select>
-        </form>
-      </div>
-
     </div>
-  </div>
 
-  <div class="projects-grid">
-    {% for project in projects %}
-    <div class="project-card">
-      <div class="project-header">
-        <h2 class="project-title">
-          <a href="{% url 'projects:project_detail' project.pk %}"
-            >{{ project.title }}</a
-          >
-        </h2>
-        <span class="status-badge status-{{ project.status }}"
-          >{{ project.get_status_display }}</span
-        >
-      </div>
-      <p class="project-description">
-        {{ project.description|truncatechars:150 }}
-      </p>
-      <div class="project-meta">
-        <div class="meta-item">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16"></path>
-            <path d="M1 21h22"></path>
-            <path d="M10 9h4"></path>
-            <path d="M10 13h4"></path>
-            <path d="M10 17h4"></path>
-          </svg>
-          {{ project.institution }}
+    {% if projects %}
+    <div class="pub-grid">
+      {% for project in projects %}
+      <article class="pub-card">
+        <div class="pub-accent"></div>
+        <div class="pub-cover">
+          <i class="fas fa-project-diagram"></i>
         </div>
-        <div class="meta-item">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-          {{ project.coordinator }}
+        <div class="pub-body">
+          <span class="pub-type" style="background:#a78bfa">
+            <i class="fas fa-tag"></i>
+            {{ project.get_status_display|default:"Project" }}
+          </span>
+          <h2 class="pub-title">{{ project.title }}</h2>
+          <div class="pub-meta">
+            <span>{{ project.created_at|date:"M d, Y" }}</span>
+          </div>
+          <p class="pub-excerpt">{{ project.description|truncatechars:120 }}</p>
+          <div class="pub-tags">
+            <span class="pub-tag">{% if project.coordinator %}{{ project.coordinator.get_full_name_display }}{% else %}Coordinator{% endif %}</span>
+          </div>
         </div>
-        {% if project.date_start and project.date_end %}
-        <div class="meta-item">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          {{ project.date_start|date:"d/m/Y" }} - {{ project.date_end|date:"d/m/Y" }}
+        <div class="pub-card-actions" style="display:flex;justify-content:flex-end;padding:0 .85rem .75rem;">
+          {% include "includes/card_top_actions.html" with content_type="project" object_id=project.id title=project.get_localized_title description=project.get_localized_description|truncatewords:40 category=project.get_status_display author=project.coordinator.get_full_name_display url=project.get_absolute_url|default:'' %}
         </div>
-        {% endif %}
+        <a class="pub-link" href="{% url 'projects:project_detail' project.id %}">
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}التفاصيل{% else %}Details{% endif %}</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    
+    {% if page_obj.has_other_pages %}
+    <div style="display:flex;justify-content:center;gap:1rem;margin:2rem 0">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">← Prev</a>
+      {% endif %}
+      <span style="color:#9ca3af;padding:.5rem 1rem">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" class="pub-btn" style="padding:.5rem 1rem;font-size:.85rem">→</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="pub-empty">
+      <div class="pub-empty-inner">
+        <i class="fas fa-inbox pub-empty-icon"></i>
+        <h3>{% if LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد مشاريع{% else %}No projects found{% endif %}</h3>
+        <p>{% if LANGUAGE_CODE|slice:":2" == "ar" %}جرب تغيير البحث أو الفلاتر.{% else %}Try adjusting your search or filters.{% endif %}</p>
+        <a href="{% url 'projects:project_list' %}" class="pub-empty-reset">
+          <i class="fas fa-redo-alt"></i>
+          <span>{% if LANGUAGE_CODE|slice:":2" == "ar" %}إعادة تعيين{% else %}Reset{% endif %}</span>
+        </a>
       </div>
     </div>
-    {% empty %}
-    <div class="empty-message">
-      {% if request.GET.search %} No projects match your search.
-      {% elif request.GET.my_projects %}You have not created a project yet.
-      {% else %} {% trans "No projects are available at the moment." %} {% endif %}
-    </div>
-    {% endfor %}
+    {% endif %}
   </div>
 </div>
 
-<style>
-  /* Global styles */
-  :root {
-    --primary: #1A73E8;
-    --secondary: #4caf50;
-    --text-dark: #333;
-    --text-light: #666;
-    --border-color: #e0e0e0;
-    --bg-light: #f5f5f5;
-    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  /* Projects header */
-  .projects-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-  }
-
-  .page-title {
-    color: var(--primary);
-    font-size: 28px;
-    margin: 0;
-  }
-
-  .projects-actions {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
-  }
-
-  /* Search form */
-  .search-form {
-    position: relative;
-    margin-right: 10px;
-  }
-
-  .search-wrapper {
-    display: flex;
-    align-items: center;
-    background-color: white;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .search-input {
-    padding: 8px 10px;
-    border: none;
-    outline: none;
-    font-size: 14px;
-    min-width: 200px;
-  }
-
-  .search-btn {
-    background-color: var(--primary);
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s;
-  }
-
-  .search-btn:hover {
-    background-color: #153a52;
-  }
-
-  .clear-search {
-    position: absolute;
-    right: 0;
-    bottom: -20px;
-    font-size: 12px;
-    color: var(--text-light);
-    text-decoration: none;
-  }
-
-  .clear-search:hover {
-    color: var(--primary);
-  }
-
-  /* Filter styles */
-  .filter-status select {
-    padding: 8px ;
-    padding-right: 30px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 14px;
-    background-color: white;
-    cursor: pointer;
-    outline: none;
-  }
-
-  .filter-status select:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 0.2rem rgba(30, 78, 109, 0.25); /* Adjust shadow color if needed */
-  }
-
-  /* Project cards grid */
-  .projects-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-  }
-
-  .project-card {
-    background-color: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: var(--card-shadow);
-    transition: transform 0.2s;
-  }
-
-  .project-card:hover {
-    transform: translateY(-2px);
-  }
-
-  .project-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 15px;
-  }
-
-  .project-title {
-    font-size: 18px;
-    margin: 0;
-    color: var(--primary);
-  }
-
-  .project-title a {
-    text-decoration: none;
-    color: inherit;
-  }
-
-  .project-description {
-    color: var(--text-light);
-    margin-bottom: 15px;
-    line-height: 1.5;
-  }
-
-  .project-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .meta-item {
-    display: flex;
-    align-items: center;
-    color: var(--text-light);
-    font-size: 14px;
-  }
-
-  .meta-item svg {
-    margin-right: 8px;
-    color: var(--primary);
-  }
-
-  /* Status badges */
-  .status-badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-
-  .status-badge {
-    background-color: #ffca28; 
-    color: white;
-  }
-
-  .status-badge.status-Réalisé {
-    background-color: #4caf50; 
-    color: white;
-  }
-
-  .status-badge.status-Planifié {
-    background-color: #64b5f6; 
-    color: white;
-  }
-
-  /* Buttons */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    padding: 10px 18px;
-    border-radius: 4px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: background-color 0.2s;
-  }
-
-  .btn svg {
-    margin-right: 8px;
-  }
-
-  .create-btn {
-    background-color: var(--secondary);
-    color: white;
-  }
-
-  .create-btn:hover {
-    background-color: #3d9a40;
-  }
-
-  .filter-btn {
-    background-color: var(--bg-light);
-    color: var(--text-dark);
-    border: 1px solid var(--border-color);
-  }
-
-  .filter-btn:hover {
-    background-color: #e8e8e8;
-  }
-
-  .filter-btn.active {
-    background-color: var(--primary);
-    color: white;
-    border-color: var(--primary);
-  }
-
-  .empty-message {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 40px;
-    background-color: var(--bg-light);
-    border-radius: 8px;
-    color: var(--text-light);
-    font-style: italic;
-  }
-
-  /* Responsive design */
-  @media (max-width: 768px) {
-    .projects-header {
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    .projects-actions {
-      width: 100%;
-      flex-direction: column;
-    }
-
-    .search-form {
-      width: 100%;
-      margin-right: 0;
-      margin-bottom: 10px;
-    }
-
-    .search-wrapper {
-      width: 100%;
-    }
-
-    .search-input {
-      flex: 1;
-    }
-
-    .btn {
-      width: 100%;
-      justify-content: center;
-    }
-
-    .projects-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
 {% endblock %}

@@ -1,293 +1,727 @@
-{% extends 'base.html' %} 
-{% load i18n %}
-{% block title %}مشروع جديد - المنصة الوطنية للبحث في معالجة اللغة العربية الطبيعية{% endblock %} 
+{% extends 'base.html' %}
+{% load i18n static %}
+{% get_current_language as LANGUAGE_CODE %}
+
+{% block title %}{% if project %}{% translate "Edit Project" %}{% else %}{% translate "Create Project" %}{% endif %} | {% translate "Research Projects" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="{% static 'css/create-forms-common.css' %}">
+<style>
+/* ===== CSS VARIABLES - Modern Dark Theme (Unified Corpus Design) ===== */
+:root {
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --bg-card-hover: rgba(167, 139, 250, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    --radius: 8px;
+    --success: #059669;
+    --success-light: #ECFDF5;
+    --danger: #DC2626;
+    --teal: #0D9488;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.project-form-page {
+    min-height: calc(100vh - 100px);
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    padding: 3rem;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.project-form-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(124, 58, 237, 0.06) 0%, transparent 45%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== MINIMAL PAGE HEADER (Simplified Hero) ===== */
+.page-hero {
+    margin-bottom: 2.5rem;
+    text-align: center;
+}
+
+.page-hero::before {
+    display: none;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.5);
+    list-style: none;
+    padding: 0;
+    margin-left: 0;
+    flex-wrap: wrap;
+}
+
+.breadcrumb a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-weight: 500;
+}
+
+.breadcrumb a:hover { 
+    color: var(--accent-cyan);
+}
+
+.breadcrumb .sep { 
+    color: rgba(255,255,255,0.3); 
+    font-size: 0.7rem;
+}
+
+.breadcrumb .current { 
+    color: rgba(255,255,255,0.8); 
+    font-weight: 600;
+}
+
+/* Hero Icon */
+.hero-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.75rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.25);
+    transition: all 0.3s ease;
+}
+
+.hero-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+}
+
+.page-hero h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.02em;
+}
+
+.page-hero p {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.9rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* ===== WHITE CARDS - PREMIUM ELEVATION ===== */
+.card {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.03) 0%, rgba(124, 58, 237, 0.01) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.card-header-icon.purple { background: rgba(167, 139, 250, 0.1); color: #A78BFA; }
+
+.card-header-text h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-header-text p {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-group { margin-bottom: 1.5rem; }
+
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.form-group label .required { color: #ef4444; margin-left: 0.125rem; }
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 8px;
+    background: rgba(255,255,255,.05);
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.form-group textarea {
+    min-height: 150px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.1);
+    background: rgba(255,255,255,.08);
+}
+
+.form-group input:hover,
+.form-group textarea:hover,
+.form-group select:hover { 
+    border-color: rgba(167, 139, 250, 0.18);
+}
+
+.form-group select {
+    color-scheme: dark;
+}
+
+.form-group select option {
+    background: #17152b;
+    color: #f8fafc;
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.alert {
+    padding: 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid transparent;
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.1);
+    border-left-color: #DC2626;
+    color: #fca5a5;
+}
+
+.alert-error strong { color: #fca5a5; }
+
+/* ===== SUBMIT BUTTONS ===== */
+.form-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(124, 58, 237, 0.02) 100%);
+    border-top: 1px solid rgba(167, 139, 250, 0.1);
+}
+
+.btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-family: inherit;
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.25);
+}
+
+.btn-submit:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+}
+
+.btn-submit:active { 
+    transform: translateY(0) scale(0.98); 
+}
+
+.btn-submit:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed; 
+    transform: none; 
+}
+
+.btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: rgba(255,255,255,.05);
+    color: var(--text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+}
+
+.btn-cancel:hover {
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--primary-color);
+    background: rgba(167, 139, 250, 0.06);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+    .page-hero h1 { font-size: 1.875rem; }
+    .page-hero { padding: 2rem 0; }
+    .form-container { padding: 0 1rem; }
+}
+
+@media (max-width: 768px) {
+    .page-hero { padding: 1.5rem 0 3rem; }
+    .card-body { padding: 1.5rem; }
+    .form-footer { flex-direction: column-reverse; padding: 1.25rem 1.5rem; }
+    .btn { width: 100%; justify-content: center; }
+    .project-form-page { padding: 2rem; }
+}
+
+/* RTL Support */
+html[dir="rtl"] .form-group label { text-align: right; }
+html[dir="rtl"] .form-group input,
+html[dir="rtl"] .form-group textarea,
+html[dir="rtl"] .form-group select { direction: rtl; text-align: right; }
+html[dir="rtl"] .breadcrumb { flex-direction: row-reverse; text-align: right; }
+html[dir="rtl"] .page-hero { text-align: right; }
+html[dir="rtl"] .page-hero .breadcrumb { justify-content: flex-end; }
+html[dir="rtl"] .form-footer { flex-direction: row-reverse; }
+html[dir="rtl"] .btn { flex-direction: row-reverse; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="content">
-  <h1 class="page-title">مشروع جديد</h1>
+<!-- ===== PROJECT CREATION PAGE ===== -->
+<div class="project-form-page">
+    <div class="page-hero">
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb">
+            <a href="{% url 'projects:project_list' %}">{% if LANGUAGE_CODE|slice:":2" == "ar" %}المشاريع{% else %}{% trans "Projects" %}{% endif %}</a>
+            <span class="sep"><i class="bi bi-chevron-right"></i></span>
+            <span class="current">{% if project %}{% trans "Edit Project" %}{% else %}{% trans "Create New" %}{% endif %}</span>
+        </nav>
 
-  <div class="form-container">
-    <form method="post" class="project-form" enctype="multipart/form-data">
-      {% csrf_token %}
-      <div class="form-fields">
-        
-        <div class="form-group">
-          <label for="{{ form.title.id_for_label }}">العنوان</label>
-          {{ form.title }}
-          {% if form.title.errors %}
-          <div class="error-message">{{ form.title.errors }}</div>
-          {% endif %}
+        <!-- Icon -->
+        <div class="hero-icon">
+            <i class="bi bi-folder-plus"></i>
         </div>
 
-        <div class="form-group">
-          <label for="{{ form.institution.id_for_label }}">المؤسسة</label>
-          {{ form.institution }}
-          {% if form.institution.errors %}
-          <div class="error-message">{{ form.institution.errors }}</div>
-          {% endif %}
+        <!-- Title -->
+        <h1>{% if project %}{% trans "Edit Research Project" %}{% else %}{% trans "Create Research Project" %}{% endif %}</h1>
+        <p>{% if project %}{% trans "Update your project details before sharing the next revision" %}{% else %}{% trans "Start a new research project and invite collaborators to join" %}{% endif %}</p>
+    </div>
+
+    <div class="form-container">
+        <div class="card">
+            <form method="post" enctype="multipart/form-data" id="projectForm">
+                {% csrf_token %}
+
+                <!-- Error Messages -->
+                {% if form.errors or form.non_field_errors %}
+                <div class="card-body">
+                    <div class="alert alert-error">
+                        <strong>{% trans "Please correct the following errors:" %}</strong>
+                        <ul style="margin: 0.75rem 0 0; padding-left: 1.5rem;">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="card-body">
+                    <!-- Title field -->
+                    <div class="form-group">
+                        <label for="{{ form.title.id_for_label }}">
+                            {{ form.title.label }} <span class="required">*</span>
+                        </label>
+                        <input type="text" 
+                               name="{{ form.title.name }}" 
+                               id="{{ form.title.id_for_label }}"
+                               value="{{ form.title.value|default:'' }}" 
+                               placeholder="{% trans 'Enter the project title...' %}" 
+                               required>
+                        {% if form.title.help_text %}<small class="form-text">{{ form.title.help_text }}</small>{% endif %}
+                        {% for error in form.title.errors %}<small class="form-text" style="color: #ef4444;"><i class="bi bi-exclamation-circle"></i> {{ error }}</small>{% endfor %}
+                    </div>
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+                    <!-- Section 1 — Basic Information -->
+                    <div class="pf-section">
+                        <div class="pf-section-header">
+                            <div class="pf-section-icon">
+                                <i class="bi bi-info-circle"></i>
+                            </div>
+                            <div>
+                                <h2 class="pf-section-title">{% translate "Basic Information" %}</h2>
+                                <p class="pf-section-subtitle">{% translate "Provide the core details of your research project." %}</p>
+                            </div>
+                        </div>
+
+                        <!-- Title -->
+                        <div class="pf-field {% if form.title.errors %}has-error{% endif %}">
+                            <label for="{{ form.title.id_for_label }}" class="pf-label">
+                                {{ form.title.label }} <span class="required">*</span>
+                            </label>
+                            <div class="pf-input-group">
+                                <i class="bi bi-fonts pf-input-icon"></i>
+                                <input type="text"
+                                       name="{{ form.title.name }}"
+                                       id="{{ form.title.id_for_label }}"
+                                       class="pf-input"
+                                       value="{{ form.title.value|default:'' }}"
+                                       placeholder="{% translate 'Enter the project title...' %}"
+                                       required>
+                            </div>
+                            {% if form.title.help_text %}<p class="pf-help">{{ form.title.help_text }}</p>{% endif %}
+                            {% for error in form.title.errors %}<p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                        </div>
+
+                        <!-- Institution -->
+                        <div class="pf-field {% if form.institution.errors %}has-error{% endif %}">
+                            <label for="{{ form.institution.id_for_label }}" class="pf-label">
+                                {% translate "Institution" %} <span class="required">*</span>
+                            </label>
+                            <div class="pf-input-group">
+                                <i class="bi bi-building pf-input-icon"></i>
+                                <select name="{{ form.institution.name }}"
+                                        id="{{ form.institution.id_for_label }}"
+                                        class="pf-select"
+                                        required>
+                                    <option value="">{% translate "Select institution" %}</option>
+                                    {% for value, label in form.fields.institution.choices %}
+                                    {% if value %}
+                                    <option value="{{ value }}" {% if form.institution.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% for error in form.institution.errors %}<p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                            <p class="pf-help">{% translate "Choose an existing institution or select Other to type the Arabic and English names manually." %}</p>
+                        </div>
+
+                        <div id="projectInstitutionOtherFields" {% if form.institution.value != 'other' %}hidden{% endif %}>
+                            <div class="pf-row">
+                                <div class="pf-field {% if form.institution_name_ar_custom.errors %}has-error{% endif %}">
+                                    <label for="{{ form.institution_name_ar_custom.id_for_label }}" class="pf-label">
+                                        {{ form.institution_name_ar_custom.label }} <span class="required">*</span>
+                                    </label>
+                                    <div class="pf-input-group">
+                                        <i class="bi bi-translate pf-input-icon"></i>
+                                        <input type="text"
+                                               name="{{ form.institution_name_ar_custom.name }}"
+                                               id="{{ form.institution_name_ar_custom.id_for_label }}"
+                                               class="pf-input"
+                                               value="{{ form.institution_name_ar_custom.value|default:'' }}"
+                                               placeholder="{% translate 'Type the institution name in Arabic' %}">
+                                    </div>
+                                    {% for error in form.institution_name_ar_custom.errors %}<p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                                </div>
+                                <div class="pf-field {% if form.institution_name_en_custom.errors %}has-error{% endif %}">
+                                    <label for="{{ form.institution_name_en_custom.id_for_label }}" class="pf-label">
+                                        {{ form.institution_name_en_custom.label }} <span class="required">*</span>
+                                    </label>
+                                    <div class="pf-input-group">
+                                        <i class="bi bi-translate pf-input-icon"></i>
+                                        <input type="text"
+                                               name="{{ form.institution_name_en_custom.name }}"
+                                               id="{{ form.institution_name_en_custom.id_for_label }}"
+                                               class="pf-input"
+                                               value="{{ form.institution_name_en_custom.value|default:'' }}"
+                                               placeholder="{% translate 'Type the institution name in English' %}">
+                                    </div>
+                                    {% for error in form.institution_name_en_custom.errors %}<p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="pf-field {% if form.description.errors %}has-error{% endif %}">
+                            <label for="{{ form.description.id_for_label }}" class="pf-label">
+                                {{ form.description.label }} <span class="required">*</span>
+                            </label>
+                            <div class="pf-input-group pf-input-group--textarea">
+                                <i class="bi bi-card-text pf-input-icon"></i>
+                                <textarea name="{{ form.description.name }}"
+                                          id="{{ form.description.id_for_label }}"
+                                          class="pf-textarea"
+                                          placeholder="{% translate 'Describe your research project, objectives, and methodology...' %}"
+                                          required>{{ form.description.value|default:'' }}</textarea>
+                            </div>
+                            {% if form.description.help_text %}<p class="pf-help">{{ form.description.help_text }}</p>{% endif %}
+                            {% for error in form.description.errors %}<p class="pf-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>{% endfor %}
+                        </div>
+=======
+=======
+>>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
+                    <!-- Institution field -->
+                    <div class="form-group">
+                        <label for="{{ form.institution.id_for_label }}">
+                            {% trans "Institution" %} <span class="required">*</span>
+                        </label>
+                        <select name="{{ form.institution.name }}" 
+                                id="{{ form.institution.id_for_label }}"
+                                required>
+                            <option value="">{% trans "Select institution" %}</option>
+                            {% for value, label in form.fields.institution.choices %}
+                            {% if value %}
+                            <option value="{{ value }}" {% if form.institution.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        {% for error in form.institution.errors %}<small class="form-text" style="color: #ef4444;"><i class="bi bi-exclamation-circle"></i> {{ error }}</small>{% endfor %}
+<<<<<<< HEAD
+>>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
+=======
+>>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
+                    </div>
+
+                    <!-- Description field -->
+                    <div class="form-group">
+                        <label for="{{ form.description.id_for_label }}">
+                            {{ form.description.label }} <span class="required">*</span>
+                        </label>
+                        <textarea name="{{ form.description.name }}" 
+                                  id="{{ form.description.id_for_label }}"
+                                  placeholder="{% trans 'Describe your research project, objectives, and methodology...' %}" 
+                                  required>{{ form.description.value|default:'' }}</textarea>
+                        {% if form.description.help_text %}<small class="form-text">{{ form.description.help_text }}</small>{% endif %}
+                        {% for error in form.description.errors %}<small class="form-text" style="color: #ef4444;"><i class="bi bi-exclamation-circle"></i> {{ error }}</small>{% endfor %}
+                    </div>
+
+                    <!-- Status field -->
+                    <div class="form-group">
+                        <label for="{{ form.status.id_for_label }}">
+                            {% trans "Project Status" %} <span class="required">*</span>
+                        </label>
+                        <select name="{{ form.status.name }}"
+                                id="{{ form.status.id_for_label }}"
+                                required>
+                            {% for value, label in form.fields.status.choices %}
+                            <option value="{{ value }}" {% if form.status.value == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {% for error in form.status.errors %}<small class="form-text" style="color: #ef4444;"><i class="bi bi-exclamation-circle"></i> {{ error }}</small>{% endfor %}
+                    </div>
+
+                    <!-- Start Date field -->
+                    <div class="form-group">
+                        <label for="{{ form.date_start.id_for_label }}">{% trans "Start Date" %}</label>
+                        <input type="date"
+                               name="{{ form.date_start.name }}"
+                               id="{{ form.date_start.id_for_label }}"
+                               value="{{ form.date_start.value|date:'Y-m-d' }}">
+                        {% for error in form.date_start.errors %}<small class="form-text" style="color: #ef4444;"><i class="bi bi-exclamation-circle"></i> {{ error }}</small>{% endfor %}
+                    </div>
+
+                    <!-- End Date field -->
+                    <div class="form-group">
+                        <label for="{{ form.date_end.id_for_label }}">{% trans "End Date" %}</label>
+                        <input type="date"
+                               name="{{ form.date_end.name }}"
+                               id="{{ form.date_end.id_for_label }}"
+                               value="{{ form.date_end.value|date:'Y-m-d' }}">
+                        {% for error in form.date_end.errors %}<small class="form-text" style="color: #ef4444;"><i class="bi bi-exclamation-circle"></i> {{ error }}</small>{% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-footer">
+                    <button type="submit" class="btn btn-submit" id="submitBtn">
+                        <i class="bi bi-send-fill"></i>
+                        {% if project %}{% trans "Save Changes" %}{% else %}{% trans "Create Project" %}{% endif %}
+                    </button>
+                    <a href="{% if project %}{% url 'projects:project_detail' project.pk %}{% else %}{% url 'projects:project_list' %}{% endif %}" class="btn btn-cancel">
+                        <i class="bi bi-x"></i>
+                        {% trans "Cancel" %}
+                    </a>
+                </div>
+            </form>
         </div>
-
-        <div class="form-group">
-          <label for="{{ form.description.id_for_label }}">الوصف</label>
-          {{ form.description }}
-          {% if form.description.errors %}
-          <div class="error-message">{{ form.description.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.status.id_for_label }}">الحالة</label>
-          {{ form.status }}
-          {% if form.status.errors %}
-          <div class="error-message">{{ form.status.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.date_start.id_for_label }}">تاريخ البداية</label>
-          {{ form.date_start }}
-          {% if form.date_start.errors %}
-          <div class="error-message">{{ form.date_start.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.date_end.id_for_label }}">تاريخ النهاية</label>
-          {{ form.date_end }}
-          {% if form.date_end.errors %}
-          <div class="error-message">{{ form.date_end.errors }}</div>
-          {% endif %}
-        </div>
-
-        <div class="form-group">
-          <label for="{{ form.attachment.id_for_label }}">المرفق</label>
-          {{ form.attachment }}
-          {% if form.attachment.errors %}
-          <div class="error-message">{{ form.attachment.errors }}</div>
-          {% endif %}
-        </div>
-
-      </div>
-
-      <div class="form-actions">
-        <button type="submit" class="btn submit-btn">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"
-            ></path>
-            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-            <polyline points="7 3 7 8 15 8"></polyline>
-          </svg>
-          إنشاء المشروع
-        </button>
-        <a href="javascript:history.back()" class="btn cancel-btn">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M19 12H5"></path>
-            <path d="M12 19l-7-7 7-7"></path>
-          </svg>
-          إلغاء
-        </a>
-      </div>
-    </form>
-  </div>
+    </div>
 </div>
+<<<<<<< HEAD
+<<<<<<< HEAD
 
-<style>
-  /* Global styles */
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const zone = document.getElementById('fileZone');
+    const input = zone?.querySelector('input[type="file"]');
+    const selected = document.getElementById('fileSelected');
+    const removeBtn = document.getElementById('fileRemove');
+    const institutionSelect = document.getElementById('{{ form.institution.id_for_label }}');
+    const institutionOtherFields = document.getElementById('projectInstitutionOtherFields');
+    const institutionNameAr = document.getElementById('{{ form.institution_name_ar_custom.id_for_label }}');
+    const institutionNameEn = document.getElementById('{{ form.institution_name_en_custom.id_for_label }}');
 
-  /* Page title */
-  .page-title {
-    color: var(--primary);
-    text-align: center;
-    font-size: 28px;
-    margin-bottom: 30px;
-    position: relative;
-    padding-bottom: 10px;
-  }
+    const syncInstitutionOtherFields = () => {
+        if (!institutionSelect || !institutionOtherFields) return;
+        const isOther = institutionSelect.value === 'other';
+        institutionOtherFields.hidden = !isOther;
+        institutionNameAr?.toggleAttribute('required', isOther);
+        institutionNameEn?.toggleAttribute('required', isOther);
+    };
 
-  .page-title:after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80px;
-    height: 3px;
-    background-color: var(--secondary);
-  }
+    institutionSelect?.addEventListener('change', syncInstitutionOtherFields);
+    syncInstitutionOtherFields();
 
-  /* Form container */
-  .form-container {
-    background-color: white;
-    border-radius: 6px;
-    box-shadow: var(--card-shadow);
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 30px;
-  }
+    if (!zone || !input || !selected) return;
 
-  .project-form {
-    width: 100%;
-  }
+    const nameEl = selected.querySelector('.file-name');
+    const sizeEl = selected.querySelector('.file-size');
 
-  .form-fields {
-    margin-bottom: 25px;
-  }
+    const formatSize = bytes => {
+        if (!bytes) return '0 Bytes';
+        const k = 1024, units = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + units[i];
+    };
 
-  .form-group {
-    margin-bottom: 20px;
-  }
+    const showFile = file => {
+        nameEl.textContent = file.name;
+        sizeEl.textContent = formatSize(file.size);
+        selected.classList.add('visible');
+        zone.style.borderColor = 'var(--pf-success)';
+        zone.style.borderStyle = 'solid';
+    };
 
-  .form-group label {
-    display: block;
-    margin-bottom: 8px;
-    color: var(--primary);
-    font-weight: 500;
-    font-size: 16px;
-    text-align: right;
-  }
+    const clearFile = () => {
+        input.value = '';
+        selected.classList.remove('visible');
+        zone.style.borderColor = '';
+        zone.style.borderStyle = '';
+    };
 
-  .form-group input,
-  .form-group textarea,
-  .form-group select {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 15px;
-    color: var(--text-dark);
-    transition: border-color 0.2s, box-shadow 0.2s;
-    direction: rtl;
-    text-align: right;
-  }
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt =>
+        zone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); })
+    );
+    ['dragenter', 'dragover'].forEach(evt =>
+        zone.addEventListener(evt, () => zone.classList.add('dragover'))
+    );
+    ['dragleave', 'drop'].forEach(evt =>
+        zone.addEventListener(evt, () => zone.classList.remove('dragover'))
+    );
 
-  .form-group input:focus,
-  .form-group textarea:focus,
-  .form-group select:focus {
-    border-color: var(--primary);
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(30, 78, 109, 0.1);
-  }
+    zone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        if (files.length) { input.files = files; showFile(files[0]); }
+    });
 
-  .form-group textarea {
-    min-height: 120px;
-    resize: vertical;
-  }
+    input.addEventListener('change', function () {
+        if (this.files.length) showFile(this.files[0]);
+    });
 
-  .help-text {
-    margin-top: 5px;
-    color: var(--text-light);
-    font-size: 13px;
-    font-style: italic;
-    text-align: right;
-  }
-
-  .error-message {
-    color: var(--error-color);
-    margin-top: 5px;
-    font-size: 14px;
-    text-align: right;
-  }
-
-  /* Form actions */
-  .form-actions {
-    display: flex;
-    justify-content: space-between;
-    gap: 15px;
-  }
-
-  .submit-btn {
-    background-color: var(--secondary);
-    color: white;
-  }
-
-  .submit-btn:hover {
-    background-color: #3d9a40;
-  }
-
-  .submit-btn:active {
-    transform: translateY(1px);
-  }
-
-  .cancel-btn {
-    background-color: white;
-    color: var(--text-dark);
-    border: 1px solid var(--border-color);
-  }
-
-  .cancel-btn:hover {
-    background-color: var(--bg-light);
-  }
-
-  .btn svg {
-    margin-right: 8px;
-  }
-
-  /* Responsive design */
-  @media (max-width: 1024px) {
-    .content {
-      margin-left: 0;
-      padding: 15px;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .form-container {
-      padding: 20px;
-    }
-
-    .form-actions {
-      flex-direction: column;
-    }
-
-    .btn {
-      width: 100%;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .content {
-      padding: 10px;
-    }
-
-    .page-title {
-      font-size: 24px;
-    }
-
-    .form-container {
-      padding: 15px;
-    }
-
-    .form-group label {
-      font-size: 15px;
-    }
-
-    .form-group input,
-    .form-group textarea,
-    .form-group select {
-      font-size: 14px;
-      padding: 8px 10px;
-    }
-  }
-</style>
+    removeBtn?.addEventListener('click', clearFile);
+});
+</script>
+=======
+>>>>>>> 9e15707acc9a2b898fdd4fbcb4632a634c4aeaad
+=======
+>>>>>>> cbaec604e4a66e19d9624be17f354a4e27541831
 {% endblock %}

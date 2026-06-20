@@ -2,101 +2,329 @@
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django.urls import reverse
+from django.views.decorators.http import require_GET, require_POST
 from .models import Notification
 from .services import NotificationService
 from django.core.paginator import Paginator
 from django.contrib import messages
+from datetime import timedelta
+from collections import OrderedDict
+from accounts.blocking import blocked_user_ids_for
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _exclude_blocked_senders(queryset, user):
+    """Exclude notifications from blocked users. Returns unfiltered queryset if blocking fails."""
+    try:
+        hidden_ids = blocked_user_ids_for(user)
+        if not hidden_ids:
+            return queryset
+        return queryset.exclude(sender_id__in=hidden_ids)
+    except Exception as e:
+        # If blocking logic fails, return unfiltered queryset rather than crashing
+        return queryset
+
+
+def group_notifications_by_date(notifications):
+    """
+    Group notifications by Today, Yesterday, and Earlier.
+    Returns an OrderedDict with date groups.
+    """
+    try:
+        today = timezone.now().date()
+        yesterday = today - timedelta(days=1)
+    except Exception:
+        # Fallback if timezone fails
+        from datetime import date
+        today = date.today()
+        yesterday = date.fromordinal(today.toordinal() - 1)
+    
+    grouped = OrderedDict([
+        ('today', []),
+        ('yesterday', []),
+        ('earlier', []),
+    ])
+    
+    for notification in notifications:
+        try:
+            if not hasattr(notification, 'created_at') or notification.created_at is None:
+                grouped['earlier'].append(notification)
+                continue
+                
+            notification_date = notification.created_at.date()
+            if notification_date == today:
+                grouped['today'].append(notification)
+            elif notification_date == yesterday:
+                grouped['yesterday'].append(notification)
+            else:
+                grouped['earlier'].append(notification)
+        except Exception:
+            # If anything goes wrong with this notification, add it to 'earlier'
+            grouped['earlier'].append(notification)
+    
+    return grouped
+
 
 @login_required
 def notification_list(request):
     
     """Vue pour afficher la liste des notifications"""
-    base_queryset = Notification.objects.filter(recipient=request.user)
-    notifications = base_queryset.order_by('-created_at')
+    try:
+        try:
+            base_queryset = _exclude_blocked_senders(
+                Notification.objects.filter(recipient=request.user),
+                request.user,
+            )
+        except Exception:
+            # If blocking fails, get all notifications
+            base_queryset = Notification.objects.filter(recipient=request.user)
+        
+        try:
+            notifications = base_queryset.order_by('-created_at')
+            paginator = Paginator(notifications, 10)
+            page = request.GET.get('page')
+            notifications = paginator.get_page(page)
+        except Exception:
+            # If pagination fails, return empty page object
+            notifications = []
+        
+        action_required_types = {
+            'PROJECT_INVITE',
+            'PROJECT_INVITATION',
+            'PROJECT_JOIN_REQUEST',
+            'MEMBERSHIP_REQUEST',
+            'LEAVE_REQUEST',
+        }
+        project_invite_types = {'PROJECT_INVITE', 'PROJECT_INVITATION'}
+        join_request_types = {'PROJECT_JOIN_REQUEST', 'MEMBERSHIP_REQUEST'}
 
-    paginator = Paginator(notifications, 10)
-    page = request.GET.get('page')
-    notifications = paginator.get_page(page)
-    
-    action_required_types = {
-        'PROJECT_INVITE',
-        'PROJECT_INVITATION',
-        'PROJECT_JOIN_REQUEST',
-        'MEMBERSHIP_REQUEST',
-        'LEAVE_REQUEST',
-    }
-    project_invite_types = {'PROJECT_INVITE', 'PROJECT_INVITATION'}
-    join_request_types = {'PROJECT_JOIN_REQUEST', 'MEMBERSHIP_REQUEST'}
+        try:
+            notification_list = (
+                notifications.object_list
+                if hasattr(notifications, 'object_list')
+                else notifications
+            )
+        except Exception:
+            notification_list = []
+        
+        for notification in notification_list:
+            try:
+                # Ensure IDs are not None before setting boolean flags that depend on URLs
+                has_project_id = notification.project_id is not None
+                has_sender_id = notification.sender_id is not None
+                
+                notification.requires_action = (
+                    notification.type in action_required_types and not notification.response_given
+                )
+                notification.is_project_invite = bool(
+                    has_project_id and notification.type in project_invite_types
+                )
+                notification.is_join_request = bool(
+                    has_project_id and has_sender_id and notification.type in join_request_types
+                )
+                notification.is_leave_request = bool(
+                    has_project_id and has_sender_id and notification.type == 'LEAVE_REQUEST'
+                )
+            except Exception:
+                # Fallback values if any attribute is missing
+                notification.requires_action = False
+                notification.is_project_invite = False
+                notification.is_join_request = False
+                notification.is_leave_request = False
+        
+        # Group notifications by date (Today, Yesterday, Earlier)
+        try:
+            grouped_notifications = group_notifications_by_date(notification_list)
+        except Exception:
+            # If grouping fails, put all in 'earlier'
+            grouped_notifications = OrderedDict([
+                ('today', []),
+                ('yesterday', []),
+                ('earlier', list(notification_list) if notification_list else []),
+            ])
+        
+        # Count notifications safely
+        try:
+            total_count = base_queryset.count()
+        except Exception:
+            total_count = 0
+        
+        try:
+            unread_count = base_queryset.filter(read=False).count()
+        except Exception:
+            unread_count = 0
+        
+        try:
+            action_required_count = base_queryset.filter(
+                type__in=action_required_types,
+                response_given=False
+            ).count()
+        except Exception:
+            action_required_count = 0
+        
+        return render(request, 'notifications/list.html', {
+            'notifications': notifications,
+            'grouped_notifications': grouped_notifications,
+            'user': request.user,
+            'total_notifications': total_count,
+            'unread_notifications': unread_count,
+            'action_required_count': action_required_count,
+        })
+    except Exception as e:
+        # Last-resort error handling - return empty notifications
+        logger.exception(f"Critical error in notification_list view: {e}")
+        return render(request, 'notifications/list.html', {
+            'notifications': [],
+            'grouped_notifications': OrderedDict([('today', []), ('yesterday', []), ('earlier', [])]),
+            'user': request.user,
+            'total_notifications': 0,
+            'unread_notifications': 0,
+            'action_required_count': 0,
+        })
 
-    notification_list = (
-        notifications.object_list
-        if hasattr(notifications, 'object_list')
-        else notifications
-    )
-    for notification in notification_list:
-        notification.requires_action = (
-            notification.type in action_required_types and not notification.response_given
-        )
-        notification.is_project_invite = bool(
-            notification.project_id and notification.type in project_invite_types
-        )
-        notification.is_join_request = bool(
-            notification.project_id
-            and notification.sender_id
-            and notification.type in join_request_types
-        )
-        notification.is_leave_request = bool(
-            notification.project_id
-            and notification.sender_id
-            and notification.type == 'LEAVE_REQUEST'
-        )
-    
-    return render(request, 'notifications/list.html', {
-        'notifications': notifications,
-        'user': request.user,  # Assurez-vous que l'utilisateur est explicitement passAc
-        'total_notifications': base_queryset.count(),
-        'unread_notifications': base_queryset.filter(read=False).count(),
-        'action_required_count': base_queryset.filter(
-            type__in=action_required_types,
-            response_given=False
-        ).count(),
-    })
+
 @login_required
 def api_notification_list(request):
-    notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')[:20]
-    data = [{
-        'id': n.id,
-        'title': n.title,
-        'message': n.message,
-        'created_at': n.created_at.isoformat(),
-        'read': n.read,
-    } for n in notifications]
-    return JsonResponse({'notifications': data})
+    """API to get recent notifications with full details for dropdown."""
+    notifications = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user),
+        request.user,
+    ).select_related('content_type').order_by('-created_at')[:15]
+    
+    data = []
+    for n in notifications:
+        # Determine redirect URL
+        redirect_url = reverse('notifications:go_to_notification', kwargs={'notification_id': n.id})
+        
+        # Get notification type icon
+        type_icons = {
+            'PROJECT_INVITATION': 'fa-user-plus',
+            'MEMBERSHIP_REQUEST': 'fa-user-clock',
+            'PROJECT_UPDATE': 'fa-flask',
+            'TASK_ASSIGNED': 'fa-tasks',
+            'LEAVE_REQUEST': 'fa-door-open',
+            'FOLLOW_REQUEST': 'fa-user-plus',
+            'COMMENT': 'fa-comment',
+            'MESSAGE': 'fa-envelope',
+            'EVENT_CREATED': 'fa-calendar-plus',
+            'EVENT_APPROVED': 'fa-calendar-check',
+            'RESOURCE_ADDED': 'fa-file-alt',
+            'TOOL_ADDED': 'fa-tools',
+            'CORPUS_UPDATE': 'fa-database',
+            'RESEARCH_UPDATE': 'fa-microscope',
+            'FORUM_TOPIC': 'fa-comments',
+            'QA_ANSWER': 'fa-reply',
+            'QA_COMMENT': 'fa-comment-dots',
+            'POST_APPROVED': 'fa-check-circle',
+            'INSTITUTION_UPDATE': 'fa-university',
+            'SYSTEM': 'fa-cog',
+        }
+        
+        # Get type color
+        type_colors = {
+            'PROJECT_INVITATION': 'bg-purple-100 text-purple-600',
+            'MEMBERSHIP_REQUEST': 'bg-indigo-100 text-indigo-600',
+            'PROJECT_UPDATE': 'bg-blue-100 text-blue-600',
+            'TASK_ASSIGNED': 'bg-orange-100 text-orange-600',
+            'FOLLOW_REQUEST': 'bg-sky-100 text-sky-600',
+            'COMMENT': 'bg-green-100 text-green-600',
+            'EVENT_CREATED': 'bg-pink-100 text-pink-600',
+            'EVENT_APPROVED': 'bg-emerald-100 text-emerald-600',
+            'RESOURCE_ADDED': 'bg-cyan-100 text-cyan-600',
+            'TOOL_ADDED': 'bg-amber-100 text-amber-600',
+            'FORUM_TOPIC': 'bg-violet-100 text-violet-600',
+            'QA_ANSWER': 'bg-teal-100 text-teal-600',
+            'POST_APPROVED': 'bg-green-100 text-green-600',
+        }
+        
+        data.append({
+            'id': str(n.id),
+            'title': n.get_localized_title(),
+            'message': n.get_localized_message()[:100] + '...' if len(n.get_localized_message()) > 100 else n.get_localized_message(),
+            'type': n.type,
+            'type_display': str(n.get_type_display()),
+            'icon': type_icons.get(n.type, 'fa-bell'),
+            'color_class': type_colors.get(n.type, 'bg-gray-100 text-gray-600'),
+            'created_at': n.created_at.isoformat(),
+            'time_since': _time_since(n.created_at),
+            'read': n.read,
+            'url': redirect_url,
+            'requires_action': n.type in {'PROJECT_INVITATION', 'MEMBERSHIP_REQUEST', 'LEAVE_REQUEST'} and not n.response_given,
+        })
+    
+    unread_count = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user, read=False),
+        request.user,
+    ).count()
+    
+    return JsonResponse({
+        'notifications': data,
+        'unread_count': unread_count,
+    })
+
+
+def _time_since(dt):
+    """Helper to format time since in a friendly way."""
+    now = timezone.now()
+    diff = now - dt
+    
+    if diff.days > 7:
+        return dt.strftime('%b %d')
+    elif diff.days > 0:
+        return f"{diff.days}d"
+    elif diff.seconds >= 3600:
+        return f"{diff.seconds // 3600}h"
+    elif diff.seconds >= 60:
+        return f"{diff.seconds // 60}m"
+    else:
+        return str(_("Just now"))
+
 
 @login_required
 def api_mark_as_read(request, notification_id):
-    """API pour marquer une notification comme lue"""
-    notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+    """API to mark a single notification as read."""
+    notification = get_object_or_404(
+        _exclude_blocked_senders(
+            Notification.objects.filter(recipient=request.user),
+            request.user,
+        ),
+        id=notification_id,
+    )
     notification.read = True
     notification.read_at = timezone.now()
-    notification.save()
+    notification.save(update_fields=['read', 'read_at'])
     
-    return JsonResponse({'success': True})
+    unread_count = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user, read=False),
+        request.user,
+    ).count()
+    return JsonResponse({'success': True, 'unread_count': unread_count})
+
 
 @login_required
 def api_mark_all_as_read(request):
-    """API pour marquer toutes les notifications comme lues"""
-    Notification.objects.filter(recipient=request.user, read=False).update(
+    """API to mark all notifications as read."""
+    updated = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user, read=False),
+        request.user,
+    ).update(
         read=True,
         read_at=timezone.now()
     )
     
-    return JsonResponse({'success': True})
+    return JsonResponse({'success': True, 'updated_count': updated, 'unread_count': 0})
 
 @login_required
 def api_notification_count(request):
     """API pour obtenir le nombre de notifications non lues"""
-    count = Notification.objects.filter(recipient=request.user, read=False).count()
+    count = _exclude_blocked_senders(
+        Notification.objects.filter(recipient=request.user, read=False),
+        request.user,
+    ).count()
     return JsonResponse({'count': count})
 
 @login_required
@@ -124,8 +352,8 @@ def api_notification_list_filtered(request):
         'id': n.id,
         'type': n.get_type_display(),
         'type_code': n.type,
-        'title': n.title,
-        'message': n.message,
+        'title': n.get_localized_title(),
+        'message': n.get_localized_message(),
         'created_at': n.created_at.isoformat(),
         'read': n.read,
         'read_at': n.read_at.isoformat() if n.read_at else None,
@@ -135,27 +363,143 @@ def api_notification_list_filtered(request):
 
 @login_required
 def mark_all_read(request):
-    """Marque toutes les notifications non lues de l'utilisateur comme lues."""
-    request.user.notifications.filter(read=False).update(read=True)
-    messages.success(request, "All notifications have been marked as read.")
+    """Marks all unread notifications for the current user as read."""
+    updated = _exclude_blocked_senders(
+        request.user.notifications.filter(read=False),
+        request.user,
+    ).update(
+        read=True,
+        read_at=timezone.now()
+    )
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'message': str(_("All notifications marked as read.")),
+            'updated_count': updated
+        })
+    
+    messages.success(request, _("All notifications have been marked as read."))
+    
+    # Return to previous page or notifications list
+    next_url = request.GET.get('next', request.META.get('HTTP_REFERER'))
+    if next_url:
+        return redirect(next_url)
     return redirect('notifications:list')
+
+
+@login_required
+def go_to_notification(request, notification_id):
+    """
+    Marks a notification as read and redirects to the associated content.
+    This is the main entry point for clicking on notifications.
+    """
+    notification = get_object_or_404(
+        _exclude_blocked_senders(
+            Notification.objects.filter(recipient=request.user),
+            request.user,
+        ),
+        id=notification_id,
+    )
+    
+    # Mark as read
+    if not notification.read:
+        notification.read = True
+        notification.read_at = timezone.now()
+        notification.save(update_fields=['read', 'read_at'])
+    
+    # Determine redirect URL based on notification type and content
+    redirect_url = None
+    
+    # 1. Try content_object with get_absolute_url
+    if notification.content_object:
+        try:
+            redirect_url = notification.content_object.get_absolute_url()
+        except (AttributeError, Exception):
+            pass
+    
+    # 2. Try project_id
+    if not redirect_url and notification.project_id:
+        try:
+            redirect_url = reverse('projects:project_detail', kwargs={'project_id': notification.project_id})
+        except Exception:
+            pass
+    
+    # 3. Type-specific redirects
+    if not redirect_url:
+        type_redirects = {
+            'EVENT_CREATED': 'events:event_list',
+            'EVENT_APPROVED': 'events:event_list',
+            'FORUM_TOPIC': 'forum:topic-list',
+            'QA_ANSWER': 'feed:feed',
+            'QA_COMMENT': 'feed:feed',
+            'POST_APPROVED': 'feed:feed',
+            'RESOURCE_ADDED': 'resources:list',
+            'TOOL_ADDED': 'resources:tool_list',
+            'CORPUS_UPDATE': 'resources:corpus_list',
+            'INSTITUTION_UPDATE': 'institutions:institution_list',
+            'FOLLOW_REQUEST': 'accounts:network_invitations',
+        }
+        
+        if notification.type in type_redirects:
+            try:
+                redirect_url = reverse(type_redirects[notification.type])
+            except Exception:
+                pass
+    
+    # 4. Default fallback to notifications list
+    if not redirect_url:
+        redirect_url = reverse('notifications:list')
+    
+    return redirect(redirect_url)
+
 
 @login_required
 def mark_read(request, notification_id):
-    """Marque une notification spÃ©cifique comme lue et redirige vers la liste."""
-    notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
-    notification.read = True
-    notification.read_at = timezone.now()
-    notification.save()
-    messages.success(request, "Notification marked as read.")
-    # Rediriger vers la page d'oÃ¹ la requÃªte provenait, ou par dÃ©faut la liste
-    next_url = request.GET.get('next', request.META.get('HTTP_REFERER', redirect('notifications:list').url))
-    return redirect(next_url)
+    """Marks a specific notification as read and redirects to associated content."""
+    # Delegate to go_to_notification for consistent behavior
+    return go_to_notification(request, notification_id)
 
+@login_required
+@require_POST
 def delete_all_notifications(request):
     Notification.objects.filter(recipient=request.user).delete()
-    messages.success(request, "All your notifications have been deleted.")
+    messages.success(request, _("All your notifications have been deleted."))
     return redirect('notifications:list') 
+
+
+@login_required
+def delete_notification(request, notification_id):
+    """Delete a single notification."""
+    notification = get_object_or_404(
+        _exclude_blocked_senders(
+            Notification.objects.filter(recipient=request.user),
+            request.user,
+        ),
+        id=notification_id,
+    )
+    notification.delete()
+    messages.success(request, _("Notification deleted successfully."))
+    
+    # Return to the referring page or notifications list
+    next_url = request.GET.get('next', request.META.get('HTTP_REFERER'))
+    if next_url:
+        return redirect(next_url)
+    return redirect('notifications:list')
+
+
+@login_required
+def api_delete_notification(request, notification_id):
+    """API endpoint to delete a single notification."""
+    notification = get_object_or_404(
+        _exclude_blocked_senders(
+            Notification.objects.filter(recipient=request.user),
+            request.user,
+        ),
+        id=notification_id,
+    )
+    notification.delete()
+    return JsonResponse({'success': True, 'message': str(_("Notification deleted successfully."))}) 
 
 
 

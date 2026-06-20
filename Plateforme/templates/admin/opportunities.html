@@ -1,0 +1,174 @@
+{% extends "base_admin.html" %}
+{% load i18n %}
+
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إدارة الفرص{% else %}{% trans "Opportunities Admin" %}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding-top:.5rem;">
+  <div class="pg-head">
+    <div>
+      <h1><i class="fas fa-briefcase"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص{% else %}{% trans "Opportunities" %}{% endif %}</h1>
+      <p class="pg-sub">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}راجع الفرص المعلّقة ثم وافق عليها أو ارفضها من لوحة المراجعة.{% else %}{% trans "Review pending opportunities, then approve or reject them from the moderation queue." %}{% endif %}</p>
+    </div>
+  </div>
+
+  <div class="n-2col">
+    <div class="n-card">
+      <div class="n-card-head">
+        <h6 class="n-card-title"><i class="fas fa-clock"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}قيد الانتظار{% else %}{% trans "Pending" %}{% endif %}</h6>
+      </div>
+      <div style="padding:1rem 1.25rem 1.25rem;">
+        <div style="font-size:2rem;font-weight:800;">{{ pending_count }}</div>
+        <p style="margin:.35rem 0 0;color:var(--n-text-2);">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}في انتظار تحقق الإدارة{% else %}{% trans "Awaiting admin validation" %}{% endif %}</p>
+      </div>
+    </div>
+    <div class="n-card">
+      <div class="n-card-head">
+        <h6 class="n-card-title"><i class="fas fa-chart-simple"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}نظرة عامة{% else %}{% trans "Overview" %}{% endif %}</h6>
+      </div>
+      <div style="padding:1rem 1.25rem 1.25rem;color:var(--n-text-2);line-height:1.8;">
+        <div>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مقبول:{% else %}{% trans "Approved" %}:{% endif %} <strong style="color:var(--n-text);">{{ approved_count }}</strong></div>
+        <div>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مرفوض:{% else %}{% trans "Rejected" %}:{% endif %} <strong style="color:var(--n-text);">{{ rejected_count }}</strong></div>
+        <div>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسات:{% else %}{% trans "Institutions" %}:{% endif %} <strong style="color:var(--n-text);">{{ institutions_count }}</strong></div>
+        <div>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المؤسسات الجزائرية:{% else %}{% trans "Algerian institutions" %}:{% endif %} <strong style="color:var(--n-text);">{{ algerian_institutions_count }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="n-card" style="margin-top:1rem;">
+    <div class="n-card-head">
+      <h6 class="n-card-title"><i class="fas fa-hourglass-half"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص المعلّقة{% else %}{% trans "Pending opportunities" %}{% endif %}</h6>
+    </div>
+    <div style="padding:1rem 1.25rem 1.25rem;">
+      {% if pending_opportunities %}
+        <div class="table-responsive">
+          <table class="n-tbl">
+            <thead>
+              <tr>
+                <th>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}العنوان{% else %}{% trans "Title" %}{% endif %}</th>
+                <th>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المؤلف{% else %}{% trans "Author" %}{% endif %}</th>
+                <th>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الدور{% else %}{% trans "Role" %}{% endif %}</th>
+                <th>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الموعد النهائي{% else %}{% trans "Deadline" %}{% endif %}</th>
+                <th>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الإجراءات{% else %}{% trans "Actions" %}{% endif %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in pending_opportunities %}
+                <tr>
+                  <td>
+                    <div style="font-weight:700;">{{ item.title }}</div>
+                    <div style="color:var(--n-text-2);font-size:.9rem;">{{ item.organization_en|default:item.organization_ar|default:"-" }}</div>
+                  </td>
+                  <td>{{ item.created_by.get_full_name_display|default:item.created_by.email }}</td>
+                  <td><span class="n-status n-status-blue">{{ item.user_role }}</span></td>
+                  <td>{{ item.deadline }}</td>
+                  <td>
+                    {% if can_moderate_opportunities %}
+                      <div class="n-acts">
+                        <a href="{% url 'pages:admin_view_item' model_type='opportunity' pk=item.pk %}" class="n-act" title="{% trans 'View' %}">
+                          <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{% url 'pages:admin_approve_item' model_type='opportunity' pk=item.pk %}?mode=edit" class="n-act n-act-yellow" title="{% trans 'Edit' %}">
+                          <i class="fas fa-edit"></i>
+                        </a>
+                        <form method="post" action="{% url 'pages:admin_reject_item' model_type='opportunity' pk=item.pk %}" style="display:inline;" onsubmit="return confirm('{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}هل تريد رفض هذا الطلب؟{% else %}{% trans "Reject this opportunity?" %}{% endif %}');">
+                          {% csrf_token %}
+                          <button type="submit" class="n-act n-act-red" title="{% trans 'Reject' %}">
+                            <i class="fas fa-times"></i>
+                          </button>
+                        </form>
+                      </div>
+                    {% else %}
+                      <span style="color:var(--n-text-2);">{% trans "Admin only" %}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p style="margin:0;color:var(--n-text-2);">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد فرص معلّقة.{% else %}{% trans "No pending opportunities." %}{% endif %}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="n-card" style="margin-top:1rem;">
+    <div class="n-card-head">
+      <h6 class="n-card-title"><i class="fas fa-check-circle"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص المقبولة{% else %}{% trans "Approved opportunities" %}{% endif %}</h6>
+    </div>
+    <div style="padding:1rem 1.25rem 1.25rem;">
+      {% if approved_opportunities %}
+        <div class="table-responsive">
+          <table class="n-tbl">
+            <thead>
+              <tr>
+                <th>{% trans "Title" %}</th>
+                <th>{% trans "Published" %}</th>
+                <th>{% trans "Approved by" %}</th>
+                <th>{% trans "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in approved_opportunities %}
+                <tr>
+                  <td>{{ item.title }}</td>
+                  <td>{% if item.is_published %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</td>
+                  <td>{{ item.approved_by.get_full_name_display|default:item.approved_by.email|default:"-" }}</td>
+                  <td>
+                    <div class="n-acts">
+                      <a href="{% url 'pages:admin_view_item' model_type='opportunity' pk=item.pk %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
+                      <a href="{% url 'pages:admin_opportunity_update' pk=item.pk %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p style="margin:0;color:var(--n-text-2);">{% trans "No approved opportunities yet." %}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="n-card" style="margin-top:1rem;">
+    <div class="n-card-head">
+      <h6 class="n-card-title"><i class="fas fa-ban"></i> {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الفرص المرفوضة{% else %}{% trans "Rejected opportunities" %}{% endif %}</h6>
+    </div>
+    <div style="padding:1rem 1.25rem 1.25rem;">
+      {% if rejected_opportunities %}
+        <div class="table-responsive">
+          <table class="n-tbl">
+            <thead>
+              <tr>
+                <th>{% trans "Title" %}</th>
+                <th>{% trans "Author" %}</th>
+                <th>{% trans "Published" %}</th>
+                <th>{% trans "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in rejected_opportunities %}
+                <tr>
+                  <td>{{ item.title }}</td>
+                  <td>{{ item.created_by.get_full_name_display|default:item.created_by.email }}</td>
+                  <td>{% if item.is_published %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</td>
+                  <td>
+                    <div class="n-acts">
+                      <a href="{% url 'pages:admin_view_item' model_type='opportunity' pk=item.pk %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
+                      <a href="{% url 'pages:admin_opportunity_update' pk=item.pk %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p style="margin:0;color:var(--n-text-2);">{% trans "No rejected opportunities." %}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

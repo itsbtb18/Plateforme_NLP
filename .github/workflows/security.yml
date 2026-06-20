@@ -1,0 +1,81 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Run dependency CVE scan
+        run: |
+          pip-audit -r Plateforme/requirements.txt \
+            --output json \
+            --output-file pip-audit-results.json
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-results
+          path: pip-audit-results.json
+
+  static-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install bandit
+        run: pip install bandit[toml]
+      - name: Run bandit
+        run: |
+          bandit -r Plateforme/scraping/ \
+            fastapi_chatbot/ \
+            -f json \
+            -o bandit-results.json \
+            --severity-level medium
+      - name: Upload bandit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-results
+          path: bandit-results.json
+
+  compose-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker-compose
+        run: docker compose config --quiet
+      - name: Check for latest tags
+        run: |
+          if grep -n ":latest" docker-compose.yml; then
+            echo "ERROR: latest tags found in docker-compose.yml"
+            exit 1
+          fi
+          echo "No latest tags found"
+
+  ruff-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install ruff
+        run: pip install ruff
+      - name: Run ruff
+        run: |
+          ruff check Plateforme/scraping/ \
+            fastapi_chatbot/ \
+            --output-format=github

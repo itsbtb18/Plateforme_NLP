@@ -1,0 +1,962 @@
+﻿{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إدارة الشبكة{% else %}{% trans "Network Management" %}{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== CSS VARIABLES - Modern Dark Theme ===== */
+:root {
+    --primary-color: #a78bfa;
+    --primary-dark: #8b5cf6;
+    --accent-color: #7c3aed;
+    --accent-pink: #ec4899;
+    --accent-cyan: #06b6d4;
+    --bg-dark: #0f1419;
+    --bg-darker: #0a0e14;
+    --bg-card: rgba(167, 139, 250, 0.05);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(167, 139, 250, 0.2);
+    --border-light: rgba(167, 139, 250, 0.1);
+    --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
+    --success-color: #10b981;
+    --success-light: rgba(16, 185, 129, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+}
+
+/* ===== PAGE LAYOUT ===== */
+.nr-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.nr-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ===== HERO SECTION ===== */
+.nr-shell {
+    position: relative;
+    z-index: 1;
+    padding: 1rem 0 2.5rem;
+    color: #fff;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+}
+
+.nr-wrap {
+    width: min(1400px, calc(100% - 4rem));
+    margin: 0 auto;
+}
+
+.nr-wrap > * {
+    position: relative;
+    z-index: 1;
+}
+
+.nr-header {
+    position: relative;
+    padding: 2rem 0;
+    margin: 1rem auto 1.5rem;
+    text-align: left;
+    display: flex;
+    align-items: flex-start;
+    gap: 2.5rem;
+    justify-content: flex-start;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.nr-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+.nr-title-icon {
+    width: 10rem;
+    height: 9rem;
+    border-radius: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(124, 58, 237, 0.1));
+    color: var(--primary-color);
+    border: none;
+    font-size: 5rem;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+    flex-shrink: 0;
+    margin-left: 2rem;
+}
+
+.nr-hero-inner {
+    max-width: 920px;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1;
+    gap: 0.8rem;
+}
+
+.nr-header h1 {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(2.3rem, 7vw, 3.3rem);
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    text-align: left;
+}
+
+.nr-header h1 .accent {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.nr-header p {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 1.3rem;
+    color: var(--primary-color);
+    line-height: 1.7;
+    font-weight: 600;
+    text-align: left;
+}
+
+.hero-stats {
+    display: none;
+}
+
+.nr-hero-image {
+    display: none;
+}
+
+.hero-illustration {
+    width: 100%;
+    max-width: 320px;
+    filter: drop-shadow(0 0 30px rgba(167, 139, 250, 0.3));
+}
+
+/* ===== TABS SECTION ===== */
+.nr-tabs {
+    position: relative;
+    z-index: 1;
+    margin: 0 0 1.5rem;
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+    padding-bottom: 1rem;
+}
+
+.nr-tab {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    transition: all 0.3s ease;
+    border-radius: 0;
+}
+
+.nr-tab:hover {
+    color: var(--text-primary);
+}
+
+.nr-tab.active {
+    color: var(--primary-color);
+    background: transparent;
+}
+
+.nr-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1.5rem;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    border-radius: 0;
+}
+
+.nr-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    background: rgba(167, 139, 250, 0.2);
+    border-radius: 50%;
+    font-size: 0.65rem;
+    margin-left: 0.4rem;
+}
+.nr-filter-card {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08), rgba(124, 58, 237, 0.04));
+    border: 1.5px solid rgba(167, 139, 250, 0.2);
+    border-radius: 28px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.nr-filter-grid {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.nr-stat-badge {
+    background: transparent;
+    border: none;
+    padding: 0;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.nr-stat-number {
+    font-size: 1.8rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+    line-height: 1;
+}
+
+.nr-stat-label {
+    font-size: 0.65rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.4rem;
+    font-weight: 700;
+}
+
+/* ===== CARDS CONTAINER ===== */
+.nr-pane {
+    position: relative;
+    z-index: 1;
+    display: none;
+    margin: 0 auto;
+    max-width: none;
+}
+
+.nr-pane.active {
+    display: block;
+}
+
+.nr-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 280px));
+    gap: 1rem;
+    justify-content: start;
+}
+
+/* ===== CARD ===== */
+.nr-card {
+    position: relative;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12), rgba(124, 58, 237, 0.08));
+    border: 1.5px solid rgba(167, 139, 250, 0.3);
+    border-radius: 22px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+    transition: all 0.3s ease;
+    min-height: 312px;
+    padding: 0;
+}
+
+.nr-card::before {
+    display: none;
+}
+
+.nr-card:hover {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.18), rgba(124, 58, 237, 0.12));
+    border-color: rgba(167, 139, 250, 0.5);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(167, 139, 250, 0.2);
+}
+
+.nr-card-accent {
+    height: 4px;
+    width: 100%;
+    flex-shrink: 0;
+    background: #a78bfa;
+}
+
+.nr-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0.85rem;
+    gap: 0.8rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+}
+
+.nr-avatar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+}
+
+.nr-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.nr-card-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.nr-user {
+    display: none;
+}
+
+.nr-avatar {
+    width: 60px;
+    height: 60px;
+    min-width: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+    overflow: hidden;
+    box-shadow: var(--shadow-glow);
+}
+
+.nr-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.nr-meta {
+    flex: 1;
+}
+
+.nr-meta a {
+    font-weight: 800;
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.95rem;
+    display: block;
+    margin: 0;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.nr-meta small {
+    color: #cbd5e1;
+    display: block;
+    font-size: 0.8rem;
+    margin: 0.4rem 0 0;
+}
+
+.nr-card-institution {
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    margin-top: 0.4rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.nr-card-body {
+    padding: 0.8rem 0.85rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.user-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.8rem;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 20px;
+    color: var(--success-color);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-top: 0.3rem;
+}
+
+/* ===== ACTIONS ===== */
+.nr-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: auto;
+    flex-direction: column;
+}
+
+.nr-btn {
+    flex: 1;
+    padding: 0.72rem 0.8rem;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    text-decoration: none;
+    border-top: 1px solid rgba(167, 139, 250, 0.16);
+}
+
+.nr-btn.primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.25);
+    border-top: none;
+}
+
+.nr-btn.primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(167, 139, 250, 0.35);
+}
+
+.nr-btn.outline {
+    background: transparent;
+    border: 1px solid rgba(167, 139, 250, 0.16);
+    color: #c4b5fd;
+    border-top: 1px solid rgba(167, 139, 250, 0.16);
+}
+
+.nr-btn.outline:hover:not(:disabled) {
+    border-color: rgba(167, 139, 250, 0.4);
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.nr-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ===== EMPTY STATE ===== */
+.nr-empty {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12), rgba(124, 58, 237, 0.08));
+    border: 1.5px solid rgba(167, 139, 250, 0.3);
+    border-radius: 28px;
+    padding: 4rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.nr-empty::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.nr-empty-inner {
+    position: relative;
+    z-index: 1;
+}
+
+.nr-empty-icon {
+    font-size: 3.5rem;
+    color: #a78bfa;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.nr-empty h3 {
+    margin: 1rem 0 0.75rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.01em;
+}
+
+.nr-empty p {
+    margin: 0 0 1.5rem;
+    font-size: 1rem;
+    color: #cbd5e1;
+    line-height: 1.6;
+    max-width: 480px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1000px) {
+    .nr-header {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+        gap: 2rem;
+    }
+
+    .nr-title-icon {
+        margin-left: 0;
+    }
+
+    .nr-hero-inner {
+        align-items: center;
+        text-align: center;
+    }
+
+    .nr-header h1 {
+        text-align: center;
+    }
+
+    .nr-header p {
+        text-align: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .nr-wrap {
+        width: min(100%, calc(100% - 1rem));
+    }
+
+    .nr-header {
+        padding: 2rem 1.25rem;
+        margin: 1rem auto 1.25rem;
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+    }
+
+    .nr-hero-inner {
+        align-items: center;
+        text-align: center;
+    }
+
+    .nr-header h1 {
+        font-size: 2rem;
+        text-align: center;
+    }
+
+    .nr-header p {
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .nr-title-icon {
+        width: 5.5rem;
+        height: 5.5rem;
+        font-size: 2.5rem;
+        margin-left: 0;
+    }
+
+    .nr-filter-grid {
+        flex-direction: column;
+    }
+
+    .nr-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .nr-header {
+        padding: 1.5rem 1rem;
+        margin: 0.5rem auto 1rem;
+    }
+
+    .nr-hero-inner {
+        align-items: center;
+        text-align: center;
+    }
+
+    .nr-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .nr-header p {
+        font-size: 0.9rem;
+    }
+
+    .nr-title-icon {
+        width: 4.5rem;
+        height: 4.5rem;
+        font-size: 2rem;
+    }
+
+    .nr-stat-number {
+        font-size: 2.5rem;
+    }
+
+    .nr-stat-label {
+        font-size: 0.55rem;
+        margin-top: 0.25rem;
+    }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.nr-card {
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.nr-card:nth-child(1) { animation-delay: 0.06s; }
+.nr-card:nth-child(2) { animation-delay: 0.12s; }
+.nr-card:nth-child(3) { animation-delay: 0.18s; }
+.nr-card:nth-child(4) { animation-delay: 0.24s; }
+.nr-card:nth-child(5) { animation-delay: 0.30s; }
+.nr-card:nth-child(6) { animation-delay: 0.36s; }
+
+</style>
+{% endblock extra_styles %}
+
+{% block content %}
+<div class="nr-shell">
+  <input type="hidden" id="nrCsrfToken" value="{{ csrf_token }}">
+  
+  <div class="nr-wrap">
+    <!-- Hero Section -->
+    <div class="nr-header">
+      <span class="nr-title-icon" aria-hidden="true"><i class="fas fa-network-wired"></i></span>
+      <div class="nr-hero-inner">
+        <h1>
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+            توسيع <span class="accent">شبكتك</span>
+          {% else %}
+            Expand Your <span class="accent">Network</span>
+          {% endif %}
+        </h1>
+        <p>
+          {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+            إدارة متابعيك والمتابعين من مكان واحد
+          {% else %}
+            Manage your followers and following in one place
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <!-- Filter Card with Stats -->
+    <div class="nr-filter-card">
+      <div class="nr-filter-grid">
+        <div class="nr-stat-badge">
+          <div class="nr-stat-number">{{ incoming_requests|length }}</div>
+          <div class="nr-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعون جدد{% else %}Incoming{% endif %}</div>
+        </div>
+        <div class="nr-stat-badge">
+          <div class="nr-stat-number">{{ outgoing_requests|length }}</div>
+          <div class="nr-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="nr-tabs" role="tablist">
+      <button class="nr-tab active" data-target="incoming" role="tab" aria-selected="true">
+        <i class="fas fa-inbox"></i>
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}المتابعون الجدد{% else %}Incoming Requests{% endif %}
+        <span class="nr-tab-count">{{ incoming_requests|length }}</span>
+      </button>
+      <button class="nr-tab" data-target="outgoing" role="tab" aria-selected="false">
+        <i class="fas fa-paper-plane"></i>
+        {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أتابع{% else %}Following{% endif %}
+        <span class="nr-tab-count">{{ outgoing_requests|length }}</span>
+      </button>
+    </div>
+
+    <!-- Incoming Pane -->
+    <div id="incoming" class="nr-pane active">
+      {% if incoming_requests %}
+        <div class="nr-cards-grid">
+          {% for rel in incoming_requests %}
+          <div class="nr-card" id="card-in-{{ rel.follower.id }}">
+            <div class="nr-card-accent"></div>
+            <div class="nr-card-header">
+              <div class="nr-avatar-col">
+                <div class="nr-avatar">
+                  {% if rel.follower.avatar %}
+                    <img src="{{ rel.follower.avatar.url }}" alt="{{ rel.follower.get_full_name_display }}">
+                  {% else %}
+                    {{ rel.follower.get_full_name_display|slice:":1"|upper }}
+                  {% endif %}
+                </div>
+              </div>
+              <div class="nr-card-info">
+                <h2 class="nr-card-title">
+                  <a href="{% url 'accounts:profile' rel.follower.id %}" style="color: #fff; text-decoration: none;">{{ rel.follower.get_full_name_display }}</a>
+                </h2>
+                <div class="nr-card-institution">
+                  {% if rel.follower.institution %}
+                    {{ rel.follower.institution }}
+                  {% else %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بدون مؤسسة{% else %}No institution{% endif %}
+                  {% endif %}
+                </div>
+                <span class="user-status">
+                  <i class="fas fa-clock"></i>
+                  {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}قيد الانتظار{% else %}Pending{% endif %}
+                </span>
+              </div>
+            </div>
+            <div class="nr-card-body"></div>
+            <div class="nr-actions">
+              {% if rel.follower_id in following_ids %}
+              <button class="nr-btn outline" disabled>
+                <i class="fas fa-check"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة متبادلة{% else %}Mutual Follow{% endif %}
+              </button>
+              {% else %}
+              <button class="nr-btn primary" data-action="follow-back" data-user="{{ rel.follower.id }}">
+                <i class="fas fa-user-plus"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة{% else %}Follow Back{% endif %}
+              </button>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="nr-empty">
+          <div class="nr-empty-inner">
+            <i class="fas fa-inbox nr-empty-icon"></i>
+            <h3>
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}لا توجد طلبات متابعة جديدة{% else %}No incoming requests{% endif %}
+            </h3>
+            <p>
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ستظهر طلبات المتابعة الجديدة هنا{% else %}New follow requests will appear here{% endif %}
+            </p>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Outgoing Pane -->
+    <div id="outgoing" class="nr-pane">
+      {% if outgoing_requests %}
+        <div class="nr-cards-grid">
+          {% for rel in outgoing_requests %}
+          <div class="nr-card" id="card-out-{{ rel.following.id }}">
+            <div class="nr-card-accent"></div>
+            <div class="nr-card-header">
+              <div class="nr-avatar-col">
+                <div class="nr-avatar">
+                  {% if rel.following.avatar %}
+                    <img src="{{ rel.following.avatar.url }}" alt="{{ rel.following.get_full_name_display }}">
+                  {% else %}
+                    {{ rel.following.get_full_name_display|slice:":1"|upper }}
+                  {% endif %}
+                </div>
+              </div>
+              <div class="nr-card-info">
+                <h2 class="nr-card-title">
+                  <a href="{% url 'accounts:profile' rel.following.id %}" style="color: #fff; text-decoration: none;">{{ rel.following.get_full_name_display }}</a>
+                </h2>
+                <div class="nr-card-institution">
+                  {% if rel.following.institution %}
+                    {{ rel.following.institution }}
+                  {% else %}
+                    {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}بدون مؤسسة{% else %}No institution{% endif %}
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="nr-card-body"></div>
+            <div class="nr-actions">
+              <button class="nr-btn outline" data-action="unfollow" data-user="{{ rel.following.id }}">
+                <i class="fas fa-trash"></i>
+                {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}إلغاء{% else %}Unfollow{% endif %}
+              </button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="nr-empty">
+          <div class="nr-empty-inner">
+            <i class="fas fa-user-slash nr-empty-icon"></i>
+            <h3>
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}أنت لا تتابع أحدًا بعد{% else %}You are not following anyone yet{% endif %}
+            </h3>
+            <p>
+              {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}ابدأ بمتابعة الأشخاص ليظهروا هنا.{% else %}Start following people to see them here.{% endif %}
+            </p>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const tabs = document.querySelectorAll('.nr-tab');
+  const panes = document.querySelectorAll('.nr-pane');
+  
+  tabs.forEach((t) => t.addEventListener('click', () => {
+    tabs.forEach((x) => x.classList.remove('active'));
+    panes.forEach((x) => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById(t.dataset.target)?.classList.add('active');
+  }));
+
+  function csrf() {
+    const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    return document.getElementById('nrCsrfToken')?.value || '';
+  }
+
+  function currentLang() {
+    return window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+  }
+
+  function followUrl(userId) {
+    return `/${currentLang()}/accounts/network/follow/${userId}/`;
+  }
+
+  function unfollowUrl(userId) {
+    return `/${currentLang()}/accounts/network/unfollow/${userId}/`;
+  }
+
+  async function postForm(url) {
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrf(),
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+    });
+  }
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.nr-btn[data-action][data-user]');
+    if (!btn) return;
+    e.preventDefault();
+
+    const action = btn.dataset.action;
+    const userId = btn.dataset.user;
+    const card = btn.closest('.nr-card');
+    if (!card) return;
+
+    btn.disabled = true;
+    try {
+      let res;
+      if (action === 'follow-back') {
+        res = await postForm(followUrl(userId));
+      } else if (action === 'unfollow') {
+        res = await postForm(unfollowUrl(userId));
+      } else {
+        btn.disabled = false;
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed');
+
+      if (action === 'unfollow') {
+        card.remove();
+      } else if (action === 'follow-back') {
+        btn.classList.remove('primary');
+        btn.classList.add('outline');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-check"></i>{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}متابعة متبادلة{% else %}Following{% endif %}';
+      }
+    } catch (_) {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -2,579 +2,139 @@
 {% load i18n %}
 {% block title %}{% trans "Tools Management" %}{% endblock %}
 
-{% block extra_css %}
-<style>
-  :root {
-    --primary-color: #4361ee;
-    --primary-dark: #3730a3;
-    --success-color: #10b981;
-    --danger-color: #ef4444;
-    --info-color: #3b82f6;
-    --warning-color: #f59e0b;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-900: #111827;
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  }
-
-  /* Header */
-  .tools-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-    border-radius: 16px;
-    padding: 2rem;
-    color: white;
-    margin-bottom: 2rem;
-    box-shadow: var(--shadow-lg);
-  }
-
-  .header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .header-title {
-    font-size: 1.875rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .btn-new-tool {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: white;
-    color: var(--primary-color);
-    border-radius: 12px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
-  }
-
-  .btn-new-tool:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.4);
-    color: var(--primary-dark);
-  }
-
-  /* Filter Card */
-  .filter-card {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: var(--shadow-md);
-    margin-bottom: 2rem;
-  }
-
-  .filter-form {
-    display: flex;
-    gap: 1rem;
-    align-items: end;
-    flex-wrap: wrap;
-  }
-
-  .form-group {
-    flex: 1;
-    min-width: 250px;
-  }
-
-  .form-label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--gray-700);
-    margin-bottom: 0.5rem;
-  }
-
-  .form-input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid var(--gray-200);
-    border-radius: 10px;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-  }
-
-  .form-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
-  }
-
-  .filter-actions {
-    display: flex;
-    gap: 0.75rem;
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border: none;
-    cursor: pointer;
-  }
-
-  .btn-primary {
-    background: var(--primary-color);
-    color: white;
-    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
-  }
-
-  .btn-primary:hover {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(67, 97, 238, 0.4);
-  }
-
-  .btn-outline {
-    background: white;
-    color: var(--gray-700);
-    border: 2px solid var(--gray-300);
-  }
-
-  .btn-outline:hover {
-    background: var(--gray-50);
-    border-color: var(--gray-400);
-  }
-
-  /* Table */
-  .table-card {
-    background: white;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-  }
-
-  .tools-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  .tools-table thead {
-    background: var(--gray-50);
-  }
-
-  .tools-table th {
-    padding: 1rem 1.5rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--gray-700);
-    text-align: left;
-    border: none;
-    vertical-align: middle;
-  }
-
-  .tools-table td {
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-    vertical-align: middle;
-    text-align: left;
-  }
-
-  .tools-table tbody tr {
-    transition: all 0.2s ease;
-    height: 80px;
-  }
-
-  .tools-table tbody tr:hover {
-    background: var(--gray-50);
-  }
-
-  .tool-title {
-    color: var(--gray-900);
-    font-weight: 600;
-    text-decoration: none;
-    transition: color 0.2s ease;
-    display: inline-block;
-    line-height: 1.5;
-  }
-
-  .tool-title:hover {
-    color: var(--primary-color);
-  }
-
-  /* Tool Type Badges */
-  .tool-type {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.9rem;
-    border-radius: 50px;
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  .tool-type-analysis {
-    background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
-  }
-
-  .tool-type-extraction {
-    background: rgba(245, 158, 11, 0.1);
-    color: #f59e0b;
-  }
-
-  .tool-type-visualization {
-    background: rgba(168, 85, 247, 0.1);
-    color: #a855f7;
-  }
-
-  .tool-type-transformation {
-    background: rgba(16, 185, 129, 0.1);
-    color: #10b981;
-  }
-
-  /* Action Buttons */
-  .action-buttons {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    border: 1px solid var(--gray-300);
-    background: white;
-    color: var(--gray-700);
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-
-  .action-btn:hover {
-    transform: translateY(-2px);
-  }
-
-  .action-btn-view:hover {
-    background: var(--info-color);
-    border-color: var(--info-color);
-    color: white;
-  }
-
-  .action-btn-edit:hover {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
-    color: white;
-  }
-
-  .action-btn-delete:hover {
-    background: var(--danger-color);
-    border-color: var(--danger-color);
-    color: white;
-  }
-
-  /* Pagination */
-  .pagination-modern {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 2rem;
-    padding: 1.5rem 0;
-  }
-
-  .page-link-modern {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 40px;
-    height: 40px;
-    padding: 0 0.75rem;
-    border-radius: 10px;
-    border: 1px solid var(--gray-300);
-    background: white;
-    color: var(--gray-700);
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-
-  .page-link-modern:hover {
-    background: var(--gray-100);
-    border-color: var(--gray-400);
-  }
-
-  .page-link-modern.active {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
-    color: white;
-    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
-  }
-
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-    background: white;
-    border-radius: 16px;
-    box-shadow: var(--shadow-md);
-  }
-
-  .empty-icon {
-    width: 120px;
-    height: 120px;
-    margin: 0 auto 2rem;
-    background: var(--gray-100);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    color: var(--gray-600);
-  }
-
-  .empty-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin-bottom: 0.5rem;
-  }
-
-  .empty-description {
-    font-size: 1rem;
-    color: var(--gray-600);
-    margin-bottom: 2rem;
-  }
-
-  /* Animations */
-  .fade-in {
-    animation: fadeIn 0.5s ease-in-out;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .header-content {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .btn-new-tool {
-      width: 100%;
-      justify-content: center;
-    }
-
-    .filter-form {
-      flex-direction: column;
-    }
-
-    .form-group {
-      width: 100%;
-    }
-
-    .filter-actions {
-      width: 100%;
-      flex-direction: column;
-    }
-
-    .btn {
-      width: 100%;
-      justify-content: center;
-    }
-
-    .table-card {
-      overflow-x: auto;
-    }
-
-    .action-buttons {
-      flex-direction: column;
-    }
-  }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid py-4 fade-in">
-  <!-- Header -->
-  <div class="tools-header">
-    <div class="header-content">
-      <h1 class="header-title">
-        <i class="fas fa-tools"></i>
-        {% trans "Tools Management" %}
-      </h1>
-      <a href="{% url 'resources:tool-create' %}" class="btn-new-tool">
-        <i class="fas fa-plus"></i>
-        {% trans "New Tool" %}
-      </a>
+<div class="container-fluid" style="padding-top:.5rem;">
+
+  <div class="pg-head">
+    <div class="pg-head-left">
+      <div><h1><i class="fas fa-tools"></i> {% trans "Tools Management" %}</h1></div>
+      {% if pending_count > 0 %}
+      <span class="pg-badge"><i class="fas fa-clock"></i> {{ pending_count }} {% trans "pending" %}</span>
+      {% endif %}
+    </div>
+    <a href="{% url 'resources:tool-create' %}" class="n-btn n-btn-blue"><i class="fas fa-plus"></i> {% trans "New tool" %}</a>
+  </div>
+
+  <!-- Search -->
+  <div class="n-card">
+    <div class="n-filter">
+      <form method="get" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+        <div class="n-form-group" style="flex:1;min-width:200px;margin:0;">
+          <label for="search" class="n-form-label"><i class="fas fa-search" style="margin-inline-end:.3rem;"></i>{% trans "Research" %}</label>
+          <input type="text" id="search" name="search" class="n-input" value="{{ request.GET.search }}" placeholder="{% if LANGUAGE_CODE|slice:':2' == 'ar' %}العنوان، الوصف...{% else %}{% trans 'Title, description...' %}{% endif %}">
+        </div>
+        <div style="display:flex;gap:.5rem;">
+          <button type="button" class="n-btn n-btn-outline" onclick="document.getElementById('search').value='';window.location.href='{% url 'pages:admin_tools' %}';"><i class="fas fa-undo"></i> {% trans "Reset" %}</button>
+          <button type="submit" class="n-btn n-btn-blue"><i class="fas fa-filter"></i> {% trans "Filter" %}</button>
+        </div>
+      </form>
     </div>
   </div>
 
-  <!-- Filters -->
-  <div class="filter-card">
-    <form method="get" class="filter-form">
-      <div class="form-group">
-        <label for="search" class="form-label">
-          <i class="fas fa-search me-1"></i>
-          {% trans "Search" %}
-        </label>
-        <input
-          type="text"
-          id="search"
-          name="search"
-          class="form-input"
-          value="{{ request.GET.search }}"
-          placeholder="{% trans 'Search by title, author, description...' %}"
-        />
-      </div>
-      <div class="filter-actions">
-        <button type="button" class="btn btn-outline" onclick="resetFilters()">
-          <i class="fas fa-undo"></i>
-          {% trans "Reset" %}
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-filter"></i>
-          {% trans "Filter" %}
-        </button>
-      </div>
-    </form>
+  <!-- Tabs -->
+  <div class="n-tabs">
+    <a href="?tab=approved{% if search %}&search={{ search }}{% endif %}" class="n-tab {% if active_tab == 'approved' %}on{% endif %}">
+      <i class="fas fa-check-circle"></i> {% trans "Approved" %}
+      <span class="n-tab-badge">{{ approved_count }}</span>
+    </a>
+    <a href="?tab=pending{% if search %}&search={{ search }}{% endif %}" class="n-tab {% if active_tab == 'pending' %}on{% endif %}">
+      <i class="fas fa-clock"></i> {% trans "Pending Review" %}
+      <span class="n-tab-badge {% if pending_count > 0 %}warn{% endif %}">{{ pending_count }}</span>
+    </a>
   </div>
 
-  <!-- Table -->
-  {% if tools %}
-  <div class="table-card">
-    <table class="tools-table">
-      <thead>
-        <tr>
-          <th>{% trans "Title" %}</th>
-          <th>{% trans "Type" %}</th>
-          <th>{% trans "Date Added" %}</th>
-          <th style="text-align: center;">{% trans "Actions" %}</th>
-        </tr>
-      </thead>
+  {% if active_tab == 'pending' %}
+    {% if pending_tools %}
+    <div class="n-card" style="margin-bottom:0;">
+      <table class="n-tbl">
+        <thead><tr><th>{% trans "Tool Name + Description" %}</th><th>{% trans "Category" %}</th><th>{% trans "Date" %}</th><th>{% trans "Status" %}</th><th style="text-align:center;">{% trans "Actions" %}</th></tr></thead>
+        <tbody>
+          {% for tool in tools %}
+          <tr>
+            <td>
+              <a href="{% url 'resources:tool_detail' type='tool' pk=tool.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;display:block;">{{ tool.title_en|default:tool.title_ar|default:tool.title }}</a>
+              <p style="font-size:.75rem;color:var(--n-text-3);margin:.15rem 0 0;">{{ tool.description_en|default:tool.description_ar|default:tool.description|truncatechars:90 }}</p>
+            </td>
+            <td><span class="n-status-pill pending" style="background:var(--n-blue-soft);color:var(--n-blue);">{{ tool.get_tool_type_display }}</span></td>
+            <td><span class="n-dt">{{ tool.creation_date|date:"d/m/Y H:i" }}</span></td>
+            <td><span class="n-status pending"><span class="n-dot"></span> PENDING</span></td>
+            <td>
+              {% url 'pages:admin_view_item' model_type='nlptool' pk=tool.id as view_url %}
+              {% url 'pages:admin_approve_item' model_type='nlptool' pk=tool.id as review_url %}
+              {% include 'admin/_pending_actions.html' with model_type='nlptool' item_pk=tool.id view_url=view_url edit_url=review_url|add:'?mode=edit' %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
+    {% else %}
+    <div class="n-card"><div class="n-empty"><i class="fas fa-check-double"></i><h3>{% trans "No pending tools" %}</h3><p>{% trans "All submissions have been reviewed." %}</p></div></div>
+    {% endif %}
+
+  {% else %}
+  {% if approved_tools %}
+  <div class="n-card" style="margin-bottom:0;">
+    <table class="n-tbl">
+      <thead><tr><th>{% trans "Title" %}</th><th>{% trans "Type" %}</th><th>{% trans "Date" %}</th><th style="text-align:center;">{% trans "Actions" %}</th></tr></thead>
       <tbody>
         {% for tool in tools %}
         <tr>
+          <td><a href="{% url 'resources:tool_detail' type='tool' pk=tool.id %}" style="color:var(--n-text);font-weight:600;text-decoration:none;">{{ tool.title_en|default:tool.title_ar|default:tool.title }}</a></td>
+          <td><span class="n-status-pill pending" style="background:var(--n-blue-soft);color:var(--n-blue);">{{ tool.get_tool_type_display }}</span></td>
+          <td><span class="n-dt">{{ tool.creation_date|date:"d/m/Y H:i" }}</span></td>
           <td>
-            <a href="{% url 'resources:tool_detail' type='tool' pk=tool.id %}" class="tool-title">
-              {{ tool.title }}
-            </a>
-          </td>
-          <td>
-            <span class="tool-type">{{ tool.get_tool_type_display }}</span>
-          </td>
-          <td>
-            <span class="text-muted">
-              <i class="fas fa-calendar-alt me-2"></i>
-              {{ tool.creation_date|date:"d/m/Y H:i" }}
-            </span>
-          </td>
-          <td>
-            <div class="action-buttons justify-content-center">
-              <a
-                href="{% url 'resources:tool_detail' type='tool' pk=tool.id %}"
-                class="action-btn action-btn-view"
-                title="{% trans 'View tool' %}"
-              >
-                <i class="fas fa-eye"></i>
-              </a>
-              <a
-                href="{% url 'resources:resource-update' type='tool' pk=tool.id %}"
-                class="action-btn action-btn-edit"
-                title="{% trans 'Edit tool' %}"
-              >
-                <i class="fas fa-edit"></i>
-              </a>
-              <a
-                href="{% url 'resources:resource-delete' type='tool' pk=tool.id %}"
-                class="action-btn action-btn-delete"
-                onclick="return confirm('{% trans "Are you sure you want to delete this tool?" %}');"
-                title="{% trans 'Delete tool' %}"
-              >
-                <i class="fas fa-trash"></i>
-              </a>
+            <div class="n-acts" style="display:flex; align-items:center; gap:6px;">
+              <a href="{% url 'resources:tool_detail' tool.id %}" class="n-act" title="{% trans 'View' %}"><i class="fas fa-eye"></i></a>
+              <a href="{% url 'resources:resource-update' type='tool' pk=tool.id %}" class="n-act" title="{% trans 'Edit' %}"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'resources:resource-delete' type='tool' pk=tool.id %}" class="n-act n-act-red" onclick="return confirm('{% trans "Are you sure you want to delete this tool?" %}');" title="{% trans 'Delete' %}"><i class="fas fa-trash"></i></a>
             </div>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-
-    <!-- Pagination -->
-    {% if is_paginated %}
-    <nav class="pagination-modern">
-      {% if page_obj.has_previous %}
-      <a class="page-link-modern" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
-        <i class="fas fa-angle-double-left"></i>
-      </a>
-      <a class="page-link-modern" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
-        <i class="fas fa-angle-left"></i>
-      </a>
-      {% endif %}
-      
-      {% for num in page_obj.paginator.page_range %}
-        {% if num == page_obj.number %}
-        <span class="page-link-modern active">{{ num }}</span>
-        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-        <a class="page-link-modern" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a>
-        {% endif %}
-      {% endfor %}
-      
-      {% if page_obj.has_next %}
-      <a class="page-link-modern" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
-        <i class="fas fa-angle-right"></i>
-      </a>
-      <a class="page-link-modern" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
-        <i class="fas fa-angle-double-right"></i>
-      </a>
-      {% endif %}
-    </nav>
-    {% endif %}
   </div>
+  {% include 'admin/_pagination.html' with page_obj=page_obj query_string=pagination_qs page_param='page' %}
   {% else %}
-  <!-- Empty State -->
-  <div class="empty-state">
-    <div class="empty-icon">
-      <i class="fas fa-tools"></i>
-    </div>
-    <h3 class="empty-title">{% trans "No tools available" %}</h3>
-    <p class="empty-description">
-      {% trans "You haven't created any tools yet or none match your search criteria." %}
-    </p>
-    <a href="{% url 'resources:tool-create' %}" class="btn-new-tool" style="color: white; background: var(--primary-color);">
-      <i class="fas fa-plus"></i>
-      {% trans "Create a tool" %}
-    </a>
-  </div>
+  <div class="n-card"><div class="n-empty"><i class="fas fa-tools"></i><h3>{% trans "No tools available" %}</h3><p>{% trans "You haven't created any tools yet or none match your search criteria." %}</p><a href="{% url 'resources:tool-create' %}" class="n-btn n-btn-blue" style="margin-top:.5rem;"><i class="fas fa-plus"></i> {% trans "Create a tool" %}</a></div></div>
+  {% endif %}
   {% endif %}
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-function resetFilters() {
-  window.location.href = window.location.pathname;
+function getCookie(name){
+  const cookieValue=document.cookie.split('; ').find((row)=>row.startsWith(name+'='));
+  return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : null;
 }
+
+document.addEventListener('click', async function(event){
+  const rejectButton=event.target.closest('.js-tool-reject-btn');
+  if(!rejectButton){return;}
+
+  if(!confirm('Are you sure you want to reject this tool?')){return;}
+
+  const rejectUrl=rejectButton.dataset.rejectUrl;
+  const tableRow=rejectButton.closest('tr');
+
+  try{
+    const response=await fetch(rejectUrl,{
+      method:'POST',
+      headers:{
+        'X-CSRFToken': '{{ csrf_token }}' !== 'NOTPROVIDED' ? '{{ csrf_token }}' : (getCookie('csrftoken') || ''),
+        'X-Requested-With':'XMLHttpRequest',
+      },
+    });
+
+    if(!response.ok){throw new Error('Reject request failed');}
+    if(tableRow){tableRow.remove();}
+    alert('Tool rejected successfully.');
+  }catch(error){
+    alert('Failed to reject tool. Please try again.');
+  }
+});
 </script>
 {% endblock %}

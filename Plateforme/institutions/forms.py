@@ -1,11 +1,45 @@
 from django import forms
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from typing import List
 from .models import Institution, Country, Specialty
 
 
+def get_active_language():
+    """Get the current language, normalizing to 'ar' or 'en'."""
+    lang = get_language()
+    if lang and lang.startswith('ar'):
+        return 'ar'
+    return 'en'
+
+
+def get_institution_bilingual_labels():
+    """Return language-appropriate labels for bilingual fields."""
+    lang = get_language()
+    if lang and lang.startswith('ar'):
+        return {
+            'name_ar': _("اسم المؤسسة (بالعربية)"),
+            'name_en': _("اسم المؤسسة (بالإنجليزية)"),
+            'description_ar': _("الوصف (بالعربية)"),
+            'description_en': _("الوصف (بالإنجليزية)"),
+        }
+    else:
+        return {
+            'name_ar': _("Institution Name (Arabic)"),
+            'name_en': _("Institution Name (English)"),
+            'description_ar': _("Description (Arabic)"),
+            'description_en': _("Description (English)"),
+        }
+
+
 class InstitutionFilterForm(forms.Form):
     INSTITUTION_TYPE_CHOICES = [('', _('All'))] + Institution.TYPE
+    
+    SORT_CHOICES = [
+        ('name', _('Alphabetical (A-Z)')),
+        ('name_desc', _('Alphabetical (Z-A)')),
+        ('newest', _('Newest First')),
+        ('oldest', _('Oldest First')),
+    ]
 
     institution_type = forms.ChoiceField(
         choices=INSTITUTION_TYPE_CHOICES,
@@ -40,6 +74,14 @@ class InstitutionFilterForm(forms.Form):
             'class': 'form-control',
             'placeholder': _('Enter institution name or keyword...'),
             'type': 'search',
+        })
+    )
+    sort = forms.ChoiceField(
+        choices=SORT_CHOICES,
+        required=False,
+        label=_('Sort By'),
+        widget=forms.Select(attrs={
+            'class': 'form-select',
         })
     )
 
@@ -131,10 +173,32 @@ class InstitutionForm(forms.ModelForm):
     _created_specialties: List[str] = []
     
     # Définir explicitement les champs pour avoir plus de contrôle
+    # name is auto-populated from name_en in save()
     name = forms.CharField(
         label=_('Nom de l\'institution'), 
-        widget=forms.TextInput(attrs={'class': 'form-control', 'required': True})
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
     )
+    
+    name_ar = forms.CharField(
+        label=_('Institution Name (Arabic)'),
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'dir': 'rtl',
+            'placeholder': _('Enter institution name in Arabic')
+        })
+    )
+    
+    name_en = forms.CharField(
+        label=_('Institution Name (English)'),
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Enter institution name in English')
+        })
+    )
+    
     acronym = forms.CharField(
         label=_('Sigle'), 
         required=False, 
@@ -150,9 +214,28 @@ class InstitutionForm(forms.ModelForm):
         queryset=Country.objects.all(), 
         widget=forms.Select(attrs={'class': 'form-control', 'required': True})
     )
+    # city is auto-populated from city_en in save()
     city = forms.CharField(
         label=_('Ville'), 
-        widget=forms.TextInput(attrs={'class': 'form-control', 'required': True})
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    city_en = forms.CharField(
+        label=_('City (English)'),
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Enter city name in English')
+        })
+    )
+    city_ar = forms.CharField(
+        label=_('City (Arabic)'),
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'dir': 'rtl',
+            'placeholder': _('Enter city name in Arabic')
+        })
     )
     
     # Utiliser le champ personnalisé
@@ -191,18 +274,123 @@ class InstitutionForm(forms.ModelForm):
         required=False, 
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
     )
+    address_en = forms.CharField(
+        label=_('Address (English)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': _('Enter address in English')
+        })
+    )
+    address_ar = forms.CharField(
+        label=_('Address (Arabic)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'dir': 'rtl',
+            'placeholder': _('Enter address in Arabic')
+        })
+    )
     description = forms.CharField(
         label=_('Description'), 
         required=False, 
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5})
     )
+    
+    description_ar = forms.CharField(
+        label=_('Description (Arabic)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control', 
+            'rows': 4,
+            'dir': 'rtl',
+            'placeholder': _('Enter institution description in Arabic')
+        })
+    )
+    
+    description_en = forms.CharField(
+        label=_('Description (English)'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': _('Enter institution description in English')
+        })
+    )
 
     class Meta:
         model = Institution
         fields = [
-            'name', 'acronym', 'type', 'country', 'city', 'specialties',
-            'logo', 'website', 'email', 'phone', 'address', 'description'
+            'name', 'name_ar', 'name_en', 'acronym', 'type', 'country', 
+            'city', 'city_en', 'city_ar', 'specialties',
+            'logo', 'website', 'email', 'phone', 
+            'address', 'address_en', 'address_ar', 
+            'description', 'description_ar', 'description_en'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._ensure_default_countries()
+        self._ensure_default_specialties()
+
+        self.fields['country'].queryset = Country.objects.all().order_by('name_en')
+        self.fields['specialties'].queryset = Specialty.objects.all().order_by('name_en')
+
+        # Get conditional labels based on current language
+        labels = get_institution_bilingual_labels()
+        self.fields['name_ar'].label = labels['name_ar']
+        self.fields['name_en'].label = labels['name_en']
+        self.fields['description_ar'].label = labels['description_ar']
+        self.fields['description_en'].label = labels['description_en']
+
+    def _ensure_default_countries(self):
+        """Ensure create form always has a usable country list."""
+        defaults = [
+            {'code': 'DZ', 'name_en': 'Algeria', 'name_ar': 'الجزائر'},
+            {'code': 'MA', 'name_en': 'Morocco', 'name_ar': 'المغرب'},
+            {'code': 'TN', 'name_en': 'Tunisia', 'name_ar': 'تونس'},
+            {'code': 'EG', 'name_en': 'Egypt', 'name_ar': 'مصر'},
+            {'code': 'SA', 'name_en': 'Saudi Arabia', 'name_ar': 'المملكة العربية السعودية'},
+            {'code': 'AE', 'name_en': 'United Arab Emirates', 'name_ar': 'الإمارات العربية المتحدة'},
+            {'code': 'QA', 'name_en': 'Qatar', 'name_ar': 'قطر'},
+            {'code': 'JO', 'name_en': 'Jordan', 'name_ar': 'الأردن'},
+            {'code': 'LB', 'name_en': 'Lebanon', 'name_ar': 'لبنان'},
+            {'code': 'US', 'name_en': 'United States', 'name_ar': 'الولايات المتحدة'},
+            {'code': 'GB', 'name_en': 'United Kingdom', 'name_ar': 'المملكة المتحدة'},
+            {'code': 'FR', 'name_en': 'France', 'name_ar': 'فرنسا'},
+            {'code': 'DE', 'name_en': 'Germany', 'name_ar': 'ألمانيا'},
+            {'code': 'CA', 'name_en': 'Canada', 'name_ar': 'كندا'},
+        ]
+
+        for item in defaults:
+            Country.objects.get_or_create(
+                code=item['code'],
+                defaults={'name_en': item['name_en'], 'name_ar': item['name_ar']},
+            )
+
+    def _ensure_default_specialties(self):
+        """Ensure create form always has specialty choices when DB is empty."""
+        defaults = [
+            ('NLP', 'Natural Language Processing', 'معالجة اللغة الطبيعية'),
+            ('LLM', 'Large Language Models', 'النماذج اللغوية الكبيرة'),
+            ('ASR', 'Automatic Speech Recognition', 'التعرف التلقائي على الكلام'),
+            ('NMT', 'Machine Translation', 'الترجمة الآلية'),
+            ('NER', 'Named Entity Recognition', 'استخراج الكيانات المسماة'),
+            ('IR', 'Information Retrieval', 'استرجاع المعلومات'),
+            ('OCR', 'Optical Character Recognition', 'التعرف الضوئي على الحروف'),
+            ('RAG', 'Retrieval-Augmented Generation', 'التوليد المعزز بالاسترجاع'),
+            ('MLOPS', 'MLOps', 'هندسة تشغيل نماذج التعلم الآلي'),
+            ('CV', 'Computer Vision', 'الرؤية الحاسوبية'),
+        ]
+
+        for code, name_en, name_ar in defaults:
+            Specialty.objects.get_or_create(
+                code=code,
+                defaults={'name_en': name_en, 'name_ar': name_ar},
+            )
 
     def clean(self):
         """
@@ -229,8 +417,21 @@ class InstitutionForm(forms.ModelForm):
     def save(self, commit=True):
         """
         Sauvegarde personnalisée pour gérer les spécialités.
+        Auto-populate name and city from their _en counterparts if not provided.
         """
         instance = super().save(commit=False)
+        
+        # Auto-populate 'name' from 'name_en' if not provided
+        if not instance.name and instance.name_en:
+            instance.name = instance.name_en
+        
+        # Auto-populate 'city' from 'city_en' if not provided
+        if not instance.city and instance.city_en:
+            instance.city = instance.city_en
+        
+        # Auto-populate 'address' from 'address_en' if not provided
+        if not instance.address and instance.address_en:
+            instance.address = instance.address_en
         
         if commit:
             instance.save()

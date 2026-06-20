@@ -1,866 +1,1989 @@
-{% extends "base.html" %} {% block content %}
-<div class="content">
-  <div class="project-header">
-    <a href="{% url 'projects:project_list' %}" class="back-link">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M19 12H5"></path>
-        <path d="M12 19l-7-7 7-7"></path>
-      </svg>
-      Back to Projects
-    </a>
-    <h1 class="project-title">{{ project.title }}</h1>
-  </div>
+{% extends 'base.html' %}
+{% load i18n static %}
 
-  <div class="project-details-card">
-    <div class="card-section">
-      <h2 class="section-title">Description</h2>
-      <p class="project-description">{{ project.description }}</p>
-    </div>
+{% block title %}{{ project.get_localized_title }} | {% translate "Research Projects" %}{% endblock %}
 
-    <div class="card-section">
-      <h2 class="section-title">Project Information</h2>
-      <div class="info-grid">
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16"></path>
-              <path d="M1 21h22"></path>
-              <path d="M10 9h4"></path>
-              <path d="M10 13h4"></path>
-              <path d="M10 17h4"></path>
-            </svg>
-            Institution
-          </div>
-          <div class="info-value">{{ project.institution }}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            Period
-          </div>
-          <div class="info-value">
-            {{ project.date_start }} - {{ project.date_end }}
-          </div>
-        </div>
-        {% if project.attachment and project.coordinator == user or is_member %}
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"
-              ></path>
-            </svg>
-            Attachment
-          </div>
-          <div class="info-value">
-            <a
-              href="{{ project.attachment.url }}"
-              target="_blank"
-              class="attachment-link"
-            >
-              {{ project.attachment.name|slice:"19:" }}
-            </a>
-          </div>
-        </div>
-        {% endif %}
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            Coordinator
-          </div>
-          <div class="info-value">{{ project.coordinator }}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            Status
-          </div>
-          <div class="info-value">
-            <span class="status-badge status-{{ project.status }}"
-              >{{ project.get_status_display }}</span
-            >
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card-section">
-      <h2 class="section-title">Team Members</h2>
-      <div class="members-list">
-        {% for member in team_members %}
-        <div class="member-item">
-          <div class="member-avatar">
-            {% if member.avatar %}
-            <img
-              src="{{ member.avatar.url }}"
-              alt="{{ member.full_name }}"
-              class="avatar-img"
-            />
-            {% else %}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            {% endif %}
-          </div>
-          <div class="member-info">
-            <div class="member-name">{{ member.full_name }}</div>
-            {% if member.speciality %}
-            <div class="member-title">{{ member.get_speciality_display }}</div>
-            {% endif %}
-          </div>
-        </div>
-        {% empty %}
-        <div class="empty-message">
-          No members have joined this project yet.
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="card-section actions-section">
-      {% if project.coordinator == user %}
-      <div class="button-container">
-        <a
-          href="{% url 'projects:project_members' project.pk %}"
-          class="btn btn-outline-primary btn-action"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 010 7.75"></path>
-          </svg>
-          Manage project members
-        </a>
-        <a
-          href="{% url 'projects:project_update' project.pk %}"
-          class="btn btn-primary btn-action"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
-            ></path>
-          </svg>
-          Edit Project
-        </a>
-        <a
-          href="{% url 'projects:project_delete' project.pk %}"
-          class="btn btn-danger btn-action"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M3 6h18"></path>
-            <path
-              d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
-            ></path>
-          </svg>
-          Delete Project
-        </a>
-      </div>
-      {% else %} {% if project.status != 'completed' %} {% if is_member %}
-      <div class="button-container">
-        <form
-          action="{% url 'projects:leave_project' project.pk %}"
-          method="post"
-          class="w-100"
-        >
-          {% csrf_token %}
-          <button type="submit" class="btn btn-warning btn-action w-100">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            Leave Project
-          </button>
-        </form>
-      </div>
-      {% else %} {% if not has_pending_request %}
-      <div class="button-container">
-        <form
-          action="{% url 'projects:join_project' project.pk %}"
-          method="post"
-          class="w-100"
-        >
-          {% csrf_token %}
-          <button type="submit" class="btn btn-success btn-action w-100">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"></path>
-              <polyline points="10 17 15 12 10 7"></polyline>
-              <line x1="15" y1="12" x2="3" y2="12"></line>
-            </svg>
-            Join Project
-          </button>
-        </form>
-      </div>
-      {% else %}
-      <div class="button-container">
-        <button
-          type="button"
-          class="btn btn-secondary btn-action w-100"
-          disabled
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <line x1="12" y1="1" x2="12" y2="23"></line>
-            <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path>
-          </svg>
-          Pending request
-        </button>
-      </div>
-      {% endif %} {% endif %} {% else %}
-      <div class="project-completed-message">
-        This project is completed and no longer accepting new members.
-      </div>
-      {% endif %} {% endif %}
-    </div>
-
-    {% if is_coordinator and pending_requests %}
-    <div class="card-section">
-      <h2 class="section-title">Demandes en attente</h2>
-      <div class="pending-requests-list">
-        {% for request in pending_requests %}
-        <div class="request-item">
-          <div class="request-user">
-            <div class="user-avatar">
-              {% if request.member.avatar %}
-              <img
-                src="{{ request.member.avatar.url }}"
-                alt="{{ request.member.full_name }}"
-                class="avatar-img"
-              />
-              {% else %}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              {% endif %}
-            </div>
-            <div class="user-info">
-              <a
-                href="{% url 'accounts:profile' request.member.pk %}"
-                class="user-name"
-                >{{ request.member.full_name }}</a
-              >
-              {% if request.member.speciality %}
-              <div class="user-speciality">
-                {{ request.member.get_speciality_display }}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-          <div class="request-actions">
-            <form
-              action="{% url 'projects:respond_to_request' project.pk request.pk %}"
-              method="post"
-              class="d-inline"
-            >
-              {% csrf_token %}
-              <input type="hidden" name="response" value="accept" />
-              <button type="submit" class="accept-btn">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M20 6L9 17l-5-5"></path>
-                </svg>
-                Accept
-              </button>
-            </form>
-            <form
-              action="{% url 'projects:respond_to_request' project.pk request.pk %}"
-              method="post"
-              class="d-inline"
-            >
-              {% csrf_token %}
-              <input type="hidden" name="response" value="reject" />
-              <button type="submit" class="reject-btn">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M18 6L6 18"></path>
-                  <path d="M6 6l12 12"></path>
-                </svg>
-                Refuse
-              </button>
-            </form>
-          </div>
-        </div>
-        {% empty %}
-        <div class="empty-message">No pending requests.</div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-  </div>
-</div>
-
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-  /* Global styles */
-  :root {
-    --primary: #1A73E8;
-    --secondary: #4caf50;
-    --danger: #f44336;
-    --text-dark: #333;
-    --text-light: #666;
-    --border-color: #e0e0e0;
-    --bg-light: #f5f5f5;
-    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-  
-  /* Main content area */
+/* ===== PROJECT DETAIL CSS ===== */
+:root {
+    /* Primary Colors - Purple/Violet Theme */
+    --pd-primary: #a78bfa;
+    --pd-primary-dark: #8b5cf6;
+    --pd-primary-light: #c4b5fd;
+    --pd-accent: #7c3aed;
+    --pd-accent-cyan: #06b6d4;
+    --pd-primary-glow: rgba(167, 139, 250, 0.2);
+    
+    /* Status Colors */
+    --pd-ongoing: #34d399;
+    --pd-ongoing-bg: rgba(52, 211, 153, 0.15);
+    --pd-completed: #818cf8;
+    --pd-completed-bg: rgba(129, 140, 248, 0.15);
+    --pd-planned: #fbbf24;
+    --pd-planned-bg: rgba(251, 191, 36, 0.15);
+    
+    /* Surfaces */
+    --pd-deep: #0f1419;
+    --pd-navy: #1a1a2e;
+    --pd-white: #ffffff;
+    --pd-bg: #0f1419;
+    --pd-muted: rgba(167, 139, 250, 0.08);
+    --pd-subtle: rgba(167, 139, 250, 0.12);
+    --pd-surface: rgba(167, 139, 250, 0.05);
+    
+    /* Typography */
+    --pd-text: #ffffff;
+    --pd-text-secondary: #d1d5db;
+    --pd-text-muted: #9ca3af;
+    
+    /* Effects */
+    --pd-border: rgba(167, 139, 250, 0.2);
+    --pd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --pd-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.2);
+    --pd-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+    --pd-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+    
+    /* Danger */
+    --pd-danger: #ef4444;
+    --pd-danger-bg: rgba(239, 68, 68, 0.15);
+    
+    /* Radii */
+    --pd-radius-sm: 6px;
+    --pd-radius-md: 10px;
+    --pd-radius-lg: 14px;
+    --pd-radius-xl: 20px;
+    --pd-radius-full: 9999px;
+}
 
-  /* Project header */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
 
-  .back-link:hover {
-    color: var(--secondary);
-  }
+html[dir="rtl"] body {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+}
 
-  .project-title {
-    color: #1e4e6d;
-    font-size: 28px;
-    margin: 0;
+/* ===== PAGE LAYOUT ===== */
+.pd-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f1419 0%, #1a1a2e 100%);
+    background-attachment: fixed;
     position: relative;
-    padding-bottom: 15px;
-  }
+    overflow-x: hidden;
+}
 
-  .project-title:after {
-    content: "";
-    position: absolute;
-    bottom: 0;
+.pd-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
     left: 0;
-    width: 80px;
-    height: 3px;
-    background-color: var(--secondary);
-  }
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
 
-  /* Project details card */
-  .project-details-card {
-    background-color: white;
-    border-radius: 8px;
+/* ===== HERO HEADER ===== */
+.pd-hero {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+    padding: 2.5rem 0 4rem;
+    position: relative;
     overflow: hidden;
-    box-shadow: var(--card-shadow);
-  }
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+}
 
-  .card-section {
-    padding: 25px;
-    border-bottom: 1px solid var(--border-color);
-  }
+.pd-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        radial-gradient(ellipse 60% 80% at 70% 30%, rgba(167, 139, 250, 0.1), transparent),
+        none;
+    pointer-events: none;
+    z-index: 0;
+}
 
-  .card-section:last-child {
-    border-bottom: none;
-  }
+.pd-hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 2;
+}
 
-  .section-title {
-    color: #1e4e6d;
-    font-size: 18px;
-    margin: 0 0 15px 0;
-    font-weight: 600;
-  }
-
-  .project-description {
-    color: var(--text-dark);
-    line-height: 1.6;
-    margin: 0;
-  }
-
-  /* Project info grid */
-  .info-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
-  }
-
-  .info-item {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .info-label {
-    color: var(--text-light);
-    font-size: 14px;
+/* Breadcrumb */
+.pd-breadcrumb {
     display: flex;
     align-items: center;
-    margin-bottom: 8px;
-  }
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+}
 
-  .info-label svg {
-    margin-right: 8px;
-    color: #1e4e6d;
-  }
-
-  .info-value {
-    color: var(--text-dark);
-    font-weight: 500;
-  }
-
-  /* Members list */
-  .members-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 15px;
-  }
-
-  .member-item {
-    display: flex;
-    align-items: center;
-    background-color: var(--bg-light);
-    padding: 12px 15px;
-    border-radius: 6px;
-    transition: transform 0.2s, background-color 0.2s;
-  }
-
-  .member-item:hover {
-    transform: translateY(-2px);
-    background-color: #edf7ff;
-  }
-
-  .member-avatar {
-    background-color: #1e4e6d;
-    color: white;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 12px;
-  }
-
-  .member-name {
-    font-weight: 500;
-    color: var(--text-dark);
-  }
-
-  .empty-message {
-    color: var(--text-light);
-    font-style: italic;
-    grid-column: 1 / -1;
-  }
-
-  .project-completed-message {
-    color: var(--text-light);
-    text-align: center;
-    font-style: italic;
-    padding: 10px;
-    background-color: var(--bg-light);
-    border-radius: 4px;
-  }
-
-  /* Status badges */
-  .status-badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-
-  .status-ongoing {
-    background-color: #ffca28;
-    color: #8d6e00;
-  }
-
-  .status-completed {
-    background-color: #4caf50;
-    color: white;
-  }
-
-  .status-planned {
-    background-color: #64b5f6;
-    color: white;
-  }
-
-  /* Action buttons */
-  .actions-section {
-    background-color: var(--bg-light);
-    padding: 20px 25px;
-  }
-
-  .button-container {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center; /* Center buttons */
-  }
-
-  .btn-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 18px;
-    border-radius: 4px;
-    font-weight: 500;
-    font-size: 14px;
-    text-decoration: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
-    border: none;
-    min-width: 140px; /* Ensure minimum width */
-    text-align: center;
-  }
-
-  .btn-action:hover:not(:disabled) {
-    opacity: 0.9;
-    transform: translateY(-1px);
-  }
-
-  .btn-action:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  .btn-action svg {
-    margin-right: 8px;
-  }
-
-  /* Specific button styles */
-  .btn-primary {
-    background-color: var(--primary);
-    color: white;
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background-color: #3a9ee6; /* Darker shade of primary */
-  }
-
-  .btn-outline-primary {
-    background-color: white;
-    color: var(--primary);
-    border: 1px solid var(--primary);
-  }
-
-  .btn-outline-primary:hover:not(:disabled) {
-    background-color: var(--primary);
-    color: white;
-  }
-
-  .btn-danger {
-    background-color: var(--danger);
-    color: white;
-  }
-
-  .btn-danger:hover:not(:disabled) {
-    background-color: #c62828; /* Darker shade of danger */
-  }
-
-  .btn-success {
-    background-color: var(--secondary);
-    color: white;
-  }
-
-  .btn-success:hover:not(:disabled) {
-    background-color: #388e3c; /* Darker shade of secondary */
-  }
-
-  .btn-warning {
-    background-color: #ff9800;
-    color: white;
-  }
-
-  .btn-warning:hover:not(:disabled) {
-    background-color: #f57c00; /* Darker shade of warning */
-  }
-
-  .btn-secondary {
-    background-color: #6c757d;
-    color: white;
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background-color: #5a6268;
-  }
-
-  .btn-action:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  /* Pending requests section */
-  .pending-requests-list {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-  }
-
-  .request-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--bg-light);
-    padding: 15px;
-    border-radius: 8px;
-    transition: transform 0.2s, background-color 0.2s;
-  }
-
-  .request-item:hover {
-    transform: translateY(-2px);
-    background-color: #edf7ff;
-  }
-
-  .request-user {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .user-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: var(--primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  .user-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .user-info {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .user-name {
-    color: var(--primary);
-    font-weight: 500;
+.pd-breadcrumb a {
+    color: var(--pd-primary);
     text-decoration: none;
     transition: color 0.2s;
-  }
+}
 
-  .user-name:hover {
-    color: var(--secondary);
-  }
+.pd-breadcrumb a:hover {
+    color: #ffffff;
+}
 
-  .user-speciality {
-    font-size: 14px;
-    color: var(--text-light);
-  }
+.pd-breadcrumb span {
+    color: rgba(255, 255, 255, 0.5);
+}
 
-  .request-actions {
+.pd-breadcrumb .current {
+    color: var(--pd-primary);
+    font-weight: 600;
+}
+
+/* Hero Content */
+.pd-hero-content {
     display: flex;
-    gap: 10px;
-  }
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
 
-  .accept-btn,
-  .reject-btn {
+.pd-hero-text {
+    flex: 1;
+    min-width: 280px;
+}
+
+.pd-status-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 8px 15px;
-    border-radius: 6px;
-    font-weight: 500;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--pd-radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 1rem;
+}
+
+.pd-status-badge.ongoing {
+    background: var(--pd-ongoing-bg);
+    color: var(--pd-ongoing);
+}
+
+.pd-status-badge.completed {
+    background: var(--pd-completed-bg);
+    color: var(--pd-completed);
+}
+
+.pd-status-badge.planned {
+    background: var(--pd-planned-bg);
+    color: var(--pd-planned);
+}
+
+.pd-title {
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--pd-primary) 0%, var(--pd-accent-cyan) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 1rem;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+}
+
+.pd-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    color: var(--pd-text-secondary);
+    font-size: 0.9rem;
+}
+
+.pd-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pd-meta-item i {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Hero Actions */
+.pd-hero-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.pd-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 1.1rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    border-radius: var(--pd-radius-md);
+    text-decoration: none;
     border: none;
     cursor: pointer;
     transition: all 0.2s;
-  }
+}
 
-  .accept-btn {
-    background-color: var(--secondary);
+.pd-btn-primary {
+    background: linear-gradient(135deg, var(--pd-primary), var(--pd-accent));
+    color: var(--pd-deep);
+}
+
+.pd-btn-primary:hover {
+    background: linear-gradient(135deg, var(--pd-primary-dark), var(--pd-primary));
+    color: var(--pd-deep);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(167, 139, 250, 0.3);
+}
+
+.pd-btn-secondary {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--pd-text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.pd-btn-secondary:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--pd-primary);
+    color: var(--pd-primary);
+    transform: translateY(-2px);
+}
+
+.pd-btn-danger {
+    background: var(--pd-danger);
+    color: var(--pd-white);
+}
+
+.pd-btn-danger:hover {
+    background: #dc2626;
+    color: var(--pd-white);
+}
+
+.pd-btn-invite {
+    background: linear-gradient(135deg, var(--pd-primary), var(--pd-accent));
+    color: var(--pd-deep);
+    border: none;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.pd-btn-invite:hover {
+    color: var(--pd-deep);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+}
+
+/* ===== ACTION CARD (Course-Style) ===== */
+.project-action-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-lg);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    margin-bottom: 2.5rem;
+}
+
+.project-action-header {
+    padding: 2rem 1.5rem;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
     color: white;
-  }
+    text-align: center;
+    overflow-wrap: break-word;
+}
 
-  .accept-btn:hover {
-    background-color: #3d8b40;
-  }
+.project-action-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin: 0 0 0.25rem;
+}
 
-  .reject-btn {
-    background-color: var(--danger);
+.project-action-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.project-action-body {
+    padding: 2rem 1.5rem;
+}
+
+.project-action-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.project-action-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem 0.75rem;
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: var(--pd-radius-md);
+    text-align: center;
+}
+
+.project-action-stat i {
+    font-size: 1.25rem;
+    color: var(--pd-primary);
+    margin-bottom: 0.375rem;
+}
+
+.project-action-stat-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--pd-primary), var(--pd-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.project-action-stat-label {
+    font-size: 0.7rem;
+    color: var(--pd-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.project-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    border-radius: var(--pd-radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.25s;
+    border: none;
+    margin-bottom: 0.75rem;
+}
+
+.project-action-btn.primary {
+    background: linear-gradient(135deg, var(--pd-primary), var(--pd-accent));
+    color: var(--pd-deep);
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.project-action-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+    color: var(--pd-deep);
+}
+
+.project-action-btn.secondary {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--pd-text-secondary);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.project-action-btn.secondary:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--pd-primary);
+    color: var(--pd-primary);
+    transform: translateY(-2px);
+}
+
+.project-action-btn.ai-chatbot {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--pd-primary);
+    border: 2px solid rgba(167, 139, 250, 0.3);
+    position: relative;
+    overflow: hidden;
+    margin-top: 0;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
+}
+
+.project-action-btn.ai-chatbot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(167, 139, 250, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.project-action-btn.ai-chatbot:hover::before {
+    left: 100%;
+}
+
+.project-action-btn.ai-chatbot:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
+    border-color: var(--pd-primary);
+    color: var(--pd-primary);
+}
+
+.project-action-btn.ai-chatbot i {
+    color: var(--pd-primary);
+    font-size: 1.125rem;
+}
+
+.project-action-btn i {
+    font-size: 1rem;
+}
+
+.ai-badge-inline {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
     color: white;
-  }
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 0.25rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+}
 
-  .reject-btn:hover {
-    background-color: #d32f2f;
-  }
+html[dir="rtl"] .ai-badge-inline {
+    margin-left: 0;
+    margin-right: 0.25rem;
+}
 
-  .accept-btn svg,
-  .reject-btn svg {
-    width: 16px;
-    height: 16px;
-  }
+/* ===== ACTION BAR ===== */
+.pd-action-bar {
+    background: rgba(167, 139, 250, 0.08);
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
 
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .button-container {
-      flex-direction: column;
+.pd-action-bar-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.pd-action-group {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.pd-btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: var(--pd-radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+    font-family: inherit;
+}
+
+.pd-btn-action.btn-view {
+    background: linear-gradient(135deg, var(--pd-primary), var(--pd-accent));
+    color: var(--pd-deep);
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.pd-btn-action.btn-view:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+    color: var(--pd-deep);
+}
+
+.pd-btn-action.btn-download {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--pd-text-secondary);
+}
+
+.pd-btn-action.btn-download:hover {
+    border-color: var(--pd-primary);
+    color: var(--pd-primary);
+    background: rgba(167, 139, 250, 0.15);
+    transform: translateY(-2px);
+}
+
+.pd-btn-action.btn-edit {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.2);
+    color: var(--pd-text-secondary);
+}
+
+.pd-btn-action.btn-edit:hover {
+    border-color: var(--pd-primary);
+    color: var(--pd-primary);
+    background: rgba(167, 139, 250, 0.15);
+}
+
+.pd-btn-action.btn-delete {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}
+
+.pd-btn-action.btn-delete:hover {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+.pd-btn-action i {
+    font-size: 1rem;
+}
+
+.pd-view-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--pd-text-muted);
+    font-size: 0.9rem;
+}
+
+.pd-view-counter i {
+    color: var(--pd-primary);
+}
+
+/* ===== MAIN CONTENT ===== */
+.pd-content {
+    max-width: 1200px;
+    margin: 2rem auto 0;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 2;
+}
+
+.pd-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .pd-layout {
+        grid-template-columns: 1fr;
     }
-
-    .btn-action,
-    .button-container form .btn-action {
-      width: 100%;
-      min-width: auto;
+    
+    .pd-action-bar-container {
+        flex-direction: column;
     }
-  }
+}
+
+/* ===== MAIN COLUMN ===== */
+.pd-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.pd-card {
+    margin-bottom: 2rem;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-xl);
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+.pd-card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    overflow-wrap: break-word;
+}
+
+.pd-card-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(167, 139, 250, 0.15);
+    border-radius: var(--pd-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pd-primary);
+    font-size: 1.125rem;
+}
+
+.pd-card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--pd-text);
+    margin: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.4;
+}
+
+.pd-card-body {
+    padding: 2rem 1.5rem;
+}
+
+/* Description */
+.pd-description {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--pd-text-secondary);
+}
+
+/* Timeline */
+.pd-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+html[dir="rtl"] .pd-timeline {
+    padding-left: 0;
+    padding-right: 2rem;
+}
+
+.pd-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(167, 139, 250, 0.15);
+}
+
+html[dir="rtl"] .pd-timeline::before {
+    left: auto;
+    right: 0.5rem;
+}
+
+.pd-timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+}
+
+.pd-timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.pd-timeline-dot {
+    position: absolute;
+    left: -1.5rem;
+    top: 0.25rem;
+    width: 12px;
+    height: 12px;
+    background: var(--pd-deep);
+    border: 2px solid var(--pd-primary);
+    border-radius: 50%;
+}
+
+html[dir="rtl"] .pd-timeline-dot {
+    left: auto;
+    right: -1.5rem;
+}
+
+.pd-timeline-dot.active {
+    background: var(--pd-primary);
+}
+
+.pd-timeline-date {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--pd-primary);
+    margin-bottom: 0.25rem;
+}
+
+.pd-timeline-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--pd-text);
+    margin-bottom: 0.25rem;
+}
+
+.pd-timeline-desc {
+    font-size: 0.875rem;
+    color: var(--pd-text-secondary);
+}
+
+/* ===== SIDEBAR ===== */
+.pd-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Team Card */
+.pd-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.pd-team-member {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: var(--pd-radius-md);
+}
+
+.pd-team-member.coordinator {
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+.pd-member-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(167, 139, 250, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.pd-member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pd-member-avatar-placeholder {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--pd-primary);
+    text-transform: uppercase;
+}
+
+.pd-member-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.pd-member-link {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.pd-member-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--pd-text);
+    margin-bottom: 0.125rem;
+}
+
+.pd-member-role {
+    font-size: 0.8rem;
+    color: var(--pd-text-muted);
+}
+
+.pd-member-badge {
+    padding: 0.25rem 0.625rem;
+    background: var(--pd-primary);
+    color: var(--pd-deep);
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: var(--pd-radius-sm);
+    text-transform: uppercase;
+}
+
+/* Join Button */
+.pd-join-section {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid rgba(167, 139, 250, 0.15);
+}
+
+.pd-join-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    background: linear-gradient(135deg, var(--pd-primary), var(--pd-accent));
+    color: var(--pd-deep);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: var(--pd-radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pd-join-btn:hover {
+    background: linear-gradient(135deg, var(--pd-primary-dark), var(--pd-primary));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(167, 139, 250, 0.3);
+}
+
+.pd-join-btn.pending {
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--pd-text-muted);
+    cursor: not-allowed;
+}
+
+.pd-join-btn.member {
+    background: rgba(52, 211, 153, 0.15);
+    color: #86efac;
+}
+
+/* Links Card */
+.pd-links-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.pd-link-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: var(--pd-radius-md);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.pd-link-item:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: rgba(167, 139, 250, 0.3);
+}
+
+.pd-link-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(167, 139, 250, 0.1);
+    border-radius: var(--pd-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pd-primary);
+    font-size: 1rem;
+}
+
+.pd-link-text {
+    flex: 1;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--pd-text);
+}
+
+.pd-link-arrow {
+    color: var(--pd-text-muted);
+    font-size: 0.875rem;
+}
+
+/* Info Card */
+.pd-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.pd-info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.pd-info-icon {
+    width: 32px;
+    height: 32px;
+    background: rgba(167, 139, 250, 0.1);
+    border-radius: var(--pd-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pd-primary);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.pd-info-content {
+    flex: 1;
+}
+
+.pd-info-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--pd-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 0.125rem;
+}
+
+.pd-info-value {
+    font-size: 0.9rem;
+    color: var(--pd-text);
+}
+
+/* Back Link */
+.pd-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    background: var(--pd-white);
+    border: 1px solid var(--pd-border);
+    border-radius: var(--pd-radius-md);
+    color: var(--pd-text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.pd-back:hover {
+    background: var(--pd-muted);
+    color: var(--pd-text);
+}
+
+.pd-review-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.62rem 1rem;
+    border-radius: var(--pd-radius-md);
+    border: 1px solid transparent;
+    font-weight: 700;
+    text-decoration: none;
+    color: #fff;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+}
+
+.pd-review-btn:hover {
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+.pd-review-btn.back { 
+    background: #475569;
+}
+
+.pd-review-btn.back:hover {
+    background: #475569;
+    color: #ffffff;
+}
+.pd-review-btn.edit { background: #1d4ed8; }
+.pd-review-btn.reject { background: #b91c1c; }
+.pd-review-btn.approve { background: #047857; }
+
+.pd-review-form {
+    display: inline-flex;
+    margin: 0;
+}
+
+/* Empty State */
+.pd-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--pd-text-muted);
+    font-size: 0.9rem;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .pd-hero {
+        padding: 1.5rem 0 3rem;
+    }
+    
+    .pd-hero-content {
+        flex-direction: column;
+    }
+    
+    .pd-hero-actions {
+        width: 100%;
+    }
+    
+    .pd-btn {
+        flex: 1;
+        justify-content: center;
+    }
+    
+    .pd-content {
+        padding: 0 1rem 3rem;
+    }
+}
+/* Styles pour la carte Ressources (Style Corpus) */
+.pd-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: rgba(167, 139, 250, 0.08);
+    border-radius: var(--pd-radius-md);
+    text-decoration: none;
+    color: var(--pd-text);
+    transition: all 0.2s ease;
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    margin-top: 0.5rem;
+}
+
+.pd-file-item:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: var(--pd-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
+    color: var(--pd-primary);
+}
+
+.pd-file-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.pd-file-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.pd-file-action {
+    font-size: 1.2rem;
+    color: var(--pd-primary);
+}
+
+.pd-info-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--pd-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.pd-empty-state {
+    text-align: center;
+    padding: 1.5rem;
+    background: rgba(167, 139, 250, 0.08);
+    border-radius: var(--pd-radius-md);
+    border: 1px dashed rgba(167, 139, 250, 0.2);
+    color: var(--pd-text-secondary);
+}
+
+/* Bouton d'ajout style Corpus */
+.btn-add-file {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: 1rem;
+    background: transparent;
+    border: 2px dashed rgba(167, 139, 250, 0.2);
+    border-radius: var(--pd-radius-md);
+    color: var(--pd-text-secondary);
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.btn-add-file:hover {
+    border-color: var(--pd-primary);
+    color: var(--pd-primary);
+    background: rgba(167, 139, 250, 0.1);
+}
+
+.invite-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(0, 0, 0, 0.6);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.invite-modal.is-open {
+    display: flex;
+}
+
+.invite-modal-card {
+    width: min(640px, 100%);
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+}
+
+.invite-modal-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.invite-modal-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.invite-modal-close {
+    background: #f1f5f9;
+    border: 1px solid #dbe4f3;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #334155;
+}
+
+.invite-modal-body {
+    padding: 1rem 1.25rem;
+}
+
+.invite-search-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.invite-search-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+}
+
+.invite-search-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    background: #1d4ed8;
+    color: #fff;
+    font-weight: 700;
+}
+
+.invite-search-results {
+    border: 1px solid #dbe4f3;
+    border-radius: 12px;
+    max-height: 220px;
+    overflow: auto;
+    background: #f8fafc;
+}
+
+.invite-result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+    gap: 0.75rem;
+}
+
+.invite-result-item:last-child {
+    border-bottom: 0;
+}
+
+.invite-user-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.invite-user-name {
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 0.92rem;
+}
+
+.invite-user-email {
+    color: #64748b;
+    font-size: 0.86rem;
+}
+.invite-user-btn {
+    border: 1px solid #3b6cf5;
+    color: #fff;
+    background: linear-gradient(135deg, #5d8cff, #3b6cf5);
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(59,108,245,0.16);
+}
+.invite-user-btn.added {
+    background: #e8efff;
+    color: #1f2d3d;
+    border-color: #cbd5f7;
+}
+.invite-user-btn[disabled] {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.invite-empty {
+    padding: 1rem;
+    color: #64748b;
+    text-align: center;
+}
+
+.invite-modal-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.invite-btn-secondary,
+.invite-btn-primary {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font-weight: 700;
+}
+
+.invite-btn-secondary {
+    background: #fff;
+    color: #334155;
+}
+
+.invite-btn-primary {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #fff;
+}
+
+/* ===== DARK THEME ANIMATIONS ===== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.pd-page {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.pd-card {
+    animation: slideInRight 0.4s ease-out;
+}
+
+/* RTL Support */
+html[dir="rtl"] .pd-timeline {
+    padding-left: 0;
+    padding-right: 2rem;
+}
+
+html[dir="rtl"] .pd-timeline::before {
+    left: auto;
+    right: 0.5rem;
+}
+
+html[dir="rtl"] .pd-timeline-dot {
+    left: auto;
+    right: -1.5rem;
+}
+
 </style>
+{% endblock %}
 
+{% block content %}
+<div class="pd-page">
+    
+    <!-- ============ HERO HEADER ============ -->
+    <header class="pd-hero">
+        <div class="pd-hero-container">
+            
+            <!-- Breadcrumb -->
+            <nav class="pd-breadcrumb">
+                <a href="{% url 'projects:project_list' %}">{% translate "Projects" %}</a>
+                <span><i class="bi bi-chevron-right"></i></span>
+                <span class="current">{{ project.get_localized_title|truncatechars:50 }}</span>
+            </nav>
+            
+            <div class="pd-hero-content">
+                <div class="pd-hero-text">
+                    <span class="pd-status-badge {{ project.status }}">
+                        {% if project.status == 'ongoing' %}
+                        <i class="bi bi-play-circle-fill"></i>
+                        {% elif project.status == 'completed' %}
+                        <i class="bi bi-check-circle-fill"></i>
+                        {% else %}
+                        <i class="bi bi-calendar-event"></i>
+                        {% endif %}
+                        {{ project.get_status_display }}
+                    </span>
+                    
+                    <h1 class="pd-title">{{ project.get_localized_title }}</h1>
+                    
+                    <div class="pd-meta-row">
+                        <div class="pd-meta-item">
+                            <i class="bi bi-building"></i>
+                            {{ project.institution }}
+                        </div>
+                        {% if project.date_start %}
+                        <div class="pd-meta-item">
+                            <i class="bi bi-calendar3"></i>
+                            {{ project.date_start|date:"M d, Y" }}{% if project.date_end %} - {{ project.date_end|date:"M d, Y" }}{% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="pd-meta-item">
+                            <i class="bi bi-person"></i>
+                            {{ project.coordinator.full_name }}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if is_coordinator or can_invite_members %}
+                <div class="pd-hero-actions">
+                    {% if can_invite_members %}
+                    <button type="button" class="pd-btn pd-btn-invite" id="open-invite-modal-btn">
+                        <i class="bi bi-person-plus-fill"></i>
+                        {% translate "Invite Members" %}
+                    </button>
+                    {% endif %}
+                    {% if is_coordinator %}
+                    <a href="{% url 'projects:project_members' project.pk %}" class="pd-btn pd-btn-secondary">
+                        <i class="bi bi-people"></i>
+                        {% translate "Manage Team" %}
+                    </a>
+                    {% endif %}
+                    {% if request.user.is_authenticated %}
+                    <a href="{% url 'forum:topic-new' %}?project_id={{ project.pk }}" class="pd-btn pd-btn-secondary">
+                        <i class="bi bi-chat-square-text"></i>
+                        {% translate "Start Discussion" %}
+                    </a>
+                    {% endif %}
+                </div>
+                {% elif request.user.is_authenticated %}
+                <div class="pd-hero-actions">
+                    <a href="{% url 'forum:topic-new' %}?project_id={{ project.pk }}" class="pd-btn pd-btn-secondary">
+                        <i class="bi bi-chat-square-text"></i>
+                        {% translate "Start Discussion" %}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+        </div>
+    </header>
+    
+    <!-- ===== ACTION BAR ===== -->
+    <div class="pd-action-bar">
+        <div class="pd-action-bar-container">
+            <div class="pd-action-group">
+                {% if project.attachment %}
+                    {% if is_coordinator or is_member %}
+                    <button type="button" 
+                            class="pd-btn-action btn-view" 
+                            onclick="openDocumentViewer('{{ project.attachment.url }}', null, '{{ project.pk }}', '{{ project.title|escapejs }}')">
+                        <i class="bi bi-eye"></i>
+                        <span>{% translate "View Document" %}</span>
+                    </button>
+                    <a href="{{ project.attachment.url }}" class="pd-btn-action btn-download" download>
+                        <i class="bi bi-cloud-download"></i>
+                        <span>{% translate "Download Attachment" %}</span>
+                    </a>
+                    {% else %}
+                    <button type="button" 
+                            class="pd-btn-action btn-view" 
+                            style="opacity: 0.5; cursor: not-allowed;"
+                            disabled
+                            title="{% translate 'Members only' %}">
+                        <i class="bi bi-lock"></i>
+                        <span>{% translate "View Document" %}</span>
+                    </button>
+                    <button type="button" 
+                            class="pd-btn-action btn-download" 
+                            style="opacity: 0.5; cursor: not-allowed;"
+                            disabled
+                            title="{% translate 'Members only' %}">
+                        <i class="bi bi-lock"></i>
+                        <span>{% translate "Download Attachment" %}</span>
+                    </button>
+                    {% endif %}
+                {% else %}
+                <button type="button" 
+                        class="pd-btn-action btn-view" 
+                        style="opacity: 0.5; cursor: not-allowed;"
+                        disabled>
+                    <i class="bi bi-eye"></i>
+                    <span>{% translate "View Document" %}</span>
+                </button>
+                <button type="button" 
+                        class="pd-btn-action btn-download" 
+                        style="opacity: 0.5; cursor: not-allowed;"
+                        disabled>
+                    <i class="bi bi-cloud-download"></i>
+                    <span>{% translate "Download Attachment" %}</span>
+                </button>
+                {% endif %}
+                
+                {% if request.GET.admin_review and request.GET.review_model and request.GET.review_pk %}
+                {% if request.user.is_staff or request.user.is_superuser %}
+                <a class="pd-review-btn back" href="{% url 'pages:admin_projects' %}?tab=pending">
+                    <i class="bi bi-arrow-left"></i>{% if LANGUAGE_CODE|slice:":2" == "ar" %}العودة{% else %}{% translate "Back" %}{% endif %}
+                </a>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- ============ MAIN CONTENT ============ -->
+    <main class="pd-content">
+        <div class="pd-layout">
+            
+            <!-- Main Column -->
+            <div class="pd-main">
+                
+                <!-- Project Description -->
+                <div class="pd-card">
+                    <div class="pd-card-header">
+                        <div class="pd-card-icon">
+                            <i class="bi bi-file-text"></i>
+                        </div>
+                        <h2 class="pd-card-title">{% translate "Project Description" %}</h2>
+                    </div>
+                    <div class="pd-card-body">
+                        <div class="pd-description">
+                            {{ project.get_localized_description|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pd-card">
+                    <div class="pd-card-header">
+                        <div class="pd-card-icon">
+                            <i class="bi bi-folder2-open"></i>
+                        </div>
+                        <h2 class="pd-card-title">{% translate "Project Resources" %}</h2>
+                    </div>
+                    <div class="pd-card-body">
+        {% if project.attachment %}
+            <div class="pd-info-label">{% translate "Documents" %}</div>
+            
+            {% if is_coordinator or is_member %}
+                <div class="pd-empty-state" style="margin-top: 0.5rem; background: #eff6ff; border: 1px solid #bfdbfe; padding: 1rem;">
+                    <i class="bi bi-info-circle-fill" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem; color: #3b82f6;"></i>
+                    <p style="margin:0; font-size: 0.85rem; font-weight: 500; color: #1e40af;">{% translate "Access project files from the action card above" %}</p>
+                </div>
+            {% else %}
+                <div class="pd-empty-state" style="margin-top: 0.5rem;">
+                    <i class="bi bi-lock-fill" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem; color: #f59e0b;"></i>
+                    <p style="margin:0; font-size: 0.85rem; font-weight: 500;">{% translate "Files are for members only" %}</p>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="pd-empty-state">
+                <i class="bi bi-files" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+                <p style="margin:0;">{% translate "No files attached to this project" %}</p>
+            </div>
+        {% endif %}
+
+        {% if is_coordinator %}
+        <a href="{% url 'projects:project_update' project.pk %}" class="btn-add-file">
+            <i class="bi bi-plus-circle"></i>
+            {% translate "Add / Update File" %}
+        </a>
+        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Back Link -->
+                <a href="{% url 'projects:project_list' %}" class="pd-back">
+                    <i class="bi bi-arrow-left"></i>
+                    {% translate "Back to Projects" %}
+                </a>
+                
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="pd-sidebar">
+                
+                <!-- Action Card (Course Style) -->
+                <div class="project-action-card">
+                    <div class="project-action-header">
+                        <p class="project-action-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}مشروع بحثي{% else %}{% translate "Research Project" %}{% endif %}</p>
+                        <h3 class="project-action-title">{{ project.get_status_display }}</h3>
+                    </div>
+                    <div class="project-action-body">
+                        <div class="project-action-stats">
+                            <div class="project-action-stat">
+                                <i class="bi bi-people"></i>
+                                <span class="project-action-stat-value">{{ team_members.count|add:"1" }}</span>
+                                <span class="project-action-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}حجم الفريق{% else %}{% translate "Team Size" %}{% endif %}</span>
+                            </div>
+                            <div class="project-action-stat">
+                                <i class="bi bi-file-earmark"></i>
+                                <span class="project-action-stat-value">{% if project.attachment %}1{% else %}0{% endif %}</span>
+                                <span class="project-action-stat-label">{% if request.LANGUAGE_CODE|slice:":2" == "ar" %}الملفات{% else %}{% translate "Files" %}{% endif %}</span>
+                            </div>
+                        </div>
+                        
+                        {% if project.attachment and is_coordinator or project.attachment and is_member %}
+                        <button type="button" 
+                                class="project-action-btn primary"
+                                onclick="openDocumentViewer('{{ project.attachment.url }}', null, '{{ project.pk }}', '{{ project.title|escapejs }}')">
+                            <i class="bi bi-eye"></i>
+                            {% trans "View Document" %}
+                        </button>
+                        <a href="{{ project.attachment.url }}" class="project-action-btn secondary" download>
+                            <i class="bi bi-download"></i>
+                            {% trans "Download Attachment" %}
+                        </a>
+                        {% endif %}
+                        
+                        <button type="button" class="project-action-btn secondary" onclick="window.print()">
+                            <i class="bi bi-printer"></i>
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}طباعة المعلومات{% else %}{% trans "Print Info" %}{% endif %}
+                        </button>
+                        
+                        <a href="{% url 'chatbot:chatbot_interface' %}?context=project&id={{ project.id }}" class="project-action-btn ai-chatbot">
+                            <i class="bi bi-robot"></i>
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}اسأل روبوت الذكاء الاصطناعي{% else %}{% trans "Ask AI Robot" %}{% endif %}
+                            <span class="ai-badge-inline">AI</span>
+                        </a>
+
+                        {% if is_coordinator or is_member %}
+                        <a href="{% url 'projects:project_chatroom' project.pk %}" class="project-action-btn secondary">
+                            <i class="bi bi-chat-dots"></i>
+                            {% if request.LANGUAGE_CODE|slice:":2" == "ar" %}
+                              💬 مناقشة المشروع
+                            {% else %}
+                              💬 Project Discussion
+                            {% endif %}
+                        </a>
+                        {% endif %}
+
+                    </div>
+                </div>
+                
+                <!-- Team Card -->
+                <div class="pd-card">
+                    <div class="pd-card-header">
+                        <div class="pd-card-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <h2 class="pd-card-title">{% translate "Research Team" %}</h2>
+                    </div>
+                    <div class="pd-card-body">
+                        <div class="pd-team-list">
+                            <!-- Coordinator -->
+                            <div class="pd-team-member coordinator">
+                                <a href="{% url 'accounts:profile' project.coordinator.pk %}" class="pd-member-link">
+                                    <div class="pd-member-avatar">
+                                        {% if project.coordinator.avatar %}
+                                        <img src="{{ project.coordinator.avatar.url }}" alt="{{ project.coordinator.full_name }}">
+                                        {% else %}
+                                        <span class="pd-member-avatar-placeholder">{{ project.coordinator.full_name|slice:":2"|upper }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="pd-member-info">
+                                        <div class="pd-member-name">{{ project.coordinator.full_name }}</div>
+                                        <div class="pd-member-role">{% translate "Coordinator" %}</div>
+                                    </div>
+                                </a>
+                                <span class="pd-member-badge">{% translate "Lead" %}</span>
+                            </div>
+                            
+                            <!-- Team Members -->
+                            {% for member in team_members %}
+                            <div class="pd-team-member">
+                                <a href="{% url 'accounts:profile' member.pk %}" class="pd-member-link">
+                                    <div class="pd-member-avatar">
+                                        {% if member.avatar %}
+                                        <img src="{{ member.avatar.url }}" alt="{{ member.full_name }}">
+                                        {% else %}
+                                        <span class="pd-member-avatar-placeholder">{{ member.full_name|slice:":2"|upper }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="pd-member-info">
+                                        <div class="pd-member-name">{{ member.full_name }}</div>
+                                        <div class="pd-member-role">{% translate "Researcher" %}</div>
+                                    </div>
+                                </a>
+                            </div>
+                            {% empty %}
+                            <div class="pd-empty">
+                                <i class="bi bi-person-plus"></i>
+                                <p>{% translate "No team members yet" %}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Join/Leave Section -->
+                    {% if user.is_authenticated and not is_coordinator %}
+                    <div class="pd-join-section">
+                        {% if is_member %}
+                            {% if has_pending_leave_request %}
+                            <button class="pd-join-btn pending" disabled>
+                                <i class="bi bi-hourglass-split"></i>
+                                {% translate "Leave Request Pending" %}
+                            </button>
+                            {% else %}
+                            <form method="post" action="{% url 'projects:leave_project' project.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="pd-join-btn member">
+                                    <i class="bi bi-box-arrow-right"></i>
+                                    {% translate "Request to Leave" %}
+                                </button>
+                            </form>
+                            {% endif %}
+                        {% elif has_pending_request %}
+                        <button class="pd-join-btn pending" disabled>
+                            <i class="bi bi-hourglass-split"></i>
+                            {% translate "Request Pending" %}
+                        </button>
+                        {% else %}
+                            {% if project.status != 'completed' %}
+                            <form method="post" action="{% url 'projects:join_project' project.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="pd-join-btn">
+                                    <i class="bi bi-person-plus"></i>
+                                    {% translate "Request to Join" %}
+                                </button>
+                            </form>
+                            {% else %}
+                            <button class="pd-join-btn pending" disabled>
+                                <i class="bi bi-lock"></i>
+                                {% translate "Project Closed" %}
+                            </button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Project Info Card -->
+                <div class="pd-card">
+                    <div class="pd-card-header">
+                        <div class="pd-card-icon">
+                            <i class="bi bi-info-circle"></i>
+                        </div>
+                        <h2 class="pd-card-title">{% translate "Project Info" %}</h2>
+                    </div>
+                    <div class="pd-card-body">
+                        <div class="pd-info-list">
+                            <div class="pd-info-item">
+                                <div class="pd-info-icon">
+                                    <i class="bi bi-building"></i>
+                                </div>
+                                <div class="pd-info-content">
+                                    <div class="pd-info-label">{% translate "Institution" %}</div>
+                                    <div class="pd-info-value">{{ project.institution }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="pd-info-item">
+                                <div class="pd-info-icon">
+                                    <i class="bi bi-calendar-check"></i>
+                                </div>
+                                <div class="pd-info-content">
+                                    <div class="pd-info-label">{% translate "Status" %}</div>
+                                    <div class="pd-info-value">{{ project.get_status_display }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="pd-info-item">
+                                <div class="pd-info-icon">
+                                    <i class="bi bi-clock"></i>
+                                </div>
+                                <div class="pd-info-content">
+                                    <div class="pd-info-label">{% translate "Created" %}</div>
+                                    <div class="pd-info-value">{{ project.created_at|date:"M d, Y" }}</div>
+                                </div>
+                            </div>
+                            
+                            {% if project.attachment %}
+                            <div class="pd-info-item">
+                                <div class="pd-info-icon">
+                                    <i class="bi bi-paperclip"></i>
+                                </div>
+                                <div class="pd-info-content">
+                                    <div class="pd-info-label">{% translate "Attachment" %}</div>
+                                    <div class="pd-info-value">
+                                        {% if project.coordinator == user or is_member %}
+                                        <a href="{{ project.attachment.url }}" target="_blank">{% translate "Download" %}</a>
+                                        {% else %}
+                                        {% translate "Members only" %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            
+        </div>
+    </main>
+    
+</div>
+
+{% if can_invite_members %}
+<div class="invite-modal" id="invite-members-modal" aria-hidden="true">
+    <div class="invite-modal-card" role="dialog" aria-modal="true" aria-labelledby="invite-members-title">
+        <div class="invite-modal-header">
+            <h3 class="invite-modal-title" id="invite-members-title">{% translate "Invite Members" %}</h3>
+            <button type="button" class="invite-modal-close" id="close-invite-modal-btn" aria-label="{% translate 'Close' %}">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="invite-modal-body">
+            <div class="invite-search-row">
+                <input type="text" class="invite-search-input" id="invite-search-input" placeholder="{% translate 'Search by email or username...' %}">
+                <button type="button" class="invite-search-btn" id="invite-search-btn">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+            <div id="invite-feedback" class="invite-empty">{% translate "Type at least 2 characters to search." %}</div>
+            <div class="invite-search-results" id="invite-search-results" style="display: none;"></div>
+        </div>
+        <div class="invite-modal-footer">
+            <button type="button" class="invite-btn-secondary" id="invite-cancel-btn">{% translate "Cancel" %}</button>
+            <button type="button" class="invite-btn-primary" id="invite-submit-btn">{% translate "Send Invitation" %}</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% include "components/document_viewer_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
+{% if can_invite_members %}
+<script>
+(function() {
+    'use strict';
+    const modal = document.getElementById('invite-members-modal');
+    const openBtn = document.getElementById('open-invite-modal-btn');
+    const closeBtn = document.getElementById('close-invite-modal-btn');
+    const cancelBtn = document.getElementById('invite-cancel-btn');
+    const searchInput = document.getElementById('invite-search-input');
+    const searchBtn = document.getElementById('invite-search-btn');
+    const resultsEl = document.getElementById('invite-search-results');
+    const feedbackEl = document.getElementById('invite-feedback');
+    const submitBtn = document.getElementById('invite-submit-btn');
+    const selectedUsers = new Set();
+
+    if (!modal || !openBtn || !closeBtn || !cancelBtn || !searchInput || !searchBtn || !resultsEl || !feedbackEl || !submitBtn) {
+        return;
+    }
+
+    const searchUrl = "{% url 'projects:project_invite_user_search' project.pk %}";
+    const inviteUrl = "{% url 'projects:project_invite' project.pk %}";
+
+    function getCsrfToken() {
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function openModal() {
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        searchInput.focus();
+    }
+
+    function closeModal() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function renderResults(items) {
+        resultsEl.innerHTML = '';
+        if (!items.length) {
+            resultsEl.style.display = 'none';
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = "{% translate 'No users found.' %}";
+            return;
+        }
+        feedbackEl.style.display = 'none';
+        resultsEl.style.display = 'block';
+        items.forEach(function(user) {
+            const row = document.createElement('div');
+            row.className = 'invite-result-item';
+            row.innerHTML = `
+                <span class="invite-user-main">
+                    <span class="invite-user-name"></span>
+                    <span class="invite-user-email"></span>
+                </span>
+                <button type="button" class="invite-user-btn"></button>
+            `;
+            row.querySelector('.invite-user-name').textContent = user.name || user.email;
+            row.querySelector('.invite-user-email').textContent = user.email;
+            const btn = row.querySelector('.invite-user-btn');
+            const updateBtn = () => {
+                if (user.already_invited) {
+                    btn.textContent = "{% translate 'Invited' %}";
+                    btn.disabled = true;
+                    btn.classList.remove('added');
+                    return;
+                }
+                if (selectedUsers.has(user.id)) {
+                    btn.textContent = "{% translate 'Added' %}";
+                    btn.classList.add('added');
+                } else {
+                    btn.textContent = "{% translate 'Invite' %}";
+                    btn.classList.remove('added');
+                }
+            };
+            btn.addEventListener('click', function() {
+                if (user.already_invited) return;
+                if (selectedUsers.has(user.id)) {
+                    selectedUsers.delete(user.id);
+                } else {
+                    selectedUsers.add(user.id);
+                }
+                updateBtn();
+            });
+            updateBtn();
+            resultsEl.appendChild(row);
+        });
+    }
+
+    function runSearch() {
+        const q = (searchInput.value || '').trim();
+        if (q.length < 2) {
+            resultsEl.style.display = 'none';
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = "{% translate 'Type at least 2 characters to search.' %}";
+            return;
+        }
+        fetch(searchUrl + '?q=' + encodeURIComponent(q), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.ok) {
+                throw new Error(data.error || 'Search failed');
+            }
+            renderResults(data.results || []);
+        })
+        .catch(function() {
+            resultsEl.style.display = 'none';
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = "{% translate 'Search failed. Please try again.' %}";
+        });
+    }
+
+    function sendInvites() {
+        if (!selectedUsers.size) {
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = "{% translate 'Select at least one user.' %}";
+            return;
+        }
+        const formData = new FormData();
+        selectedUsers.forEach(function(userId) {
+            formData.append('invited_users[]', userId);
+        });
+
+        fetch(inviteUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: formData,
+            credentials: 'same-origin',
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.ok) {
+                throw new Error(data.error || 'Invite failed');
+            }
+            window.location.reload();
+        })
+        .catch(function(err) {
+            feedbackEl.style.display = 'block';
+            feedbackEl.textContent = err.message || "{% translate 'Invite failed. Please try again.' %}";
+        });
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+    searchBtn.addEventListener('click', runSearch);
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            runSearch();
+        }
+    });
+    submitBtn.addEventListener('click', sendInvites);
+})();
+</script>
+{% endif %}
 {% endblock %}

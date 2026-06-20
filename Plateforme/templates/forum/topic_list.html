@@ -1,238 +1,283 @@
 {% extends 'base.html' %}
-{% load static %}
-{% load i18n %}
+{% load i18n static %}
 
-{% block title %}{% trans "Discussion topics | Arabic NLP Platform" %}{% endblock %}
+{% block title %}{% translate "Discussion Hub" %} | {% translate "Arabic NLP Platform" %}{% endblock %}
+
+{% block extra_styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap');
+.content{background:linear-gradient(135deg,#0f1419 0%,#1a1a2e 100%)}
+.forum-shell{position:relative;padding:3rem 0 2.5rem;color:#fff;overflow:hidden}
+.forum-shell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.1) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.08) 0%,transparent 50%);pointer-events:none}
+.forum-wrap{width:min(1400px,calc(100% - 4rem));margin:0 auto}
+.forum-wrap>*{position:relative;z-index:1}
+.forum-filter-card{background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(124,58,237,.04));border:1.5px solid rgba(167,139,250,.2);border-radius:28px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 12px 32px rgba(15,23,42,.25);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.forum-filter-grid{display:grid;grid-template-columns:auto 1.4fr 0.5fr auto;gap:0.8rem;align-items:center}
+.forum-stat-badge{background:transparent;border:none;padding:0;text-align:center;display:flex;align-items:center;justify-content:center;white-space:nowrap;gap:0.5rem}
+.forum-stat-number{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;line-height:1}
+.forum-stat-label{font-size:0.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:.4rem;font-weight:700}
+.forum-input-wrapper{position:relative;display:flex;align-items:center}
+.forum-input{width:100%;border:1.5px solid rgba(167,139,250,.24) !important;border-radius:24px;padding:.95rem 1rem;background:#1a1a2e !important;color:#fff !important;font-weight:500;transition:all .3s ease;-webkit-appearance:none;appearance:none;box-shadow:none !important}
+.forum-input:focus{outline:none;border-color:#ffffff !important;box-shadow:none !important}
+.forum-input:-webkit-autofill,.forum-input:-webkit-autofill:hover,.forum-input:-webkit-autofill:focus,.forum-input:-webkit-autofill:active{-webkit-text-fill-color:#fff !important;-webkit-box-shadow:0 0 0 1000px #1a1a2e inset !important;box-shadow:0 0 0 1000px #1a1a2e inset !important;transition:background-color 9999s ease-in-out 0s;caret-color:#a78bfa;}
+.forum-btn{border:none;border-radius:16px;padding:1rem 1.6rem;background:#a78bfa;color:#fff;font-weight:800;letter-spacing:.02em;box-shadow:none;transition:all .3s cubic-bezier(.34,.1,.68,1);cursor:pointer;font-size:.95rem;text-transform:uppercase;flex-shrink:0}
+.forum-btn:hover{transform:translateY(-3px);box-shadow:none;background:#a78bfa}
+.forum-btn:active{transform:translateY(-1px);box-shadow:0 6px 16px rgba(167,139,250,.2)}
+.forum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,340px));gap:1rem;justify-content:start}
+.forum-card{position:relative;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 36px rgba(0,0,0,.18);transition:all .3s ease;min-height:420px}
+.forum-card:hover{background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.12));border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 8px 20px rgba(167,139,250,.2)}
+.forum-accent{height:4px;width:100%;flex-shrink:0;background:linear-gradient(90deg,#a78bfa 0%,#7c3aed 50%,#ec4899 100%)}
+.forum-card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem .85rem;gap:.8rem;border-bottom:1px solid rgba(167,139,250,.15)}
+.forum-card-avatar{width:60px;min-width:60px;background:linear-gradient(135deg,#a78bfa,#7c3aed);border-radius:12px;text-align:center;padding:.6rem .4rem;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(167,139,250,.2);overflow:hidden;color:#0f1419;font-weight:700;font-size:1.4rem;line-height:1}
+.forum-card-header-info{flex:1;min-width:0}
+.forum-card-badges{display:flex;gap:.35rem;margin-bottom:.3rem;flex-wrap:wrap}
+.forum-card-badge{display:inline-flex;align-items:center;gap:.2rem;padding:.25rem .5rem;font-size:.65rem;font-weight:700;border-radius:999px;text-transform:uppercase;letter-spacing:.03em;background:rgba(52,211,153,.15);color:#34d399}
+.forum-card-badge.pending{background:rgba(245,158,11,.15);color:#f59e0b}
+.forum-card-title{margin:.2rem 0;font-size:.95rem;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.forum-body{padding:.8rem .85rem .65rem;display:flex;flex-direction:column;flex:1}
+.forum-excerpt{color:#d1d5db;line-height:1.45;margin:0;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem;margin-top:.4rem}
+.forum-info{display:flex;flex-direction:column;gap:.45rem;margin-top:.5rem;font-size:.8rem}
+.forum-info-row{display:flex;align-items:center;gap:.4rem;color:#cbd5e1}
+.forum-info-row i{color:#a78bfa;font-size:.85rem;width:14px;text-align:center}
+.forum-link{display:flex;align-items:center;justify-content:center;gap:.35rem;padding:.72rem .8rem;border-top:1px solid rgba(167,139,250,.16);color:#c4b5fd;font-weight:800;text-decoration:none;margin-top:auto;font-size:.84rem}
+.forum-link:hover{background:rgba(255,255,255,.04)}
+.forum-actions{display:flex;align-items:center;justify-content:space-around;padding:1rem .85rem;border-top:1px solid rgba(167,139,250,.16);gap:.5rem;margin-top:auto}
+.forum-action-btn{display:flex;align-items:center;justify-content:center;gap:.4rem;flex:1;padding:.7rem .7rem;background:transparent;border:1px solid rgba(167,139,250,.2);border-radius:12px;color:#9ca3af;cursor:pointer;transition:all .3s ease;font-size:.85rem;font-weight:600;text-decoration:none;white-space:nowrap}
+.forum-action-btn:hover{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.4);color:#a78bfa;transform:translateY(-2px)}
+.forum-action-btn i{font-size:.95rem;width:16px;text-align:center;flex-shrink:0}
+.forum-action-btn.success{color:#10b981}
+.forum-action-btn.success:hover{background:rgba(16,185,129,.1);border-color:#10b981;color:#10b981}
+.forum-empty{background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(124,58,237,.08));border:1.5px solid rgba(167,139,250,.3);border-radius:28px;padding:4rem 2rem;text-align:center;position:relative;overflow:hidden;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.forum-empty::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(168,85,247,.08) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(124,58,237,.06) 0%,transparent 50%);pointer-events:none}
+.forum-empty-inner{position:relative;z-index:1}
+.forum-empty-icon{font-size:3.5rem;color:#a78bfa;margin-bottom:1rem;display:block;animation:float-empty 3s ease-in-out infinite}
+.forum-empty h3{margin:1rem 0 .75rem;font-family:'Inter',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.01em}
+.forum-empty p{margin:0 0 1.5rem;font-size:1rem;color:#cbd5e1;line-height:1.6;max-width:480px}
+.forum-empty-actions{display:flex;flex-direction:column;gap:.75rem;align-items:center;margin-top:1.5rem}
+.forum-empty-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(124,58,237,.1));border:1.5px solid rgba(167,139,250,.3);border-radius:14px;color:#a78bfa;text-decoration:none;font-weight:700;transition:all .3s ease;font-size:.9rem}
+.forum-empty-btn:hover{background:linear-gradient(135deg,rgba(167,139,250,.25),rgba(124,58,237,.2));border-color:#a78bfa;color:#ede9fe;transform:translateY(-2px)}
+@keyframes float-empty{0%,100%{transform:translateY(0px);}50%{transform:translateY(-12px);}}
+.forum-hero{position:relative;padding:2rem 0;margin:1rem auto 1.5rem;text-align:left;display:flex;align-items:flex-start;gap:2.5rem;justify-content:flex-start;background:transparent;border:none;box-shadow:none}
+.forum-hero-inner{max-width:920px;margin:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;flex:1;gap:.8rem}
+.forum-hero-icon{display:flex;align-items:center;justify-content:center;width:10rem;height:9rem;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1));border:none;border-radius:1.5rem;font-size:5rem;color:#a78bfa;margin-bottom:0;margin-left:2rem;box-shadow:0 12px 28px rgba(15,23,42,.22);flex-shrink:0}
+.forum-hero h1{margin:0;font-family:'Inter',sans-serif;font-size:clamp(2.3rem,7vw,3.3rem);font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.02em;text-align:left}
+.forum-hero p{margin:0;font-family:'Inter',sans-serif;font-size:20.8px;color:#a78bfa;line-height:1.7;font-weight:600;text-align:left}
+@media (max-width:1000px){.forum-hero{flex-direction:column;text-align:center;align-items:center;gap:2rem}}
+@media (max-width:768px){.forum-hero{padding:2rem 1.25rem;margin:1rem auto 1.25rem;flex-direction:column;text-align:center;align-items:center}.forum-hero h1{font-size:2rem;text-align:center}.forum-hero p{font-size:1rem;text-align:center}.forum-hero-icon{width:5.5rem;height:5.5rem;font-size:2.5rem}}
+@media (max-width:480px){.forum-hero{padding:1.5rem 1rem;margin:.5rem auto 1rem}.forum-hero h1{font-size:1.5rem}.forum-hero p{font-size:.9rem}.forum-hero-icon{width:4.5rem;height:4.5rem;font-size:2rem}}
+
+/* Forum Cards with Original Structure */
+.ft-topic-list{display:grid;grid-gap:1.5rem;margin-top:2rem}
+.ft-topic-card{display:grid;grid-template-columns:auto 1fr 100px;gap:1rem;padding:1.5rem;background:rgba(17,24,39,.6);border:1px solid rgba(167,139,250,.2);border-radius:12px;overflow:hidden;position:relative;transition:all .3s cubic-bezier(.4,0,.2,1)}
+.ft-topic-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a78bfa,#7c3aed)}
+.ft-topic-card:hover{background:rgba(17,24,39,.8);border-color:rgba(167,139,250,.4);transform:translateY(-2px);box-shadow:0 20px 40px rgba(124,58,237,.1)}
+
+.ft-meta-col{display:flex;flex-direction:column;gap:1rem;min-width:250px}
+.ft-user-meta{display:flex;gap:1rem;align-items:flex-start}
+.ft-user-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:2px solid rgba(167,139,250,.3);transition:all .3s ease}
+.ft-user-avatar img{width:100%;height:100%;object-fit:cover}
+.ft-user-avatar i{color:#fff;font-size:1.5rem}
+.ft-user-meta:hover .ft-user-avatar{transform:scale(1.1);border-color:rgba(167,139,250,.6)}
+.ft-user-info{flex:1;min-width:0}
+.ft-user-name-row{display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;flex-wrap:wrap}
+.ft-user-name{font-weight:600;color:#f3f4f6;margin:0;font-size:.95rem}
+.ft-pending-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.25rem .75rem;border-radius:20px;font-size:.75rem;font-weight:700}
+.ft-topic-tags{display:flex;gap:.5rem;flex-wrap:wrap}
+.ft-tag{display:inline-flex;align-items:center;gap:.3rem;background:rgba(139,92,246,.15);border:1px solid rgba(167,139,250,.3);color:#e9d5ff;padding:.35rem .65rem;border-radius:20px;font-size:.75rem;font-weight:500}
+.ft-tag i{font-size:.65rem}
+.ft-user-time{font-size:.85rem;color:#9ca3af;margin:0;margin-bottom:.5rem}
+.ft-user-topic-row{display:flex;flex-direction:column;gap:.5rem}
+.ft-topic-title{font-size:1.05rem;font-weight:700;color:#fff;margin:0;line-height:1.4}
+.ft-topic-title a{color:inherit;text-decoration:none;transition:color .3s ease}
+.ft-topic-title a:hover{color:#a78bfa}
+.ft-inline-excerpt{font-size:.875rem;color:#d1d5db;margin:0;line-height:1.4}
+
+.ft-card-actions{display:flex;gap:.5rem;flex-wrap:wrap;padding-top:.5rem}
+.ft-ai-actions{display:flex;gap:.4rem;flex-wrap:wrap;padding-top:.5rem}
+.ft-open-topic-btn,.ft-action-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem .75rem;border-radius:8px;border:1px solid transparent;background:rgba(167,139,250,.15);color:#e9d5ff;font-size:.8rem;font-weight:500;cursor:pointer;text-decoration:none;transition:all .3s ease}
+.ft-open-topic-btn i,.ft-action-btn i{font-size:.9rem}
+.ft-open-topic-btn:hover,.ft-action-btn:hover{background:rgba(167,139,250,.25);border-color:rgba(167,139,250,.4);color:#f3e8ff}
+.ft-action-btn.success{background:rgba(34,197,94,.15);color:#86efac;border-color:rgba(34,197,94,.3)}
+.ft-action-btn.success:hover{background:rgba(34,197,94,.25);border-color:rgba(34,197,94,.5);color:#bbf7d0}
+.ft-action-btn.primary{background:rgba(59,130,246,.15);color:#93c5fd;border-color:rgba(59,130,246,.3)}
+.ft-action-btn.primary:hover{background:rgba(59,130,246,.25);border-color:rgba(59,130,246,.5);color:#bfdbfe}
+.ft-action-btn.danger{background:rgba(239,68,68,.15);color:#fca5a5;border-color:rgba(239,68,68,.3)}
+.ft-action-btn.danger:hover{background:rgba(239,68,68,.25);border-color:rgba(239,68,68,.5);color:#fecaca}
+
+.ft-content-col{display:flex;align-items:center;justify-content:space-around;gap:.75rem;padding:0 1rem}
+.ft-content-actions{display:flex;gap:.5rem;width:100%;justify-content:center}
+
+.ft-stats-col{display:flex;flex-direction:column;gap:1rem;justify-content:center;align-items:center;padding:0 .5rem;text-align:center}
+.ft-stat-item{display:flex;flex-direction:column;align-items:center;gap:.25rem}
+.ft-stat-num{font-size:1.25rem;font-weight:700;background:linear-gradient(135deg,#a78bfa,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.ft-stat-txt{font-size:.75rem;color:#9ca3af;font-weight:500}
+
+@media (max-width:900px){
+  .ft-topic-card{grid-template-columns:1fr;gap:.75rem}
+  .ft-meta-col{min-width:auto}
+  .ft-stats-col{flex-direction:row;gap:1.5rem;justify-content:space-between;padding:0}
+  .ft-content-col{padding:0}
+}
+
+@media (max-width:640px){
+  .ft-topic-card{padding:1rem}
+  .ft-user-name-row{gap:.5rem}
+  .ft-topic-title{font-size:.95rem}
+  .ft-card-actions{gap:.35rem}
+  .ft-open-topic-btn,.ft-action-btn{padding:.4rem .6rem;font-size:.7rem}
+  .ft-stats-col{flex-direction:row;gap:1rem}
+  .ft-stat-num{font-size:1rem}
+  .ft-stat-txt{font-size:.65rem}
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="forum-header">
-        <h1 class="forum-title">{% trans "Discussion topics" %}</h1>
-        <a href="{% url 'forum:topic-new' %}" class="btn btn-primary">
-            <i class="fas fa-plus-circle"></i> {% trans "New topic" %}
-        </a>
+<div class="forum-shell">
+  <div class="forum-wrap">
+    <div class="forum-hero">
+      <span class="forum-hero-icon"><i class="bi bi-chat-square-quote"></i></span>
+      <div class="forum-hero-inner">
+        <h1>{% translate "Discussion Hub" %}</h1>
+        <p>{% translate "Connect, share knowledge, and collaborate with Arabic NLP researchers! <br>Build impactful projects and contribute to the future of Arabic NLP." %}</p>
+      </div>
     </div>
-    
+
+    <div class="forum-filter-card">
+      <form method="get" class="forum-filter-grid">
+        <div class="forum-stat-badge">
+          <i class="bi bi-chat-square-text" style="font-size:1.5rem;color:#a78bfa;margin-right:0.5rem;"></i>
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <div class="forum-stat-number">{{ topics|length|default:"0" }}</div>
+            <div class="forum-stat-label">{% translate "Topics" %}</div>
+          </div>
+        </div>
+        <div class="forum-input-wrapper">
+          <input class="forum-input" type="text" name="q" value="{{ search_query|default:'' }}" placeholder="{% translate 'Search discussions...' %}" id="topicSearch" autocomplete="off">
+        </div>
+        <button class="forum-btn" type="submit">{% translate "Search" %}</button>
+        {% if user.is_authenticated %}
+        <a href="{% url 'forum:topic-new' %}" class="forum-btn" style="display:flex;align-items:center;justify-content:center;gap:0.5rem;text-decoration:none;">
+          <i class="bi bi-plus"></i>{% translate "New Topic" %}
+        </a>
+        {% endif %}
+      </form>
+    </div>
+
     {% if topics %}
-    <div class="topic-list">
-        {% for topic in topics %}
-        <div class="topic-card">
-            <div class="topic-card-header">
-                <div class="topic-info">
-                    <a href="{% url 'forum:chatroom-list' topic.id %}" class="topic-title">
-                        <h3>{{ topic.title }}</h3>
-                    </a>
-                    <div class="topic-meta">
-                        <span class="topic-author">
-                            <i class="fas fa-user"></i> {{ topic.creator.full_name }}
-                        </span>
-                        <span class="topic-date">
-                            <i class="far fa-calendar-alt"></i> {{ topic.created_at|date:"d/m/Y" }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="topic-card-body">
-                <p class="topic-description">{{ topic.description }}</p>
-            </div>
-            
-            <div class="topic-card-footer">
-                <a href="{% url 'forum:chatroom-new' topic.id %}" class="btn btn-outline btn-sm">
-                    <i class="fas fa-comments"></i> {% trans "Create a chat room" %}
-                </a>
-                
-                {% if topic.creator == user %}
-                <div class="topic-actions">
-                    <a href="{% url 'forum:topic-update' topic.id %}" class="btn btn-outline btn-sm">
-                        <i class="fas fa-edit"></i> {% trans "Edite" %}
-                    </a>
-                    <a href="{% url 'forum:topic-delete' topic.id %}" class="btn btn-danger btn-sm">
-                        <i class="fas fa-trash"></i>{% trans "Delete" %} 
-                    </a>
-                </div>
+    <div class="ft-topic-list" id="topicList">
+      {% for topic in topics %}
+      <article class="ft-topic-card {% if topic.approval_status == 'pending' and topic.creator == user %}is-pending{% endif %}" data-title="{{ topic.get_localized_title|lower }}">
+        
+        <!-- User Meta - LEFT SIDE -->
+        <div class="ft-meta-col">
+          <div class="ft-user-meta">
+            <a href="{% url 'accounts:profile' topic.creator.pk %}" class="ft-user-avatar" style="text-decoration: none;">
+              {% if topic.creator.avatar %}
+              <img src="{{ topic.creator.avatar.url }}" alt="{{ topic.creator.get_full_name_display }}">
+              {% else %}
+              <i class="bi bi-person"></i>
+              {% endif %}
+            </a>
+            <div class="ft-user-info">
+              <div class="ft-user-name-row">
+                <p class="ft-user-name"><a href="{% url 'accounts:profile' topic.creator.pk %}" style="color: inherit; text-decoration: none;">{{ topic.creator.get_full_name_display|default:topic.creator.username }}</a></p>
+                {% if topic.approval_status == 'pending' and topic.creator == user %}
+                <span class="ft-pending-badge site-approval-badge site-approval-pending">
+                  <i class="bi bi-hourglass-split"></i>
+                  {% translate "Pending Approval" %}
+                </span>
                 {% endif %}
+                <div class="ft-topic-tags">
+                  <span class="ft-tag">
+                    <i class="bi bi-tag"></i>
+                    {% translate "NLP" %}
+                  </span>
+                  <span class="ft-tag">
+                    <i class="bi bi-globe2"></i>
+                    {% translate "Arabic" %}
+                  </span>
+                </div>
+              </div>
+              <p class="ft-user-time">{{ topic.created_at|timesince }} {% translate "ago" %}</p>
+              <div class="ft-user-topic-row">
+                <h3 class="ft-topic-title">
+                  <a href="{% url 'forum:topic-detail' topic.id %}">{{ topic.get_localized_title }}</a>
+                </h3>
+                <p class="ft-inline-excerpt">{{ topic.get_localized_description|truncatechars:120 }}</p>
+              </div>
             </div>
+          </div>
+          
+          <div class="ft-card-actions">
+            <a href="{% url 'forum:topic-detail' topic.id %}" class="ft-open-topic-btn" title="{% translate 'View topic' %}">
+              <i class="bi bi-eye"></i>
+              {% translate "View topic" %}
+            </a>
+            <a href="{% url 'forum:chatroom-new' topic.id %}" class="ft-action-btn success" title="{% translate 'Create Chat Room' %}">
+              <i class="bi bi-chat-dots"></i>
+            </a>
+            {% if topic.creator == user or user.is_staff %}
+            <a href="{% url 'forum:topic-update' topic.id %}" class="ft-action-btn primary" title="{% if topic.approval_status == 'pending' %}{% translate 'Edit Form' %}{% else %}{% translate 'Edit' %}{% endif %}">
+              <i class="bi {% if topic.approval_status == 'pending' %}bi-file-earmark-text{% else %}bi-pencil{% endif %}"></i>
+            </a>
+            <a href="{% url 'forum:topic-delete' topic.id %}" class="ft-action-btn danger" title="{% translate 'Delete' %}">
+              <i class="bi bi-trash3"></i>
+            </a>
+            {% endif %}
+          </div>
+          <div class="ft-ai-actions">
+            {% include "includes/card_top_actions.html" with content_type="topic" object_id=topic.id title=topic.get_localized_title description=topic.get_localized_description|truncatewords:40 category=topic.category author=topic.creator.get_full_name_display url=request.build_absolute_uri %}
+          </div>
         </div>
-        {% endfor %}
+        
+        <div class="ft-content-col">
+        </div>
+        
+        <!-- Stats - RIGHT SIDE -->
+        <div class="ft-stats-col">
+          <div class="ft-stat-item">
+            <div class="ft-stat-num replies">{{ topic.comment_count|default:"0" }}</div>
+            <div class="ft-stat-txt">{% translate "Comments" %}</div>
+          </div>
+          <div class="ft-stat-item">
+            <div class="ft-stat-num replies">{{ topic.chatroom_count|default:topic.chatrooms.count }}</div>
+            <div class="ft-stat-txt">{% translate "Rooms" %}</div>
+          </div>
+          <div class="ft-stat-item">
+            <div class="ft-stat-num views">{{ topic.views|default:"0" }}</div>
+            <div class="ft-stat-txt">{% translate "Views" %}</div>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
     </div>
-    
+    {% include 'components/_pagination.html' with page_obj=page_obj page_param='page' %}
     {% else %}
-    <div class="empty-state">
-        <div class="empty-state-icon">
-            <i class="fas fa-comments-alt"></i>
+    <div class="forum-empty">
+      <div class="forum-empty-inner">
+        <i class="bi bi-chat-square-quote forum-empty-icon"></i>
+        <h3>{% translate "No discussions yet" %}</h3>
+        <p>{% translate "Be the first to start a conversation in our community!" %}</p>
+        <div class="forum-empty-actions">
+          {% if user.is_authenticated %}
+          <a href="{% url 'forum:topic-new' %}" class="forum-empty-btn">
+            <i class="bi bi-plus-circle"></i>
+            <span>{% translate "Start Discussion" %}</span>
+          </a>
+          {% endif %}
+          <a href="?" class="forum-empty-btn" style="background:transparent;border:1.5px solid rgba(167,139,250,.3);">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>{% translate "Reset Filters" %}</span>
+          </a>
         </div>
-        <h3>{% trans "No topics have been created" %}</h3>
-        <p>{% trans "Be the first to start a discussion!" %}</p>
-        <a href="{% url 'forum:topic-new' %}" class="btn btn-primary">
-            <i class="fas fa-plus-circle"></i> {% trans "Create a topic" %}
-        </a>
+      </div>
     </div>
     {% endif %}
+  </div>
 </div>
-
-<style>
-    /* Forum specific styles */
-    .forum-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    
-    .forum-title {
-        font-size: 1.8rem;
-        font-weight: 600;
-        color: var(--primary-dark);
-        margin: 0;
-    }
-    
-    .topic-list {
-        display: grid;
-        gap: 1.25rem;
-    }
-    
-    .topic-card {
-        background-color: var(--bg-light);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-sm);
-        overflow: hidden;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        border: 1px solid var(--border-color);
-    }
-    
-    .topic-card:hover {
-        transform: translateY(-3px);
-        box-shadow: var(--shadow-md);
-    }
-    
-    .topic-card-header {
-        padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid var(--border-color);
-        background-color: rgba(0, 0, 0, 0.02);
-    }
-    
-    .topic-info {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .topic-title {
-        text-decoration: none;
-        color: var(--primary-color);
-    }
-    
-    .topic-title h3 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin: 0 0 0.5rem;
-        line-height: 1.3;
-    }
-    
-    .topic-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        font-size: 0.875rem;
-        color: var(--text-muted);
-    }
-    
-    .topic-meta i {
-        margin-right: 0.4rem;
-    }
-    
-    .topic-card-body {
-        padding: 1.25rem 1.5rem;
-    }
-    
-    .topic-description {
-        margin: 0;
-        color: var(--text-color);
-        line-height: 1.6;
-    }
-    
-    .topic-card-footer {
-        padding: 1rem 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        background-color: rgba(0, 0, 0, 0.01);
-        border-top: 1px solid var(--border-color);
-    }
-    
-    .topic-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .btn-danger {
-        background-color: #dc3545;
-        color: white;
-        border: 1px solid #dc3545;
-    }
-    
-    .btn-danger:hover {
-        background-color: #bb2d3b;
-        border-color: #bb2d3b;
-    }
-    
-    .btn-sm {
-        padding: 0.4rem 0.75rem;
-        font-size: 0.875rem;
-    }
-    
-    .empty-state {
-        text-align: center;
-        padding: 3rem 1rem;
-        background-color: var(--bg-light);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-sm);
-    }
-    
-    .empty-state-icon {
-        font-size: 3rem;
-        color: var(--text-muted);
-        margin-bottom: 1.5rem;
-    }
-    
-    .empty-state h3 {
-        font-size: 1.5rem;
-        margin-bottom: 0.75rem;
-        color: var(--text-color);
-    }
-    
-    .empty-state p {
-        color: var(--text-muted);
-        margin-bottom: 1.5rem;
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .forum-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        
-        .topic-card-footer {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        
-        .topic-actions {
-            margin-top: 0.75rem;
-            width: 100%;
-            justify-content: flex-start;
-        }
-    }
-    
-    @media (min-width: 768px) {
-        .topic-list {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
 {% endblock %}

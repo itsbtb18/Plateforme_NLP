@@ -1,0 +1,450 @@
+{% extends 'base_admin.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Pending Content Dashboard" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .content-table {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .type-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .type-corpus { background: #e3f2fd; color: #1976d2; }
+    .type-nlptool { background: #f3e5f5; color: #7b1fa2; }
+    .type-course { background: #fff3e0; color: #f57c00; }
+    .type-document { background: #fce4ec; color: #c2185b; }
+    .type-project { background: #e8f5e9; color: #388e3c; }
+    .type-topic { background: #fff9c4; color: #f57f17; }
+    .type-event { background: #ffebee; color: #c62828; }
+    
+    .action-btn {
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+    
+    .btn-approve {
+        background: #4caf50;
+        color: white;
+    }
+    
+    .btn-approve:hover {
+        background: #388e3c;
+    }
+    
+    .btn-reject {
+        background: #f44336;
+        color: white;
+    }
+    
+    .btn-reject:hover {
+        background: #c62828;
+    }
+    
+    .btn-bulk-action {
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        margin-right: 0.5rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+    }
+    
+    .filter-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        border: 2px solid #667eea;
+        background: white;
+        color: #667eea;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .filter-btn.active {
+        background: #667eea;
+        color: white;
+    }
+    
+    .author-link {
+        color: #667eea;
+        text-decoration: none;
+    }
+    
+    .author-link:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <h1 class="mb-2">
+            <i class="fas fa-tasks"></i>
+            {% trans "Pending Content Dashboard" %}
+        </h1>
+        <p class="mb-0">{% trans "Review and moderate user-submitted content across all platform modules" %}</p>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total }}</div>
+                <div class="stat-label">{% trans "Total Pending" %}</div>
+            </div>
+        </div>
+        {% for type, count in stats.by_type.items %}
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ count }}</div>
+                <div class="stat-label">{{ type }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Content Table -->
+    {% if pending_items %}
+    <div class="content-table">
+        <!-- Bulk Actions Bar -->
+        <div class="p-3 bg-light border-bottom">
+            <button class="btn btn-success btn-bulk-action" id="bulk-approve-btn" disabled>
+                <i class="fas fa-check"></i> {% trans "Approve Selected" %}
+            </button>
+            <button class="btn btn-danger btn-bulk-action" id="bulk-reject-btn" disabled>
+                <i class="fas fa-times"></i> {% trans "Reject Selected" %}
+            </button>
+            <span class="text-muted ms-3" id="selected-count">0 {% trans "selected" %}</span>
+        </div>
+        
+        <!-- Filter Bar -->
+        <div class="filter-section">
+            <strong>{% trans "Filter by Type:" %}</strong>
+            <button class="filter-btn active" data-filter="all">{% trans "All" %}</button>
+            <button class="filter-btn" data-filter="Corpus">Corpus</button>
+            <button class="filter-btn" data-filter="NLP Tool">NLP Tool</button>
+            <button class="filter-btn" data-filter="Course">Course</button>
+            <button class="filter-btn" data-filter="Document">Document</button>
+            <button class="filter-btn" data-filter="Document">Document</button>
+            <button class="filter-btn" data-filter="Thesis">Thesis</button>
+            <button class="filter-btn" data-filter="Memoir">Memoir</button>
+            <button class="filter-btn" data-filter="Project">Project</button>
+            <button class="filter-btn" data-filter="Forum Topic">Forum Topic</button>
+            <button class="filter-btn" data-filter="Event">Event</button>
+        </div>
+        
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">
+                            <input type="checkbox" id="select-all" class="form-check-input">
+                        </th>
+                        <th>{% trans "Type" %}</th>
+                        <th>{% trans "Title" %}</th>
+                        <th>{% trans "Author" %}</th>
+                        <th>{% trans "Created" %}</th>
+                        <th>{% trans "Extra Info" %}</th>
+                        <th style="width: 250px;">{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pending_items %}
+                    <tr class="content-row" data-type="{{ item.type }}" 
+                        data-id="{{ item.id }}" 
+                        data-app="{{ item.app_label }}" 
+                        data-model="{{ item.model_name }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input item-checkbox">
+                        </td>
+                        <td>
+                            <span class="type-badge type-{{ item.type_class }}">
+                                {{ item.type }}
+                            </span>
+                        </td>
+                        <td>
+                            <strong>{{ item.title|truncatewords:10 }}</strong>
+                        </td>
+                        <td>
+                            {% if item.author_id %}
+                            <a href="/admin/accounts/user/{{ item.author_id }}/change/" class="author-link" target="_blank">
+                                {{ item.author }}
+                            </a>
+                            {% else %}
+                            {{ item.author }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ item.created_at|date:"d M Y H:i" }}</small>
+                        </td>
+                        <td>
+                            {% if item.extra_info %}
+                            <small class="text-muted">{{ item.extra_info }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="action-btn btn-approve" onclick="approveItem(this, {{ item.id }}, '{{ item.app_label }}', '{{ item.model_name }}')">
+                                <i class="fas fa-check"></i> {% trans "Approve" %}
+                            </button>
+                            <button class="action-btn btn-reject" onclick="rejectItem(this, {{ item.id }}, '{{ item.app_label }}', '{{ item.model_name }}')">
+                                <i class="fas fa-times"></i> {% trans "Reject" %}
+                            </button>
+                            <a href="{{ item.admin_url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="content-table">
+        <div class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            <h3>{% trans "No Pending Content" %}</h3>
+            <p>{% trans "All content has been reviewed. Great job!" %}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Rejection Modal -->
+<div class="modal fade" id="rejectReasonModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% trans "Rejection Reason" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <textarea class="form-control" id="rejection-reason" rows="4" 
+                    placeholder="{% trans 'Optional: Provide a reason for rejection...' %}"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="btn btn-danger" id="confirm-reject-btn">{% trans "Confirm Rejection" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let pendingRejectionData = null;
+
+// Filter functionality
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Update active state
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        const filter = this.dataset.filter;
+        const rows = document.querySelectorAll('.content-row');
+        
+        rows.forEach(row => {
+            if (filter === 'all' || row.dataset.type === filter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+
+// Select all checkbox
+document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    checkboxes.forEach(cb => {
+        if (cb.closest('.content-row').style.display !== 'none') {
+            cb.checked = this.checked;
+        }
+    });
+    updateBulkActionButtons();
+});
+
+// Individual checkbox change
+document.querySelectorAll('.item-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateBulkActionButtons);
+});
+
+function updateBulkActionButtons() {
+    const selected = Array.from(document.querySelectorAll('.item-checkbox:checked'));
+    const count = selected.length;
+    
+    document.getElementById('selected-count').textContent = `${count} {% trans "selected" %}`;
+    document.getElementById('bulk-approve-btn').disabled = count === 0;
+    document.getElementById('bulk-reject-btn').disabled = count === 0;
+}
+
+// Bulk approve
+document.getElementById('bulk-approve-btn').addEventListener('click', function() {
+    const selected = getSelectedItems();
+    if (selected.length === 0) return;
+    
+    if (confirm(`{% trans "Approve" %} ${selected.length} {% trans "item(s)?" %}`)) {
+        bulkAction('/core/bulk-approve/', selected, 'approved');
+    }
+});
+
+// Bulk reject
+document.getElementById('bulk-reject-btn').addEventListener('click', function() {
+    const selected = getSelectedItems();
+    if (selected.length === 0) return;
+    
+    pendingRejectionData = selected;
+    const modal = new bootstrap.Modal(document.getElementById('rejectReasonModal'));
+    modal.show();
+});
+
+// Confirm rejection with reason
+document.getElementById('confirm-reject-btn').addEventListener('click', function() {
+    const reason = document.getElementById('rejection-reason').value;
+    bulkAction('/core/bulk-reject/', pendingRejectionData, 'rejected', reason);
+    bootstrap.Modal.getInstance(document.getElementById('rejectReasonModal')).hide();
+});
+
+function getSelectedItems() {
+    const selected = [];
+    document.querySelectorAll('.item-checkbox:checked').forEach(cb => {
+        const row = cb.closest('.content-row');
+        selected.push({
+            id: row.dataset.id,
+            app_label: row.dataset.app,
+            model_name: row.dataset.model
+        });
+    });
+    return selected;
+}
+
+function bulkAction(url, items, action, reason = '') {
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ items, reason })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(`{% trans "Error:" %} ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert(`{% trans "An error occurred" %}`);
+    });
+}
+
+function approveItem(btn, id, appLabel, modelName) {
+    if (!confirm(`{% trans "Approve this item?" %}`)) return;
+    
+    bulkAction('/core/bulk-approve/', [{id, app_label: appLabel, model_name: modelName}], 'approved');
+}
+
+function rejectItem(btn, id, appLabel, modelName) {
+    pendingRejectionData = [{id, app_label: appLabel, model_name: modelName}];
+    const modal = new bootstrap.Modal(document.getElementById('rejectReasonModal'));
+    modal.show();
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
+
+
